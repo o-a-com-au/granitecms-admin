@@ -222,7 +222,8 @@ main.editor-page {
   flex-direction: column;
   gap: 0.9rem;
   padding: 1.75rem 1.5rem;
-  background: #e9e9f5;
+  background: #fff;
+  border-right: 2px solid #eee;
   overflow-y: auto;
 }
 
