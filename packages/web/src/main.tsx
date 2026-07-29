@@ -1,5 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router';
+import { AuthProvider } from './auth/AuthContext.tsx';
 import { App } from './App.tsx';
 
 const container = document.getElementById('root');
@@ -9,6 +11,10 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <App />
+    <AuthProvider>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </AuthProvider>
   </StrictMode>,
 );

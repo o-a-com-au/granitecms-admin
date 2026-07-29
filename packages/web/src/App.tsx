@@ -1,8 +1,15 @@
+import { Route, Routes } from 'react-router';
+import { LoginPage } from './pages/LoginPage.tsx';
+import { HomePage } from './pages/HomePage.tsx';
+import { RequireAuth } from './auth/RequireAuth.tsx';
+
 export function App() {
   return (
-    <main>
-      <h1>cms-agent admin</h1>
-      <p>Nothing registered yet.</p>
-    </main>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<RequireAuth />}>
+        <Route path="/" element={<HomePage />} />
+      </Route>
+    </Routes>
   );
 }
