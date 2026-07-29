@@ -6,6 +6,7 @@ import { createRequireAuth } from '../auth/require-auth.ts';
 import type { Site } from '../sites/site.ts';
 import { SiteNotFoundError } from '../sites/site-not-found-error.ts';
 import { checkSiteStatus, type SiteStatus } from '../sites/site-status.ts';
+import { fetchSiteContent, type ContentListFilters } from '../sites/site-content.ts';
 
 // The raw token is never included here, full stop - built by this
 // explicit mapping function rather than spreading the Site record, so
@@ -61,6 +62,33 @@ function parseSiteUrl(input: string): URL | null {
   return parsed;
 }
 
+interface ContentQuery {
+  type?: string;
+  prefix?: string;
+  draftStatus?: string;
+}
+
+// D2: forwarded verbatim to match what GET /v1/content already
+// supports server-side. type/prefix are opaque, content-defined
+// strings on the agent side, not enums - only draftStatus has a
+// closed set of valid values worth rejecting early.
+function parseContentFilters(query: ContentQuery): ContentListFilters | null {
+  if (query.draftStatus !== undefined && query.draftStatus !== 'has-draft' && query.draftStatus !== 'no-draft') {
+    return null;
+  }
+  const filters: ContentListFilters = {};
+  if (query.type) {
+    filters.type = query.type;
+  }
+  if (query.prefix) {
+    filters.prefix = query.prefix;
+  }
+  if (query.draftStatus) {
+    filters.draftStatus = query.draftStatus;
+  }
+  return filters;
+}
+
 interface RotateTokenBody {
   token: string;
 }
@@ -86,6 +114,39 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
       const sites = await sitesStore.list();
       return Promise.all(sites.map(async (site) => toSiteListEntry(site, await checkSiteStatus(site))));
     });
+
+    // D1, D2: a single live call - unlike checkSiteStatus, this is
+    // calling the real resource it actually wants, so that call's own
+    // outcome already tells us everything needed. 502 (not a reused
+    // 401) for every failure bucket: this route genuinely is a
+    // gateway to another server, and 401 already means one specific
+    // thing everywhere else in this codebase - the caller's own admin
+    // session. The reason field, not the HTTP status, is what the
+    // frontend branches on.
+    app.get<{ Params: { id: string }; Querystring: ContentQuery }>(
+      '/:id/content',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const filters = parseContentFilters(request.query);
+        if (!filters) {
+          reply.code(400);
+          return { error: 'draftStatus must be "has-draft" or "no-draft"' };
+        }
+
+        const result = await fetchSiteContent(site, filters);
+        if (result.outcome === 'ok') {
+          return result.entries;
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
 
     // C1: never gated on reachability - the registry is metadata
     // only (C4), so a site with a bad URL/token is still registered

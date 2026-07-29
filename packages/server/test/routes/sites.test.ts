@@ -85,12 +85,57 @@ async function startFakeSite(acceptedToken: string): Promise<string> {
   return `http://127.0.0.1:${address.port}`;
 }
 
+const SAMPLE_ENTRY = { path: 'pages/about.json', title: 'About', type: 'page', published: true, hasDraft: false };
+
+// A second fake-site starter, kept separate from startFakeSite above
+// rather than complicating it further - this one serves real content
+// entries and echoes the received query string, for D1/D2's own
+// tests, without risking the existing C1/C3/C4 tests that already
+// depend on startFakeSite's exact behaviour.
+async function startFakeContentSite(acceptedToken: string): Promise<string> {
+  const handler = (req: IncomingMessage, res: ServerResponse) => {
+    if (req.url?.startsWith('/v1/content')) {
+      const auth = req.headers.authorization;
+      if (auth !== `Bearer ${acceptedToken}`) {
+        sendJson(res, 401, { error: 'invalid-token' });
+        return;
+      }
+      sendJson(res, 200, [SAMPLE_ENTRY, { ...SAMPLE_ENTRY, path: 'pages/contact.json', title: 'Contact' }]);
+      return;
+    }
+    sendJson(res, 404, { error: 'not found' });
+  };
+
+  fakeSite = createServer(handler);
+  await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+  const address = fakeSite.address();
+  if (address === null || typeof address === 'string') {
+    throw new Error('expected a real listening address');
+  }
+  return `http://127.0.0.1:${address.port}`;
+}
+
 afterEach(async () => {
   if (fakeSite) {
     await new Promise<void>((resolve) => fakeSite!.close(() => resolve()));
     fakeSite = undefined;
   }
 });
+
+async function registerSite(
+  app: Awaited<ReturnType<typeof buildServer>>,
+  cookie: string,
+  url: string,
+  token: string,
+): Promise<string> {
+  const response = await app.inject({
+    method: 'POST',
+    url: '/api/sites',
+    headers: { cookie },
+    payload: { url, token },
+  });
+  return response.json().id as string;
+}
 
 describe('sites routes', () => {
   it('every route requires authentication', async () => {
@@ -115,6 +160,9 @@ describe('sites routes', () => {
 
     const remove = await app.inject({ method: 'DELETE', url: '/api/sites/anything' });
     assert.equal(remove.statusCode, 401);
+
+    const content = await app.inject({ method: 'GET', url: '/api/sites/anything/content' });
+    assert.equal(content.statusCode, 401);
 
     await app.close();
   });
@@ -266,5 +314,98 @@ describe('sites routes', () => {
 
     const response = await app.inject({ method: 'DELETE', url: '/api/sites/does-not-exist', headers: { cookie } });
     assert.equal(response.statusCode, 404);
+  });
+
+  it('D1: lists real content entries from a real fake site', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeContentSite('content-token');
+    const id = await registerSite(app, cookie, siteUrl, 'content-token');
+
+    const response = await app.inject({ method: 'GET', url: `/api/sites/${id}/content`, headers: { cookie } });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), [
+      SAMPLE_ENTRY,
+      { ...SAMPLE_ENTRY, path: 'pages/contact.json', title: 'Contact' },
+    ]);
+
+    await app.close();
+  });
+
+  it('D2: forwards type, prefix, and draftStatus query params to the site', async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedUrl = '';
+    fakeSite = createServer((req, res) => {
+      receivedUrl = req.url ?? '';
+      sendJson(res, 200, []);
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const siteUrl = `http://127.0.0.1:${address.port}`;
+    const id = await registerSite(app, cookie, siteUrl, 'any-token');
+
+    await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/content?type=page&prefix=blog%2F&draftStatus=has-draft`,
+      headers: { cookie },
+    });
+
+    const params = new URLSearchParams(receivedUrl.split('?')[1]);
+    assert.equal(params.get('type'), 'page');
+    assert.equal(params.get('prefix'), 'blog/');
+    assert.equal(params.get('draftStatus'), 'has-draft');
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/content rejects an invalid draftStatus with 400', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeContentSite('content-token');
+    const id = await registerSite(app, cookie, siteUrl, 'content-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/content?draftStatus=not-a-real-value`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 400);
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/content returns 404 for an unknown site', async () => {
+    const { app, cookie } = await buildTestServer();
+
+    const response = await app.inject({ method: 'GET', url: '/api/sites/does-not-exist/content', headers: { cookie } });
+    assert.equal(response.statusCode, 404);
+  });
+
+  it('D3 groundwork: an unreachable site produces a 502 with reason "unreachable"', async () => {
+    const { app, cookie } = await buildTestServer();
+    const id = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');
+
+    const response = await app.inject({ method: 'GET', url: `/api/sites/${id}/content`, headers: { cookie } });
+
+    assert.equal(response.statusCode, 502);
+    assert.equal(response.json().reason, 'unreachable');
+
+    await app.close();
+  });
+
+  it('D3 groundwork: a rejected token produces a 502 with reason "unauthorized"', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeContentSite('the-real-token');
+    const id = await registerSite(app, cookie, siteUrl, 'a-wrong-token');
+
+    const response = await app.inject({ method: 'GET', url: `/api/sites/${id}/content`, headers: { cookie } });
+
+    assert.equal(response.statusCode, 502);
+    assert.equal(response.json().reason, 'unauthorized');
+
+    await app.close();
   });
 });
