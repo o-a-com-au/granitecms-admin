@@ -44,6 +44,36 @@ describe('fetchSitePreview', () => {
     }
   });
 
+  it('injects a <base> tag pointing at the real site origin, so root-relative assets (css/js) resolve correctly once embedded in the admin\'s iframe at a different origin/path', async () => {
+    const url = await startServer((_req, res) => {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      res.end('<html><head><link rel="stylesheet" href="/assets/style.css"></head><body>Home</body></html>');
+    });
+
+    const result = await fetchSitePreview({ url, token: 'x' }, '/');
+
+    assert.equal(result.outcome, 'ok');
+    if (result.outcome === 'ok') {
+      const html = new TextDecoder().decode(result.body);
+      assert.equal(html, `<html><head><base href="${url}/"><link rel="stylesheet" href="/assets/style.css"></head><body>Home</body></html>`);
+    }
+  });
+
+  it('does not inject a <base> tag into a non-HTML response (the 404 JSON case)', async () => {
+    const url = await startServer((_req, res) => {
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ statusCode: 404, error: 'Not Found', message: 'No page at "/nope"' }));
+    });
+
+    const result = await fetchSitePreview({ url, token: 'x' }, '/nope');
+
+    assert.equal(result.outcome, 'ok');
+    if (result.outcome === 'ok') {
+      const body = new TextDecoder().decode(result.body);
+      assert.equal(body.includes('<base'), false);
+    }
+  });
+
   it('F4: forwards the site\'s own 404 JSON verbatim - not swallowed or transformed', async () => {
     const url = await startServer((_req, res) => {
       res.writeHead(404, { 'content-type': 'application/json' });

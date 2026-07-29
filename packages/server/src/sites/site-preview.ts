@@ -12,6 +12,25 @@ export interface FetchSitePreviewOptions {
   timeoutMs?: number;
 }
 
+// The rendered page's root-relative asset references (e.g.
+// href="/assets/style.css") are meant to resolve against the SITE's
+// own origin - but the browser resolves them against wherever the
+// document was actually loaded from, which is this admin's own
+// preview proxy URL once embedded in the iframe. Without correction,
+// every stylesheet/script 404s (or worse, silently hits the admin's
+// own unrelated /assets/* route) instead of the real one. A <base>
+// tag is the standard fix for exactly this "proxied HTML, different
+// origin" situation - it only affects how the browser resolves
+// resource URLs, not the page's actual rendered content, so it's a
+// narrow exception to this route's otherwise byte-for-byte forwarding,
+// not a re-render or approximation of the draft state itself (F3 is
+// still about content, not asset plumbing). A no-op if the HTML has
+// no <head> tag to attach to.
+function injectBaseTag(html: string, siteUrl: string): string {
+  const baseHref = `${siteUrl}/`.replace(/"/g, '&quot;');
+  return html.replace(/<head[^>]*>/i, (match) => `${match}<base href="${baseHref}">`);
+}
+
 // F1, F3: a single call - unlike site-editor-content.ts's draft-then-
 // live fallback, GET /v1/preview/* already does that overlay itself
 // on the agent side, so the admin only ever needs to ask once and
@@ -41,10 +60,23 @@ export async function fetchSitePreview(
   if (interpreted.outcome === 'unauthorized') {
     return { outcome: 'unauthorized', message: 'The stored token was rejected' };
   }
+
+  const resolvedContentType = contentType ?? 'application/octet-stream';
+  if (resolvedContentType.startsWith('text/html')) {
+    const html = new TextDecoder().decode(interpreted.body);
+    const withBase = injectBaseTag(html, site.url);
+    return {
+      outcome: 'ok',
+      status: interpreted.status,
+      contentType: resolvedContentType,
+      body: new TextEncoder().encode(withBase).buffer,
+    };
+  }
+
   return {
     outcome: 'ok',
     status: interpreted.status,
-    contentType: contentType ?? 'application/octet-stream',
+    contentType: resolvedContentType,
     body: interpreted.body,
   };
 }
