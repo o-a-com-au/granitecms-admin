@@ -6,6 +6,9 @@ export interface FetchSiteOptions {
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
   authToken?: string;
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
 }
 
 export type FetchSiteResult = { outcome: 'response'; response: Response } | { outcome: 'unreachable' };
@@ -15,10 +18,10 @@ export type FetchSiteResult = { outcome: 'response'; response: Response } | { ou
 // hardcoded-URL static-analysis guard passing with zero allowlist
 // entries, since every caller goes through here instead of building
 // its own URL by hand. Only the mechanical part is shared; each
-// caller (site-status.ts, site-content.ts) keeps its own
-// interpretation of the response - those are different domain
-// concepts (a 4-way health status vs a 3-way content-fetch failure
-// reason) that don't belong in one shared result type.
+// caller (site-status.ts, site-content.ts, site-editor-content.ts,
+// site-draft-save.ts) keeps its own interpretation of the response -
+// those are different domain concepts that don't belong in one shared
+// result type.
 export async function fetchSite(
   site: Pick<Site, 'url'>,
   path: string,
@@ -26,11 +29,16 @@ export async function fetchSite(
 ): Promise<FetchSiteResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const headers = options.authToken ? { Authorization: `Bearer ${options.authToken}` } : undefined;
+  const headers = {
+    ...(options.authToken ? { Authorization: `Bearer ${options.authToken}` } : undefined),
+    ...options.headers,
+  };
 
   try {
     const response = await fetchImpl(new URL(path, site.url), {
+      method: options.method,
       headers,
+      body: options.body,
       signal: AbortSignal.timeout(timeoutMs),
     });
     return { outcome: 'response', response };
