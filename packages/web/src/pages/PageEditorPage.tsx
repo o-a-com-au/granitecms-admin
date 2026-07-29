@@ -68,7 +68,7 @@ export function PageEditorPage() {
   }
 
   return (
-    <main>
+    <main className="editor-page">
       <BackToRegistryLink />
       <h1>Editor</h1>
       <p>
@@ -99,12 +99,17 @@ export function PageEditorPage() {
         </section>
       )}
 
-      <label>
-        Content
-        <textarea value={content} onChange={(event) => setContent(event.target.value)} rows={20} cols={80} />
-      </label>
-
-      <PreviewFrame siteId={siteId} url={previewUrl} status={status} />
+      <div className="editor-layout">
+        <div className="editor-panel">
+          <label>
+            Content
+            <textarea value={content} onChange={(event) => setContent(event.target.value)} rows={20} />
+          </label>
+        </div>
+        <div className="preview-panel">
+          <PreviewFrame siteId={siteId} url={previewUrl} status={status} />
+        </div>
+      </div>
     </main>
   );
 }

@@ -198,3 +198,34 @@ iframe {
   border: 1px solid var(--colour-border);
   border-radius: var(--radius);
 }
+
+/* The editor page needs more room than a normal reading-width page to
+   fit the edit panel and preview side by side. */
+main.editor-page {
+  max-width: 1400px;
+}
+
+.editor-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.editor-panel {
+  flex: 0 0 400px;
+  max-width: 400px;
+}
+
+.editor-panel label {
+  max-width: none;
+}
+
+.editor-panel textarea {
+  width: 100%;
+}
+
+.preview-panel {
+  flex: 1;
+  min-width: 0;
+}
