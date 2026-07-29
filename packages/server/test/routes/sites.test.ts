@@ -160,6 +160,10 @@ interface FakeEditorSiteOptions {
   draftContent?: string;
   liveContent?: string;
   putDelayMs?: number;
+  // G1: lets a test inspect exactly what the site received for a
+  // publish call (e.g. the author identity), without widening this
+  // helper's return type for every existing caller.
+  onPublishBody?: (raw: string) => void;
 }
 
 async function startFakeEditorSite(options: FakeEditorSiteOptions): Promise<string> {
@@ -171,8 +175,8 @@ async function startFakeEditorSite(options: FakeEditorSiteOptions): Promise<stri
 
   let draftContent = options.draftContent ?? null;
   let draftEtag = draftContent !== null ? nextEtag() : null;
-  const liveContent = options.liveContent ?? null;
-  const liveEtag = liveContent !== null ? nextEtag() : null;
+  let liveContent = options.liveContent ?? null;
+  let liveEtag = liveContent !== null ? nextEtag() : null;
 
   const handler = (req: IncomingMessage, res: ServerResponse) => {
     if (req.headers.authorization !== `Bearer ${options.acceptedToken}`) {
@@ -223,6 +227,58 @@ async function startFakeEditorSite(options: FakeEditorSiteOptions): Promise<stri
         } else {
           write();
         }
+      });
+      return;
+    }
+
+    // G3: idempotent, matching the real agent - 204 whether or not a
+    // draft currently exists.
+    if (req.method === 'DELETE' && req.url === '/v1/drafts/pages/about.json') {
+      draftContent = null;
+      draftEtag = null;
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    // G1, G2: a real (if minimal) publish - moves draft content to
+    // live, matching the real agent's own draft-to-live move, so a
+    // subsequent GET /v1/content/... genuinely reflects it.
+    if (req.method === 'POST' && req.url === '/v1/publish') {
+      let raw = '';
+      req.on('data', (chunk: Buffer) => {
+        raw += chunk.toString();
+      });
+      req.on('end', () => {
+        options.onPublishBody?.(raw);
+        const body = JSON.parse(raw) as { paths: string[]; message: string; author: unknown };
+        if (!body.paths.includes('pages/about.json') || draftContent === null) {
+          sendJson(res, 404, { statusCode: 404, error: 'Not Found', message: 'draft-not-found' });
+          return;
+        }
+        liveContent = draftContent;
+        liveEtag = nextEtag();
+        draftContent = null;
+        draftEtag = null;
+        sendJson(res, 200, { ok: true });
+      });
+      return;
+    }
+
+    // G4: sets published:false on the live JSON in place, matching
+    // the real agent - the file stays, only the flag changes.
+    if (req.method === 'POST' && req.url === '/v1/unpublish/pages/about.json') {
+      req.resume();
+      req.on('end', () => {
+        if (liveContent === null) {
+          sendJson(res, 404, { statusCode: 404, error: 'Not Found', message: 'page-not-found' });
+          return;
+        }
+        const parsed = JSON.parse(liveContent) as Record<string, unknown>;
+        parsed.published = false;
+        liveContent = JSON.stringify(parsed);
+        liveEtag = nextEtag();
+        sendJson(res, 200, { ok: true });
       });
       return;
     }
@@ -305,6 +361,23 @@ describe('sites routes', () => {
 
     const preview = await app.inject({ method: 'GET', url: '/api/sites/anything/preview/about' });
     assert.equal(preview.statusCode, 401);
+
+    const discard = await app.inject({ method: 'DELETE', url: '/api/sites/anything/drafts/pages/about.json' });
+    assert.equal(discard.statusCode, 401);
+
+    const publish = await app.inject({
+      method: 'POST',
+      url: '/api/sites/anything/publish',
+      payload: { path: 'pages/about.json', message: 'msg' },
+    });
+    assert.equal(publish.statusCode, 401);
+
+    const unpublish = await app.inject({
+      method: 'POST',
+      url: '/api/sites/anything/unpublish/pages/about.json',
+      payload: { message: 'msg' },
+    });
+    assert.equal(unpublish.statusCode, 401);
 
     await app.close();
   });
@@ -804,6 +877,228 @@ describe('sites routes', () => {
 
     assert.equal(response.statusCode, 502);
     assert.equal(response.json().reason, 'unauthorized');
+
+    await app.close();
+  });
+
+  it('G1: POST /api/sites/:id/publish sends the logged-in admin\'s own name/email as author, never something the caller supplied', async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedBody = '';
+    const siteUrl = await startFakeEditorSite({
+      acceptedToken: 'the-token',
+      draftContent: '{"title":"Draft"}',
+      onPublishBody: (raw) => {
+        receivedBody = raw;
+      },
+    });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/publish`,
+      headers: { cookie },
+      payload: { path: 'pages/about.json', message: 'Ship the new about page' },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { ok: true });
+    assert.deepEqual(JSON.parse(receivedBody), {
+      paths: ['pages/about.json'],
+      message: 'Ship the new about page',
+      author: { name: TEST_NAME, email: TEST_EMAIL },
+    });
+
+    // G2: the draft is now gone and live reflects it, proven through
+    // the real content routes, not just the fake site's internal state.
+    const afterRead = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/content/pages/about.json`,
+      headers: { cookie },
+    });
+    assert.equal(afterRead.headers['x-content-source'], 'live');
+    assert.deepEqual(JSON.parse(afterRead.body), { title: 'Draft' });
+
+    await app.close();
+  });
+
+  it('G1: POST /api/sites/:id/publish rejects a missing/blank message with 400, without ever calling the site', async () => {
+    const { app, cookie } = await buildTestServer();
+    let publishWasCalled = false;
+    fakeSite = createServer((req, res) => {
+      // Registration performs its own live status check first - only
+      // a real call to /v1/publish itself should ever flip this flag.
+      if (req.method === 'POST' && req.url === '/v1/publish') {
+        publishWasCalled = true;
+      }
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'not found' }));
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const siteUrl = `http://127.0.0.1:${address.port}`;
+    const id = await registerSite(app, cookie, siteUrl, 'any-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/publish`,
+      headers: { cookie },
+      payload: { path: 'pages/about.json', message: '  ' },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(publishWasCalled, false, 'a blank message must be rejected before ever reaching the site');
+
+    await app.close();
+  });
+
+  it('G1: POST /api/sites/:id/publish returns 404 with reason "not-found" when the draft no longer exists', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeEditorSite({ acceptedToken: 'the-token' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/publish`,
+      headers: { cookie },
+      payload: { path: 'pages/about.json', message: 'msg' },
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.equal(response.json().reason, 'not-found');
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/publish returns 404 for an unknown site', async () => {
+    const { app, cookie } = await buildTestServer();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sites/does-not-exist/publish',
+      headers: { cookie },
+      payload: { path: 'pages/about.json', message: 'msg' },
+    });
+
+    assert.equal(response.statusCode, 404);
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/publish returns 502 with reason "unreachable" for an unreachable site', async () => {
+    const { app, cookie } = await buildTestServer();
+    const id = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/publish`,
+      headers: { cookie },
+      payload: { path: 'pages/about.json', message: 'msg' },
+    });
+
+    assert.equal(response.statusCode, 502);
+    assert.equal(response.json().reason, 'unreachable');
+
+    await app.close();
+  });
+
+  it('G3: DELETE /api/sites/:id/drafts/* discards the draft with no request body, returning 204', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeEditorSite({ acceptedToken: 'the-token', draftContent: '{"title":"Draft"}' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/sites/${id}/drafts/pages/about.json`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 204);
+
+    const afterRead = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/content/pages/about.json`,
+      headers: { cookie },
+    });
+    assert.equal(afterRead.statusCode, 404, 'the draft is gone and there was no live version either');
+
+    await app.close();
+  });
+
+  it('G4: POST /api/sites/:id/unpublish/* flips published to false on the live page in place', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeEditorSite({
+      acceptedToken: 'the-token',
+      liveContent: '{"title":"About","published":true}',
+    });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/unpublish/pages/about.json`,
+      headers: { cookie },
+      payload: { message: 'Taking this offline' },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { ok: true });
+
+    const afterRead = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/content/pages/about.json`,
+      headers: { cookie },
+    });
+    const body = JSON.parse(afterRead.body) as { title: string; published: boolean };
+    assert.equal(body.title, 'About', 'the file stays - unpublish never deletes it');
+    assert.equal(body.published, false);
+
+    await app.close();
+  });
+
+  it('G4: POST /api/sites/:id/unpublish/* rejects a missing message with 400, without ever calling the site', async () => {
+    const { app, cookie } = await buildTestServer();
+    let unpublishWasCalled = false;
+    fakeSite = createServer((req, res) => {
+      if (req.method === 'POST' && req.url === '/v1/unpublish/pages/about.json') {
+        unpublishWasCalled = true;
+      }
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'not found' }));
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const siteUrl = `http://127.0.0.1:${address.port}`;
+    const id = await registerSite(app, cookie, siteUrl, 'any-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/unpublish/pages/about.json`,
+      headers: { cookie },
+      payload: {},
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(unpublishWasCalled, false);
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/unpublish/* returns 404 for an unknown site', async () => {
+    const { app, cookie } = await buildTestServer();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sites/does-not-exist/unpublish/pages/about.json',
+      headers: { cookie },
+      payload: { message: 'msg' },
+    });
+
+    assert.equal(response.statusCode, 404);
 
     await app.close();
   });

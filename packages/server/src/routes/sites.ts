@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { Store } from '../store/store.ts';
 import type { AdminUser } from '../auth/users.ts';
-import { createRequireAuth } from '../auth/require-auth.ts';
+import { createRequireAuth, AuthError } from '../auth/require-auth.ts';
 import type { Site } from '../sites/site.ts';
 import { SiteNotFoundError } from '../sites/site-not-found-error.ts';
 import { checkSiteStatus, type SiteStatus } from '../sites/site-status.ts';
@@ -10,6 +10,10 @@ import { fetchSiteContent, type ContentListFilters } from '../sites/site-content
 import { fetchSiteEditorContent } from '../sites/site-editor-content.ts';
 import { saveSiteDraft } from '../sites/site-draft-save.ts';
 import { fetchSitePreview } from '../sites/site-preview.ts';
+import { publishSite } from '../sites/site-publish.ts';
+import { discardSiteDraft } from '../sites/site-draft-discard.ts';
+import { unpublishSite } from '../sites/site-unpublish.ts';
+import type { CommitAuthor } from '../sites/commit-author.ts';
 
 // The raw token is never included here, full stop - built by this
 // explicit mapping function rather than spreading the Site record, so
@@ -105,6 +109,55 @@ function parseRotateTokenBody(body: unknown): RotateTokenBody | null {
     return null;
   }
   return { token: record.token };
+}
+
+interface PublishBody {
+  path: string;
+  message: string;
+}
+
+// G1: this UI is single-page-publish only (no multi-select), so the
+// browser sends one path, not the batch array the agent's own route
+// actually accepts - that batching is reconstructed at the call site.
+function parsePublishBody(body: unknown): PublishBody | null {
+  if (typeof body !== 'object' || body === null) {
+    return null;
+  }
+  const record = body as Record<string, unknown>;
+  if (typeof record.path !== 'string' || record.path.trim() === '') {
+    return null;
+  }
+  if (typeof record.message !== 'string' || record.message.trim() === '') {
+    return null;
+  }
+  return { path: record.path, message: record.message };
+}
+
+interface UnpublishBody {
+  message: string;
+}
+
+function parseUnpublishBody(body: unknown): UnpublishBody | null {
+  if (typeof body !== 'object' || body === null) {
+    return null;
+  }
+  const record = body as Record<string, unknown>;
+  if (typeof record.message !== 'string' || record.message.trim() === '') {
+    return null;
+  }
+  return { message: record.message };
+}
+
+// The browser never supplies a commit author - it's always the
+// logged-in admin's own stored identity (Group G groundwork). The
+// null case is unreachable in practice (requireAuth always sets this
+// first) but narrowed explicitly rather than asserted, matching this
+// codebase's existing defensive style elsewhere.
+function requireCommitAuthor(currentUser: Pick<AdminUser, 'name' | 'email'> | null): CommitAuthor {
+  if (!currentUser) {
+    throw new AuthError('Login required');
+  }
+  return { name: currentUser.name, email: currentUser.email };
 }
 
 export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Store<Site>) {
@@ -247,6 +300,101 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
         if (result.outcome === 'ok') {
           reply.code(result.status).type(result.contentType).send(Buffer.from(result.body));
           return;
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
+
+    // G3: DELETE is already idempotent on the agent side (204 whether
+    // or not a draft existed) and never commits - nothing to check
+    // before calling, unlike the PUT above's If-Match precondition.
+    app.delete<{ Params: { id: string; '*': string } }>(
+      '/:id/drafts/*',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const result = await discardSiteDraft(site, request.params['*']);
+        if (result.outcome === 'ok') {
+          return reply.code(204).send();
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
+
+    // G1: single-page publish from the browser's point of view - the
+    // path/message are wrapped into the agent's real batch shape here,
+    // and the commit author always comes from the logged-in admin's
+    // own identity, never the request body.
+    app.post<{ Params: { id: string } }>('/:id/publish', { preHandler: requireAuth }, async (request, reply) => {
+      const site = await sitesStore.find(request.params.id);
+      if (!site) {
+        throw new SiteNotFoundError(request.params.id);
+      }
+
+      const body = parsePublishBody(request.body);
+      if (!body) {
+        reply.code(400);
+        return { error: 'path and message are both required' };
+      }
+
+      const author = requireCommitAuthor(request.currentUser);
+      const result = await publishSite(site, [body.path], body.message, author);
+
+      if (result.outcome === 'ok') {
+        return { ok: true };
+      }
+      if (result.outcome === 'invalid') {
+        reply.code(400);
+        return { statusCode: 400, error: 'Bad Request', message: result.message };
+      }
+      if (result.outcome === 'not-found') {
+        reply.code(404);
+        return { error: result.message, reason: 'not-found' };
+      }
+
+      reply.code(502);
+      return { error: result.message, reason: result.outcome };
+    });
+
+    // G4: unpublish sets published:false on the live file in place
+    // (the site never deletes it) and commits - same author/response
+    // shape as publish.
+    app.post<{ Params: { id: string; '*': string } }>(
+      '/:id/unpublish/*',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const body = parseUnpublishBody(request.body);
+        if (!body) {
+          reply.code(400);
+          return { error: 'message is required' };
+        }
+
+        const author = requireCommitAuthor(request.currentUser);
+        const result = await unpublishSite(site, request.params['*'], body.message, author);
+
+        if (result.outcome === 'ok') {
+          return { ok: true };
+        }
+        if (result.outcome === 'invalid') {
+          reply.code(400);
+          return { statusCode: 400, error: 'Bad Request', message: result.message };
+        }
+        if (result.outcome === 'not-found') {
+          reply.code(404);
+          return { error: result.message, reason: 'not-found' };
         }
 
         reply.code(502);

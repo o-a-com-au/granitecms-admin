@@ -1,0 +1,93 @@
+import { afterEach, describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { discardSiteDraft } from '../../src/sites/site-draft-discard.ts';
+
+type Handler = (req: IncomingMessage, res: ServerResponse) => void;
+
+let server: Server | undefined;
+
+async function startServer(handler: Handler): Promise<string> {
+  server = createServer(handler);
+  await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (address === null || typeof address === 'string') {
+    throw new Error('expected a real listening address');
+  }
+  return `http://127.0.0.1:${address.port}`;
+}
+
+afterEach(async () => {
+  if (server) {
+    await new Promise<void>((resolve) => server!.close(() => resolve()));
+    server = undefined;
+  }
+});
+
+function sendJson(res: ServerResponse, status: number, body: unknown): void {
+  res.writeHead(status, { 'content-type': 'application/json' });
+  res.end(JSON.stringify(body));
+}
+
+describe('discardSiteDraft', () => {
+  it('G3: DELETEs /v1/drafts/:path with the stored token, no body sent', async () => {
+    let receivedMethod = '';
+    let receivedPath = '';
+    let receivedAuth: string | undefined;
+    let receivedBody = '';
+    const url = await startServer((req, res) => {
+      receivedMethod = req.method ?? '';
+      receivedPath = req.url ?? '';
+      receivedAuth = req.headers.authorization;
+      let raw = '';
+      req.on('data', (chunk: Buffer) => {
+        raw += chunk.toString();
+      });
+      req.on('end', () => {
+        receivedBody = raw;
+        res.writeHead(204);
+        res.end();
+      });
+    });
+
+    const result = await discardSiteDraft({ url, token: 'my-token' }, 'pages/about.json');
+
+    assert.deepEqual(result, { outcome: 'ok' });
+    assert.equal(receivedMethod, 'DELETE');
+    assert.equal(receivedPath, '/v1/drafts/pages/about.json');
+    assert.equal(receivedAuth, 'Bearer my-token');
+    assert.equal(receivedBody, '');
+  });
+
+  it('is idempotent: a second call against a site with nothing left to delete still reports ok', async () => {
+    const url = await startServer((_req, res) => {
+      res.writeHead(204);
+      res.end();
+    });
+
+    const first = await discardSiteDraft({ url, token: 'x' }, 'pages/about.json');
+    const second = await discardSiteDraft({ url, token: 'x' }, 'pages/about.json');
+
+    assert.equal(first.outcome, 'ok');
+    assert.equal(second.outcome, 'ok');
+  });
+
+  it('unreachable: nothing listening', async () => {
+    const result = await discardSiteDraft({ url: 'http://127.0.0.1:1', token: 'x' }, 'pages/about.json');
+    assert.equal(result.outcome, 'unreachable');
+  });
+
+  it('unauthorized: the site rejects the token', async () => {
+    const url = await startServer((_req, res) => sendJson(res, 401, { error: 'invalid-token' }));
+
+    const result = await discardSiteDraft({ url, token: 'bad' }, 'pages/about.json');
+    assert.equal(result.outcome, 'unauthorized');
+  });
+
+  it('error: an unmapped status', async () => {
+    const url = await startServer((_req, res) => sendJson(res, 500, { error: 'boom' }));
+
+    const result = await discardSiteDraft({ url, token: 'x' }, 'pages/about.json');
+    assert.equal(result.outcome, 'error');
+  });
+});
