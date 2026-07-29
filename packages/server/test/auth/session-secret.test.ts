@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { ensureSessionSecret } from '../../src/auth/session-secret.ts';
-import { openInMemoryStore } from '../support/in-memory-store.ts';
+import { openInMemoryStore } from '../../src/store/in-memory-store.ts';
 import type { SessionSecretRecord } from '../../src/auth/session-secret.ts';
 
 describe('session-secret', () => {

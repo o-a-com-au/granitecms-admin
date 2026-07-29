@@ -1,13 +1,76 @@
 import { existsSync } from 'node:fs';
-import Fastify, { type FastifyInstance } from 'fastify';
+import { randomBytes } from 'node:crypto';
+import Fastify, { type FastifyError, type FastifyInstance, type FastifyRequest, type FastifyReply } from 'fastify';
 import fastifyStatic from '@fastify/static';
+import fastifyCookie from '@fastify/cookie';
+import fastifySession from '@fastify/session';
 import { healthRoutes } from './routes/health.ts';
+import { createAuthRoutes } from './routes/auth.ts';
 import { loadConfig, type AdminConfig } from './config.ts';
+import type { Store } from './store/store.ts';
+import type { AdminUser } from './auth/users.ts';
+import { toSessionStore, type SessionRecord } from './auth/session-store-adapter.ts';
+import { openInMemoryStore } from './store/in-memory-store.ts';
+import './auth/session-types.ts';
 
-export async function buildServer(config: AdminConfig = loadConfig()): Promise<FastifyInstance> {
+export interface ServerDeps {
+  usersStore: Store<AdminUser>;
+  sessionRecordStore: Store<SessionRecord>;
+  sessionSecret: string;
+}
+
+// Ephemeral, tests/dev-only default (fresh in-memory stores, a random
+// per-process secret) - mirrors the config parameter's default-via-
+// loadConfig() pattern, but real production boot (index.ts) always
+// constructs and passes real JSON-file-backed deps explicitly, never
+// relying on this.
+function defaultDeps(): ServerDeps {
+  return {
+    usersStore: openInMemoryStore<AdminUser>(),
+    sessionRecordStore: openInMemoryStore<SessionRecord>(),
+    sessionSecret: randomBytes(48).toString('hex'),
+  };
+}
+
+function isFastifyError(error: unknown): error is FastifyError {
+  return error instanceof Error && 'statusCode' in error;
+}
+
+// Mirrors the agent repo's own server.ts error handler: pass a
+// non-500 domain error (AuthError and friends) through with its real
+// status/message intact, but never leak a raw internal error message
+// or stack trace for an actual 500.
+function handleError(error: FastifyError | Error, _request: FastifyRequest, reply: FastifyReply): void {
+  const statusCode = isFastifyError(error) ? (error.statusCode ?? 500) : 500;
+  if (statusCode >= 500) {
+    reply.code(statusCode).send({ statusCode, error: 'Internal Server Error', message: 'Something went wrong' });
+    return;
+  }
+  reply.code(statusCode).send({ statusCode, error: error.name || 'Bad Request', message: error.message });
+}
+
+export async function buildServer(
+  config: AdminConfig = loadConfig(),
+  deps: ServerDeps = defaultDeps(),
+): Promise<FastifyInstance> {
   const app = Fastify();
 
+  app.setErrorHandler(handleError);
+  app.decorateRequest('currentUser', null);
+
+  await app.register(fastifyCookie);
+  await app.register(fastifySession, {
+    secret: deps.sessionSecret,
+    store: toSessionStore(deps.sessionRecordStore),
+    cookie: {
+      httpOnly: true,
+      secure: 'auto',
+      sameSite: 'lax',
+    },
+  });
+
   await app.register(healthRoutes, { prefix: '/api' });
+  await app.register(createAuthRoutes(deps.usersStore), { prefix: '/api/auth' });
 
   // Skipped when the web package hasn't been built yet (e.g. running
   // the backend's own tests, or `npm run dev`, where Vite serves the

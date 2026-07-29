@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { Session } from 'fastify';
 import { toSessionStore } from '../../src/auth/session-store-adapter.ts';
 import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
-import { openInMemoryStore } from '../support/in-memory-store.ts';
+import { openInMemoryStore } from '../../src/store/in-memory-store.ts';
 
 function fakeSession(): Session {
   return { cookie: { originalMaxAge: null } } as Session;
