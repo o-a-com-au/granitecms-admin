@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { useAutosaveDraft, type EditorStatus } from '../editor/useAutosaveDraft.ts';
 import { PreviewFrame } from '../editor/PreviewFrame.tsx';
 import { BackToRegistryLink } from '../layout/BackToRegistryLink.tsx';
@@ -168,6 +168,11 @@ export function PageEditorPage() {
             <button type="button" onClick={() => void handleUnpublish()} disabled={actionBusy || status === 'saving'}>
               Unpublish
             </button>
+            <Link
+              to={`/sites/${siteId}/history?path=${encodeURIComponent(path)}${previewUrl ? `&url=${encodeURIComponent(previewUrl)}` : ''}`}
+            >
+              History
+            </Link>
             {actionError && <p role="alert">{actionError}</p>}
           </section>
 
