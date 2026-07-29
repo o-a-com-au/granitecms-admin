@@ -69,44 +69,44 @@ export function PageEditorPage() {
 
   return (
     <main className="editor-page">
-      <BackToRegistryLink />
-      <h1>Editor</h1>
-      <p>
-        Site: <code>{siteId}</code> Path: <code>{path}</code> Source: <code>{source}</code>
-      </p>
+      <div className="editor-shell">
+        <div className="editor-sidebar">
+          <BackToRegistryLink />
+          <h1>Editor</h1>
+          <p>
+            Site: <code>{siteId}</code> Path: <code>{path}</code> Source: <code>{source}</code>
+          </p>
 
-      <p data-status={status}>{statusLabel(status)}</p>
-      {invalidJson && <p role="alert">Not valid JSON yet - not saved.</p>}
-      {status === 'save-error' && errorMessage && <p role="alert">{errorMessage}</p>}
+          <p data-status={status}>{statusLabel(status)}</p>
+          {invalidJson && <p role="alert">Not valid JSON yet - not saved.</p>}
+          {status === 'save-error' && errorMessage && <p role="alert">{errorMessage}</p>}
 
-      {status === 'conflict' && (
-        <section>
-          <p role="alert">This page changed since you opened it.</p>
-          <button type="button" onClick={reloadLatest}>
-            Reload latest version
-          </button>
-          <button type="button" onClick={loadComparison}>
-            View changes
-          </button>
-          {comparisonContent !== null && (
-            <div>
-              <h2>Latest on the server</h2>
-              <pre>{comparisonContent}</pre>
-              <h2>Your unsaved version</h2>
-              <pre>{content}</pre>
-            </div>
+          {status === 'conflict' && (
+            <section>
+              <p role="alert">This page changed since you opened it.</p>
+              <button type="button" onClick={reloadLatest}>
+                Reload latest version
+              </button>
+              <button type="button" onClick={loadComparison}>
+                View changes
+              </button>
+              {comparisonContent !== null && (
+                <div>
+                  <h2>Latest on the server</h2>
+                  <pre>{comparisonContent}</pre>
+                  <h2>Your unsaved version</h2>
+                  <pre>{content}</pre>
+                </div>
+              )}
+            </section>
           )}
-        </section>
-      )}
 
-      <div className="editor-layout">
-        <div className="editor-panel">
           <label>
             Content
-            <textarea value={content} onChange={(event) => setContent(event.target.value)} rows={20} />
+            <textarea value={content} onChange={(event) => setContent(event.target.value)} />
           </label>
         </div>
-        <div className="preview-panel">
+        <div className="editor-preview-full">
           <PreviewFrame siteId={siteId} url={previewUrl} status={status} />
         </div>
       </div>

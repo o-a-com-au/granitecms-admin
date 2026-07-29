@@ -51,8 +51,7 @@ export function PreviewFrame({ siteId, url, status }: PreviewFrameProps) {
 
   if (url === null) {
     return (
-      <div>
-        <h2>Preview</h2>
+      <div className="preview-empty">
         <p>No live preview available for this content type.</p>
       </div>
     );
@@ -60,10 +59,5 @@ export function PreviewFrame({ siteId, url, status }: PreviewFrameProps) {
 
   const src = `/api/sites/${encodeURIComponent(siteId)}/preview${encodeUrlSegments(url)}?t=${refreshToken}`;
 
-  return (
-    <div>
-      <h2>Preview</h2>
-      <iframe title="Live preview" src={src} width="100%" height="600" />
-    </div>
-  );
+  return <iframe title="Live preview" src={src} />;
 }
