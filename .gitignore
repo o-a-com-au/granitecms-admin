@@ -2,3 +2,4 @@ node_modules/
 dist/
 data/
 .claude/.stop-gate-stamp
+.demo-runtime/

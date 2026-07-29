@@ -1,0 +1,9 @@
+{
+  "port": 3891,
+  "tokens": [
+    {
+      "hash": "992ad765976c122e3b1735105649c82780da565d0f422c4c612b9685c5d986ac",
+      "scopes": ["content", "theme", "media"]
+    }
+  ]
+}

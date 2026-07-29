@@ -1,0 +1,34 @@
+<section class="hero" data-section-id="{{ section.id }}">
+  <div class="container hero__inner">
+    <div class="hero__content reveal">
+      {% if section.settings.eyebrow %}<span class="eyebrow">{{ section.settings.eyebrow }}</span>{% endif %}
+      <h1>{{ section.settings.heading }}</h1>
+      {% if section.settings.subheading %}<p>{{ section.settings.subheading }}</p>{% endif %}
+      <div class="hero__actions">{% for html in blocksHtml %}{{ html | raw }}{% endfor %}</div>
+    </div>
+    {% if section.settings.codeSnippet %}
+      <div class="code-panel reveal">
+        <div class="code-panel__bar">
+          <span></span><span></span><span></span>
+          {% if section.settings.codeTitle %}<span class="code-panel__title">{{ section.settings.codeTitle }}</span>{% endif %}
+        </div>
+        <pre><code>{{ section.settings.codeSnippet }}</code></pre>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% schema %}
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["heading"],
+  "properties": {
+    "eyebrow": { "type": "string" },
+    "heading": { "type": "string", "minLength": 1 },
+    "subheading": { "type": "string" },
+    "codeTitle": { "type": "string" },
+    "codeSnippet": { "type": "string" }
+  }
+}
+{% endschema %}

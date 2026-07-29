@@ -13,7 +13,10 @@
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspace packages/web && npm run build --workspace packages/server",
     "start": "node packages/server/dist/index.js",
-    "dev": "npm run dev --workspace packages/server & npm run dev --workspace packages/web"
+    "dev": "npm run dev --workspace packages/server & npm run dev --workspace packages/web",
+    "demo:setup": "bash scripts/demo-site-setup.sh",
+    "demo:reset": "bash scripts/demo-site-setup.sh --reset",
+    "demo:start": "node .demo-runtime/vhost/server.js"
   },
   "engines": {
     "node": ">=22.6.0"

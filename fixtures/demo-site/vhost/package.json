@@ -1,0 +1,9 @@
+{
+  "name": "demo-site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@oa/cms-agent": "REPLACE_WITH_TARBALL_PATH"
+  }
+}
