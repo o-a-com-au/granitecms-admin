@@ -1,6 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { HomePage } from '../../src/pages/HomePage.tsx';
+
+function renderHomePage() {
+  return render(
+    <MemoryRouter>
+      <HomePage />
+    </MemoryRouter>,
+  );
+}
 
 interface FakeSite {
   id: string;
@@ -76,14 +85,14 @@ afterEach(() => {
 describe('HomePage', () => {
   it('shows "Nothing registered yet." when the registry is empty', async () => {
     installFakeSitesApi();
-    render(<HomePage />);
+    renderHomePage();
 
     await waitFor(() => expect(screen.getByText('Nothing registered yet.')).toBeDefined());
   });
 
   it('C1: registering a site adds it to the list', async () => {
     installFakeSitesApi();
-    render(<HomePage />);
+    renderHomePage();
     await waitFor(() => expect(screen.getByText('Nothing registered yet.')).toBeDefined());
 
     fireEvent.change(screen.getByLabelText('Site URL'), { target: { value: 'https://client-one.example.com' } });
@@ -95,7 +104,7 @@ describe('HomePage', () => {
 
   it('C2: the newly registered site shows its live status', async () => {
     installFakeSitesApi();
-    render(<HomePage />);
+    renderHomePage();
     await waitFor(() => expect(screen.getByText('Nothing registered yet.')).toBeDefined());
 
     fireEvent.change(screen.getByLabelText('Site URL'), { target: { value: 'https://client-one.example.com' } });
@@ -115,7 +124,7 @@ describe('HomePage', () => {
       status: { state: 'ok', agentVersion: '1.0.0', contentSchemaVersion: 1, sqliteDriver: 'node:sqlite' },
     });
 
-    render(<HomePage />);
+    renderHomePage();
     await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
 
     fireEvent.click(screen.getByRole('button', { name: 'Rotate token' }));
@@ -140,7 +149,7 @@ describe('HomePage', () => {
     });
     vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-    render(<HomePage />);
+    renderHomePage();
     await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
@@ -159,7 +168,7 @@ describe('HomePage', () => {
     });
     vi.spyOn(window, 'confirm').mockReturnValue(false);
 
-    render(<HomePage />);
+    renderHomePage();
     await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }));

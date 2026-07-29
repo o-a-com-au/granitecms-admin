@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router';
 import { useSites } from '../sites/useSites.ts';
 import { SiteStatusBadge } from '../sites/SiteStatusBadge.tsx';
 import { deleteSite, registerSite, rotateSiteToken } from '../api/sites.ts';
@@ -113,6 +114,7 @@ export function HomePage() {
                     <SiteStatusBadge status={site.status} />
                   </td>
                   <td>
+                    <Link to={`/sites/${site.id}/content`}>Browse content</Link>{' '}
                     {rotatingId === site.id ? (
                       <form onSubmit={(event) => handleRotateSubmit(event, site.id)}>
                         <label>
