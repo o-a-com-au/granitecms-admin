@@ -1,0 +1,200 @@
+:root {
+  color-scheme: light;
+  --colour-text: #1b1f24;
+  --colour-muted: #5b6572;
+  --colour-border: #d7dce1;
+  --colour-bg: #f6f7f9;
+  --colour-surface: #ffffff;
+  --colour-primary: #2563eb;
+  --colour-primary-hover: #1d4ed8;
+  --colour-ok: #1a7f37;
+  --colour-warning: #9a6700;
+  --colour-danger: #b3261e;
+  --radius: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--colour-text);
+  background: var(--colour-bg);
+  line-height: 1.5;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+h1 {
+  font-size: 1.75rem;
+  margin: 0 0 1.5rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin: 2rem 0 1rem;
+}
+
+a {
+  color: var(--colour-primary);
+}
+
+a:hover {
+  color: var(--colour-primary-hover);
+}
+
+section {
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  align-items: flex-start;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--colour-muted);
+  width: 100%;
+  max-width: 420px;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--colour-text);
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  background: var(--colour-surface);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--colour-primary);
+  outline-offset: -1px;
+}
+
+textarea {
+  max-width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+}
+
+button {
+  font: inherit;
+  padding: 0.5rem 1.1rem;
+  border: 1px solid var(--colour-primary);
+  border-radius: var(--radius);
+  background: var(--colour-primary);
+  color: #fff;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--colour-primary-hover);
+  border-color: var(--colour-primary-hover);
+}
+
+button:disabled {
+  background: var(--colour-border);
+  border-color: var(--colour-border);
+  color: var(--colour-muted);
+  cursor: not-allowed;
+}
+
+button[type='button'] {
+  background: var(--colour-surface);
+  color: var(--colour-text);
+  border-color: var(--colour-border);
+}
+
+button[type='button']:hover {
+  background: var(--colour-bg);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--colour-border);
+}
+
+th {
+  background: var(--colour-bg);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--colour-muted);
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+p[role='alert'] {
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius);
+  background: #fdecea;
+  color: var(--colour-danger);
+  border: 1px solid #f3c8c4;
+  max-width: 640px;
+}
+
+/* Status colouring shared by SiteStatusBadge (span) and the editor's
+   own status line (p) - keyed off the data-status attribute both
+   already carry, so no component markup needs to change for this. */
+[data-status='ok'],
+[data-status='ready'] {
+  color: var(--colour-ok);
+  font-weight: 600;
+}
+
+[data-status='dirty'],
+[data-status='saving'],
+[data-status='loading'] {
+  color: var(--colour-warning);
+  font-weight: 600;
+}
+
+[data-status='unreachable'],
+[data-status='unauthorized'],
+[data-status='error'],
+[data-status='save-error'],
+[data-status='conflict'],
+[data-status='not-found'],
+[data-status='load-error'] {
+  color: var(--colour-danger);
+  font-weight: 600;
+}
+
+iframe {
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+}

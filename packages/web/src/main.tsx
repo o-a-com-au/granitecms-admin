@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { AuthProvider } from './auth/AuthContext.tsx';
 import { App } from './App.tsx';
+import './styles.css';
 
 const container = document.getElementById('root');
 if (!container) {
