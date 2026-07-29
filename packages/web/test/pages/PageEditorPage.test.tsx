@@ -7,6 +7,16 @@ interface FakeState {
   content: string | null;
   etag: string | null;
   source: 'draft' | 'live';
+  // G3: what a discard should reveal underneath the draft - only set
+  // by tests that care about proving the reverted content, distinct
+  // from whatever was being edited. Left unset, discard just flips
+  // source to 'live' without changing content (still a valid draft-
+  // cleared assertion, just not a content-reverted one).
+  liveContent?: string;
+  liveEtag?: string;
+  // G5: forces publish/unpublish itself to fail with a real 502,
+  // independent of content nullity - the initial load still succeeds.
+  forceActionFailure?: boolean;
 }
 
 function installFakeEditorApi(initial: FakeState) {
@@ -39,6 +49,60 @@ function installFakeEditorApi(initial: FakeState) {
       etagCounter += 1;
       state.etag = `"etag-${etagCounter}"`;
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { etag: state.etag } });
+    }
+
+    // G1: publish moves the current draft to live - content stays
+    // the same (that's what was drafted), only the source label
+    // flips, matching the real agent's own draft-to-live move.
+    if (method === 'POST' && url.endsWith('/publish')) {
+      const body = JSON.parse(init?.body as string) as { path: string; message: string };
+      if (!body.message?.trim()) {
+        return new Response(JSON.stringify({ error: 'path and message are both required' }), { status: 400 });
+      }
+      if (state.forceActionFailure) {
+        return new Response(JSON.stringify({ error: 'Could not reach the site', reason: 'unreachable' }), {
+          status: 502,
+        });
+      }
+      if (state.content === null) {
+        return new Response(JSON.stringify({ error: 'not found', reason: 'not-found' }), { status: 404 });
+      }
+      state.source = 'live';
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }
+
+    // G3: idempotent - reverts to whatever liveContent/liveEtag a
+    // test configured (or just flips source if it didn't).
+    if (method === 'DELETE' && url.includes('/drafts/')) {
+      if (state.liveContent !== undefined) {
+        state.content = state.liveContent;
+        state.etag = state.liveEtag ?? state.etag;
+      }
+      state.source = 'live';
+      return new Response(null, { status: 204 });
+    }
+
+    // G4: sets published:false on the live JSON in place, matching
+    // the real agent - the content stays, only the flag changes.
+    if (method === 'POST' && url.includes('/unpublish/')) {
+      const body = JSON.parse(init?.body as string) as { message: string };
+      if (!body.message?.trim()) {
+        return new Response(JSON.stringify({ error: 'message is required' }), { status: 400 });
+      }
+      if (state.forceActionFailure) {
+        return new Response(JSON.stringify({ error: 'Could not reach the site', reason: 'unreachable' }), {
+          status: 502,
+        });
+      }
+      if (state.content === null) {
+        return new Response(JSON.stringify({ error: 'not found', reason: 'not-found' }), { status: 404 });
+      }
+      const parsed = JSON.parse(state.content) as Record<string, unknown>;
+      parsed.published = false;
+      state.content = JSON.stringify(parsed);
+      etagCounter += 1;
+      state.etag = `"etag-${etagCounter}"`;
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }
 
     throw new Error(`unhandled fetch in test: ${method} ${url}`);
@@ -79,7 +143,7 @@ describe('PageEditorPage', () => {
 
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
     expect((screen.getByLabelText('Content') as HTMLTextAreaElement).value).toBe('{"title":"Hi"}');
-    expect(screen.getByText('draft', { exact: false })).toBeDefined();
+    expect(screen.getByText('draft', { selector: 'code' })).toBeDefined();
   });
 
   it('E2, E3: editing autosaves without an explicit save action', async () => {
@@ -174,5 +238,140 @@ describe('PageEditorPage', () => {
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
     expect(screen.getByText('No live preview available for this content type.')).toBeDefined();
     expect(screen.queryByTitle('Live preview')).toBeNull();
+  });
+
+  it('G1: publishing prompts for a message, then reflects the page as now-live', async () => {
+    const api = installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
+    vi.spyOn(window, 'prompt').mockReturnValue('Ship the about page');
+    renderPage();
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+
+    await waitFor(() => expect(api.state.source).toBe('live'));
+    await waitFor(() => expect(screen.getByText('live', { selector: 'code' })).toBeDefined());
+  });
+
+  it('G1: cancelling the publish prompt makes no call at all', async () => {
+    const api = installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
+    vi.spyOn(window, 'prompt').mockReturnValue(null);
+    renderPage();
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(api.state.source).toBe('draft');
+  });
+
+  it('G1, G5: a blank publish message is rejected client-side, leaving draft state untouched', async () => {
+    const api = installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
+    vi.spyOn(window, 'prompt').mockReturnValue('   ');
+    renderPage();
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+
+    await waitFor(() => expect(screen.getByText('A commit message is required to publish.')).toBeDefined());
+    expect(api.state.source).toBe('draft');
+    expect((screen.getByLabelText('Content') as HTMLTextAreaElement).value).toBe('{"title":"Hi"}');
+  });
+
+  it('G5: a failed publish leaves the draft state untouched and shows an inline error', async () => {
+    const api = installFakeEditorApi({
+      content: '{"title":"Hi"}',
+      etag: '"etag-1"',
+      source: 'draft',
+      forceActionFailure: true,
+    });
+    vi.spyOn(window, 'prompt').mockReturnValue('Ship it');
+    renderPage();
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+
+    await waitFor(() => expect(screen.getByText('Could not reach the site')).toBeDefined());
+    expect(api.state.source).toBe('draft');
+    expect((screen.getByLabelText('Content') as HTMLTextAreaElement).value).toBe('{"title":"Hi"}');
+  });
+
+  it('G3: discard is confirmed first; declining makes no call at all', async () => {
+    const api = installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderPage();
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard draft' }));
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(api.state.source).toBe('draft');
+  });
+
+  it('G3: confirming discard returns the editor to the live version', async () => {
+    const api = installFakeEditorApi({
+      content: '{"title":"My edit"}',
+      etag: '"etag-1"',
+      source: 'draft',
+      liveContent: '{"title":"Live version"}',
+      liveEtag: '"live-etag"',
+    });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderPage();
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard draft' }));
+
+    await waitFor(() =>
+      expect((screen.getByLabelText('Content') as HTMLTextAreaElement).value).toBe('{"title":"Live version"}'),
+    );
+    expect(api.state.source).toBe('live');
+  });
+
+  it('G4: unpublishing prompts for a message, then flips published to false on the live content', async () => {
+    const api = installFakeEditorApi({
+      content: '{"title":"Hi","published":true}',
+      etag: '"etag-1"',
+      source: 'live',
+    });
+    vi.spyOn(window, 'prompt').mockReturnValue('Taking this offline');
+    renderPage();
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unpublish' }));
+
+    await waitFor(() => expect(JSON.parse(api.state.content ?? '{}').published).toBe(false));
+    await waitFor(() =>
+      expect((screen.getByLabelText('Content') as HTMLTextAreaElement).value).toContain('"published":false'),
+    );
+  });
+
+  it('G4, G5: a blank unpublish message is rejected client-side, leaving state untouched', async () => {
+    installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'live' });
+    vi.spyOn(window, 'prompt').mockReturnValue('   ');
+    renderPage();
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unpublish' }));
+
+    await waitFor(() => expect(screen.getByText('A commit message is required to unpublish.')).toBeDefined());
+    expect((screen.getByLabelText('Content') as HTMLTextAreaElement).value).toBe('{"title":"Hi"}');
+  });
+
+  it('G5: a failed unpublish leaves the draft state untouched and shows an inline error', async () => {
+    const api = installFakeEditorApi({
+      content: '{"title":"Hi"}',
+      etag: '"etag-1"',
+      source: 'live',
+      forceActionFailure: true,
+    });
+    vi.spyOn(window, 'prompt').mockReturnValue('Taking this offline');
+    renderPage();
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unpublish' }));
+
+    await waitFor(() => expect(screen.getByText('Could not reach the site')).toBeDefined());
+    expect(api.state.source).toBe('live');
+    expect((screen.getByLabelText('Content') as HTMLTextAreaElement).value).toBe('{"title":"Hi"}');
   });
 });

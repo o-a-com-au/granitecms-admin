@@ -260,7 +260,12 @@ main.editor-page {
   color: var(--colour-muted);
 }
 
-.preview-panel {
-  flex: 1;
-  min-width: 0;
+.editor-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0;
+  border: none;
+  background: none;
+  margin-bottom: 0;
 }

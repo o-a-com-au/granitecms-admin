@@ -38,12 +38,13 @@ function isReason(value: unknown): value is SiteEditorErrorReason {
 // The content path (e.g. "pages/about.json") travels as real path
 // segments in the admin's own wildcard route, not as a single opaque
 // query value - each segment is escaped individually so the slashes
-// stay real path separators.
-function encodePathSegments(path: string): string {
+// stay real path separators. Exported for reuse by site-publishing.ts,
+// which addresses the same path-keyed routes.
+export function encodePathSegments(path: string): string {
   return path.split('/').map(encodeURIComponent).join('/');
 }
 
-async function reasonFromResponse(response: Response, fallback: SiteEditorErrorReason): Promise<SiteEditorError> {
+export async function reasonFromResponse(response: Response, fallback: SiteEditorErrorReason): Promise<SiteEditorError> {
   let message = 'Something went wrong';
   let reason: SiteEditorErrorReason = fallback;
   try {
