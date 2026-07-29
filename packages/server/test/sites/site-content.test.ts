@@ -29,7 +29,14 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body));
 }
 
-const SAMPLE_ENTRY = { path: 'pages/about.json', title: 'About', type: 'page', published: true, hasDraft: false };
+const SAMPLE_ENTRY = {
+  path: 'pages/about.json',
+  title: 'About',
+  type: 'page',
+  published: true,
+  hasDraft: false,
+  url: '/about',
+};
 
 describe('fetchSiteContent', () => {
   it('ok: returns the entries on a successful response', async () => {

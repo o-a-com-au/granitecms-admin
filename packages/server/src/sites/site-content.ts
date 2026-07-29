@@ -7,6 +7,7 @@ export interface ContentListEntry {
   type: string;
   published: boolean;
   hasDraft: boolean;
+  url: string | null;
 }
 
 export interface ContentListFilters {
@@ -50,7 +51,8 @@ function isContentListEntry(value: unknown): value is ContentListEntry {
     typeof record.title === 'string' &&
     typeof record.type === 'string' &&
     typeof record.published === 'boolean' &&
-    typeof record.hasDraft === 'boolean'
+    typeof record.hasDraft === 'boolean' &&
+    (typeof record.url === 'string' || record.url === null)
   );
 }
 

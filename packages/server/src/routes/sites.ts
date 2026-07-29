@@ -9,6 +9,7 @@ import { checkSiteStatus, type SiteStatus } from '../sites/site-status.ts';
 import { fetchSiteContent, type ContentListFilters } from '../sites/site-content.ts';
 import { fetchSiteEditorContent } from '../sites/site-editor-content.ts';
 import { saveSiteDraft } from '../sites/site-draft-save.ts';
+import { fetchSitePreview } from '../sites/site-preview.ts';
 
 // The raw token is never included here, full stop - built by this
 // explicit mapping function rather than spreading the Site record, so
@@ -219,6 +220,33 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
         if (result.outcome === 'invalid') {
           reply.code(400);
           return { statusCode: 400, error: 'Bad Request', message: result.message };
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
+
+    // F1, F3, F4: the site's real rendered response, forwarded
+    // verbatim - status and content-type included, never
+    // reinterpreted. This is what makes the preview genuine: the site
+    // already did its own draft-over-live overlay (and its own 404
+    // when neither exists), so there is nothing left for the admin to
+    // decide here.
+    app.get<{ Params: { id: string; '*': string } }>(
+      '/:id/preview/*',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const result = await fetchSitePreview(site, `/${request.params['*']}`);
+
+        if (result.outcome === 'ok') {
+          reply.code(result.status).type(result.contentType).send(Buffer.from(result.body));
+          return;
         }
 
         reply.code(502);

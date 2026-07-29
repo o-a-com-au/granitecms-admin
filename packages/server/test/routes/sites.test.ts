@@ -85,7 +85,14 @@ async function startFakeSite(acceptedToken: string): Promise<string> {
   return `http://127.0.0.1:${address.port}`;
 }
 
-const SAMPLE_ENTRY = { path: 'pages/about.json', title: 'About', type: 'page', published: true, hasDraft: false };
+const SAMPLE_ENTRY = {
+  path: 'pages/about.json',
+  title: 'About',
+  type: 'page',
+  published: true,
+  hasDraft: false,
+  url: '/about',
+};
 
 // A second fake-site starter, kept separate from startFakeSite above
 // rather than complicating it further - this one serves real content
@@ -228,6 +235,43 @@ async function startFakeEditorSite(options: FakeEditorSiteOptions): Promise<stri
   return `http://127.0.0.1:${address.port}`;
 }
 
+interface FakePreviewSiteOptions {
+  acceptedToken: string;
+  // A page with a draft renders differently to one without, so tests
+  // can tell from the response body alone which path the fake site
+  // actually took - not asserted against the site's own draft/live
+  // logic (that's the agent repo's job), only that the admin's proxy
+  // forwards whatever comes back.
+  hasDraft: boolean;
+}
+
+async function startFakePreviewSite(options: FakePreviewSiteOptions): Promise<string> {
+  const handler = (req: IncomingMessage, res: ServerResponse) => {
+    if (req.headers.authorization !== `Bearer ${options.acceptedToken}`) {
+      res.writeHead(401, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'invalid-token' }));
+      return;
+    }
+
+    if (req.url === '/v1/preview/about') {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      res.end(options.hasDraft ? '<html><body>Draft About</body></html>' : '<html><body>Live About</body></html>');
+      return;
+    }
+
+    res.writeHead(404, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ statusCode: 404, error: 'Not Found', message: `No page at "${req.url}"` }));
+  };
+
+  fakeSite = createServer(handler);
+  await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+  const address = fakeSite.address();
+  if (address === null || typeof address === 'string') {
+    throw new Error('expected a real listening address');
+  }
+  return `http://127.0.0.1:${address.port}`;
+}
+
 describe('sites routes', () => {
   it('every route requires authentication', async () => {
     const { app } = await buildTestServer();
@@ -254,6 +298,9 @@ describe('sites routes', () => {
 
     const content = await app.inject({ method: 'GET', url: '/api/sites/anything/content' });
     assert.equal(content.statusCode, 401);
+
+    const preview = await app.inject({ method: 'GET', url: '/api/sites/anything/preview/about' });
+    assert.equal(preview.statusCode, 401);
 
     await app.close();
   });
@@ -652,6 +699,107 @@ describe('sites routes', () => {
 
     const statuses = [first.statusCode, second.statusCode].sort();
     assert.deepEqual(statuses, [200, 409], `expected exactly one 200 and one 409, got ${statuses.join(', ')}`);
+
+    await app.close();
+  });
+
+  it('F1, F3: GET /api/sites/:id/preview/* forwards the real rendered draft HTML, status and content-type included', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakePreviewSite({ acceptedToken: 'the-token', hasDraft: true });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/preview/about`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers['content-type'], 'text/html; charset=utf-8');
+    assert.equal(response.body, '<html><body>Draft About</body></html>');
+
+    await app.close();
+  });
+
+  it('F4: a page with no draft still previews correctly, forwarding the live-fallback HTML', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakePreviewSite({ acceptedToken: 'the-token', hasDraft: false });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/preview/about`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body, '<html><body>Live About</body></html>');
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/preview/* forwards the site\'s own 404 JSON verbatim when neither draft nor live exists', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakePreviewSite({ acceptedToken: 'the-token', hasDraft: false });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/preview/never-existed`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.equal(response.headers['content-type'], 'application/json');
+    const body = response.json() as { message: string };
+    assert.equal(body.message, 'No page at "/v1/preview/never-existed"');
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/preview/* returns 404 for an unknown site id', async () => {
+    const { app, cookie } = await buildTestServer();
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/sites/does-not-exist/preview/about',
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 404);
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/preview/* returns 502 for an unreachable site', async () => {
+    const { app, cookie } = await buildTestServer();
+    const id = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/preview/about`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 502);
+    assert.equal(response.json().reason, 'unreachable');
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/preview/* returns 502 with reason "unauthorized" for a rejected token', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakePreviewSite({ acceptedToken: 'the-real-token', hasDraft: false });
+    const id = await registerSite(app, cookie, siteUrl, 'the-wrong-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/preview/about`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 502);
+    assert.equal(response.json().reason, 'unauthorized');
 
     await app.close();
   });
