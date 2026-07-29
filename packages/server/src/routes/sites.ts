@@ -7,6 +7,8 @@ import type { Site } from '../sites/site.ts';
 import { SiteNotFoundError } from '../sites/site-not-found-error.ts';
 import { checkSiteStatus, type SiteStatus } from '../sites/site-status.ts';
 import { fetchSiteContent, type ContentListFilters } from '../sites/site-content.ts';
+import { fetchSiteEditorContent } from '../sites/site-editor-content.ts';
+import { saveSiteDraft } from '../sites/site-draft-save.ts';
 
 // The raw token is never included here, full stop - built by this
 // explicit mapping function rather than spreading the Site record, so
@@ -141,6 +143,82 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
         const result = await fetchSiteContent(site, filters);
         if (result.outcome === 'ok') {
           return result.entries;
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
+
+    // E1: draft-if-one-exists-else-live. The success body is the raw
+    // bytes the site returned, byte-for-byte - metadata (etag, which
+    // of draft/live it came from) lives in headers, never folded into
+    // the document itself.
+    app.get<{ Params: { id: string; '*': string } }>(
+      '/:id/content/*',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const result = await fetchSiteEditorContent(site, request.params['*']);
+
+        if (result.outcome === 'ok') {
+          reply.header('etag', result.etag);
+          reply.header('x-content-source', result.source);
+          reply.type('application/json; charset=utf-8');
+          return Buffer.from(result.body);
+        }
+        if (result.outcome === 'not-found') {
+          reply.code(404);
+          return { error: 'No content at this path', reason: 'not-found' };
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
+
+    // E2, E3, E4, E6: If-Match presence is checked here, before ever
+    // calling the site - fails fast on an obviously-invalid request,
+    // mirroring requireAuth's own precedent. Everything the site
+    // itself decides (200/409/400) is forwarded verbatim by
+    // saveSiteDraft/interpretSiteResponse, never reinterpreted here.
+    app.put<{ Params: { id: string; '*': string } }>(
+      '/:id/drafts/*',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const ifMatch = request.headers['if-match'];
+        if (typeof ifMatch !== 'string' || ifMatch.trim() === '') {
+          reply.code(428);
+          return {
+            statusCode: 428,
+            error: 'Precondition Required',
+            message: 'An If-Match header is required to save a draft',
+          };
+        }
+
+        const content = JSON.stringify(request.body);
+        const result = await saveSiteDraft(site, request.params['*'], content, ifMatch);
+
+        if (result.outcome === 'ok') {
+          reply.header('etag', result.etag);
+          return { ok: true };
+        }
+        if (result.outcome === 'conflict') {
+          reply.code(409);
+          return { statusCode: 409, error: 'Conflict', message: result.message };
+        }
+        if (result.outcome === 'invalid') {
+          reply.code(400);
+          return { statusCode: 400, error: 'Bad Request', message: result.message };
         }
 
         reply.code(502);

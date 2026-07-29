@@ -137,6 +137,97 @@ async function registerSite(
   return response.json().id as string;
 }
 
+// A third fake-site starter: a real (if minimal) stand-in for the
+// agent's own optimistic-concurrency semantics on
+// GET/PUT /v1/drafts/pages/about.json and GET /v1/content/pages/about.json,
+// for E1-E6's own tests - not a mock, a genuinely stateful in-memory
+// draft/live store with real ETag comparison, including an optional
+// artificial PUT delay so the E6 concurrency test can force two
+// requests to genuinely overlap rather than pass by luck.
+interface FakeEditorSiteOptions {
+  acceptedToken: string;
+  draftContent?: string;
+  liveContent?: string;
+  putDelayMs?: number;
+}
+
+async function startFakeEditorSite(options: FakeEditorSiteOptions): Promise<string> {
+  let etagCounter = 0;
+  function nextEtag(): string {
+    etagCounter += 1;
+    return `"etag-${etagCounter}"`;
+  }
+
+  let draftContent = options.draftContent ?? null;
+  let draftEtag = draftContent !== null ? nextEtag() : null;
+  const liveContent = options.liveContent ?? null;
+  const liveEtag = liveContent !== null ? nextEtag() : null;
+
+  const handler = (req: IncomingMessage, res: ServerResponse) => {
+    if (req.headers.authorization !== `Bearer ${options.acceptedToken}`) {
+      sendJson(res, 401, { error: 'invalid-token' });
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/v1/drafts/pages/about.json') {
+      if (draftContent === null) {
+        sendJson(res, 404, { error: 'not found' });
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json', etag: draftEtag as string });
+      res.end(draftContent);
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/v1/content/pages/about.json') {
+      if (liveContent === null) {
+        sendJson(res, 404, { error: 'not found' });
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json', etag: liveEtag as string });
+      res.end(liveContent);
+      return;
+    }
+
+    if (req.method === 'PUT' && req.url === '/v1/drafts/pages/about.json') {
+      let raw = '';
+      req.on('data', (chunk: Buffer) => {
+        raw += chunk.toString();
+      });
+      req.on('end', () => {
+        const write = () => {
+          const ifMatch = req.headers['if-match'];
+          const currentEtag = draftEtag ?? liveEtag;
+          if (ifMatch !== currentEtag) {
+            sendJson(res, 409, { statusCode: 409, error: 'Conflict', message: 'stale' });
+            return;
+          }
+          draftContent = raw;
+          draftEtag = nextEtag();
+          res.writeHead(200, { 'content-type': 'application/json', etag: draftEtag });
+          res.end(JSON.stringify({ ok: true }));
+        };
+        if (options.putDelayMs) {
+          setTimeout(write, options.putDelayMs);
+        } else {
+          write();
+        }
+      });
+      return;
+    }
+
+    sendJson(res, 404, { error: 'not found' });
+  };
+
+  fakeSite = createServer(handler);
+  await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+  const address = fakeSite.address();
+  if (address === null || typeof address === 'string') {
+    throw new Error('expected a real listening address');
+  }
+  return `http://127.0.0.1:${address.port}`;
+}
+
 describe('sites routes', () => {
   it('every route requires authentication', async () => {
     const { app } = await buildTestServer();
@@ -405,6 +496,162 @@ describe('sites routes', () => {
 
     assert.equal(response.statusCode, 502);
     assert.equal(response.json().reason, 'unauthorized');
+
+    await app.close();
+  });
+
+  it('E1: GET /api/sites/:id/content/* returns the draft, with an etag and the source header', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeEditorSite({
+      acceptedToken: 'the-token',
+      draftContent: '{"title":"Draft"}',
+      liveContent: '{"title":"Live"}',
+    });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/content/pages/about.json`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers['x-content-source'], 'draft');
+    assert.equal(response.headers.etag, '"etag-1"');
+    assert.equal(response.body, '{"title":"Draft"}');
+
+    await app.close();
+  });
+
+  it('E1: falls back to live when there is no draft', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeEditorSite({ acceptedToken: 'the-token', liveContent: '{"title":"Live"}' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/content/pages/about.json`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers['x-content-source'], 'live');
+    assert.equal(response.body, '{"title":"Live"}');
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/content/* returns 404 when neither draft nor live exists', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeEditorSite({ acceptedToken: 'the-token' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/content/pages/nope.json`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 404);
+
+    await app.close();
+  });
+
+  it('E2, E3: PUT /api/sites/:id/drafts/* saves with If-Match and returns the new ETag', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeEditorSite({ acceptedToken: 'the-token', liveContent: '{"title":"Live"}' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const readResponse = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/content/pages/about.json`,
+      headers: { cookie },
+    });
+    const etag = readResponse.headers.etag as string;
+
+    const saveResponse = await app.inject({
+      method: 'PUT',
+      url: `/api/sites/${id}/drafts/pages/about.json`,
+      headers: { cookie, 'if-match': etag },
+      payload: { title: 'Edited' },
+    });
+
+    assert.equal(saveResponse.statusCode, 200);
+    assert.deepEqual(saveResponse.json(), { ok: true });
+    assert.notEqual(saveResponse.headers.etag, etag);
+
+    await app.close();
+  });
+
+  it('PUT /api/sites/:id/drafts/* requires an If-Match header (428)', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeEditorSite({ acceptedToken: 'the-token', liveContent: '{"title":"Live"}' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/sites/${id}/drafts/pages/about.json`,
+      headers: { cookie },
+      payload: { title: 'Edited' },
+    });
+
+    assert.equal(response.statusCode, 428);
+
+    await app.close();
+  });
+
+  it('E4: a stale If-Match is forwarded as a real 409, not a generic error', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeEditorSite({ acceptedToken: 'the-token', liveContent: '{"title":"Live"}' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/sites/${id}/drafts/pages/about.json`,
+      headers: { cookie, 'if-match': '"a-stale-etag"' },
+      payload: { title: 'Edited' },
+    });
+
+    assert.equal(response.statusCode, 409);
+
+    await app.close();
+  });
+
+  it('E6: two concurrent saves racing the same stale If-Match - exactly one succeeds, the other gets 409', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeEditorSite({
+      acceptedToken: 'the-token',
+      liveContent: '{"title":"Live"}',
+      putDelayMs: 100,
+    });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const readResponse = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/content/pages/about.json`,
+      headers: { cookie },
+    });
+    const etag = readResponse.headers.etag as string;
+
+    // Neither awaited before the other starts - the fake site's own
+    // artificial delay guarantees genuine overlap, not occasional luck.
+    const [first, second] = await Promise.all([
+      app.inject({
+        method: 'PUT',
+        url: `/api/sites/${id}/drafts/pages/about.json`,
+        headers: { cookie, 'if-match': etag },
+        payload: { title: 'From tab A' },
+      }),
+      app.inject({
+        method: 'PUT',
+        url: `/api/sites/${id}/drafts/pages/about.json`,
+        headers: { cookie, 'if-match': etag },
+        payload: { title: 'From tab B' },
+      }),
+    ]);
+
+    const statuses = [first.statusCode, second.statusCode].sort();
+    assert.deepEqual(statuses, [200, 409], `expected exactly one 200 and one 409, got ${statuses.join(', ')}`);
 
     await app.close();
   });
