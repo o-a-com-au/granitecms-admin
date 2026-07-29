@@ -332,6 +332,83 @@ async function startFakePreviewSite(options: FakePreviewSiteOptions): Promise<st
   return `http://127.0.0.1:${address.port}`;
 }
 
+// A minimal but real stand-in for the agent's own git/log, git/show,
+// git/revert routes, for H1-H4's own tests. Only understands a single
+// fixed commit at content/pages/about.json - not a real git repo, just
+// enough surface for the admin's proxy routes to be genuinely
+// exercised end to end.
+interface FakeGitSiteOptions {
+  acceptedToken: string;
+  onRevertBody?: (raw: string) => void;
+}
+
+async function startFakeGitSite(options: FakeGitSiteOptions): Promise<string> {
+  const handler = (req: IncomingMessage, res: ServerResponse) => {
+    if (req.headers.authorization !== `Bearer ${options.acceptedToken}`) {
+      sendJson(res, 401, { error: 'invalid-token' });
+      return;
+    }
+
+    if (req.method === 'GET' && req.url?.startsWith('/v1/git/log')) {
+      sendJson(res, 200, {
+        commits: [
+          {
+            hash: 'abc123',
+            author: { name: 'Someone Else', email: 'someone@example.com' },
+            date: '2026-01-01T00:00:00.000Z',
+            message: 'Update about page',
+            isCheckpoint: false,
+          },
+        ],
+        hasMore: false,
+      });
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/v1/git/show/HEAD/content/pages/about.json') {
+      sendJson(res, 200, { title: 'Current' });
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/v1/git/show/abc123/content/pages/about.json') {
+      sendJson(res, 200, { title: 'Old' });
+      return;
+    }
+
+    // Any ref containing "!" is treated as genuinely malformed here,
+    // standing in for the real agent's own isValidGitRef whitelist -
+    // this is what lets the invalid-ref (400) case be tested as a
+    // real distinct outcome through the actual route, not just
+    // documented as untestable with this fake.
+    if (req.method === 'GET' && req.url?.startsWith('/v1/git/show/') && req.url.includes('!')) {
+      sendJson(res, 400, { statusCode: 400, error: 'Bad Request', message: 'Invalid ref' });
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/v1/git/revert') {
+      let raw = '';
+      req.on('data', (chunk: Buffer) => {
+        raw += chunk.toString();
+      });
+      req.on('end', () => {
+        options.onRevertBody?.(raw);
+        sendJson(res, 200, { ok: true });
+      });
+      return;
+    }
+
+    sendJson(res, 404, { statusCode: 404, error: 'Not Found' });
+  };
+
+  fakeSite = createServer(handler);
+  await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+  const address = fakeSite.address();
+  if (address === null || typeof address === 'string') {
+    throw new Error('expected a real listening address');
+  }
+  return `http://127.0.0.1:${address.port}`;
+}
+
 describe('sites routes', () => {
   it('every route requires authentication', async () => {
     const { app } = await buildTestServer();
@@ -378,6 +455,22 @@ describe('sites routes', () => {
       payload: { message: 'msg' },
     });
     assert.equal(unpublish.statusCode, 401);
+
+    const history = await app.inject({ method: 'GET', url: '/api/sites/anything/history/pages/about.json' });
+    assert.equal(history.statusCode, 401);
+
+    const revision = await app.inject({
+      method: 'GET',
+      url: '/api/sites/anything/revision/HEAD/pages/about.json',
+    });
+    assert.equal(revision.statusCode, 401);
+
+    const revert = await app.inject({
+      method: 'POST',
+      url: '/api/sites/anything/revert',
+      payload: { ref: 'abc123', path: 'pages/about.json', message: 'msg' },
+    });
+    assert.equal(revert.statusCode, 401);
 
     await app.close();
   });
@@ -1096,6 +1189,217 @@ describe('sites routes', () => {
       url: '/api/sites/does-not-exist/unpublish/pages/about.json',
       headers: { cookie },
       payload: { message: 'msg' },
+    });
+
+    assert.equal(response.statusCode, 404);
+
+    await app.close();
+  });
+
+  it('H1: GET /api/sites/:id/history/* lists commits from the real git log route', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeGitSite({ acceptedToken: 'the-token' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/history/pages/about.json`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json() as { commits: Array<{ hash: string }>; hasMore: boolean };
+    assert.equal(body.commits[0]?.hash, 'abc123');
+    assert.equal(body.hasMore, false);
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/history/* rejects a non-positive-integer limit with 400, without ever calling the site', async () => {
+    const { app, cookie } = await buildTestServer();
+    let historyWasCalled = false;
+    fakeSite = createServer((req, res) => {
+      if (req.method === 'GET' && req.url?.startsWith('/v1/git/log')) {
+        historyWasCalled = true;
+      }
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'not found' }));
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const siteUrl = `http://127.0.0.1:${address.port}`;
+    const id = await registerSite(app, cookie, siteUrl, 'any-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/history/pages/about.json?limit=0`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(historyWasCalled, false);
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/history/* returns 404 for an unknown site', async () => {
+    const { app, cookie } = await buildTestServer();
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/sites/does-not-exist/history/pages/about.json',
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 404);
+
+    await app.close();
+  });
+
+  it('H3: GET /api/sites/:id/revision/HEAD/* round-trips current content through the real route', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeGitSite({ acceptedToken: 'the-token' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/revision/HEAD/pages/about.json`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(JSON.parse(response.body), { title: 'Current' });
+
+    await app.close();
+  });
+
+  it('H3: GET /api/sites/:id/revision/:ref/* also fetches a real earlier revision', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeGitSite({ acceptedToken: 'the-token' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/revision/abc123/pages/about.json`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(JSON.parse(response.body), { title: 'Old' });
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/revision/:ref/* keeps invalid-ref (400) and not-found-at-ref (404) distinct', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeGitSite({ acceptedToken: 'the-token' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const invalidRef = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/revision/not-a-real-ref%21/pages/about.json`,
+      headers: { cookie },
+    });
+    assert.equal(invalidRef.statusCode, 400);
+    assert.equal(invalidRef.json().error, 'Bad Request');
+
+    const notFoundAtRef = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/revision/abc123/pages/never-existed.json`,
+      headers: { cookie },
+    });
+    assert.equal(notFoundAtRef.statusCode, 404);
+    assert.equal(notFoundAtRef.json().reason, 'not-found-at-ref');
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/revision/:ref/* returns 404 for an unknown site', async () => {
+    const { app, cookie } = await buildTestServer();
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/sites/does-not-exist/revision/HEAD/pages/about.json',
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 404);
+
+    await app.close();
+  });
+
+  it('H4: POST /api/sites/:id/revert sends the logged-in admin\'s own name/email as author, never something the caller supplied', async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedBody = '';
+    const siteUrl = await startFakeGitSite({
+      acceptedToken: 'the-token',
+      onRevertBody: (raw) => {
+        receivedBody = raw;
+      },
+    });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/revert`,
+      headers: { cookie },
+      payload: { ref: 'abc123', path: 'pages/about.json', message: 'Revert to earlier version' },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { ok: true });
+    assert.deepEqual(JSON.parse(receivedBody), {
+      ref: 'abc123',
+      paths: ['content/pages/about.json'],
+      message: 'Revert to earlier version',
+      author: { name: TEST_NAME, email: TEST_EMAIL },
+    });
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/revert rejects a missing ref/path/message with 400, without ever calling the site', async () => {
+    const { app, cookie } = await buildTestServer();
+    let siteWasCalled = false;
+    fakeSite = createServer((req, res) => {
+      if (req.method === 'POST' && req.url === '/v1/git/revert') {
+        siteWasCalled = true;
+      }
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'not found' }));
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const siteUrl = `http://127.0.0.1:${address.port}`;
+    const id = await registerSite(app, cookie, siteUrl, 'any-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/revert`,
+      headers: { cookie },
+      payload: { ref: 'abc123', path: '', message: 'msg' },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(siteWasCalled, false);
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/revert returns 404 for an unknown site', async () => {
+    const { app, cookie } = await buildTestServer();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sites/does-not-exist/revert',
+      headers: { cookie },
+      payload: { ref: 'abc123', path: 'pages/about.json', message: 'msg' },
     });
 
     assert.equal(response.statusCode, 404);

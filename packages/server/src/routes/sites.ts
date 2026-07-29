@@ -14,6 +14,9 @@ import { publishSite } from '../sites/site-publish.ts';
 import { discardSiteDraft } from '../sites/site-draft-discard.ts';
 import { unpublishSite } from '../sites/site-unpublish.ts';
 import type { CommitAuthor } from '../sites/commit-author.ts';
+import { fetchSiteHistory } from '../sites/site-history.ts';
+import { fetchSiteRevision } from '../sites/site-revision.ts';
+import { revertSitePath } from '../sites/site-revert.ts';
 
 // The raw token is never included here, full stop - built by this
 // explicit mapping function rather than spreading the Site record, so
@@ -146,6 +149,49 @@ function parseUnpublishBody(body: unknown): UnpublishBody | null {
     return null;
   }
   return { message: record.message };
+}
+
+interface HistoryQuery {
+  limit?: string;
+}
+
+const DEFAULT_HISTORY_LIMIT = 100;
+
+// H1: checked here, before ever calling the site - mirrors the
+// agent's own handleGitLog validation and this file's own If-Match
+// fail-fast precedent, rather than letting the site reject it.
+function parseHistoryLimit(query: HistoryQuery): number | null {
+  if (query.limit === undefined) {
+    return DEFAULT_HISTORY_LIMIT;
+  }
+  const parsed = Number(query.limit);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return null;
+  }
+  return parsed;
+}
+
+interface RevertBody {
+  ref: string;
+  path: string;
+  message: string;
+}
+
+function parseRevertBody(body: unknown): RevertBody | null {
+  if (typeof body !== 'object' || body === null) {
+    return null;
+  }
+  const record = body as Record<string, unknown>;
+  if (typeof record.ref !== 'string' || record.ref.trim() === '') {
+    return null;
+  }
+  if (typeof record.path !== 'string' || record.path.trim() === '') {
+    return null;
+  }
+  if (typeof record.message !== 'string' || record.message.trim() === '') {
+    return null;
+  }
+  return { ref: record.ref, path: record.path, message: record.message };
 }
 
 // The browser never supplies a commit author - it's always the
@@ -401,6 +447,107 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
         return { error: result.message, reason: result.outcome };
       },
     );
+
+    // H1: flat, top-level route (not nested under a shared "/history"
+    // prefix with the two routes below) - a real page path could
+    // otherwise collide with a static route segment and be silently
+    // misrouted, since find-my-way prefers a more specific static
+    // match over a wildcard sibling at the same prefix.
+    app.get<{ Params: { id: string; '*': string }; Querystring: HistoryQuery }>(
+      '/:id/history/*',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const limit = parseHistoryLimit(request.query);
+        if (limit === null) {
+          reply.code(400);
+          return { error: '"limit" must be a positive integer' };
+        }
+
+        const result = await fetchSiteHistory(site, request.params['*'], limit);
+        if (result.outcome === 'ok') {
+          return { commits: result.commits, hasMore: result.hasMore };
+        }
+        if (result.outcome === 'not-found') {
+          reply.code(404);
+          return { error: result.message, reason: 'not-found' };
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
+
+    // H3: ref="HEAD" here is the entire "compare against current"
+    // mechanism - the same route serves any real commit hash too.
+    // invalid-ref/not-found-at-ref are forwarded as distinct
+    // statuses, matching the agent's own deliberate non-collapse.
+    app.get<{ Params: { id: string; ref: string; '*': string } }>(
+      '/:id/revision/:ref/*',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const result = await fetchSiteRevision(site, request.params.ref, request.params['*']);
+
+        if (result.outcome === 'ok') {
+          reply.type('application/json; charset=utf-8');
+          return Buffer.from(result.body);
+        }
+        if (result.outcome === 'invalid-ref') {
+          reply.code(400);
+          return { statusCode: 400, error: 'Bad Request', message: result.message };
+        }
+        if (result.outcome === 'not-found-at-ref') {
+          reply.code(404);
+          return { error: result.message, reason: 'not-found-at-ref' };
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
+
+    // H4: always a new commit on the agent side - history is never
+    // rewritten. Same author-from-session, not-from-body rule as
+    // publish/unpublish.
+    app.post<{ Params: { id: string } }>('/:id/revert', { preHandler: requireAuth }, async (request, reply) => {
+      const site = await sitesStore.find(request.params.id);
+      if (!site) {
+        throw new SiteNotFoundError(request.params.id);
+      }
+
+      const body = parseRevertBody(request.body);
+      if (!body) {
+        reply.code(400);
+        return { error: 'ref, path, and message are all required' };
+      }
+
+      const author = requireCommitAuthor(request.currentUser);
+      const result = await revertSitePath(site, body.ref, body.path, body.message, author);
+
+      if (result.outcome === 'ok') {
+        return { ok: true };
+      }
+      if (result.outcome === 'invalid-ref') {
+        reply.code(400);
+        return { statusCode: 400, error: 'Bad Request', message: result.message };
+      }
+      if (result.outcome === 'not-found-at-ref') {
+        reply.code(404);
+        return { error: result.message, reason: 'not-found-at-ref' };
+      }
+
+      reply.code(502);
+      return { error: result.message, reason: result.outcome };
+    });
 
     // C1: never gated on reachability - the registry is metadata
     // only (C4), so a site with a bad URL/token is still registered
