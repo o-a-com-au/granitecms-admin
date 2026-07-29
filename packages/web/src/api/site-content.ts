@@ -4,6 +4,7 @@ export interface ContentListEntry {
   type: string;
   published: boolean;
   hasDraft: boolean;
+  url: string | null;
 }
 
 export interface ContentListFilters {

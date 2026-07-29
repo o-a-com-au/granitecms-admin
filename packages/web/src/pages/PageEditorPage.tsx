@@ -1,5 +1,6 @@
 import { useParams, useSearchParams } from 'react-router';
 import { useAutosaveDraft, type EditorStatus } from '../editor/useAutosaveDraft.ts';
+import { PreviewFrame } from '../editor/PreviewFrame.tsx';
 import { BackToRegistryLink } from '../layout/BackToRegistryLink.tsx';
 
 function statusLabel(status: EditorStatus): string {
@@ -31,6 +32,7 @@ export function PageEditorPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
   const [searchParams] = useSearchParams();
   const path = searchParams.get('path') ?? '';
+  const previewUrl = searchParams.get('url');
 
   const { status, content, setContent, source, errorMessage, invalidJson, comparisonContent, loadComparison, reloadLatest } =
     useAutosaveDraft(siteId, path);
@@ -101,6 +103,8 @@ export function PageEditorPage() {
         Content
         <textarea value={content} onChange={(event) => setContent(event.target.value)} rows={20} cols={80} />
       </label>
+
+      <PreviewFrame siteId={siteId} url={previewUrl} status={status} />
     </main>
   );
 }

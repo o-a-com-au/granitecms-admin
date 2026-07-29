@@ -3,8 +3,30 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { ContentBrowserPage } from '../../src/pages/ContentBrowserPage.tsx';
 
-const ENTRY_ONE = { path: 'pages/about.json', title: 'About', type: 'page', published: true, hasDraft: false };
-const ENTRY_TWO = { path: 'pages/contact.json', title: 'Contact', type: 'page', published: false, hasDraft: true };
+const ENTRY_ONE = {
+  path: 'pages/about.json',
+  title: 'About',
+  type: 'page',
+  published: true,
+  hasDraft: false,
+  url: '/about',
+};
+const ENTRY_TWO = {
+  path: 'pages/contact.json',
+  title: 'Contact',
+  type: 'page',
+  published: false,
+  hasDraft: true,
+  url: '/contact',
+};
+const MENU_ENTRY = {
+  path: 'menus/main.json',
+  title: 'Main menu',
+  type: 'menu',
+  published: true,
+  hasDraft: false,
+  url: null,
+};
 
 function renderPage(initialPath = '/sites/site-1/content') {
   return render(
@@ -79,7 +101,17 @@ describe('ContentBrowserPage', () => {
 
     await waitFor(() => expect(screen.getByText('pages/about.json')).toBeDefined());
     const link = screen.getByRole('link', { name: 'pages/about.json' });
-    expect(link.getAttribute('href')).toBe('/sites/site-1/editor?path=pages%2Fabout.json');
+    expect(link.getAttribute('href')).toBe('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+  });
+
+  it('F1: a content type with no url (e.g. a menu) links to the editor without a url param', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([MENU_ENTRY]), { status: 200 })));
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('menus/main.json')).toBeDefined());
+    const link = screen.getByRole('link', { name: 'menus/main.json' });
+    expect(link.getAttribute('href')).toBe('/sites/site-1/editor?path=menus%2Fmain.json');
   });
 
   it('shows an "unreachable" message when the site cannot be reached', async () => {

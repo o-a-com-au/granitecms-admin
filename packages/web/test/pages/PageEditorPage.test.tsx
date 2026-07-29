@@ -56,9 +56,9 @@ function installFakeEditorApi(initial: FakeState) {
 // debounce cycle gets an explicit longer timeout instead.
 const PAST_DEBOUNCE = { timeout: 2000 };
 
-function renderPage() {
+function renderPage(initialEntry = '/sites/site-1/editor?path=pages%2Fabout.json') {
   return render(
-    <MemoryRouter initialEntries={['/sites/site-1/editor?path=pages%2Fabout.json']}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/sites/:siteId/editor" element={<PageEditorPage />} />
         <Route path="/" element={<div>registry home</div>} />
@@ -156,5 +156,23 @@ describe('PageEditorPage', () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText('No content found at this path.')).toBeDefined());
+  });
+
+  it('F1: renders a preview iframe pointed at the proxy preview route when a url is present', async () => {
+    installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    expect(iframe.src).toContain('/api/sites/site-1/preview/about?t=');
+  });
+
+  it('shows a fallback message instead of an iframe when there is no url (e.g. a menu)', async () => {
+    installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
+    renderPage('/sites/site-1/editor?path=menus%2Fmain.json');
+
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+    expect(screen.getByText('No live preview available for this content type.')).toBeDefined();
+    expect(screen.queryByTitle('Live preview')).toBeNull();
   });
 });

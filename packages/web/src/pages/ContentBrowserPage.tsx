@@ -132,7 +132,9 @@ export function ContentBrowserPage() {
               <tr key={entry.path}>
                 <td>
                   <Link
-                    to={`/sites/${siteId}/editor?path=${encodeURIComponent(entry.path)}`}
+                    to={`/sites/${siteId}/editor?path=${encodeURIComponent(entry.path)}${
+                      entry.url !== null ? `&url=${encodeURIComponent(entry.url)}` : ''
+                    }`}
                     state={{ hasDraft: entry.hasDraft, published: entry.published }}
                   >
                     {entry.path}
