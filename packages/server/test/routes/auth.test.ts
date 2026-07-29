@@ -11,6 +11,8 @@ import type { Site } from '../../src/sites/site.ts';
 
 const TEST_USERNAME = 'editor';
 const TEST_PASSWORD = 'correct horse battery staple';
+const TEST_NAME = 'Jane Editor';
+const TEST_EMAIL = 'jane@example.com';
 
 async function buildTestServer(): Promise<{ deps: ServerDeps; app: Awaited<ReturnType<typeof buildServer>> }> {
   const usersStore = openInMemoryStore<AdminUser>();
@@ -20,6 +22,8 @@ async function buildTestServer(): Promise<{ deps: ServerDeps; app: Awaited<Retur
     username: TEST_USERNAME,
     passwordHash: hash,
     passwordSalt: salt,
+    name: TEST_NAME,
+    email: TEST_EMAIL,
     createdAt: new Date().toISOString(),
   });
 
@@ -105,7 +109,12 @@ describe('auth routes', () => {
 
     const meResponse = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie } });
     assert.equal(meResponse.statusCode, 200);
-    assert.deepEqual(meResponse.json(), { id: normaliseUsername(TEST_USERNAME), username: TEST_USERNAME });
+    assert.deepEqual(meResponse.json(), {
+      id: normaliseUsername(TEST_USERNAME),
+      username: TEST_USERNAME,
+      name: TEST_NAME,
+      email: TEST_EMAIL,
+    });
 
     await app.close();
   });
@@ -160,7 +169,12 @@ describe('auth routes', () => {
 
     const whoamiResponse = await app.inject({ method: 'GET', url: '/api/__whoami-gated', headers: { cookie } });
     assert.equal(whoamiResponse.statusCode, 200);
-    assert.deepEqual(whoamiResponse.json(), { id: normaliseUsername(TEST_USERNAME), username: TEST_USERNAME });
+    assert.deepEqual(whoamiResponse.json(), {
+      id: normaliseUsername(TEST_USERNAME),
+      username: TEST_USERNAME,
+      name: TEST_NAME,
+      email: TEST_EMAIL,
+    });
 
     await app.close();
   });

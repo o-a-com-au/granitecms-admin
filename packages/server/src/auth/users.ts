@@ -3,6 +3,12 @@ export interface AdminUser {
   username: string;
   passwordHash: string;
   passwordSalt: string;
+  // The commit author identity used for every publish/unpublish this
+  // account performs (Phase 3 Group G) - set once at bootstrap, never
+  // typed fresh per publish, so a real git history gets a stable,
+  // real-looking identity rather than something re-entered each time.
+  name: string;
+  email: string;
   createdAt: string;
 }
 

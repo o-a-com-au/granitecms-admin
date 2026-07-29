@@ -18,7 +18,7 @@ export class AuthError extends Error {
 
 declare module 'fastify' {
   interface FastifyRequest {
-    currentUser: Pick<AdminUser, 'id' | 'username'> | null;
+    currentUser: Pick<AdminUser, 'id' | 'username' | 'name' | 'email'> | null;
   }
 }
 
@@ -43,6 +43,6 @@ export function createRequireAuth(usersStore: Store<AdminUser>) {
       throw new AuthError('Login required');
     }
 
-    request.currentUser = { id: user.id, username: user.username };
+    request.currentUser = { id: user.id, username: user.username, name: user.name, email: user.email };
   };
 }

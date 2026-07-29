@@ -11,6 +11,8 @@ import type { Site } from '../../src/sites/site.ts';
 
 const TEST_USERNAME = 'editor';
 const TEST_PASSWORD = 'correct horse battery staple';
+const TEST_NAME = 'Jane Editor';
+const TEST_EMAIL = 'jane@example.com';
 
 async function buildTestServer(): Promise<{
   app: Awaited<ReturnType<typeof buildServer>>;
@@ -23,6 +25,8 @@ async function buildTestServer(): Promise<{
     username: TEST_USERNAME,
     passwordHash: hash,
     passwordSalt: salt,
+    name: TEST_NAME,
+    email: TEST_EMAIL,
     createdAt: new Date().toISOString(),
   });
 

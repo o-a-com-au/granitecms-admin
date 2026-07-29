@@ -55,7 +55,7 @@ describe('bootstrap', () => {
     assert.equal(verifyPassword('a-real-chosen-password', user!.passwordHash, user!.passwordSalt), true);
   });
 
-  it('is a no-op when the users store is already non-empty', async (t) => {
+  it('is a no-op when the users store is already non-empty and already has a name/email', async (t) => {
     const logSpy = t.mock.method(console, 'log', () => {});
     const usersStore = openInMemoryStore<AdminUser>();
     await usersStore.save({
@@ -63,14 +63,46 @@ describe('bootstrap', () => {
       username: 'existing',
       passwordHash: 'x',
       passwordSalt: 'y',
+      name: 'Existing Person',
+      email: 'existing@example.com',
       createdAt: new Date().toISOString(),
     });
 
     await ensureBootstrapAdmin(usersStore);
 
     assert.deepEqual(await usersStore.list(), [
-      { id: 'existing', username: 'existing', passwordHash: 'x', passwordSalt: 'y', createdAt: (await usersStore.find('existing'))!.createdAt },
+      {
+        id: 'existing',
+        username: 'existing',
+        passwordHash: 'x',
+        passwordSalt: 'y',
+        name: 'Existing Person',
+        email: 'existing@example.com',
+        createdAt: (await usersStore.find('existing'))!.createdAt,
+      },
     ]);
     assert.equal(logSpy.mock.calls.length, 0, 'must not log or create a second account');
+  });
+
+  it('quietly backfills name/email on an existing user missing them, without creating a second account or logging', async (t) => {
+    const logSpy = t.mock.method(console, 'log', () => {});
+    const usersStore = openInMemoryStore<AdminUser>();
+    await usersStore.save({
+      id: 'existing',
+      username: 'existing',
+      passwordHash: 'x',
+      passwordSalt: 'y',
+      name: '',
+      email: '',
+      createdAt: new Date().toISOString(),
+    } as AdminUser);
+
+    await ensureBootstrapAdmin(usersStore);
+
+    const users = await usersStore.list();
+    assert.equal(users.length, 1, 'must not create a second account');
+    assert.equal(users[0]?.name, 'existing');
+    assert.equal(users[0]?.email, 'existing@admin.local');
+    assert.equal(logSpy.mock.calls.length, 0, 'a quiet migration, not a fresh-account event');
   });
 });
