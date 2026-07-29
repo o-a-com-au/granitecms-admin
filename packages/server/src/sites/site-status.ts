@@ -1,12 +1,11 @@
 import type { Site } from './site.ts';
+import { fetchSite } from './fetch-site.ts';
 
 export type SiteStatus =
   | { state: 'ok'; agentVersion: string; contentSchemaVersion: number; sqliteDriver: string }
   | { state: 'unreachable'; message: string }
   | { state: 'unauthorized'; message: string }
   | { state: 'error'; message: string };
-
-const DEFAULT_TIMEOUT_MS = 4000;
 
 interface CapabilitiesBody {
   agentVersion: string;
@@ -42,17 +41,13 @@ export async function checkSiteStatus(
   site: Pick<Site, 'url' | 'token'>,
   options: CheckSiteStatusOptions = {},
 ): Promise<SiteStatus> {
-  const fetchImpl = options.fetchImpl ?? fetch;
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const fetchOptions = { fetchImpl: options.fetchImpl, timeoutMs: options.timeoutMs };
 
-  let capabilitiesResponse: Response;
-  try {
-    capabilitiesResponse = await fetchImpl(new URL('/v1/capabilities', site.url), {
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-  } catch {
+  const capabilitiesResult = await fetchSite(site, '/v1/capabilities', fetchOptions);
+  if (capabilitiesResult.outcome === 'unreachable') {
     return { state: 'unreachable', message: 'Could not reach the site' };
   }
+  const capabilitiesResponse = capabilitiesResult.response;
 
   if (!capabilitiesResponse.ok) {
     return {
@@ -72,15 +67,11 @@ export async function checkSiteStatus(
     return { state: 'error', message: 'This does not look like a cms-agent site' };
   }
 
-  let contentResponse: Response;
-  try {
-    contentResponse = await fetchImpl(new URL('/v1/content', site.url), {
-      headers: { Authorization: `Bearer ${site.token}` },
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-  } catch {
+  const contentResult = await fetchSite(site, '/v1/content', { ...fetchOptions, authToken: site.token });
+  if (contentResult.outcome === 'unreachable') {
     return { state: 'unreachable', message: 'Could not reach the site' };
   }
+  const contentResponse = contentResult.response;
 
   // requireScope on the agent side can return 401 (missing/invalid
   // token) or 403 (valid token, wrong scope) - both are the same
