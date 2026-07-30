@@ -27,6 +27,17 @@ function installFakeEditorApi(initial: FakeState) {
     const url = typeof input === 'string' ? input : input.toString();
     const method = init?.method ?? 'GET';
 
+    if (method === 'GET' && url.includes('/theme/schemas')) {
+      return new Response(
+        JSON.stringify({
+          sections: { hero: { type: 'object', properties: { heading: { type: 'string' } } } },
+          blocks: {},
+          acceptsBlocks: { sections: { hero: false }, blocks: {} },
+        }),
+        { status: 200 },
+      );
+    }
+
     if (method === 'GET' && url.includes('/content/')) {
       if (state.content === null || state.etag === null) {
         return new Response(JSON.stringify({ error: 'not found', reason: 'not-found' }), { status: 404 });
@@ -373,5 +384,43 @@ describe('PageEditorPage', () => {
     await waitFor(() => expect(screen.getByText('Could not reach the site')).toBeDefined());
     expect(api.state.source).toBe('live');
     expect((screen.getByLabelText('Content') as HTMLTextAreaElement).value).toBe('{"title":"Hi"}');
+  });
+
+  it('Group I: content with no sections array falls back to the raw view, with the Sections tab disabled', async () => {
+    installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
+    renderPage();
+
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+    expect(screen.getByRole('tab', { name: 'Sections' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('tab', { name: 'Raw JSON' })).toHaveProperty('ariaSelected', 'true');
+  });
+
+  it('Group I: sections content defaults to the structured editor, driving the same autosave path', async () => {
+    const api = installFakeEditorApi({
+      content: JSON.stringify({
+        title: 'Hi',
+        published: true,
+        sections: [
+          { id: 'a', type: 'hero', settings: {} },
+          { id: 'b', type: 'hero', settings: {} },
+        ],
+      }),
+      etag: '"etag-1"',
+      source: 'draft',
+    });
+    renderPage();
+
+    await waitFor(() => expect(screen.getByLabelText('Section type')).toBeDefined());
+    expect(screen.queryByLabelText('Content')).toBeNull();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Move down' })[0] as HTMLElement);
+
+    await waitFor(
+      () => expect(JSON.parse(api.state.content ?? '{}').sections.map((s: { id: string }) => s.id)).toEqual(['b', 'a']),
+      PAST_DEBOUNCE,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Raw JSON' }));
+    expect(screen.getByLabelText('Content')).toBeDefined();
   });
 });

@@ -4,6 +4,7 @@ import { useAutosaveDraft, type EditorStatus } from '../editor/useAutosaveDraft.
 import { PreviewFrame } from '../editor/PreviewFrame.tsx';
 import { BackToRegistryLink } from '../layout/BackToRegistryLink.tsx';
 import { discardSiteDraft, publishSiteDraft, unpublishSitePage } from '../api/site-publishing.ts';
+import { canEditAsSections, PageSectionsEditor } from '../sections/PageSectionsEditor.tsx';
 
 function statusLabel(status: EditorStatus): string {
   switch (status) {
@@ -26,18 +27,37 @@ function statusLabel(status: EditorStatus): string {
   }
 }
 
-// E2's "editing a field" is deliberately a raw JSON textarea over the
-// whole content document, not a schema-driven form - Group I (later)
-// is where real section/block editing gets built, on top of the same
-// useAutosaveDraft hook this page drives.
+// Group I: the structured section/block editor (PageSectionsEditor) is
+// the default view, driving the exact same useAutosaveDraft hook Group
+// E built - the raw textarea below is kept only as a fallback toggle,
+// for content the structured editor can't represent (no sections
+// array) and for the envelope fields it doesn't give controls to.
 export function PageEditorPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
   const [searchParams] = useSearchParams();
   const path = searchParams.get('path') ?? '';
   const previewUrl = searchParams.get('url');
+  const [viewMode, setViewMode] = useState<'structured' | 'raw'>('structured');
 
-  const { status, content, setContent, source, errorMessage, invalidJson, comparisonContent, loadComparison, reloadLatest } =
-    useAutosaveDraft(siteId, path);
+  const {
+    status,
+    content,
+    setContent,
+    source,
+    errorMessage,
+    validationErrors,
+    invalidJson,
+    comparisonContent,
+    loadComparison,
+    reloadLatest,
+  } = useAutosaveDraft(siteId, path);
+
+  // The structured view is only ever an option when the content is
+  // actually a sections-shaped document - a menu, or any content
+  // without a sections array, always falls back to raw regardless of
+  // which tab was last selected.
+  const sectionsAvailable = canEditAsSections(content);
+  const effectiveViewMode = sectionsAvailable ? viewMode : 'raw';
 
   // Kept beside the hook, not inside it - useAutosaveDraft stays
   // UI-agnostic (Group E/F's own design principle, reused by a future
@@ -196,10 +216,39 @@ export function PageEditorPage() {
             </section>
           )}
 
-          <label>
-            Content
-            <textarea value={content} onChange={(event) => setContent(event.target.value)} />
-          </label>
+          <div role="tablist" aria-label="Editor view">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={effectiveViewMode === 'structured'}
+              disabled={!sectionsAvailable}
+              onClick={() => setViewMode('structured')}
+            >
+              Sections
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={effectiveViewMode === 'raw'}
+              onClick={() => setViewMode('raw')}
+            >
+              Raw JSON
+            </button>
+          </div>
+
+          {effectiveViewMode === 'structured' ? (
+            <PageSectionsEditor
+              siteId={siteId}
+              content={content}
+              setContent={setContent}
+              validationErrors={validationErrors}
+            />
+          ) : (
+            <label>
+              Content
+              <textarea value={content} onChange={(event) => setContent(event.target.value)} />
+            </label>
+          )}
         </div>
         <div className="editor-preview-full">
           <PreviewFrame siteId={siteId} url={previewUrl} status={status} />

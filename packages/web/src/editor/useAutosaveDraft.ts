@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { readSiteEditorContent, saveSiteDraft, SiteEditorError } from '../api/site-editor.ts';
+import { readSiteEditorContent, saveSiteDraft, SiteEditorError, type ValidationFieldError } from '../api/site-editor.ts';
 
 export type EditorStatus =
   | 'loading'
@@ -19,6 +19,10 @@ export interface UseAutosaveDraftResult {
   setContent: (value: string) => void;
   source: 'draft' | 'live' | null;
   errorMessage: string | null;
+  // Group I, I5: the real ajv errors from a failed save, alongside
+  // errorMessage's own flat summary - additive only, no change to the
+  // save/debounce/conflict machinery below.
+  validationErrors: ValidationFieldError[] | null;
   invalidJson: boolean;
   comparisonContent: string | null;
   loadComparison: () => void;
@@ -40,6 +44,7 @@ export function useAutosaveDraft(
   const [content, setContentState] = useState('');
   const [source, setSource] = useState<'draft' | 'live' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<ValidationFieldError[] | null>(null);
   const [invalidJson, setInvalidJson] = useState(false);
   const [comparisonContent, setComparisonContent] = useState<string | null>(null);
 
@@ -131,6 +136,7 @@ export function useAutosaveDraft(
       } else {
         updateStatus('save-error');
         setErrorMessage(err instanceof Error ? err.message : 'Failed to save');
+        setValidationErrors(err instanceof SiteEditorError ? (err.validationErrors ?? null) : null);
       }
     }
   }, [siteId, path]);
@@ -207,6 +213,7 @@ export function useAutosaveDraft(
     setContent,
     source,
     errorMessage,
+    validationErrors,
     invalidJson,
     comparisonContent,
     loadComparison,

@@ -7,14 +7,33 @@ export type SiteEditorErrorReason =
   | 'precondition-required'
   | 'invalid';
 
+// Group I, I5: the real ajv errors (already field-pointing, e.g.
+// /sections/0/settings/heading), forwarded all the way from the
+// agent's own draft-save 400 body.
+export interface ValidationFieldError {
+  path: string;
+  message: string;
+  keyword: string;
+}
+
 export class SiteEditorError extends Error {
   readonly reason: SiteEditorErrorReason;
+  readonly validationErrors?: ValidationFieldError[];
 
-  constructor(reason: SiteEditorErrorReason, message: string) {
+  constructor(reason: SiteEditorErrorReason, message: string, validationErrors?: ValidationFieldError[]) {
     super(message);
     this.name = 'SiteEditorError';
     this.reason = reason;
+    this.validationErrors = validationErrors;
   }
+}
+
+function isValidationFieldError(value: unknown): value is ValidationFieldError {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return typeof record.path === 'string' && typeof record.message === 'string' && typeof record.keyword === 'string';
 }
 
 export interface ReadResult {
@@ -47,16 +66,20 @@ export function encodePathSegments(path: string): string {
 export async function reasonFromResponse(response: Response, fallback: SiteEditorErrorReason): Promise<SiteEditorError> {
   let message = 'Something went wrong';
   let reason: SiteEditorErrorReason = fallback;
+  let validationErrors: ValidationFieldError[] | undefined;
   try {
-    const body = (await response.json()) as { error?: string; message?: string; reason?: unknown };
+    const body = (await response.json()) as { error?: string; message?: string; reason?: unknown; errors?: unknown };
     message = body.error ?? body.message ?? message;
     if (isReason(body.reason)) {
       reason = body.reason;
     }
+    if (Array.isArray(body.errors) && body.errors.every(isValidationFieldError)) {
+      validationErrors = body.errors;
+    }
   } catch {
     // Use the defaults above - the body wasn't valid JSON.
   }
-  return new SiteEditorError(reason, message);
+  return new SiteEditorError(reason, message, validationErrors);
 }
 
 export async function readSiteEditorContent(siteId: string, path: string): Promise<ReadResult> {

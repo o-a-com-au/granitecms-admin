@@ -13,6 +13,7 @@ interface FakeState {
   content: string;
   etag: string;
   source: 'draft' | 'live';
+  forceValidationError?: boolean;
 }
 
 function installFakeEditorApi(initial: FakeState) {
@@ -37,6 +38,17 @@ function installFakeEditorApi(initial: FakeState) {
         return new Response(JSON.stringify({ statusCode: 409, error: 'Conflict', message: 'stale' }), {
           status: 409,
         });
+      }
+      if (state.forceValidationError) {
+        return new Response(
+          JSON.stringify({
+            statusCode: 400,
+            error: 'Bad Request',
+            message: 'invalid content',
+            errors: [{ path: '/sections/0/settings/heading', message: 'must be string', keyword: 'type' }],
+          }),
+          { status: 400 },
+        );
       }
       state.content = init?.body as string;
       etagCounter += 1;
@@ -117,6 +129,25 @@ describe('useAutosaveDraft', () => {
 
     await waitFor(() => expect(result.current.status).toBe('conflict'));
     expect(result.current.content).toBe('{"a":"mine"}');
+  });
+
+  it('Group I: a validation-failed save populates validationErrors with the real field-pointing errors', async () => {
+    installFakeEditorApi({
+      content: '{"a":1}',
+      etag: '"etag-1"',
+      source: 'draft',
+      forceValidationError: true,
+    });
+    const { result } = renderHook(() => useAutosaveDraft('site-1', 'pages/about.json', TEST_DEBOUNCE_MS));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(result.current.validationErrors).toBeNull();
+
+    act(() => result.current.setContent('{"a":2}'));
+
+    await waitFor(() => expect(result.current.status).toBe('save-error'));
+    expect(result.current.validationErrors).toEqual([
+      { path: '/sections/0/settings/heading', message: 'must be string', keyword: 'type' },
+    ]);
   });
 
   it('E5: reloadLatest discards local content and re-fetches', async () => {
