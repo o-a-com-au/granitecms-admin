@@ -17,6 +17,7 @@ import type { CommitAuthor } from '../sites/commit-author.ts';
 import { fetchSiteHistory } from '../sites/site-history.ts';
 import { fetchSiteRevision } from '../sites/site-revision.ts';
 import { revertSitePath } from '../sites/site-revert.ts';
+import { fetchSiteThemeSchemas } from '../sites/site-theme-schemas.ts';
 
 // The raw token is never included here, full stop - built by this
 // explicit mapping function rather than spreading the Site record, so
@@ -543,6 +544,23 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
       if (result.outcome === 'not-found-at-ref') {
         reply.code(404);
         return { error: result.message, reason: 'not-found-at-ref' };
+      }
+
+      reply.code(502);
+      return { error: result.message, reason: result.outcome };
+    });
+
+    // I2, I3, I4: what the schema-driven section/block editor is
+    // built from - a single read-only pass-through, no query params.
+    app.get<{ Params: { id: string } }>('/:id/theme/schemas', { preHandler: requireAuth }, async (request, reply) => {
+      const site = await sitesStore.find(request.params.id);
+      if (!site) {
+        throw new SiteNotFoundError(request.params.id);
+      }
+
+      const result = await fetchSiteThemeSchemas(site);
+      if (result.outcome === 'ok') {
+        return result.schemas;
       }
 
       reply.code(502);

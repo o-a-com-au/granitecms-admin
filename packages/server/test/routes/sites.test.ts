@@ -472,6 +472,9 @@ describe('sites routes', () => {
     });
     assert.equal(revert.statusCode, 401);
 
+    const themeSchemas = await app.inject({ method: 'GET', url: '/api/sites/anything/theme/schemas' });
+    assert.equal(themeSchemas.statusCode, 401);
+
     await app.close();
   });
 
@@ -1403,6 +1406,74 @@ describe('sites routes', () => {
     });
 
     assert.equal(response.statusCode, 404);
+
+    await app.close();
+  });
+
+  it('I2: GET /api/sites/:id/theme/schemas forwards the real theme schemas from the site', async () => {
+    const { app, cookie } = await buildTestServer();
+    const schemas = {
+      sections: { hero: { type: 'object', properties: { heading: { type: 'string' } } } },
+      blocks: { button: { type: 'object', properties: { label: { type: 'string' } } } },
+      acceptsBlocks: { sections: { hero: true }, blocks: { button: false } },
+    };
+    fakeSite = createServer((req, res) => {
+      if (req.headers.authorization !== 'Bearer the-token') {
+        sendJson(res, 401, { error: 'invalid-token' });
+        return;
+      }
+      if (req.method === 'GET' && req.url === '/v1/theme/schemas') {
+        sendJson(res, 200, schemas);
+        return;
+      }
+      sendJson(res, 404, { error: 'not found' });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const siteUrl = `http://127.0.0.1:${address.port}`;
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/theme/schemas`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), schemas);
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/theme/schemas returns 404 for an unknown site', async () => {
+    const { app, cookie } = await buildTestServer();
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/sites/does-not-exist/theme/schemas',
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 404);
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/theme/schemas returns 502 for an unreachable site', async () => {
+    const { app, cookie } = await buildTestServer();
+    const id = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/theme/schemas`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 502);
+    assert.equal(response.json().reason, 'unreachable');
 
     await app.close();
   });
