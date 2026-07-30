@@ -80,6 +80,31 @@ describe('saveSiteDraft', () => {
     assert.equal(result.outcome, 'invalid');
   });
 
+  it('Group I: a 400 with a real errors field carries the structured validation errors through', async () => {
+    const errors = [{ path: '/sections/0/settings/heading', message: 'must be string', keyword: 'type' }];
+    const url = await startServer((_req, res) =>
+      sendJson(res, 400, { statusCode: 400, error: 'Bad Request', message: 'bad content', errors }),
+    );
+
+    const result = await saveSiteDraft({ url, token: 'x' }, 'pages/about.json', '{}', '"etag"');
+    assert.equal(result.outcome, 'invalid');
+    if (result.outcome === 'invalid') {
+      assert.deepEqual(result.errors, errors);
+    }
+  });
+
+  it('Group I: a 400 with no errors field (an un-upgraded site) degrades to an empty array, not a crash', async () => {
+    const url = await startServer((_req, res) =>
+      sendJson(res, 400, { statusCode: 400, error: 'Bad Request', message: 'bad content' }),
+    );
+
+    const result = await saveSiteDraft({ url, token: 'x' }, 'pages/about.json', '{}', '"etag"');
+    assert.equal(result.outcome, 'invalid');
+    if (result.outcome === 'invalid') {
+      assert.deepEqual(result.errors, []);
+    }
+  });
+
   it('unreachable: nothing listening', async () => {
     const result = await saveSiteDraft({ url: 'http://127.0.0.1:1', token: 'x' }, 'pages/about.json', '{}', '"etag"');
     assert.equal(result.outcome, 'unreachable');

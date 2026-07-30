@@ -837,6 +837,41 @@ describe('sites routes', () => {
     await app.close();
   });
 
+  it('Group I: PUT /api/sites/:id/drafts/* forwards structured validation errors, pointing at the specific field', async () => {
+    const { app, cookie } = await buildTestServer();
+    const fieldErrors = [{ path: '/sections/0/settings/heading', message: 'must be string', keyword: 'type' }];
+    fakeSite = createServer((req, res) => {
+      if (req.headers.authorization !== 'Bearer the-token') {
+        sendJson(res, 401, { error: 'invalid-token' });
+        return;
+      }
+      if (req.method === 'PUT' && req.url === '/v1/drafts/pages/about.json') {
+        sendJson(res, 400, { statusCode: 400, error: 'Bad Request', message: 'invalid content', errors: fieldErrors });
+        return;
+      }
+      sendJson(res, 404, { error: 'not found' });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const siteUrl = `http://127.0.0.1:${address.port}`;
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/sites/${id}/drafts/pages/about.json`,
+      headers: { cookie, 'if-match': '"any-etag"' },
+      payload: { sections: [{ id: 'sec-1', type: 'hero', settings: { heading: 123 } }] },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json().errors, fieldErrors);
+
+    await app.close();
+  });
+
   it('E6: two concurrent saves racing the same stale If-Match - exactly one succeeds, the other gets 409', async () => {
     const { app, cookie } = await buildTestServer();
     const siteUrl = await startFakeEditorSite({

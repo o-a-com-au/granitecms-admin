@@ -319,7 +319,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
         }
         if (result.outcome === 'invalid') {
           reply.code(400);
-          return { statusCode: 400, error: 'Bad Request', message: result.message };
+          return { statusCode: 400, error: 'Bad Request', message: result.message, errors: result.errors };
         }
 
         reply.code(502);
