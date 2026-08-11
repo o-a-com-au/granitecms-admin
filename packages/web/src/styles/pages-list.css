@@ -1,0 +1,142 @@
+/* Shared by the Menus list and the Pages list (docs/design/Pages.png)
+   - the same card surface/border/radius every other table in the app
+   already gets from the plain table rule above (confirmed against the
+   mockup: the header and row fill sit a shade lighter than the page
+   background, not flush with it), just with roomier row padding and
+   a header that blends into that same fill rather than standing out
+   in --colour-bg. Every column but the first (the clickable name)
+   reads as secondary/muted - true whether there's one such column
+   (Menus' own "Menu items") or three (Pages' Type/Status/Changed). */
+
+
+.list-table {
+  width: 100%;
+  /* Not border-collapse: collapse - a table's own outer border
+     doesn't reliably paint under collapse when combined with
+     border-radius + overflow: hidden (confirmed directly: the
+     computed style reports the border, but nothing renders). separate
+     + border-spacing: 0 keeps the same flush-cell look while staying
+     in the standard box model those two properties need. */
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--colour-surface);
+  border-radius: var(--radius);
+  box-sizing: border-box;
+  border: 1px solid var(--colour-border);
+  overflow: hidden; /* clip the header's rounded corners, so the table's own border-radius is the only one visible */
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+}
+
+.list-table th {
+  background: none;
+  padding: 0.5rem;
+  font-size: 0.6rem;
+  font-weight: 600; 
+  background: var(--colour-table-header);
+}
+
+.list-table td {
+  padding: 0.6rem 0.5rem;
+}
+
+.list-table td a {
+  color: var(--colour-text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.list-table td a:hover {
+  color: var(--colour-primary);
+}
+
+.list-table td:not(:first-child) {
+  color: var(--colour-muted);
+}
+
+/* The Pages tree's Name cell (docs/design/Pages.png's chevron on
+   "Home"). button.page-tree-toggle is flat and icon-only, like
+   button.instance-row-chevron elsewhere in the app, not the generic
+   bordered/padded button[type='button'] pill it would otherwise
+   inherit - the element+class selector is needed for the same reason
+   noted on instance-row-chevron, to out-specify that attribute
+   selector. .page-tree-toggle-spacer shares its exact box size so a
+   leaf row's title lines up under an expandable sibling's title at
+   the same depth, rather than sitting flush against the indent with
+   no toggle to fill the gap. */
+.page-tree-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+button.page-tree-toggle,
+.page-tree-toggle-spacer {
+  flex: 0 0 auto;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+button.page-tree-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--colour-muted);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+button.page-tree-toggle:hover {
+  color: var(--colour-text);
+}
+
+/* Pages list toolbar (docs/design/Pages.png) - a wide search field
+   plus a segmented All/Live/Unpublished filter, replacing the old
+   bare Type-text-input/draft-status-dropdown form. */
+.content-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.content-search {
+  flex: 1;
+  padding: 0.7rem 1rem;
+}
+
+/* One bordered/filled segmented control (docs/design/Pages.png),
+   confirmed by sampling the mockup directly - the outer group carries
+   the single border and surface fill, not each button its own; only
+   the pressed segment gets an inset pill (--colour-surface-hover),
+   the other two sit as plain muted text with no box of their own. */
+.filter-tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+  padding: 0.25rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  background: var(--colour-surface);
+}
+
+.filter-tabs button {
+  padding: 0.45rem 0.9rem;
+  border: none;
+  border-radius: calc(var(--radius) - 3px);
+  background: none;
+  color: var(--colour-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.filter-tabs button:hover {
+  color: var(--colour-text);
+}
+
+.filter-tabs button[aria-pressed='true'] {
+  background: var(--colour-surface-hover);
+  color: var(--colour-text);
+}
