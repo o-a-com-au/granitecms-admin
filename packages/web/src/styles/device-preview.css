@@ -1,0 +1,102 @@
+/* Live preview device-size toggle - lives in PreviewFrame's own
+   .preview-topbar now (docs/design/Sections Tab.png), icon-only (the
+   label survives as aria-label, not visible text). The new fixed-
+   palette device icons can't tint via currentColor, so the pressed
+   state is a background box behind the icon instead, same convention
+   as the nav rail's own active state. */
+.device-toggle {
+  display: flex;
+  gap: 0.3rem;
+  flex: 0 0 auto;
+}
+
+.device-toggle button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+/* DeviceDesktopIcon/DeviceTabletIcon/DeviceMobileIcon (icons/index.tsx)
+   render their svg at width/height: 100% - this box does the actual
+   sizing, matching the icons' previous fixed 18px default (at the
+   browser's un-overridden 16px root), same rem-container approach as
+   the nav rail's own .nav-rail-icon. Deliberately smaller than the
+   2rem button around it, so there's visible padding inside the
+   pressed/hover background box rather than the icon filling it edge
+   to edge. */
+.device-icon {
+  display: flex;
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+}
+
+.device-toggle button:hover {
+  background: var(--colour-surface-hover);
+}
+
+.device-toggle button[aria-pressed='true'] {
+  background: var(--colour-surface-hover);
+}
+
+.preview-viewport {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 2.5rem;
+  overflow: auto;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  transition: padding 0.3s ease;
+  margin: 0.5rem 0.0 0 0.5rem;
+  border: 1px solid var(--colour-border);
+  background: var(--colour-viewport);
+}
+
+.preview-viewport iframe {
+  height: 100%;
+  min-height: 640px;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
+  transition:
+    width 0.3s ease,
+    border-radius 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+/* Desktop is the natural full-width state, not a simulated device
+   canvas - it fills the viewport edge to edge, with none of the
+   inset/card treatment tablet and mobile use to read as a scaled-down
+   device frame. */
+/* No background override here, deliberately - the grey gradient stays
+   the same across all three tiers now. It's fully covered at rest
+   (the iframe is 100% width/height with zero padding around it in
+   desktop), but removing it outright caused a black flash while the
+   iframe's own width transition was still catching up to full width. */
+.preview-viewport[data-device='desktop'] {
+  padding: 0;
+}
+
+.preview-viewport[data-device='desktop'] iframe {
+  min-height: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Tablet/mobile keep the top/left/right inset that reads as a device
+   frame, but sit flush with the bottom of the screen rather than
+   floating with an equal gap below - only the top padding is doing
+   framing work here. */
+.preview-viewport[data-device='tablet'],
+.preview-viewport[data-device='mobile'] {
+  padding-bottom: 0;
+}

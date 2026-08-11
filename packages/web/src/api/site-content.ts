@@ -1,10 +1,12 @@
 export interface ContentListEntry {
   path: string;
+  name: string;
   title: string;
   type: string;
   published: boolean;
   hasDraft: boolean;
   url: string | null;
+  changedAt: string | null;
 }
 
 export interface ContentListFilters {

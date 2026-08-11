@@ -104,6 +104,19 @@ describe('useAutosaveDraft', () => {
     await waitFor(() => expect(result.current.status).toBe('ready'));
   });
 
+  it('a successful save flips source to "draft" even if it started as "live" - a page/menu with no prior draft gets one on its first edit', async () => {
+    const api = installFakeEditorApi({ content: '{"a":1}', etag: '"etag-1"', source: 'live' });
+    const { result } = renderHook(() => useAutosaveDraft('site-1', 'pages/about.json', TEST_DEBOUNCE_MS));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(result.current.source).toBe('live');
+
+    act(() => result.current.setContent('{"a":2}'));
+    await waitFor(() => expect(api.state.content).toBe('{"a":2}'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    expect(result.current.source).toBe('draft');
+  });
+
   it('chained save: typing again while a save is in flight queues a follow-up with the fresh etag', async () => {
     const api = installFakeEditorApi({ content: '{"a":1}', etag: '"etag-1"', source: 'draft' });
     const { result } = renderHook(() => useAutosaveDraft('site-1', 'pages/about.json', TEST_DEBOUNCE_MS));

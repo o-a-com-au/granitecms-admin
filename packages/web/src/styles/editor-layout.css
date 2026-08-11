@@ -1,0 +1,153 @@
+/* The editor page is a full-bleed split screen, not a normal padded,
+   centred reading-width page - it opts out of main's own layout
+   entirely so the preview and edit panel can each run edge to edge and
+   fill the exact height available in .app-content. Preview sits on the
+   left, the edit panel on the right, per docs/design/Sections Tab.png.
+   flex/min-height: 0 (not min-height: 100vh) is what lets
+   .editor-sidebar-scroll's own overflow-y: auto below actually bound
+   and scroll, instead of the whole document growing to fit it. */
+.editor-page {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--colour-bg);
+}
+
+.editor-shell {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* A column of its own - alerts/conflict box and the tab bar
+   (.editor-sidebar-top) stay fixed at the top, .editor-tab-content is
+   its own independent scroll region below them, and .editor-footer's
+   Save/Discard stay pinned at the bottom (docs/design/Sections
+   Tab.png). Previously one shared scroll region wrapped the tabs
+   themselves too, so scrolling a long tab's content also scrolled the
+   Page/Sections/Fields tabs out of view. */
+.editor-sidebar {
+  flex: 0 0 var(--editor-sidebar-width);
+  max-width: var(--editor-sidebar-width);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.editor-sidebar-top {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 3.75rem 1.75rem 0;
+}
+
+.editor-sidebar label {
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+}
+
+/* Pinned footer - PageEditorPage's and MenuEditorPage's own
+   Save/Discard, per docs/design/Sections Tab.png's "Discard Changes"/
+   "Save Changes" bar. Discard reads as plain text (no border/fill);
+   Save is the primary (blue) action via the existing .button-primary
+   class, scoped here rather than restyling every plain button in the
+   app. */
+.editor-footer {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1.25rem;
+  padding: 1rem 1.75rem;
+  background: var(--colour-surface);
+  border-top: 1px solid var(--colour-border);
+}
+
+.editor-footer button[type='button']:not(.button-primary) {
+  background: none;
+  border: none;
+  color: var(--colour-muted);
+  padding: 0.5rem 0;
+}
+
+.editor-footer button[type='button']:not(.button-primary):hover {
+  color: var(--colour-text);
+}
+
+.editor-tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 2.5rem 1.75rem 2.5rem;
+  background: linear-gradient(to bottom, var(--colour-surface) 0%, var(--colour-bg) 100%);
+}
+
+.raw-json-label {
+  flex: 1;
+}
+
+.raw-json-label textarea {
+  flex: 1;
+  width: 100%;
+  resize: none;
+}
+
+.editor-preview-full {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+/* PreviewFrame's own top bar (docs/design/Sections Tab.png) - the
+   page's relative URL on the left, the device-size toggle on the
+   right. Replaces the old shared-app-header placement entirely. */
+.preview-pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-topbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+}
+
+.preview-url {
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--colour-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-preview-full .preview-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--colour-muted);
+}
+
+.editor-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0;
+  border: none;
+  background: none;
+  margin-bottom: 0;
+}

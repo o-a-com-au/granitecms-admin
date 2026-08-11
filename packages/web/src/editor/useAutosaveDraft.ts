@@ -121,6 +121,16 @@ export function useAutosaveDraft(
       const newEtag = await saveSiteDraft(siteId, path, contentRef.current, etagRef.current);
       etagRef.current = newEtag;
       saveInFlightRef.current = false;
+      // A successful PUT to /drafts/:path always means a draft now
+      // exists, regardless of what source held before this call - a
+      // page/menu that started as live-only (no draft yet) has one for
+      // the first time. Without this, source stays stuck at its
+      // initial-load value, and hasPendingChanges (PageEditorPage/
+      // MenuEditorPage's own gate for showing Save/Discard) would
+      // incorrectly go false the moment status returns to 'ready',
+      // hiding the very actions needed to publish or discard the draft
+      // that was just created.
+      setSource('draft');
 
       if (pendingSaveRef.current) {
         void attemptSave();

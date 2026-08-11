@@ -1,17 +1,38 @@
 import { useEffect, useRef, useState } from 'react';
 import type { EditorStatus } from './useAutosaveDraft.ts';
+import { DeviceToggle, type DeviceTier } from './DeviceToggle.tsx';
 
 interface PreviewFrameProps {
   siteId: string;
+  siteDomain: string | null;
   url: string | null;
   status: EditorStatus;
+  device: DeviceTier;
+  onDeviceChange: (tier: DeviceTier) => void;
 }
+
+const DEVICE_WIDTHS: Record<DeviceTier, string> = {
+  desktop: '100%',
+  tablet: '768px',
+  mobile: '375px',
+};
 
 // Same per-segment escaping technique as site-editor.ts's own
 // encodePathSegments - a leading slash round-trips correctly since
 // split('/') on "/" yields ["", ""].
 function encodeUrlSegments(url: string): string {
   return url.split('/').map(encodeURIComponent).join('/');
+}
+
+// SiteListEntry.url is a registered origin, e.g. "http://host:3891" -
+// but new URL() always normalises a bare origin to include a trailing
+// slash ("http://host:3891/"), so a naive concatenation with url
+// (which always starts with its own leading slash) can end up
+// "host:3891//about". Stripping any trailing slash first guarantees
+// exactly one, regardless of which form this particular domain was
+// stored in.
+function joinDomainAndPath(domain: string, path: string): string {
+  return domain.replace(/\/$/, '') + path;
 }
 
 // F2: bumps only on a real completed autosave ('saving' -> 'ready'),
@@ -46,7 +67,18 @@ function usePreviewRefreshToken(status: EditorStatus): number {
 // only a "reload yourself" signal that changing src already
 // accomplishes natively, without touching the admin SPA's own router
 // or state.
-export function PreviewFrame({ siteId, url, status }: PreviewFrameProps) {
+//
+// device is owned by PageEditorPage, not this component - the same
+// tier drives both this iframe's width and the toggle buttons, which
+// now live in PreviewFrame's own top bar (docs/design/Sections Tab.png)
+// rather than the app's shared header, so it has to be lifted above
+// both. That top bar also shows the page's own full address, standing
+// in for the design's own address bar - siteDomain comes from
+// PageEditorPage's own useSites() lookup (there is no per-site fetch
+// route, only the registry list), and is null until that resolves, in
+// which case this falls back to the bare relative path rather than
+// showing nothing.
+export function PreviewFrame({ siteId, siteDomain, url, status, device, onDeviceChange }: PreviewFrameProps) {
   const refreshToken = usePreviewRefreshToken(status);
 
   if (url === null) {
@@ -58,6 +90,17 @@ export function PreviewFrame({ siteId, url, status }: PreviewFrameProps) {
   }
 
   const src = `/api/sites/${encodeURIComponent(siteId)}/preview${encodeUrlSegments(url)}?t=${refreshToken}`;
+  const displayedAddress = siteDomain !== null ? joinDomainAndPath(siteDomain, url) : url;
 
-  return <iframe title="Live preview" src={src} />;
+  return (
+    <div className="preview-pane">
+      <div className="preview-topbar">
+        <span className="preview-url">{displayedAddress}</span>
+        <DeviceToggle device={device} onChange={onDeviceChange} />
+      </div>
+      <div className="preview-viewport" data-device={device}>
+        <iframe title="Live preview" src={src} style={{ width: DEVICE_WIDTHS[device] }} />
+      </div>
+    </div>
+  );
 }
