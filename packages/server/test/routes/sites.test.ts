@@ -91,11 +91,13 @@ async function startFakeSite(acceptedToken: string): Promise<string> {
 
 const SAMPLE_ENTRY = {
   path: 'pages/about.json',
+  name: 'Home Page',
   title: 'About',
   type: 'page',
   published: true,
   hasDraft: false,
   url: '/about',
+  changedAt: '2026-08-05T10:00:00.000Z',
 };
 
 // A second fake-site starter, kept separate from startFakeSite above
@@ -111,7 +113,10 @@ async function startFakeContentSite(acceptedToken: string): Promise<string> {
         sendJson(res, 401, { error: 'invalid-token' });
         return;
       }
-      sendJson(res, 200, [SAMPLE_ENTRY, { ...SAMPLE_ENTRY, path: 'pages/contact.json', title: 'Contact' }]);
+      sendJson(res, 200, [
+        SAMPLE_ENTRY,
+        { ...SAMPLE_ENTRY, path: 'pages/contact.json', name: 'Contact', title: 'Contact' },
+      ]);
       return;
     }
     sendJson(res, 404, { error: 'not found' });
@@ -637,7 +642,7 @@ describe('sites routes', () => {
     assert.equal(response.statusCode, 200);
     assert.deepEqual(response.json(), [
       SAMPLE_ENTRY,
-      { ...SAMPLE_ENTRY, path: 'pages/contact.json', title: 'Contact' },
+      { ...SAMPLE_ENTRY, path: 'pages/contact.json', name: 'Contact', title: 'Contact' },
     ]);
 
     await app.close();
@@ -1438,6 +1443,97 @@ describe('sites routes', () => {
       url: '/api/sites/does-not-exist/revert',
       headers: { cookie },
       payload: { ref: 'abc123', path: 'pages/about.json', message: 'msg' },
+    });
+
+    assert.equal(response.statusCode, 404);
+
+    await app.close();
+  });
+
+  it("POST /api/sites/:id/move sends the logged-in admin's own name/email as author and createRedirect: false, never something the caller supplied", async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedBody = '';
+    fakeSite = createServer((req, res) => {
+      if (req.method === 'POST' && req.url === '/v1/content/move') {
+        let raw = '';
+        req.on('data', (chunk: Buffer) => {
+          raw += chunk.toString();
+        });
+        req.on('end', () => {
+          receivedBody = raw;
+          sendJson(res, 200, { ok: true });
+        });
+        return;
+      }
+      sendJson(res, 404, { error: 'not found' });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const siteUrl = `http://127.0.0.1:${address.port}`;
+    const id = await registerSite(app, cookie, siteUrl, 'any-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/move`,
+      headers: { cookie },
+      payload: { from: '/about', to: '/company', message: 'Rename slug' },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { ok: true });
+    assert.deepEqual(JSON.parse(receivedBody), {
+      from: '/about',
+      to: '/company',
+      message: 'Rename slug',
+      author: { name: TEST_NAME, email: TEST_EMAIL },
+      createRedirect: false,
+    });
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/move rejects a missing from/to/message with 400, without ever calling the site', async () => {
+    const { app, cookie } = await buildTestServer();
+    let siteWasCalled = false;
+    fakeSite = createServer((req, res) => {
+      if (req.method === 'POST' && req.url === '/v1/content/move') {
+        siteWasCalled = true;
+      }
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'not found' }));
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const siteUrl = `http://127.0.0.1:${address.port}`;
+    const id = await registerSite(app, cookie, siteUrl, 'any-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/move`,
+      headers: { cookie },
+      payload: { from: '/about', to: '', message: 'msg' },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(siteWasCalled, false);
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/move returns 404 for an unknown site', async () => {
+    const { app, cookie } = await buildTestServer();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sites/does-not-exist/move',
+      headers: { cookie },
+      payload: { from: '/about', to: '/company', message: 'msg' },
     });
 
     assert.equal(response.statusCode, 404);

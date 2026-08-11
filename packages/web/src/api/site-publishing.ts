@@ -57,3 +57,31 @@ export async function unpublishSitePage(siteId: string, path: string, message: s
     throw await reasonFromResponse(response, 'error');
   }
 }
+
+// Backs the Slug field's rename-on-save (PageMetadataPanel.tsx). from/
+// to are page URLs ("/about"), not content paths - the one call site
+// this has today already holds the page's current url from
+// PreviewFrame's own props, not its content path. "conflict" (409) is
+// reused for "a page already exists at that destination slug" rather
+// than adding a new reason - it's the same "something else is already
+// there" shape the rest of this file's reasons already cover.
+export async function moveSitePage(siteId: string, from: string, to: string, message: string): Promise<void> {
+  const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/move`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to, message }),
+  });
+
+  if (response.status === 400) {
+    throw await reasonFromResponse(response, 'invalid');
+  }
+  if (response.status === 404) {
+    throw await reasonFromResponse(response, 'not-found');
+  }
+  if (response.status === 409) {
+    throw await reasonFromResponse(response, 'conflict');
+  }
+  if (!response.ok) {
+    throw await reasonFromResponse(response, 'error');
+  }
+}

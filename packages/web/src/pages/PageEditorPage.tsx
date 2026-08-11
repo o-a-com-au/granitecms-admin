@@ -1,31 +1,13 @@
 import { useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
-import { useAutosaveDraft, type EditorStatus } from '../editor/useAutosaveDraft.ts';
+import { useParams, useSearchParams } from 'react-router';
+import { useAutosaveDraft } from '../editor/useAutosaveDraft.ts';
+import { useDraftPublishActions } from '../editor/useDraftPublishActions.ts';
 import { PreviewFrame } from '../editor/PreviewFrame.tsx';
-import { BackToRegistryLink } from '../layout/BackToRegistryLink.tsx';
-import { discardSiteDraft, publishSiteDraft, unpublishSitePage } from '../api/site-publishing.ts';
+import { type DeviceTier } from '../editor/DeviceToggle.tsx';
 import { canEditAsSections, PageSectionsEditor } from '../sections/PageSectionsEditor.tsx';
-
-function statusLabel(status: EditorStatus): string {
-  switch (status) {
-    case 'loading':
-      return 'Loading...';
-    case 'ready':
-      return 'Saved';
-    case 'dirty':
-      return 'Unsaved changes';
-    case 'saving':
-      return 'Saving...';
-    case 'save-error':
-      return 'Save failed';
-    case 'conflict':
-      return 'Conflict';
-    case 'not-found':
-      return 'Not found';
-    case 'load-error':
-      return 'Failed to load';
-  }
-}
+import { PageMetadataPanel } from '../editor/PageMetadataPanel.tsx';
+import { TabFieldsIcon, TabPageIcon, TabSectionsIcon } from '../icons/index.tsx';
+import { useSites } from '../sites/useSites.ts';
 
 // Group I: the structured section/block editor (PageSectionsEditor) is
 // the default view, driving the exact same useAutosaveDraft hook Group
@@ -34,10 +16,21 @@ function statusLabel(status: EditorStatus): string {
 // array) and for the envelope fields it doesn't give controls to.
 export function PageEditorPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const path = searchParams.get('path') ?? '';
   const previewUrl = searchParams.get('url');
-  const [viewMode, setViewMode] = useState<'structured' | 'raw'>('structured');
+  const [viewMode, setViewMode] = useState<'metafields' | 'sections' | 'fields' | 'raw'>('sections');
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
+  const [device, setDevice] = useState<DeviceTier>('desktop');
+
+  // The registry list, not a dedicated single-site fetch - there is no
+  // GET /api/sites/:id, and the list is already cheap/available, so
+  // reusing it here avoids adding a new server route just to read one
+  // field. null (not yet loaded, or this siteId isn't in the list)
+  // just means PreviewFrame shows the relative path on its own,
+  // exactly as it already did before this domain existed.
+  const { sites } = useSites();
+  const siteDomain = sites?.find((site) => site.id === siteId)?.url ?? null;
 
   const {
     status,
@@ -52,208 +45,203 @@ export function PageEditorPage() {
     reloadLatest,
   } = useAutosaveDraft(siteId, path);
 
-  // The structured view is only ever an option when the content is
+  // Sections/Fields are only ever an option when the content is
   // actually a sections-shaped document - a menu, or any content
-  // without a sections array, always falls back to raw regardless of
-  // which tab was last selected.
+  // without a sections array, falls back to raw regardless of which
+  // tab was last selected. Raw JSON has no button of its own any more
+  // (Page/Sections/Fields are the three visible tabs) - it's reachable
+  // only as this automatic fallback. Page has no such dependency (it
+  // isn't wired to real data yet - see PageMetadataPanel's own note).
   const sectionsAvailable = canEditAsSections(content);
-  const effectiveViewMode = sectionsAvailable ? viewMode : 'raw';
+  const effectiveViewMode =
+    (viewMode === 'sections' || viewMode === 'fields') && !sectionsAvailable ? 'raw' : viewMode;
 
-  // Kept beside the hook, not inside it - useAutosaveDraft stays
-  // UI-agnostic (Group E/F's own design principle, reused by a future
-  // Group I form editor). reloadLatest() is only ever called after a
-  // successful publish/discard/unpublish below, so a thrown error
-  // never touches the hook's own state (G5).
-  const [actionBusy, setActionBusy] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const historyHref = `/sites/${siteId}/history?path=${encodeURIComponent(path)}${previewUrl ? `&url=${encodeURIComponent(previewUrl)}` : ''}`;
 
-  async function handlePublish(): Promise<void> {
-    const message = window.prompt('Describe this change for the publish history:');
-    if (message === null) {
-      return;
-    }
-    const trimmed = message.trim();
-    if (!trimmed) {
-      setActionError('A commit message is required to publish.');
-      return;
-    }
-
-    setActionBusy(true);
-    setActionError(null);
-    try {
-      await publishSiteDraft(siteId, path, trimmed);
-      reloadLatest();
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to publish');
-    } finally {
-      setActionBusy(false);
-    }
+  function handleEditInstance(id: string): void {
+    setSelectedInstanceId(id);
+    setViewMode('fields');
   }
 
-  async function handleDiscard(): Promise<void> {
-    if (!window.confirm('Discard the draft and return to the live version? This cannot be undone.')) {
-      return;
-    }
-
-    setActionBusy(true);
-    setActionError(null);
-    try {
-      await discardSiteDraft(siteId, path);
-      reloadLatest();
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to discard the draft');
-    } finally {
-      setActionBusy(false);
-    }
+  // After a successful slug rename the old path/url no longer exist -
+  // this updates the query params in place (not a navigate to a new
+  // route, just this same route with new params) so useAutosaveDraft
+  // below re-fetches from the page's new real location instead of
+  // continuing to read/write the now-gone old one.
+  function handleRenamed(newPath: string, newUrl: string): void {
+    const next = new URLSearchParams(searchParams);
+    next.set('path', newPath);
+    next.set('url', newUrl);
+    setSearchParams(next);
   }
 
-  async function handleUnpublish(): Promise<void> {
-    const message = window.prompt('Describe why this page is going offline:');
-    if (message === null) {
-      return;
-    }
-    const trimmed = message.trim();
-    if (!trimmed) {
-      setActionError('A commit message is required to unpublish.');
-      return;
-    }
+  const { actionBusy, actionError, handlePublish, handleDiscard } = useDraftPublishActions(siteId, path, reloadLatest);
 
-    setActionBusy(true);
-    setActionError(null);
-    try {
-      await unpublishSitePage(siteId, path, trimmed);
-      reloadLatest();
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to unpublish');
-    } finally {
-      setActionBusy(false);
-    }
-  }
+  // Save/Discard render in this page's own footer now (docs/design/
+  // Sections Tab.png), not the app's shared header - there is no
+  // shared header any more (AppShell.tsx's own refactor). Gated on
+  // there actually being something to act on - a draft already
+  // exists, or the current editing session has started changing/
+  // saving/failed/conflicted - rather than sitting there permanently.
+  const contentLoaded = status !== 'loading' && status !== 'not-found' && status !== 'load-error';
+  const hasPendingChanges = source === 'draft' || status !== 'ready';
+  const showFooter = contentLoaded && hasPendingChanges;
 
   if (status === 'loading') {
     return (
-      <main>
-        <BackToRegistryLink />
+      <div>
         <h1>Editor</h1>
         <p>Loading...</p>
-      </main>
+      </div>
     );
   }
 
   if (status === 'not-found') {
     return (
-      <main>
-        <BackToRegistryLink />
+      <div>
         <h1>Editor</h1>
         <p role="alert">No content found at this path.</p>
-      </main>
+      </div>
     );
   }
 
   if (status === 'load-error') {
     return (
-      <main>
-        <BackToRegistryLink />
+      <div>
         <h1>Editor</h1>
         <p role="alert">{errorMessage ?? 'Failed to load content.'}</p>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="editor-page">
+    <div className="editor-page">
       <div className="editor-shell">
+        <div className="editor-preview-full">
+          <PreviewFrame
+            siteId={siteId}
+            siteDomain={siteDomain}
+            url={previewUrl}
+            status={status}
+            device={device}
+            onDeviceChange={setDevice}
+          />
+        </div>
         <div className="editor-sidebar">
-          <BackToRegistryLink />
-          <h1>Editor</h1>
-          <p>
-            Site: <code>{siteId}</code> Path: <code>{path}</code> Source: <code>{source}</code>
-          </p>
-
-          <p data-status={status}>{statusLabel(status)}</p>
-          {invalidJson && <p role="alert">Not valid JSON yet - not saved.</p>}
-          {status === 'save-error' && errorMessage && <p role="alert">{errorMessage}</p>}
-
-          <section className="editor-actions">
-            <button
-              type="button"
-              onClick={() => void handlePublish()}
-              disabled={actionBusy || status === 'dirty' || status === 'saving'}
-            >
-              Publish
-            </button>
-            <button type="button" onClick={() => void handleDiscard()} disabled={actionBusy || status === 'saving'}>
-              Discard draft
-            </button>
-            <button type="button" onClick={() => void handleUnpublish()} disabled={actionBusy || status === 'saving'}>
-              Unpublish
-            </button>
-            <Link
-              to={`/sites/${siteId}/history?path=${encodeURIComponent(path)}${previewUrl ? `&url=${encodeURIComponent(previewUrl)}` : ''}`}
-            >
-              History
-            </Link>
+          <div className="editor-sidebar-top">
+            {invalidJson && <p role="alert">Not valid JSON yet - not saved.</p>}
+            {status === 'save-error' && errorMessage && <p role="alert">{errorMessage}</p>}
             {actionError && <p role="alert">{actionError}</p>}
-          </section>
 
-          {status === 'conflict' && (
-            <section>
-              <p role="alert">This page changed since you opened it.</p>
-              <button type="button" onClick={reloadLatest}>
-                Reload latest version
+            {status === 'conflict' && (
+              <section>
+                <p role="alert">This page changed since you opened it.</p>
+                <button type="button" onClick={reloadLatest}>
+                  Reload latest version
+                </button>
+                <button type="button" onClick={loadComparison}>
+                  View changes
+                </button>
+                {comparisonContent !== null && (
+                  <div>
+                    <h2>Latest on the server</h2>
+                    <pre>{comparisonContent}</pre>
+                    <h2>Your unsaved version</h2>
+                    <pre>{content}</pre>
+                  </div>
+                )}
+              </section>
+            )}
+
+            <div className="editor-tabs" role="tablist" aria-label="Editor view">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={effectiveViewMode === 'metafields'}
+                onClick={() => setViewMode('metafields')}
+              >
+                <span className="tab-icon">
+                  <TabPageIcon />
+                </span>
+                Page
               </button>
-              <button type="button" onClick={loadComparison}>
-                View changes
+              <button
+                type="button"
+                role="tab"
+                aria-selected={effectiveViewMode === 'sections'}
+                disabled={!sectionsAvailable}
+                onClick={() => setViewMode('sections')}
+              >
+                <span className="tab-icon">
+                  <TabSectionsIcon />
+                </span>
+                Sections
               </button>
-              {comparisonContent !== null && (
-                <div>
-                  <h2>Latest on the server</h2>
-                  <pre>{comparisonContent}</pre>
-                  <h2>Your unsaved version</h2>
-                  <pre>{content}</pre>
-                </div>
+              {selectedInstanceId !== null && (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={effectiveViewMode === 'fields'}
+                  onClick={() => setViewMode('fields')}
+                >
+                  <span className="tab-icon">
+                    <TabFieldsIcon />
+                  </span>
+                  Fields
+                </button>
               )}
-            </section>
-          )}
-
-          <div role="tablist" aria-label="Editor view">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={effectiveViewMode === 'structured'}
-              disabled={!sectionsAvailable}
-              onClick={() => setViewMode('structured')}
-            >
-              Sections
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={effectiveViewMode === 'raw'}
-              onClick={() => setViewMode('raw')}
-            >
-              Raw JSON
-            </button>
+            </div>
           </div>
 
-          {effectiveViewMode === 'structured' ? (
-            <PageSectionsEditor
-              siteId={siteId}
-              content={content}
-              setContent={setContent}
-              validationErrors={validationErrors}
-            />
-          ) : (
-            <label>
-              Content
-              <textarea value={content} onChange={(event) => setContent(event.target.value)} />
-            </label>
+          <div className="editor-tab-content">
+            {effectiveViewMode === 'metafields' && (
+              <PageMetadataPanel
+                key={path}
+                content={content}
+                setContent={setContent}
+                historyHref={historyHref}
+                siteId={siteId}
+                path={path}
+                previewUrl={previewUrl}
+                renameDisabled={hasPendingChanges}
+                onRenamed={handleRenamed}
+              />
+            )}
+            {(effectiveViewMode === 'sections' || effectiveViewMode === 'fields') && (
+              <PageSectionsEditor
+                siteId={siteId}
+                content={content}
+                setContent={setContent}
+                validationErrors={validationErrors}
+                view={effectiveViewMode === 'fields' ? 'fields' : 'list'}
+                onEditInstance={handleEditInstance}
+              />
+            )}
+            {effectiveViewMode === 'raw' && (
+              <label className="raw-json-label">
+                Content
+                <textarea value={content} onChange={(event) => setContent(event.target.value)} />
+              </label>
+            )}
+          </div>
+
+          {showFooter && (
+            <div className="editor-footer">
+              <button type="button" onClick={() => void handleDiscard()} disabled={actionBusy || status === 'saving'}>
+                Discard Changes
+              </button>
+              <button
+                type="button"
+                className="button-primary"
+                onClick={() => void handlePublish()}
+                disabled={actionBusy || status === 'dirty' || status === 'saving'}
+              >
+                Save Changes
+              </button>
+            </div>
           )}
         </div>
-        <div className="editor-preview-full">
-          <PreviewFrame siteId={siteId} url={previewUrl} status={status} />
-        </div>
       </div>
-    </main>
+    </div>
   );
 }

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { fetchPageHistory, fetchPageRevision, revertPageToRevision, type HistoryCommit } from '../api/site-history.ts';
 import { PageDiffView } from '../history/PageDiffView.tsx';
-import { BackToRegistryLink } from '../layout/BackToRegistryLink.tsx';
 
 const DEFAULT_LIMIT = 100;
 const LOAD_MORE_STEP = 100;
@@ -156,8 +155,7 @@ export function PageHistoryPage() {
   const visibleCommits = commits?.filter((commit) => showCheckpoints || !commit.isCheckpoint) ?? null;
 
   return (
-    <main>
-      <BackToRegistryLink />
+    <div>
       <h1>History</h1>
       <p>
         Site: <code>{siteId}</code> Path: <code>{path}</code>
@@ -248,6 +246,6 @@ export function PageHistoryPage() {
           )}
         </>
       )}
-    </main>
+    </div>
   );
 }

@@ -17,6 +17,7 @@ import type { CommitAuthor } from '../sites/commit-author.ts';
 import { fetchSiteHistory } from '../sites/site-history.ts';
 import { fetchSiteRevision } from '../sites/site-revision.ts';
 import { revertSitePath } from '../sites/site-revert.ts';
+import { moveSitePath } from '../sites/site-move.ts';
 import { fetchSiteThemeSchemas } from '../sites/site-theme-schemas.ts';
 
 // The raw token is never included here, full stop - built by this
@@ -193,6 +194,29 @@ function parseRevertBody(body: unknown): RevertBody | null {
     return null;
   }
   return { ref: record.ref, path: record.path, message: record.message };
+}
+
+interface MoveBody {
+  from: string;
+  to: string;
+  message: string;
+}
+
+function parseMoveBody(body: unknown): MoveBody | null {
+  if (typeof body !== 'object' || body === null) {
+    return null;
+  }
+  const record = body as Record<string, unknown>;
+  if (typeof record.from !== 'string' || record.from.trim() === '') {
+    return null;
+  }
+  if (typeof record.to !== 'string' || record.to.trim() === '') {
+    return null;
+  }
+  if (typeof record.message !== 'string' || record.message.trim() === '') {
+    return null;
+  }
+  return { from: record.from, to: record.to, message: record.message };
 }
 
 // The browser never supplies a commit author - it's always the
@@ -544,6 +568,42 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
       if (result.outcome === 'not-found-at-ref') {
         reply.code(404);
         return { error: result.message, reason: 'not-found-at-ref' };
+      }
+
+      reply.code(502);
+      return { error: result.message, reason: result.outcome };
+    });
+
+    // Backs the Slug field's rename-on-save (PageMetadataPanel.tsx) -
+    // same author-from-session, not-from-body rule as revert/publish.
+    // No createRedirect field accepted from the client at all: it is
+    // always false, decided once here rather than trusted from the
+    // browser (see site-move.ts's own comment for why).
+    app.post<{ Params: { id: string } }>('/:id/move', { preHandler: requireAuth }, async (request, reply) => {
+      const site = await sitesStore.find(request.params.id);
+      if (!site) {
+        throw new SiteNotFoundError(request.params.id);
+      }
+
+      const body = parseMoveBody(request.body);
+      if (!body) {
+        reply.code(400);
+        return { error: 'from, to, and message are all required' };
+      }
+
+      const author = requireCommitAuthor(request.currentUser);
+      const result = await moveSitePath(site, body.from, body.to, body.message, author);
+
+      if (result.outcome === 'ok') {
+        return { ok: true };
+      }
+      if (result.outcome === 'source-not-found') {
+        reply.code(404);
+        return { error: result.message, reason: 'source-not-found' };
+      }
+      if (result.outcome === 'destination-exists') {
+        reply.code(409);
+        return { statusCode: 409, error: 'Conflict', message: result.message };
       }
 
       reply.code(502);

@@ -31,11 +31,13 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
 
 const SAMPLE_ENTRY = {
   path: 'pages/about.json',
+  name: 'Home Page',
   title: 'About',
   type: 'page',
   published: true,
   hasDraft: false,
   url: '/about',
+  changedAt: '2026-08-05T10:00:00.000Z',
 };
 
 describe('fetchSiteContent', () => {
@@ -44,6 +46,22 @@ describe('fetchSiteContent', () => {
 
     const result = await fetchSiteContent({ url, token: 'a-token' }, {});
     assert.deepEqual(result, { outcome: 'ok', entries: [SAMPLE_ENTRY] });
+  });
+
+  it('ok: an entry with no "name" (an unupgraded agent) falls back to its "title" - the admin and each site deploy independently', async () => {
+    const entryWithoutName = {
+      path: SAMPLE_ENTRY.path,
+      title: SAMPLE_ENTRY.title,
+      type: SAMPLE_ENTRY.type,
+      published: SAMPLE_ENTRY.published,
+      hasDraft: SAMPLE_ENTRY.hasDraft,
+      url: SAMPLE_ENTRY.url,
+      changedAt: SAMPLE_ENTRY.changedAt,
+    };
+    const url = await startServer((_req, res) => sendJson(res, 200, [entryWithoutName]));
+
+    const result = await fetchSiteContent({ url, token: 'a-token' }, {});
+    assert.deepEqual(result, { outcome: 'ok', entries: [{ ...entryWithoutName, name: SAMPLE_ENTRY.title }] });
   });
 
   it('forwards type, prefix, and draftStatus as query params', async () => {

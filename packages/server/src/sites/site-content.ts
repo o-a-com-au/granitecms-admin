@@ -3,11 +3,13 @@ import { fetchSite } from './fetch-site.ts';
 
 export interface ContentListEntry {
   path: string;
+  name: string;
   title: string;
   type: string;
   published: boolean;
   hasDraft: boolean;
   url: string | null;
+  changedAt: string | null;
 }
 
 export interface ContentListFilters {
@@ -41,23 +43,34 @@ function buildQueryString(filters: ContentListFilters): string {
   return query ? `?${query}` : '';
 }
 
-function isContentListEntry(value: unknown): value is ContentListEntry {
+// "name" is optional here, not required like the rest of
+// ContentListEntry's shape - the admin and each site are two separate
+// codebases with two separate deploy cycles, so a site's agent may
+// not have been upgraded to send "name" yet. Falls back to "title"
+// below, the exact same default the agent itself applies internally
+// for content it hasn't migrated - never a hard rejection of the
+// whole list over one new, optional field.
+type RawContentListEntry = Omit<ContentListEntry, 'name'> & { name?: string };
+
+function isRawContentListEntry(value: unknown): value is RawContentListEntry {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
   const record = value as Record<string, unknown>;
   return (
     typeof record.path === 'string' &&
+    (record.name === undefined || typeof record.name === 'string') &&
     typeof record.title === 'string' &&
     typeof record.type === 'string' &&
     typeof record.published === 'boolean' &&
     typeof record.hasDraft === 'boolean' &&
-    (typeof record.url === 'string' || record.url === null)
+    (typeof record.url === 'string' || record.url === null) &&
+    (typeof record.changedAt === 'string' || record.changedAt === null)
   );
 }
 
-function isContentListEntryArray(value: unknown): value is ContentListEntry[] {
-  return Array.isArray(value) && value.every(isContentListEntry);
+function isRawContentListEntryArray(value: unknown): value is RawContentListEntry[] {
+  return Array.isArray(value) && value.every(isRawContentListEntry);
 }
 
 export interface FetchSiteContentOptions {
@@ -102,9 +115,10 @@ export async function fetchSiteContent(
     return { outcome: 'error', message: '/v1/content did not return valid JSON' };
   }
 
-  if (!isContentListEntryArray(body)) {
+  if (!isRawContentListEntryArray(body)) {
     return { outcome: 'error', message: '/v1/content did not return a content list' };
   }
 
-  return { outcome: 'ok', entries: body };
+  const entries: ContentListEntry[] = body.map((entry) => ({ ...entry, name: entry.name ?? entry.title }));
+  return { outcome: 'ok', entries };
 }

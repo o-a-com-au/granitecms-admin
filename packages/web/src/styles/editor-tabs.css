@@ -1,0 +1,117 @@
+/* Editor view tabs: three individual chips, not a single segmented
+   pill bar - each an outlined card of its own, the active one reading
+   as a lit-up, more prominent card against its own darker row. Every
+   chip shares the panel's own top-to-black gradient (not a flat
+   fill), and none of them draw their own bottom border/radius - the
+   only bottom border is .editor-tabs' own full-bleed one (negative-
+   margin/padding trick to cancel .editor-sidebar's 1.75rem side
+   padding, so the line runs the whole panel width, not just the
+   width of the tabs), coloured to match the active tab's own border
+   so it reads as one continuous edge. The active tab bridges that
+   line with a 1px negative margin, so its own background paints over
+   its stretch of it and it reads as part of the content below rather
+   than a fourth bordered edge. */
+.editor-tabs {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0 -1.75rem;
+  padding: 15px 1.75rem 0;
+  border-bottom: 1px solid var(--colour-border);
+}
+
+.editor-tabs[role='tablist'] button[role='tab'] {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--colour-border);
+  border-bottom: none;
+  border-radius: var(--radius);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  background: linear-gradient(to bottom, var(--colour-surface) 0%, var(--colour-bg) 100%);
+  color: var(--colour-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* TabPageIcon/TabSectionsIcon/TabFieldsIcon (icons/index.tsx) render
+   their svg at width/height: 100% - this box does the actual sizing,
+   matching the icons' previous fixed 16px default (at the browser's
+   un-overridden 16px root), same rem-container approach as the nav
+   rail's own .nav-rail-icon. */
+.tab-icon {
+  display: flex;
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+}
+
+.editor-tabs[role='tablist'] button[role='tab']:hover:not(:disabled) {
+  background: var(--colour-bg);
+  color: var(--colour-text);
+}
+
+.editor-tabs[role='tablist'] button[role='tab'][aria-selected='true'] {
+  background: var(--colour-surface);
+  border-color: var(--colour-border);
+  border-bottom: none;
+  margin-bottom: -1px;
+  color: var(--colour-text);
+}
+
+.editor-tabs[role='tablist'] button[role='tab']:disabled {
+  background: var(--colour-surface);
+  color: var(--colour-border);
+}
+
+/* Metadata panel: a visual placeholder (docs/design/Page Meta Tab.png) -
+   none of these fields are wired to real content yet. */
+.metadata-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Shared small-caps section heading - originally just "Page
+   attributes" on the Page tab, now also the Sections tab's own
+   "Sections" heading and the Fields tab's instance-name heading
+   (PageSectionsEditor.tsx), so all three editor tabs read as the same
+   kind of panel rather than Page being the only one with a heading at
+   all. */
+.panel-heading {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--colour-text);
+}
+
+/* Sections/Fields views (PageSectionsEditor.tsx) get the same
+   heading-to-content gap .metadata-panel already had - .panel-heading
+   itself stays margin: 0 in all three, so spacing is always this one
+   flex gap, never a heading-specific margin stacking on top of it. */
+.sections-panel,
+.fields-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* SectionSettingsForm.tsx's own field list (SchemaField.tsx renders a
+   bare <label> per property) - same 1.25rem rhythm as .metadata-panel,
+   so the Fields tab's fields are spaced identically to the Page tab's,
+   not just its heading-to-content gap. */
+.section-settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.metadata-description {
+  min-height: 7rem;
+  resize: vertical;
+}
