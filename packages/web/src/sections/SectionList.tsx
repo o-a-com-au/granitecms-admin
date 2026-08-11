@@ -1,61 +1,130 @@
-import { useState } from 'react';
-import { SectionSettingsForm } from './SectionSettingsForm.tsx';
+import { Fragment, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { AddIcon } from './AddIcon.tsx';
 import { BlockList } from './BlockList.tsx';
-import type { FieldErrorMap, Instance, ThemeTypeSchemas } from './instance-types.ts';
+import { DragHandleIcon } from './DragHandleIcon.tsx';
+import { TrashIcon } from './TrashIcon.tsx';
+import { computeDropIndex, reorderList } from './drag-reorder.ts';
+import { schemaTitle, type FieldErrorMap, type Instance, type ThemeTypeSchemas } from './instance-types.ts';
+import { useAddMenu } from './useAddMenu.ts';
 
 interface SectionRowProps {
   section: Instance;
-  index: number;
-  total: number;
   sectionTypes: ThemeTypeSchemas;
   blockTypes: ThemeTypeSchemas;
   fieldErrors?: FieldErrorMap;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
+  isDragging: boolean;
+  onDragStart: () => void;
+  onDragOver: (event: DragEvent<HTMLLIElement>) => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
   onRemove: () => void;
   onChange: (section: Instance) => void;
+  onEditInstance: (id: string) => void;
 }
 
 // I4: a section's OWN acceptsBlocks flag (not a block's) decides
 // whether its BlockList renders at all - "a section that does not
 // support blocks shows no block controls" is enforced here, not left
 // to BlockList itself (which always shows full controls once mounted).
-function SectionRow({ section, index, total, sectionTypes, blockTypes, fieldErrors, onMoveUp, onMoveDown, onRemove, onChange }: SectionRowProps) {
-  const schema = sectionTypes.schemas[section.type] as Record<string, unknown> | undefined;
+// A section's own settings are edited via the Fields tab - clicking
+// anywhere on the row (other than the chevron/remove/drag handle)
+// opens it, per docs/design/Sections.png. Reordering is a real drag
+// via the handle, not buttons - per the same design.
+function SectionRow({
+  section,
+  sectionTypes,
+  blockTypes,
+  fieldErrors,
+  isDragging,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  onRemove,
+  onChange,
+  onEditInstance,
+}: SectionRowProps) {
   const acceptsBlocks = sectionTypes.acceptsBlocks[section.type] === true;
+  // Sections with blocks start collapsed - keeps the list scannable
+  // for a page with many sections, matching docs/design/Sections.png.
+  const [collapsed, setCollapsed] = useState(acceptsBlocks);
+  const hasError = Boolean(fieldErrors?.[section.id] && Object.keys(fieldErrors[section.id] as object).length > 0);
+  const displayName = schemaTitle(sectionTypes.schemas[section.type], section.type);
 
-  function handleRemove(): void {
-    if (window.confirm(`Remove this "${section.type}" section? This cannot be undone.`)) {
+  function handleEdit(): void {
+    onEditInstance(section.id);
+  }
+
+  function handleEditKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleEdit();
+    }
+  }
+
+  function handleRemove(event: React.MouseEvent): void {
+    event.stopPropagation();
+    if (window.confirm(`Remove this "${displayName}" section? This cannot be undone.`)) {
       onRemove();
     }
   }
 
+  function handleToggleCollapsed(event: React.MouseEvent): void {
+    event.stopPropagation();
+    setCollapsed((current) => !current);
+  }
+
   return (
-    <li>
-      <div>
-        <strong>{section.type}</strong>
-        <button type="button" onClick={onMoveUp} disabled={index === 0}>
-          Move up
+    <li className={`instance-row${isDragging ? ' is-dragging' : ''}`} onDragOver={onDragOver} onDrop={onDrop}>
+      <div
+        className={`instance-row-main${hasError ? ' has-error' : ''}`}
+        role="button"
+        tabIndex={0}
+        aria-label={`Edit ${displayName}${hasError ? ' (has an error)' : ''}`}
+        onClick={handleEdit}
+        onKeyDown={handleEditKeyDown}
+      >
+        {acceptsBlocks && (
+          <button
+            type="button"
+            className="instance-row-chevron"
+            aria-label={collapsed ? 'Expand' : 'Collapse'}
+            aria-expanded={!collapsed}
+            onClick={handleToggleCollapsed}
+          >
+            {collapsed ? '›' : '‹'}
+          </button>
+        )}
+        <strong>{displayName}</strong>
+        <button type="button" className="instance-row-remove" aria-label="Remove section" onClick={handleRemove}>
+          <TrashIcon />
         </button>
-        <button type="button" onClick={onMoveDown} disabled={index === total - 1}>
-          Move down
-        </button>
-        <button type="button" onClick={handleRemove}>
-          Remove section
-        </button>
+        <span
+          className="instance-row-drag-handle"
+          draggable
+          role="button"
+          aria-label="Drag to reorder"
+          tabIndex={-1}
+          onClick={(event) => event.stopPropagation()}
+          onDragStart={(event) => {
+            event.stopPropagation();
+            onDragStart();
+          }}
+          onDragEnd={(event) => {
+            event.stopPropagation();
+            onDragEnd();
+          }}
+        >
+          <DragHandleIcon />
+        </span>
       </div>
-      <SectionSettingsForm
-        schema={schema}
-        settings={section.settings}
-        onChange={(settings) => onChange({ ...section, settings })}
-        fieldErrors={fieldErrors?.[section.id]}
-      />
-      {acceptsBlocks && (
+      {acceptsBlocks && !collapsed && (
         <BlockList
           blocks={section.blocks ?? []}
           blockTypes={blockTypes}
           fieldErrors={fieldErrors}
           onChange={(blocks) => onChange({ ...section, blocks })}
+          onEditInstance={onEditInstance}
         />
       )}
     </li>
@@ -68,25 +137,36 @@ export interface SectionListProps {
   blockTypes: ThemeTypeSchemas;
   fieldErrors?: FieldErrorMap;
   onChange: (sections: Instance[]) => void;
+  onEditInstance: (id: string) => void;
 }
 
-// I1: "editable, reorderable list" - move-up/move-down buttons, add
-// (I2, sourced from the fetched theme schemas)/remove-with-confirm,
-// one settings form per section, plus a nested BlockList for section
-// types that accept blocks (I4).
-export function SectionList({ sections, sectionTypes, blockTypes, fieldErrors, onChange }: SectionListProps) {
+// I1: "editable, reorderable list" - drag the handle to reorder (a 4px
+// blue line marks the active drop position), add (I2, sourced from the
+// fetched theme schemas)/remove-with-confirm, plus a nested BlockList
+// for section types that accept blocks (I4). A section's own settings
+// are edited via the Fields tab (onEditInstance), not inline here.
+export function SectionList({ sections, sectionTypes, blockTypes, fieldErrors, onChange, onEditInstance }: SectionListProps) {
   const sectionTypeNames = Object.keys(sectionTypes.schemas);
-  const [selectedType, setSelectedType] = useState(sectionTypeNames[0] ?? '');
+  const { open: addMenuOpen, setOpen: setAddMenuOpen, openUpward, ref: addMenuRef, toggle: toggleAddMenu } = useAddMenu();
+  const [draggedIndex, setDraggedIndexState] = useState<number | null>(null);
+  const [dropIndex, setDropIndexState] = useState<number | null>(null);
+  // Native dragover and drop can both fire within the same browser
+  // tick, before React has re-rendered - handleDrop closing over the
+  // *state* value of dropIndex would then read a stale (pre-dragover)
+  // value. Refs are updated synchronously alongside the state (state
+  // still drives the visible drop-indicator line), so handleDrop
+  // always sees exactly what the most recent dragover computed.
+  const draggedIndexRef = useRef<number | null>(null);
+  const dropIndexRef = useRef<number | null>(null);
 
-  function moveSection(index: number, direction: -1 | 1): void {
-    const target = index + direction;
-    if (target < 0 || target >= sections.length) {
-      return;
-    }
-    const next = [...sections];
-    const [moved] = next.splice(index, 1);
-    next.splice(target, 0, moved as Instance);
-    onChange(next);
+  function setDraggedIndex(index: number | null): void {
+    draggedIndexRef.current = index;
+    setDraggedIndexState(index);
+  }
+
+  function setDropIndex(index: number | null): void {
+    dropIndexRef.current = index;
+    setDropIndexState(index);
   }
 
   function removeSection(index: number): void {
@@ -97,53 +177,88 @@ export function SectionList({ sections, sectionTypes, blockTypes, fieldErrors, o
     onChange(sections.map((section, i) => (i === index ? updated : section)));
   }
 
-  function addSection(): void {
-    if (!selectedType) {
-      return;
-    }
-    const acceptsBlocks = sectionTypes.acceptsBlocks[selectedType] === true;
+  function addSection(type: string): void {
+    const acceptsBlocks = sectionTypes.acceptsBlocks[type] === true;
     const newSection: Instance = {
       id: crypto.randomUUID(),
-      type: selectedType,
+      type,
       settings: {},
       ...(acceptsBlocks ? { blocks: [] } : {}),
     };
     onChange([...sections, newSection]);
+    setAddMenuOpen(false);
+  }
+
+  function handleDragOver(event: DragEvent<HTMLLIElement>, index: number): void {
+    event.preventDefault();
+    setDropIndex(computeDropIndex(event.clientY, event.currentTarget.getBoundingClientRect(), index));
+  }
+
+  function handleDrop(): void {
+    if (draggedIndexRef.current !== null && dropIndexRef.current !== null) {
+      onChange(reorderList(sections, draggedIndexRef.current, dropIndexRef.current));
+    }
+    setDraggedIndex(null);
+    setDropIndex(null);
+  }
+
+  function handleDragEnd(): void {
+    setDraggedIndex(null);
+    setDropIndex(null);
   }
 
   return (
     <div>
-      <ul>
+      <ul className="instance-list">
         {sections.map((section, index) => (
-          <SectionRow
-            key={section.id}
-            section={section}
-            index={index}
-            total={sections.length}
-            sectionTypes={sectionTypes}
-            blockTypes={blockTypes}
-            fieldErrors={fieldErrors}
-            onMoveUp={() => moveSection(index, -1)}
-            onMoveDown={() => moveSection(index, 1)}
-            onRemove={() => removeSection(index)}
-            onChange={(updated) => updateSection(index, updated)}
-          />
+          <Fragment key={section.id}>
+            {draggedIndex !== null && dropIndex === index && <li className="drop-indicator" aria-hidden="true" />}
+            <SectionRow
+              section={section}
+              sectionTypes={sectionTypes}
+              blockTypes={blockTypes}
+              fieldErrors={fieldErrors}
+              isDragging={draggedIndex === index}
+              onDragStart={() => setDraggedIndex(index)}
+              onDragOver={(event) => handleDragOver(event, index)}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+              onRemove={() => removeSection(index)}
+              onChange={(updated) => updateSection(index, updated)}
+              onEditInstance={onEditInstance}
+            />
+          </Fragment>
         ))}
+        {draggedIndex !== null && dropIndex === sections.length && (
+          <li className="drop-indicator" aria-hidden="true" />
+        )}
       </ul>
       {sectionTypeNames.length > 0 && (
-        <div>
-          <label>
-            Section type
-            <select value={selectedType} onChange={(event) => setSelectedType(event.target.value)}>
+        <div className="instance-add-menu-wrap" ref={addMenuRef}>
+          {addMenuOpen && (
+            <div className={`instance-add-menu${openUpward ? '' : ' instance-add-menu-below'}`} role="menu">
               {sectionTypeNames.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
+                <button
+                  key={type}
+                  type="button"
+                  role="menuitem"
+                  className="instance-add-menu-item"
+                  onClick={() => addSection(type)}
+                >
+                  {schemaTitle(sectionTypes.schemas[type], type)}
+                </button>
               ))}
-            </select>
-          </label>
-          <button type="button" onClick={addSection}>
-            Add section
+            </div>
+          )}
+          <button
+            type="button"
+            className="instance-add-button"
+            aria-haspopup="menu"
+            aria-expanded={addMenuOpen}
+            onClick={toggleAddMenu}
+          >
+            <AddIcon />
+            Add Section
           </button>
         </div>
       )}

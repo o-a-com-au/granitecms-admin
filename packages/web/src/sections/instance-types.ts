@@ -18,3 +18,15 @@ export interface ThemeTypeSchemas {
   schemas: Record<string, object>;
   acceptsBlocks: Record<string, boolean>;
 }
+
+// I2/I3: the theme's own JSON Schema "title" keyword (e.g. hero.liquid's
+// {% schema %} block), when the theme declares one - schemas is typed as
+// a bare `object` (Group I's own deliberate choice, since the admin never
+// needs to understand the rest of the shape), so this is the one place
+// that reads into it. Falls back to the raw type slug, not a guessed/
+// humanised name, for a theme authored before "title" existed - an
+// absent title is a fact worth showing plainly, not papering over.
+export function schemaTitle(schema: object | undefined, type: string): string {
+  const title = (schema as { title?: unknown } | undefined)?.title;
+  return typeof title === 'string' && title.trim() !== '' ? title : type;
+}

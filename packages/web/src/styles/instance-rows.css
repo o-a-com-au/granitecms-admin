@@ -1,0 +1,228 @@
+/* Section/block rows (SectionList.tsx, BlockList.tsx) - per
+   docs/design/Sections.png: a flat list of rounded rows, a chevron for
+   groups that nest, a drag handle on the right, click-anywhere-else to
+   open the Fields tab. */
+.instance-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.instance-list-nested {
+  margin: 0.4rem 0 0 1.1rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--colour-border);
+}
+
+.instance-row {
+  list-style: none;
+}
+
+.instance-row.is-dragging {
+  opacity: 0.4;
+}
+
+.instance-row-main {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  background: var(--colour-surface);
+  cursor: pointer;
+}
+
+.instance-row-main:hover {
+  border-color: var(--colour-primary);
+}
+
+.instance-row-main:focus-visible {
+  outline: 2px solid var(--colour-primary);
+  outline-offset: 1px;
+}
+
+.instance-row-main.has-error strong {
+  color: var(--colour-danger);
+}
+
+.instance-row-main.has-error::after {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--colour-danger);
+  flex: 0 0 auto;
+}
+
+.instance-row-main strong {
+  flex: 1;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* button.instance-row-chevron, not just .instance-row-chevron - the
+   extra element in the selector is deliberate, matching
+   button[type='button']'s own specificity (which otherwise wins and
+   silently puts its grey background back, since a bare class alone is
+   less specific than element+attribute). */
+button.instance-row-chevron {
+  flex: 0 0 auto;
+  padding: 0.1rem 0.4rem;
+  border: none;
+  background: none;
+  color: var(--colour-muted);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+button.instance-row-chevron:hover {
+  color: var(--colour-text);
+}
+
+/* Hidden until the row is hovered/focused, not just uncoloured - the
+   remove affordance shouldn't compete for attention on every row at
+   rest. opacity (not display/visibility) keeps it in the tab order,
+   with its own :focus-visible reveal so keyboard users aren't
+   dependent on a mouse hover to find it. */
+button.instance-row-remove {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  background: none;
+  border-color: transparent;
+  color: var(--colour-muted);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.instance-row-main:hover button.instance-row-remove,
+button.instance-row-remove:hover,
+button.instance-row-remove:focus-visible {
+  opacity: 1;
+}
+
+button.instance-row-remove:hover {
+  background: var(--colour-surface-hover);
+  color: var(--colour-danger);
+  border-color: transparent;
+}
+
+/* Only the drag handle itself is draggable (not the whole row), so a
+   plain click anywhere else on the row still opens the Fields tab
+   instead of accidentally starting a drag. */
+.instance-row-drag-handle {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  color: var(--colour-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.instance-row-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* The active drop location - a 4px blue line between rows. */
+.drop-indicator {
+  height: 4px;
+  margin: -2px 0;
+  background: var(--colour-primary);
+  border-radius: 2px;
+  list-style: none;
+}
+
+.instance-add-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+
+.instance-add-row label {
+  flex: 1;
+  max-width: 220px;
+}
+
+/* button.instance-add-button, not just .instance-add-button - the
+   extra element in the selector is deliberate, same reason as
+   button.instance-row-chevron elsewhere in this file: a bare class
+   loses to button[type='button']'s own higher-specificity attribute
+   selector (found live - the text was silently rendering
+   --colour-text, never the intended blue, until this was added). */
+button.instance-add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  color: var(--colour-primary);
+  padding: 0.5rem 0;
+  font-weight: 600;
+}
+
+button.instance-add-button:hover {
+  color: var(--colour-primary-hover);
+  background: none;
+}
+
+/* Add Section (docs/design/Add-Section-Button.jpg) - a plain icon+text
+   trigger, not a select-then-submit pair, that opens a type-picker
+   menu on click. Same outside-click-to-dismiss popover pattern as
+   AppShell's own account popover (.account-popover), just anchored
+   above its trigger instead of beside it, since this button usually
+   sits near the bottom of a scrolling list rather than a fixed rail. */
+.instance-add-menu-wrap {
+  position: relative;
+  margin-top: 0.6rem;
+}
+
+.instance-add-menu {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 0;
+  min-width: 200px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  padding: 0.4rem;
+  z-index: 20;
+}
+
+/* A trigger with no room above it (e.g. Add Block on the first,
+   already-expanded section in a short editor panel) flips the menu
+   below instead - found live: opening upward there let the menu's
+   top items get clipped by .editor-tab-content's own overflow-y:
+   auto, rendering them invisible and unclickable behind the
+   Page/Sections tab bar above it. useAddMenu decides the direction. */
+.instance-add-menu-below {
+  bottom: auto;
+  top: calc(100% + 0.5rem);
+}
+
+.instance-add-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--colour-text);
+  padding: 0.5rem 0.6rem;
+  font-weight: 500;
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.instance-add-menu-item:hover {
+  background: var(--colour-surface-hover);
+}

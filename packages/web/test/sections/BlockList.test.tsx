@@ -19,108 +19,241 @@ function block(id: string, type = 'button', settings: Record<string, unknown> = 
   return { id, type, settings };
 }
 
+// Simulates dragging fromHandle onto toRow, landing in either the top
+// or bottom half of toRow's (mocked, since jsdom never lays anything
+// out) bounding rect.
+function dragOnto(fromHandle: HTMLElement, toRow: HTMLElement, half: 'top' | 'bottom'): void {
+  vi.spyOn(toRow, 'getBoundingClientRect').mockReturnValue({
+    top: 0,
+    height: 40,
+    bottom: 40,
+    left: 0,
+    right: 0,
+    width: 0,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  } as DOMRect);
+
+  fireEvent.dragStart(fromHandle);
+  fireEvent.dragOver(toRow, { clientY: half === 'top' ? 5 : 35 });
+  fireEvent.drop(toRow);
+}
+
 describe('BlockList', () => {
-  it('I1: move up/down reorders the array and calls onChange with the new order', () => {
+  it('I1: dragging a row\'s handle onto another row reorders the array and calls onChange', () => {
     const onChange = vi.fn();
     render(
-      <BlockList blocks={[block('a'), block('b'), block('c')]} blockTypes={BLOCK_TYPES} onChange={onChange} />,
+      <BlockList
+        blocks={[block('a'), block('b'), block('c')]}
+        blockTypes={BLOCK_TYPES}
+        onChange={onChange}
+        onEditInstance={vi.fn()}
+      />,
     );
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Move down' })[0] as HTMLElement);
+    const handles = screen.getAllByRole('button', { name: 'Drag to reorder' });
+    const rows = handles.map((handle) => handle.closest('li') as HTMLElement);
 
-    expect(onChange).toHaveBeenCalledWith([block('b'), block('a'), block('c')]);
+    dragOnto(handles[0] as HTMLElement, rows[2] as HTMLElement, 'bottom');
+
+    expect(onChange).toHaveBeenCalledWith([block('b'), block('c'), block('a')]);
   });
 
-  it('I1: move up is disabled on the first row, move down is disabled on the last row', () => {
-    render(<BlockList blocks={[block('a'), block('b')]} blockTypes={BLOCK_TYPES} onChange={vi.fn()} />);
+  it('I2: the add-block menu lists types sourced from the fetched theme schemas, not hardcoded', () => {
+    render(<BlockList blocks={[]} blockTypes={BLOCK_TYPES} onChange={vi.fn()} onEditInstance={vi.fn()} />);
 
-    const moveUps = screen.getAllByRole('button', { name: 'Move up' });
-    const moveDowns = screen.getAllByRole('button', { name: 'Move down' });
-    expect(moveUps[0]?.hasAttribute('disabled')).toBe(true);
-    expect(moveDowns[moveDowns.length - 1]?.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['button', 'group']);
   });
 
-  it('I2: the add-block type list is sourced from the fetched theme schemas, not hardcoded', () => {
-    render(<BlockList blocks={[]} blockTypes={BLOCK_TYPES} onChange={vi.fn()} />);
-
-    const select = screen.getByLabelText('Block type') as HTMLSelectElement;
-    const optionValues = Array.from(select.options).map((option) => option.value);
-    expect(optionValues).toEqual(['button', 'group']);
-  });
-
-  it('I2: adding a block appends a new instance with a generated id and the selected type', () => {
+  it('I2: picking a type from the add-block menu appends a new instance with a generated id and that type, and closes the menu', () => {
     const onChange = vi.fn();
-    render(<BlockList blocks={[]} blockTypes={BLOCK_TYPES} onChange={onChange} />);
+    render(<BlockList blocks={[]} blockTypes={BLOCK_TYPES} onChange={onChange} onEditInstance={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add block' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'button' }));
 
     const [newBlocks] = onChange.mock.calls[0] as [Instance[]];
     expect(newBlocks).toHaveLength(1);
     expect(newBlocks[0]?.type).toBe('button');
     expect(typeof newBlocks[0]?.id).toBe('string');
     expect(newBlocks[0]?.id.length).toBeGreaterThan(0);
+    expect(screen.queryByRole('menuitem')).toBeNull();
   });
 
-  it('I4: removing a block asks for confirmation first, then removes only that block', () => {
+  it('clicking outside the open add-block menu closes it without adding anything', () => {
+    const onChange = vi.fn();
+    render(
+      <div>
+        <button type="button">outside</button>
+        <BlockList blocks={[]} blockTypes={BLOCK_TYPES} onChange={onChange} onEditInstance={vi.fn()} />
+      </div>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+    expect(screen.getAllByRole('menuitem')).toHaveLength(2);
+
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'outside' }));
+
+    expect(screen.queryByRole('menuitem')).toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('I4: removing a block asks for confirmation first, then removes only that block, without also opening its Fields tab', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const onChange = vi.fn();
-    render(<BlockList blocks={[block('a'), block('b')]} blockTypes={BLOCK_TYPES} onChange={onChange} />);
+    const onEditInstance = vi.fn();
+    render(
+      <BlockList
+        blocks={[block('a'), block('b')]}
+        blockTypes={BLOCK_TYPES}
+        onChange={onChange}
+        onEditInstance={onEditInstance}
+      />,
+    );
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove block' })[0] as HTMLElement);
 
     expect(onChange).toHaveBeenCalledWith([block('b')]);
+    expect(onEditInstance).not.toHaveBeenCalled();
   });
 
   it('I4: declining the removal confirmation makes no change', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false);
     const onChange = vi.fn();
-    render(<BlockList blocks={[block('a')]} blockTypes={BLOCK_TYPES} onChange={onChange} />);
+    render(<BlockList blocks={[block('a')]} blockTypes={BLOCK_TYPES} onChange={onChange} onEditInstance={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove block' }));
 
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it('I4: a block whose type accepts nested blocks renders its own nested BlockList', () => {
+  it('I4: a block whose type accepts nested blocks renders its own nested BlockList once expanded (blocks with nested blocks start collapsed)', () => {
     render(
       <BlockList
         blocks={[{ id: 'g1', type: 'group', settings: {}, blocks: [block('nested')] }]}
         blockTypes={BLOCK_TYPES}
         onChange={vi.fn()}
+        onEditInstance={vi.fn()}
       />,
     );
 
-    // Two "Block type" selects: the outer add-menu and the nested one.
-    expect(screen.getAllByLabelText('Block type')).toHaveLength(2);
+    // Only the outer Add Block button is visible until expanded.
+    expect(screen.getAllByRole('button', { name: 'Add Block' })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
+
+    // Two Add Block buttons: the outer add-menu and the nested one.
+    expect(screen.getAllByRole('button', { name: 'Add Block' })).toHaveLength(2);
   });
 
   it('I4: a block whose type does not accept nested blocks shows no nested block controls', () => {
-    render(<BlockList blocks={[block('a')]} blockTypes={BLOCK_TYPES} onChange={vi.fn()} />);
+    render(<BlockList blocks={[block('a')]} blockTypes={BLOCK_TYPES} onChange={vi.fn()} onEditInstance={vi.fn()} />);
 
     // Only the one top-level add-menu - no nested one for the button block.
-    expect(screen.getAllByLabelText('Block type')).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Add Block' })).toHaveLength(1);
   });
 
-  it('I5: a fieldErrors entry keyed by block id reaches that block\'s own settings form', () => {
+  it('clicking a block row (not its remove/drag controls) calls onEditInstance with that block\'s id - settings no longer render inline here', () => {
+    const onEditInstance = vi.fn();
     render(
       <BlockList
-        blocks={[block('a')]}
+        blocks={[block('a'), block('b')]}
         blockTypes={BLOCK_TYPES}
-        fieldErrors={{ a: { label: 'must be a string' } }}
         onChange={vi.fn()}
+        onEditInstance={onEditInstance}
       />,
     );
 
-    expect(screen.getByText('must be a string')).toBeDefined();
+    expect(screen.queryByLabelText('label')).toBeNull();
+    // Both rows are type "button" (the default in the block() helper),
+    // so their accessible names are identical - target by position.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit button' })[1] as HTMLElement);
+
+    expect(onEditInstance).toHaveBeenCalledWith('b');
   });
 
-  it('I6: editing a block\'s settings calls the same onChange - one save path, not a parallel one', () => {
-    const onChange = vi.fn();
-    render(<BlockList blocks={[block('a')]} blockTypes={BLOCK_TYPES} onChange={onChange} />);
+  it('I5: a fieldErrors entry keyed by block id is surfaced as an accessible "(has an error)" suffix on that row', () => {
+    render(
+      <BlockList
+        blocks={[block('a'), block('b')]}
+        blockTypes={BLOCK_TYPES}
+        fieldErrors={{ a: { label: 'must be a string' } }}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+      />,
+    );
 
-    fireEvent.change(screen.getByLabelText('label'), { target: { value: 'Changed' } });
+    expect(screen.getByRole('button', { name: 'Edit button (has an error)' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Edit button' })).toBeDefined();
+  });
+
+  it('I6: dragging a nested block calls the same top-level onChange - one save path, not a parallel one', () => {
+    const onChange = vi.fn();
+    render(
+      <BlockList
+        blocks={[{ id: 'g1', type: 'group', settings: {}, blocks: [block('nested-a'), block('nested-b')] }]}
+        blockTypes={BLOCK_TYPES}
+        onChange={onChange}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
+
+    const handles = screen.getAllByRole('button', { name: 'Drag to reorder' });
+    const rows = handles.map((handle) => handle.closest('li') as HTMLElement);
+    // Index 0 is the outer "g1" block's own handle - index 1/2 are the
+    // nested blocks'.
+    dragOnto(handles[1] as HTMLElement, rows[2] as HTMLElement, 'bottom');
 
     expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenCalledWith([{ id: 'a', type: 'button', settings: { label: 'Changed' } }]);
+    const [[updated]] = onChange.mock.calls as [[Instance[]]];
+    expect(updated[0]?.blocks?.map((b) => b.id)).toEqual(['nested-b', 'nested-a']);
+  });
+
+  it('the chevron collapses and expands a block\'s nested blocks without opening its Fields tab', () => {
+    const onEditInstance = vi.fn();
+    render(
+      <BlockList
+        blocks={[{ id: 'g1', type: 'group', settings: {}, blocks: [block('nested')] }]}
+        blockTypes={BLOCK_TYPES}
+        onChange={vi.fn()}
+        onEditInstance={onEditInstance}
+      />,
+    );
+
+    // Blocks with nested blocks start collapsed.
+    expect(screen.queryByRole('button', { name: 'Edit button' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
+
+    expect(screen.getByRole('button', { name: 'Edit button' })).toBeDefined();
+    expect(onEditInstance).not.toHaveBeenCalled();
+  });
+
+  it('shows the theme schema\'s own "title", not the raw type slug, once one is declared', () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const typesWithTitle: ThemeTypeSchemas = {
+      schemas: {
+        button: { type: 'object', title: 'Button', properties: {} },
+        group: { type: 'object', title: 'Group', properties: {} },
+      },
+      acceptsBlocks: { button: false, group: true },
+    };
+    render(
+      <BlockList blocks={[block('a', 'button')]} blockTypes={typesWithTitle} onChange={vi.fn()} onEditInstance={vi.fn()} />,
+    );
+
+    expect(screen.getByText('Button', { selector: 'strong' })).toBeDefined();
+    expect(screen.queryByText('button')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Edit Button' })).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+    expect(screen.getByRole('menuitem', { name: 'Button' })).toBeDefined();
+    expect(screen.getByRole('menuitem', { name: 'Group' })).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove block' }));
+    expect(window.confirm).toHaveBeenCalledWith('Remove this "Button" block? This cannot be undone.');
   });
 });

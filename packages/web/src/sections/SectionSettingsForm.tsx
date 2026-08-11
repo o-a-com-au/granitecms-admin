@@ -32,7 +32,7 @@ function UnknownTypeFallback({ settings, onChange }: Pick<SectionSettingsFormPro
   }
 
   return (
-    <div>
+    <div className="section-settings-form">
       <p role="alert">Unknown type - editing raw settings.</p>
       <textarea value={text} onChange={(event) => handleChange(event.target.value)} />
       {invalid && <p role="alert">Not valid JSON yet - not saved.</p>}
@@ -52,7 +52,7 @@ export function SectionSettingsForm({ schema, settings, onChange, fieldErrors }:
   const properties = (schema.properties ?? {}) as Record<string, Record<string, unknown>>;
 
   return (
-    <div>
+    <div className="section-settings-form">
       {Object.entries(properties).map(([key, propertySchema]) => (
         <SchemaField
           key={key}
