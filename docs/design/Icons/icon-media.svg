@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Media" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #727272;
+      }
+
+      .cls-2 {
+        fill: #c4c4c4;
+      }
+
+      .cls-3, .cls-4 {
+        fill: #575757;
+      }
+
+      .cls-4 {
+        opacity: .4;
+      }
+
+      .cls-5 {
+        fill: #fff;
+      }
+    </style>
+  </defs>
+  <polyline class="cls-3" points="4.35 45.41 4.35 4.19 45.57 4.19"/>
+  <polyline class="cls-1" points="11.97 53.19 11.97 11.96 53.2 11.96"/>
+  <rect class="cls-2" x="19.25" y="19.73" width="41.23" height="41.23"/>
+  <polygon class="cls-4" points="18.96 46.62 32.59 32.57 41.66 43.13 60.52 23.93 60.52 60.96 19.25 60.96 18.96 46.62"/>
+  <circle class="cls-4" cx="26.36" cy="26.96" r="3.8"/>
+  <path class="cls-5" d="M59.47,20.73v39.23H20.25V20.73h39.23ZM60.47,19.73H19.25v41.23h41.23V19.73h0Z"/>
+</svg>

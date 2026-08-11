@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Pages" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #727272;
+      }
+
+      .cls-2 {
+        fill: #c4c4c4;
+      }
+
+      .cls-3 {
+        fill: #717171;
+      }
+
+      .cls-4 {
+        fill: #575757;
+        opacity: .5;
+      }
+
+      .cls-5 {
+        fill: #fff;
+      }
+    </style>
+  </defs>
+  <polygon class="cls-4" points="46.98 62.49 11.2 62.49 11.2 9.69 35.65 9.69 46.98 20.35 46.98 62.49"/>
+  <polygon class="cls-2" points="55.34 54.9 19.55 54.9 19.55 2.1 44.01 2.1 55.34 12.76 55.34 54.9"/>
+  <rect class="cls-3" x="24.93" y="37.22" width="24.46" height="6.93"/>
+  <rect class="cls-3" x="24.93" y="25.87" width="24.46" height="6.93"/>
+  <polygon class="cls-1" points="55.34 12.76 43.98 12.76 43.98 2.1 55.34 12.76"/>
+  <path class="cls-5" d="M43.01,2.85l.03,9.57v.99s.99,0,.99,0l10.31.08v40.15H20.55V2.85h22.46ZM44.01,1.85h-24.46v52.8h35.79V12.51l-11.3-.09-.03-10.57h0Z"/>
+</svg>

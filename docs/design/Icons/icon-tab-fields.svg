@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Fields" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #757575;
+      }
+
+      .cls-2 {
+        fill: #c4c4c4;
+      }
+
+      .cls-3 {
+        fill: #383838;
+      }
+    </style>
+  </defs>
+  <rect class="cls-2" x="5.84" y="9.9" width="52.56" height="19.11" rx="3.44" ry="3.44"/>
+  <rect class="cls-1" x="11.79" y="12.7" width="2.53" height="13.31" rx="1.26" ry="1.26"/>
+  <rect class="cls-1" x="5.84" y="35.19" width="52.56" height="19.11" rx="3.44" ry="3.44"/>
+  <rect class="cls-3" x="11.79" y="38" width="2.53" height="13.31" rx="1.26" ry="1.26"/>
+</svg>

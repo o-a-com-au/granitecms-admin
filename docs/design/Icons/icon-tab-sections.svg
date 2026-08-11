@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Sections" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #757575;
+      }
+
+      .cls-2 {
+        fill: #c4c4c4;
+      }
+
+      .cls-3 {
+        fill: #717171;
+      }
+    </style>
+  </defs>
+  <rect class="cls-2" x="6.86" y="7.89" width="49.42" height="9.34" rx="2.85" ry="2.85"/>
+  <rect class="cls-3" x="17.27" y="20.43" width="39.02" height="9.34" rx="3.28" ry="3.28"/>
+  <rect class="cls-1" x="6.86" y="32.98" width="49.42" height="9.34" rx="3.19" ry="3.19"/>
+  <rect class="cls-1" x="6.86" y="45.52" width="49.42" height="9.34" rx="3.19" ry="3.19"/>
+</svg>
