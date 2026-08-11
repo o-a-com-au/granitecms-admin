@@ -38,33 +38,38 @@ export function LoginPage() {
   }
 
   return (
-    <main>
-      <h1>Log in</h1>
-      <form onSubmit={handleSubmit}>
-        <label>
-          Username
-          <input
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            autoComplete="username"
-            required
-          />
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="current-password"
-            required
-          />
-        </label>
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={submitting}>
-          Log in
-        </button>
-      </form>
-    </main>
+    <div className="login-page">
+      <div className="login-card">
+        <p className="login-logo" aria-hidden="true">
+          Granite CMS
+        </p>
+        <h1>Log in</h1>
+        <form onSubmit={handleSubmit}>
+          <label>
+            Username
+            <input
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              autoComplete="username"
+              required
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </label>
+          {error && <p role="alert">{error}</p>}
+          <button type="submit" disabled={submitting}>
+            Log in
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

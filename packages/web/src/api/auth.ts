@@ -1,6 +1,8 @@
 export interface CurrentUser {
   id: string;
   username: string;
+  name: string;
+  email: string;
 }
 
 // Same-origin only (Vite proxies /api in dev, one Fastify process

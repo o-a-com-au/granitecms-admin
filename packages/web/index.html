@@ -4,6 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>cms-agent admin</title>
+    <script>
+      // Sets data-theme before first paint so there's no flash of the
+      // wrong theme on load - ThemeContext.tsx re-applies the same
+      // logic once React mounts, but that's too late to avoid the
+      // flash on its own. The storage key here must match
+      // ThemeContext.tsx's STORAGE_KEY exactly.
+      (function () {
+        var stored = null;
+        try {
+          stored = localStorage.getItem('cms-admin-theme');
+        } catch (err) {
+          // Safari private browsing and similar can throw on access,
+          // not just return null - fall through to the OS preference.
+        }
+        var theme =
+          stored === 'light' || stored === 'dark'
+            ? stored
+            : window.matchMedia('(prefers-color-scheme: light)').matches
+              ? 'light'
+              : 'dark';
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

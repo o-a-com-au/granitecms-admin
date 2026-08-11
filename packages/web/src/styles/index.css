@@ -1,0 +1,22 @@
+/* theme.css first, purely for readability (custom property values
+   resolve at use time, not import order, so this isn't load-bearing
+   the way the rest of this order is). Everything after it matches the
+   original single-file top-to-bottom order and must stay that way - a
+   handful of rules rely on source order to win a same-specificity tie
+   against a more generic rule defined earlier - e.g.
+   button.instance-row-chevron and button.page-tree-toggle both need
+   to load after base.css's button[type='button'], since element+class
+   and element+attribute selectors are equally specific and the later
+   one in load order wins. If you reorder these imports, re-check
+   every "button.X" rule in the later files against base.css's button
+   rules. */
+@import './theme.css';
+@import './base.css';
+@import './editor-layout.css';
+@import './app-shell.css';
+@import './login.css';
+@import './device-preview.css';
+@import './editor-tabs.css';
+@import './instance-rows.css';
+@import './menu-editor.css';
+@import './pages-list.css';

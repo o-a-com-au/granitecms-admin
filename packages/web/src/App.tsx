@@ -2,19 +2,26 @@ import { Route, Routes } from 'react-router';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { HomePage } from './pages/HomePage.tsx';
 import { ContentBrowserPage } from './pages/ContentBrowserPage.tsx';
+import { MenusPage } from './pages/MenusPage.tsx';
+import { MenuEditorPage } from './pages/MenuEditorPage.tsx';
 import { PageEditorPage } from './pages/PageEditorPage.tsx';
 import { PageHistoryPage } from './pages/PageHistoryPage.tsx';
 import { RequireAuth } from './auth/RequireAuth.tsx';
+import { AppShell } from './layout/AppShell.tsx';
 
 export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/sites/:siteId/content" element={<ContentBrowserPage />} />
-        <Route path="/sites/:siteId/editor" element={<PageEditorPage />} />
-        <Route path="/sites/:siteId/history" element={<PageHistoryPage />} />
+        <Route element={<AppShell />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/sites/:siteId/content" element={<ContentBrowserPage />} />
+          <Route path="/sites/:siteId/menus" element={<MenusPage />} />
+          <Route path="/sites/:siteId/menus/edit" element={<MenuEditorPage />} />
+          <Route path="/sites/:siteId/editor" element={<PageEditorPage />} />
+          <Route path="/sites/:siteId/history" element={<PageHistoryPage />} />
+        </Route>
       </Route>
     </Routes>
   );

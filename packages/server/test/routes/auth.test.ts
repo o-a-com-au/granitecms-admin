@@ -61,7 +61,12 @@ describe('auth routes', () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.deepEqual(response.json(), { id: normaliseUsername(TEST_USERNAME), username: TEST_USERNAME });
+    assert.deepEqual(response.json(), {
+      id: normaliseUsername(TEST_USERNAME),
+      username: TEST_USERNAME,
+      name: TEST_NAME,
+      email: TEST_EMAIL,
+    });
     assert.ok(response.headers['set-cookie'], 'expected a session cookie to be set');
 
     await app.close();

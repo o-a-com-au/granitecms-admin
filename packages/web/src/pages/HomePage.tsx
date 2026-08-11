@@ -66,7 +66,7 @@ export function HomePage() {
   }
 
   return (
-    <main>
+    <div>
       <h1>cms-agent admin</h1>
 
       <section>
@@ -144,6 +144,6 @@ export function HomePage() {
           </table>
         )}
       </section>
-    </main>
+    </div>
   );
 }

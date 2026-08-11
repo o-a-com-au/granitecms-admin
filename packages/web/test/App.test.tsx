@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { AuthProvider } from '../src/auth/AuthContext.tsx';
+import { ThemeProvider } from '../src/theme/ThemeContext.tsx';
 import { App } from '../src/App.tsx';
 
 afterEach(() => {
@@ -13,11 +14,13 @@ describe('App', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
 
     render(
-      <AuthProvider>
-        <MemoryRouter initialEntries={['/']}>
-          <App />
-        </MemoryRouter>
-      </AuthProvider>,
+      <ThemeProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/']}>
+            <App />
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>,
     );
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Log in' })).toBeDefined());
@@ -30,11 +33,13 @@ describe('App', () => {
     );
 
     render(
-      <AuthProvider>
-        <MemoryRouter initialEntries={['/']}>
-          <App />
-        </MemoryRouter>
-      </AuthProvider>,
+      <ThemeProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/']}>
+            <App />
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>,
     );
 
     await waitFor(() => expect(screen.getByText('cms-agent admin')).toBeDefined());
@@ -45,11 +50,13 @@ describe('App', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
 
     render(
-      <AuthProvider>
-        <MemoryRouter initialEntries={['/login']}>
-          <App />
-        </MemoryRouter>
-      </AuthProvider>,
+      <ThemeProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/login']}>
+            <App />
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>,
     );
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Log in' })).toBeDefined());

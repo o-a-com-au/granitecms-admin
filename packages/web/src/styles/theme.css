@@ -1,0 +1,71 @@
+/* Design tokens - the only file that should ever contain a raw colour
+   value. Every other file reaches for a --colour-* (or --radius /
+   --editor-sidebar-width) custom property, never a literal hex, so
+   the palette or theme can change without hunting through every
+   component file.
+
+   Two layers, Tailwind-style:
+   - --grey-* is the raw, numbered lightness scale (50 lightest, 900
+     darkest) - identical in both themes, no meaning attached. The 50/
+     400/600/700/800/900 steps are exactly the app's original (dark-
+     only) --colour-* values, just given a place on a fuller ladder;
+     100/200/300/500 are new, interpolated to fill the gaps a light
+     theme needs.
+   - --colour-* is what components actually consume - each one is
+     just an alias into the grey scale, and which alias wins flips
+     with [data-theme]. Adding a theme later means adding one more
+     [data-theme='x'] block that redefines the --colour-* names; no
+     other file needs to change. */
+:root {
+  --grey-50: #f3f3f3;
+  --grey-100: #e8e8e8;
+  --grey-200: #d4d4d4;
+  --grey-300: #b6b6b6;
+  --grey-400: #999999;
+  --grey-500: #7b7b7b;
+  --grey-600: #5b5b5b;
+  --grey-700: #424242;
+  --grey-800: #2b2b2b;
+  --grey-900: #1c1c1c;
+  --grey-950: #0d0d0d;
+
+  --colour-primary: #3b6ef6;
+  --colour-primary-hover: #2f5bd1;
+  --colour-ok: #3ecf6e;
+  --colour-warning: #f5a623;
+  --colour-danger: #f0685c;
+
+  --radius: 5px;
+  /* The editor sidebar's own fixed width - a named variable (not a
+     bare 420px literal) purely so its handful of usages stay in sync
+     if it ever changes. */
+  --editor-sidebar-width: 380px;
+}
+
+/* Dark is the app's long-standing default - both the bare :root (so
+   nothing is unstyled before the theme script/React run) and the
+   explicit attribute resolve to the same values. */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --colour-bg: var(--grey-900);
+  --colour-surface: var(--grey-800);
+  --colour-surface-hover: var(--grey-600);
+  --colour-border: var(--grey-700);
+  --colour-muted: var(--grey-500);
+  --colour-text: var(--grey-200);
+  --colour-viewport: var(--grey-50);
+  --colour-table-header: var(--grey-900);
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --colour-bg: var(--grey-50);
+  --colour-surface: #fff;
+  --colour-surface-hover: var(--grey-100);
+  --colour-border: var(--grey-200);
+  --colour-muted: var(--grey-500);
+  --colour-text: var(--grey-700);
+  --colour-viewport: var(--grey-900);
+  --colour-table-header: var(--grey-50);
+}

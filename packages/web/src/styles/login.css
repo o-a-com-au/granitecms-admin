@@ -1,0 +1,39 @@
+/* Login: the one route rendered outside AppShell, so it centres itself
+   in the full viewport rather than relying on .app-content. */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.login-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.login-card form {
+  align-items: stretch;
+}
+
+.login-card label {
+  max-width: none;
+}
+
+.login-card button {
+  margin-top: 0.5rem;
+}

@@ -2,8 +2,18 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { AuthProvider } from './auth/AuthContext.tsx';
+import { ThemeProvider } from './theme/ThemeContext.tsx';
 import { App } from './App.tsx';
-import './styles.css';
+// Self-hosted (not a Google Fonts <link>) - no external request at
+// runtime, matching this being a self-hosted admin tool, and each
+// weight is its own CSS file so only the four this app actually sets
+// (400/500/600/700 - see styles/base.css's font-family) get bundled,
+// not the full 100-900 range @fontsource/inter ships.
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+import './styles/index.css';
 
 const container = document.getElementById('root');
 if (!container) {
@@ -12,10 +22,12 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <AuthProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

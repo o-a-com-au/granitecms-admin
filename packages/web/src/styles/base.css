@@ -1,26 +1,15 @@
-:root {
-  color-scheme: light;
-  --colour-text: #1b1f24;
-  --colour-muted: #5b6572;
-  --colour-border: #d7dce1;
-  --colour-bg: #f6f7f9;
-  --colour-surface: #ffffff;
-  --colour-primary: #2563eb;
-  --colour-primary-hover: #1d4ed8;
-  --colour-ok: #1a7f37;
-  --colour-warning: #9a6700;
-  --colour-danger: #b3261e;
-  --radius: 6px;
-}
-
+/* Design tokens (the grey scale, --colour-*, --radius,
+   --editor-sidebar-width) live in theme.css, imported before this
+   file - nothing here should declare its own custom property. */
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color: var(--colour-text);
+  font-size: 13px;
   background: var(--colour-bg);
   line-height: 1.5;
 }
@@ -68,7 +57,7 @@ label {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--colour-muted);
   width: 100%;
   max-width: 420px;
@@ -127,7 +116,31 @@ button[type='button'] {
 }
 
 button[type='button']:hover {
-  background: var(--colour-bg);
+  background: var(--colour-surface-hover);
+}
+
+/* Opts a type='button' element back into the primary (blue) treatment
+   - used where a button is the primary action of its group (e.g. the
+   editor's Save button) but a plain type='submit' can't be used
+   because it isn't inside a form. The button/class/pseudo-class
+   combinators here are deliberate, not decorative - each needs to
+   out-specificity the same-tier button[type='button'] rule above
+   while still losing cleanly to :disabled's own grey-out. */
+button.button-primary {
+  background: var(--colour-primary);
+  border-color: var(--colour-primary);
+  color: #fff;
+}
+
+button.button-primary:hover {
+  background: var(--colour-primary-hover);
+  border-color: var(--colour-primary-hover);
+}
+
+button.button-primary:disabled {
+  background: var(--colour-border);
+  border-color: var(--colour-border);
+  color: var(--colour-muted);
 }
 
 table {
@@ -136,7 +149,6 @@ table {
   background: var(--colour-surface);
   border: 1px solid var(--colour-border);
   border-radius: var(--radius);
-  overflow: hidden;
 }
 
 th,
@@ -161,35 +173,22 @@ tr:last-child td {
 p[role='alert'] {
   padding: 0.6rem 0.85rem;
   border-radius: var(--radius);
-  background: #fdecea;
+  background: rgba(240, 104, 92, 0.12);
   color: var(--colour-danger);
-  border: 1px solid #f3c8c4;
+  border: 1px solid rgba(240, 104, 92, 0.35);
   max-width: 640px;
 }
 
-/* Status colouring shared by SiteStatusBadge (span) and the editor's
-   own status line (p) - keyed off the data-status attribute both
-   already carry, so no component markup needs to change for this. */
-[data-status='ok'],
-[data-status='ready'] {
+/* SiteStatusBadge's own colouring, keyed off the data-status attribute
+   it carries. */
+[data-status='ok'] {
   color: var(--colour-ok);
-  font-weight: 600;
-}
-
-[data-status='dirty'],
-[data-status='saving'],
-[data-status='loading'] {
-  color: var(--colour-warning);
   font-weight: 600;
 }
 
 [data-status='unreachable'],
 [data-status='unauthorized'],
-[data-status='error'],
-[data-status='save-error'],
-[data-status='conflict'],
-[data-status='not-found'],
-[data-status='load-error'] {
+[data-status='error'] {
   color: var(--colour-danger);
   font-weight: 600;
 }
@@ -197,75 +196,4 @@ p[role='alert'] {
 iframe {
   border: 1px solid var(--colour-border);
   border-radius: var(--radius);
-}
-
-/* The editor page is a full-bleed split screen, not a normal padded,
-   centred reading-width page - it opts out of main's own layout
-   entirely so the sidebar and preview can each run edge to edge and
-   fill the full viewport height. */
-main.editor-page {
-  max-width: none;
-  margin: 0;
-  padding: 0;
-  min-height: 100vh;
-}
-
-.editor-shell {
-  display: flex;
-  min-height: 100vh;
-}
-
-.editor-sidebar {
-  flex: 0 0 400px;
-  max-width: 400px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  padding: 1.75rem 1.5rem;
-  background: #fff;
-  border-right: 2px solid #eee;
-  overflow-y: auto;
-}
-
-.editor-sidebar label {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  max-width: none;
-}
-
-.editor-sidebar textarea {
-  flex: 1;
-  width: 100%;
-  resize: none;
-}
-
-.editor-preview-full {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-}
-
-.editor-preview-full iframe {
-  flex: 1;
-  width: 100%;
-  border: none;
-}
-
-.editor-preview-full .preview-empty {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--colour-muted);
-}
-
-.editor-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  padding: 0;
-  border: none;
-  background: none;
-  margin-bottom: 0;
 }

@@ -51,7 +51,10 @@ export function createAuthRoutes(usersStore: Store<AdminUser>) {
       await request.session.regenerate();
       request.session.set('userId', user.id);
 
-      return { id: user.id, username: user.username };
+      // Same shape GET /me already returns via request.currentUser -
+      // login was the one place still trimming it down to id/username,
+      // an oversight now that the account popover needs name/email too.
+      return { id: user.id, username: user.username, name: user.name, email: user.email };
     });
 
     // Exempt from requireAuth, not guarded by it: logout must succeed
