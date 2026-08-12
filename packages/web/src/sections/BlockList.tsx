@@ -3,7 +3,14 @@ import { AddIcon } from './AddIcon.tsx';
 import { DragHandleIcon } from './DragHandleIcon.tsx';
 import { TrashIcon } from './TrashIcon.tsx';
 import { computeDropIndex, reorderList } from './drag-reorder.ts';
-import { schemaTitle, type FieldErrorMap, type Instance, type ThemeTypeSchemas } from './instance-types.ts';
+import {
+  allowedBlockTypes,
+  buildDefaultSettings,
+  schemaTitle,
+  type FieldErrorMap,
+  type Instance,
+  type ThemeTypeSchemas,
+} from './instance-types.ts';
 import { useAddMenu } from './useAddMenu.ts';
 
 interface BlockRowProps {
@@ -46,6 +53,7 @@ function BlockRow({
   const [collapsed, setCollapsed] = useState(acceptsNestedBlocks);
   const hasError = Boolean(fieldErrors?.[block.id] && Object.keys(fieldErrors[block.id] as object).length > 0);
   const displayName = schemaTitle(blockTypes.schemas[block.type], block.type);
+  const nestedAllowedTypes = allowedBlockTypes(blockTypes.schemas[block.type]);
 
   function handleEdit(): void {
     onEditInstance(block.id);
@@ -118,6 +126,7 @@ function BlockRow({
         <BlockList
           blocks={block.blocks ?? []}
           blockTypes={blockTypes}
+          allowedTypes={nestedAllowedTypes}
           fieldErrors={fieldErrors}
           onChange={(blocks) => onChange({ ...block, blocks })}
           onEditInstance={onEditInstance}
@@ -130,6 +139,10 @@ function BlockRow({
 export interface BlockListProps {
   blocks: Instance[];
   blockTypes: ThemeTypeSchemas;
+  // K4: restricts the Add Block menu to these types, per the parent
+  // section/block's own declared allowedBlocks - undefined means
+  // unrestricted (every declared block type), today's behaviour.
+  allowedTypes?: string[];
   fieldErrors?: FieldErrorMap;
   onChange: (blocks: Instance[]) => void;
   onEditInstance: (id: string) => void;
@@ -142,8 +155,10 @@ export interface BlockListProps {
 // renders at ALL for a given section/block is the caller's decision
 // (I4's "shows no block controls") - once rendered, it always shows
 // full controls.
-export function BlockList({ blocks, blockTypes, fieldErrors, onChange, onEditInstance }: BlockListProps) {
-  const blockTypeNames = Object.keys(blockTypes.schemas);
+export function BlockList({ blocks, blockTypes, allowedTypes, fieldErrors, onChange, onEditInstance }: BlockListProps) {
+  const blockTypeNames = allowedTypes
+    ? Object.keys(blockTypes.schemas).filter((type) => allowedTypes.includes(type))
+    : Object.keys(blockTypes.schemas);
   const { open: addMenuOpen, setOpen: setAddMenuOpen, openUpward, ref: addMenuRef, toggle: toggleAddMenu } = useAddMenu();
   const [draggedIndex, setDraggedIndexState] = useState<number | null>(null);
   const [dropIndex, setDropIndexState] = useState<number | null>(null);
@@ -180,7 +195,7 @@ export function BlockList({ blocks, blockTypes, fieldErrors, onChange, onEditIns
     const newBlock: Instance = {
       id: crypto.randomUUID(),
       type,
-      settings: {},
+      settings: buildDefaultSettings(blockTypes.schemas[type]),
       ...(acceptsNested ? { blocks: [] } : {}),
     };
     onChange([...blocks, newBlock]);

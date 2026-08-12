@@ -16,10 +16,10 @@
   "additionalProperties": false,
   "required": ["quote", "name", "role", "initials"],
   "properties": {
-    "quote": { "type": "string", "minLength": 1 },
-    "name": { "type": "string", "minLength": 1 },
-    "role": { "type": "string", "minLength": 1 },
-    "initials": { "type": "string", "minLength": 1, "maxLength": 3 }
+    "quote": { "type": "string", "minLength": 1, "default": "Quote" },
+    "name": { "type": "string", "minLength": 1, "default": "Name" },
+    "role": { "type": "string", "minLength": 1, "default": "Role" },
+    "initials": { "type": "string", "minLength": 1, "maxLength": 3, "default": "AB" }
   }
 }
 {% endschema %}

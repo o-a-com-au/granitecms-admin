@@ -30,11 +30,12 @@
   "required": ["heading", "criteriaLabel", "graniteLabel", "traditionalLabel"],
   "properties": {
     "eyebrow": { "type": "string" },
-    "heading": { "type": "string", "minLength": 1 },
+    "heading": { "type": "string", "minLength": 1, "default": "How Granite compares" },
     "subheading": { "type": "string" },
-    "criteriaLabel": { "type": "string", "minLength": 1 },
-    "graniteLabel": { "type": "string", "minLength": 1 },
-    "traditionalLabel": { "type": "string", "minLength": 1 }
-  }
+    "criteriaLabel": { "type": "string", "minLength": 1, "default": "Criteria" },
+    "graniteLabel": { "type": "string", "minLength": 1, "default": "Granite" },
+    "traditionalLabel": { "type": "string", "minLength": 1, "default": "Traditional CMS" }
+  },
+  "allowedBlocks": ["comparison-row"]
 }
 {% endschema %}

@@ -83,6 +83,41 @@ describe('BlockList', () => {
     expect(screen.queryByRole('menuitem')).toBeNull();
   });
 
+  it('L3: a newly-added block is pre-filled from its schema\'s declared defaults, not left empty', () => {
+    const typesWithDefaults: ThemeTypeSchemas = {
+      schemas: {
+        button: {
+          type: 'object',
+          required: ['label', 'url'],
+          properties: {
+            label: { type: 'string', minLength: 1, default: 'Learn more' },
+            url: { type: 'string', minLength: 1, default: '#' },
+          },
+        },
+      },
+      acceptsBlocks: { button: false },
+    };
+    const onChange = vi.fn();
+    render(<BlockList blocks={[]} blockTypes={typesWithDefaults} onChange={onChange} onEditInstance={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'button' }));
+
+    const [newBlocks] = onChange.mock.calls[0] as [Instance[]];
+    expect(newBlocks[0]?.settings).toEqual({ label: 'Learn more', url: '#' });
+  });
+
+  it('L3: a block type with no declared defaults still starts with empty settings (regression)', () => {
+    const onChange = vi.fn();
+    render(<BlockList blocks={[]} blockTypes={BLOCK_TYPES} onChange={onChange} onEditInstance={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'button' }));
+
+    const [newBlocks] = onChange.mock.calls[0] as [Instance[]];
+    expect(newBlocks[0]?.settings).toEqual({});
+  });
+
   it('clicking outside the open add-block menu closes it without adding anything', () => {
     const onChange = vi.fn();
     render(
@@ -255,5 +290,52 @@ describe('BlockList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove block' }));
     expect(window.confirm).toHaveBeenCalledWith('Remove this "Button" block? This cannot be undone.');
+  });
+
+  it('K4: the add-block menu is restricted to allowedTypes when the parent schema declares one', () => {
+    render(<BlockList blocks={[]} blockTypes={BLOCK_TYPES} allowedTypes={['button']} onChange={vi.fn()} onEditInstance={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['button']);
+  });
+
+  it('K4: the add-block menu is unrestricted when allowedTypes is omitted (regression)', () => {
+    render(<BlockList blocks={[]} blockTypes={BLOCK_TYPES} onChange={vi.fn()} onEditInstance={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['button', 'group']);
+  });
+
+  it('K4: a nested block\'s own allowedBlocks restricts its own nested add-block menu, independent of the outer one', () => {
+    const typesWithNestedRestriction: ThemeTypeSchemas = {
+      schemas: {
+        button: { type: 'object', properties: {} },
+        group: { type: 'object', properties: {}, allowedBlocks: ['button'] },
+      },
+      acceptsBlocks: { button: false, group: true },
+    };
+    render(
+      <BlockList
+        blocks={[{ id: 'g1', type: 'group', settings: {}, blocks: [] }]}
+        blockTypes={typesWithNestedRestriction}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    // Outer menu (for the top-level group/button choice) stays unrestricted.
+    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['button', 'group']);
+    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+
+    // The nested menu, inside the group block, is restricted to its own
+    // allowedBlocks. It sits inside the row's own <li>, so it precedes
+    // the outer add-menu (rendered after the whole <ul>) in DOM order.
+    fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
+    const addButtons = screen.getAllByRole('button', { name: 'Add Block' });
+    fireEvent.click(addButtons[0] as HTMLElement);
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['button']);
   });
 });

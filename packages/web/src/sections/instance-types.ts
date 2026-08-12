@@ -30,3 +30,34 @@ export function schemaTitle(schema: object | undefined, type: string): string {
   const title = (schema as { title?: unknown } | undefined)?.title;
   return typeof title === 'string' && title.trim() !== '' ? title : type;
 }
+
+// I2/K1: the theme's own optional "allowedBlocks" keyword (Group K),
+// read the same way schemaTitle reads "title" - plain metadata on the
+// schema object, not part of the settings shape it otherwise describes.
+// Absent/malformed means unrestricted, matching a theme authored before
+// this existed.
+export function allowedBlockTypes(schema: object | undefined): string[] | undefined {
+  const value = (schema as { allowedBlocks?: unknown } | undefined)?.allowedBlocks;
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'string') ? value : undefined;
+}
+
+// L3: builds the initial settings for a freshly-added section/block from
+// whatever "default" values its schema declares (standard JSON Schema
+// keyword, not required-specific) - previously always {}, leaving any
+// required field with no default genuinely invalid until the user filled
+// it in by hand (Group I's own known gap). The agent now only registers
+// a type at all once every required field has a valid default (Group L),
+// so this closes the loop rather than just papering over it.
+export function buildDefaultSettings(schema: object | undefined): Record<string, unknown> {
+  const properties = (schema as { properties?: unknown } | undefined)?.properties;
+  if (typeof properties !== 'object' || properties === null) {
+    return {};
+  }
+  const settings: Record<string, unknown> = {};
+  for (const [key, propertySchema] of Object.entries(properties as Record<string, unknown>)) {
+    if (propertySchema && typeof propertySchema === 'object' && 'default' in propertySchema) {
+      settings[key] = (propertySchema as { default: unknown }).default;
+    }
+  }
+  return settings;
+}

@@ -4,7 +4,14 @@ import { BlockList } from './BlockList.tsx';
 import { DragHandleIcon } from './DragHandleIcon.tsx';
 import { TrashIcon } from './TrashIcon.tsx';
 import { computeDropIndex, reorderList } from './drag-reorder.ts';
-import { schemaTitle, type FieldErrorMap, type Instance, type ThemeTypeSchemas } from './instance-types.ts';
+import {
+  allowedBlockTypes,
+  buildDefaultSettings,
+  schemaTitle,
+  type FieldErrorMap,
+  type Instance,
+  type ThemeTypeSchemas,
+} from './instance-types.ts';
 import { useAddMenu } from './useAddMenu.ts';
 
 interface SectionRowProps {
@@ -50,6 +57,7 @@ function SectionRow({
   const [collapsed, setCollapsed] = useState(acceptsBlocks);
   const hasError = Boolean(fieldErrors?.[section.id] && Object.keys(fieldErrors[section.id] as object).length > 0);
   const displayName = schemaTitle(sectionTypes.schemas[section.type], section.type);
+  const allowedTypes = allowedBlockTypes(sectionTypes.schemas[section.type]);
 
   function handleEdit(): void {
     onEditInstance(section.id);
@@ -122,6 +130,7 @@ function SectionRow({
         <BlockList
           blocks={section.blocks ?? []}
           blockTypes={blockTypes}
+          allowedTypes={allowedTypes}
           fieldErrors={fieldErrors}
           onChange={(blocks) => onChange({ ...section, blocks })}
           onEditInstance={onEditInstance}
@@ -182,7 +191,7 @@ export function SectionList({ sections, sectionTypes, blockTypes, fieldErrors, o
     const newSection: Instance = {
       id: crypto.randomUUID(),
       type,
-      settings: {},
+      settings: buildDefaultSettings(sectionTypes.schemas[type]),
       ...(acceptsBlocks ? { blocks: [] } : {}),
     };
     onChange([...sections, newSection]);

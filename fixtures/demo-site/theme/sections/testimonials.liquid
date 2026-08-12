@@ -19,8 +19,9 @@
   "required": ["heading"],
   "properties": {
     "eyebrow": { "type": "string" },
-    "heading": { "type": "string", "minLength": 1 },
+    "heading": { "type": "string", "minLength": 1, "default": "What our customers say" },
     "subheading": { "type": "string" }
-  }
+  },
+  "allowedBlocks": ["testimonial-card"]
 }
 {% endschema %}

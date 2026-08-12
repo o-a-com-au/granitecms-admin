@@ -11,9 +11,9 @@
   "additionalProperties": false,
   "required": ["criteria", "granite", "traditional"],
   "properties": {
-    "criteria": { "type": "string", "minLength": 1 },
-    "granite": { "type": "string", "minLength": 1 },
-    "traditional": { "type": "string", "minLength": 1 }
+    "criteria": { "type": "string", "minLength": 1, "default": "Criteria" },
+    "granite": { "type": "string", "minLength": 1, "default": "Granite" },
+    "traditional": { "type": "string", "minLength": 1, "default": "Traditional" }
   }
 }
 {% endschema %}

@@ -26,10 +26,11 @@
   "required": ["heading"],
   "properties": {
     "eyebrow": { "type": "string" },
-    "heading": { "type": "string", "minLength": 1 },
+    "heading": { "type": "string", "minLength": 1, "default": "New Section" },
     "subheading": { "type": "string" },
     "codeTitle": { "type": "string" },
     "codeSnippet": { "type": "string" }
-  }
+  },
+  "allowedBlocks": ["button"]
 }
 {% endschema %}

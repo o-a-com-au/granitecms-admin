@@ -104,6 +104,54 @@ describe('SectionList', () => {
     expect(screen.queryByRole('menuitem')).toBeNull();
   });
 
+  it('L3: a newly-added section is pre-filled from its schema\'s declared defaults, not left empty', () => {
+    const typesWithDefaults: ThemeTypeSchemas = {
+      schemas: {
+        hero: {
+          type: 'object',
+          required: ['heading'],
+          properties: { heading: { type: 'string', minLength: 1, default: 'New Section' } },
+        },
+      },
+      acceptsBlocks: { hero: false },
+    };
+    const onChange = vi.fn();
+    render(
+      <SectionList
+        sections={[]}
+        sectionTypes={typesWithDefaults}
+        blockTypes={BLOCK_TYPES}
+        onChange={onChange}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Section' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'hero' }));
+
+    const [[newSections]] = onChange.mock.calls as [[Instance[]]];
+    expect(newSections[0]?.settings).toEqual({ heading: 'New Section' });
+  });
+
+  it('L3: a section type with no declared defaults still starts with empty settings (regression)', () => {
+    const onChange = vi.fn();
+    render(
+      <SectionList
+        sections={[]}
+        sectionTypes={SECTION_TYPES}
+        blockTypes={BLOCK_TYPES}
+        onChange={onChange}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Section' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'hero' }));
+
+    const [[newSections]] = onChange.mock.calls as [[Instance[]]];
+    expect(newSections[0]?.settings).toEqual({});
+  });
+
   it('clicking outside the open add-section menu closes it without adding anything', () => {
     const onChange = vi.fn();
     render(
@@ -309,5 +357,59 @@ describe('SectionList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove section' }));
     expect(window.confirm).toHaveBeenCalledWith('Remove this "Hero" section? This cannot be undone.');
+  });
+
+  it('K4: a section\'s own allowedBlocks restricts its Add Block menu to just those types', () => {
+    const restrictedSectionTypes: ThemeTypeSchemas = {
+      schemas: {
+        hero: { type: 'object', properties: {}, allowedBlocks: ['button'] },
+      },
+      acceptsBlocks: { hero: true },
+    };
+    const twoBlockTypes: ThemeTypeSchemas = {
+      schemas: {
+        button: { type: 'object', properties: {} },
+        group: { type: 'object', properties: {} },
+      },
+      acceptsBlocks: { button: false, group: false },
+    };
+    render(
+      <SectionList
+        sections={[{ ...section('a'), blocks: [] }]}
+        sectionTypes={restrictedSectionTypes}
+        blockTypes={twoBlockTypes}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['button']);
+  });
+
+  it('K4: a section with no allowedBlocks offers every block type (regression)', () => {
+    const twoBlockTypes: ThemeTypeSchemas = {
+      schemas: {
+        button: { type: 'object', properties: {} },
+        group: { type: 'object', properties: {} },
+      },
+      acceptsBlocks: { button: false, group: false },
+    };
+    render(
+      <SectionList
+        sections={[{ ...section('a'), blocks: [] }]}
+        sectionTypes={SECTION_TYPES}
+        blockTypes={twoBlockTypes}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['button', 'group']);
   });
 });
