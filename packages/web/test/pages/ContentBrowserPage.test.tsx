@@ -81,6 +81,16 @@ describe('ContentBrowserPage', () => {
     expect(screen.getAllByText('Page')).toHaveLength(2);
   });
 
+  it('carries its own pages-list-table class alongside the shared list-table one, so mobile can hide its Type/Status/Changed columns without also hiding the Menus list\'s own column', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE, ENTRY_TWO]), { status: 200 })));
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByRole('link', { name: 'About' })).toBeDefined());
+    const table = screen.getByRole('link', { name: 'About' }).closest('table');
+    expect(table?.className.split(' ')).toEqual(expect.arrayContaining(['list-table', 'pages-list-table']));
+  });
+
   it('shows "No pages found." for an empty list', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([]), { status: 200 })));
 

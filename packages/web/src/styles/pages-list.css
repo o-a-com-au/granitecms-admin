@@ -53,6 +53,19 @@
   color: var(--colour-muted);
 }
 
+/* Phone (docs/designs/Phone-Pages.png): Type/Status/Changed drop out,
+   leaving just the clickable Name column - scoped to .pages-list-table
+   specifically (ContentBrowserPage.tsx's own extra class alongside the
+   shared .list-table), not the bare .list-table selector this file
+   opens with, since the Menus list reuses that same class for its own
+   two columns and was asked to stay exactly as it is. */
+@media (max-width: 720px) {
+  .pages-list-table th:not(:first-child),
+  .pages-list-table td:not(:first-child) {
+    display: none;
+  }
+}
+
 /* The Pages tree's Name cell (docs/design/Pages.png's chevron on
    "Home"). button.page-tree-toggle is flat and icon-only, like
    button.instance-row-chevron elsewhere in the app, not the generic

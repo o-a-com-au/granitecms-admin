@@ -242,7 +242,7 @@ export function ContentBrowserPage() {
           {rows.length === 0 ? (
             <p>No pages found.</p>
           ) : (
-            <table className="list-table">
+            <table className="list-table pages-list-table">
               <thead>
                 <tr>
                   <th>Name</th>
