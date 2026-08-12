@@ -9,6 +9,9 @@
   height: 100vh;
 }
 
+/* No background/border of its own (docs/designs/Revised-Pages.png) -
+   it reads as part of the same flat page background as .app-content
+   below it, not a distinct panel sitting on top. */
 .app-topbar {
   flex: 0 0 auto;
   position: relative;
@@ -16,8 +19,6 @@
   align-items: center;
   gap: 1.5rem;
   padding: 0.75rem 1.5rem;
-  background: var(--colour-surface);
-  border-bottom: 1px solid var(--colour-border);
 }
 
 .app-topbar-start {

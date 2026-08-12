@@ -1,22 +1,18 @@
-/* Editor view tabs: three individual chips, not a single segmented
-   pill bar - each an outlined card of its own, the active one reading
-   as a lit-up, more prominent card against its own darker row. Every
-   chip shares the panel's own top-to-black gradient (not a flat
-   fill), and none of them draw their own bottom border/radius - the
-   only bottom border is .editor-tabs' own full-bleed one (negative-
-   margin/padding trick to cancel .editor-sidebar's 1.75rem side
-   padding, so the line runs the whole panel width, not just the
-   width of the tabs), coloured to match the active tab's own border
-   so it reads as one continuous edge. The active tab bridges that
-   line with a 1px negative margin, so its own background paints over
-   its stretch of it and it reads as part of the content below rather
-   than a fourth bordered edge. */
+/* Editor view tabs: a single segmented pill (docs/designs/Revised-
+   Page-Edit--Sections-only.png), not individual file-folder-style
+   chips with their own borders and a bottom line stitching them
+   together - the same pattern ContentBrowserPage's own .filter-tabs
+   (All Pages/Published/Unpublished) already established, just adapted
+   from aria-pressed buttons to role="tab"/aria-selected ones. Sits
+   inset within .editor-sidebar-top's own side padding like any other
+   content there, not bled full-width to the panel edges. */
 .editor-tabs {
   display: flex;
-  gap: 0.3rem;
-  margin: 0 -1.75rem;
-  padding: 15px 1.75rem 0;
-  border-bottom: 1px solid var(--colour-border);
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  background: var(--colour-surface);
 }
 
 .editor-tabs[role='tablist'] button[role='tab'] {
@@ -25,13 +21,10 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--colour-border);
-  border-bottom: none;
-  border-radius: var(--radius);
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  background: linear-gradient(to bottom, var(--colour-surface) 0%, var(--colour-bg) 100%);
+  padding: 0.55rem 1rem;
+  border: none;
+  border-radius: calc(var(--radius) - 3px);
+  background: none;
   color: var(--colour-muted);
   font-size: 0.9rem;
   font-weight: 600;
@@ -49,20 +42,15 @@
 }
 
 .editor-tabs[role='tablist'] button[role='tab']:hover:not(:disabled) {
-  background: var(--colour-bg);
   color: var(--colour-text);
 }
 
 .editor-tabs[role='tablist'] button[role='tab'][aria-selected='true'] {
-  background: var(--colour-surface);
-  border-color: var(--colour-border);
-  border-bottom: none;
-  margin-bottom: -1px;
+  background: var(--colour-surface-hover);
   color: var(--colour-text);
 }
 
 .editor-tabs[role='tablist'] button[role='tab']:disabled {
-  background: var(--colour-surface);
   color: var(--colour-border);
 }
 

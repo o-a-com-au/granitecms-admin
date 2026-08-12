@@ -160,7 +160,7 @@
   padding: 3.75rem 1.75rem 2.5rem;
   background: linear-gradient(to bottom, var(--colour-surface) 0%, var(--colour-bg) 100%);
   border-left: 1px solid var(--colour-border);
-  animation: editor-fields-panel-in 0.2s ease;
+  animation: editor-fields-panel-in 0.4s ease;
 }
 
 @keyframes editor-fields-panel-in {
