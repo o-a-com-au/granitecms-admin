@@ -49,7 +49,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  padding: 3.75rem 1.75rem 0;
+  padding: 0 1.75rem;
 }
 
 .editor-sidebar label {
