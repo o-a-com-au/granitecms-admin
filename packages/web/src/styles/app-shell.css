@@ -1,41 +1,63 @@
-/* App shell: the persistent nav rail every authenticated route renders
-   inside - a single left icon rail, full height, no top app-wide
-   header bar any more (docs/design/Pages.png and friends removed it
-   entirely; each page now owns whatever action bar it needs directly,
-   e.g. PageEditorPage's own .editor-footer and PreviewFrame's own
-   .preview-topbar). Owns the page's one <main> landmark itself
+/* App shell: the persistent top bar every authenticated route renders
+   inside (docs/designs/Revised-Pages.png) - replaces the previous left
+   icon rail entirely. Owns the page's one <main> landmark itself
    (.app-content) - individual pages render a plain wrapper instead of
    their own <main> once nested here. */
 .app-shell {
   display: flex;
+  flex-direction: column;
   height: 100vh;
 }
 
-/* The nav rail: logo mark at the top, the four section links in the
-   middle, the account avatar pinned to the bottom via margin-top:
-   auto on .nav-rail-account. Wider than the old icon-only rail (was
-   64px) to fit a label under every icon (docs/design/Pages.png). */
-.app-sidebar {
-  flex: 0 0 92px;
+.app-topbar {
+  flex: 0 0 auto;
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 1.75rem;
-  padding: 1.25rem 0 1.5rem;
+  gap: 1.5rem;
+  padding: 0.75rem 1.5rem;
   background: var(--colour-surface);
+  border-bottom: 1px solid var(--colour-border);
+}
+
+.app-topbar-start {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 0 0 auto;
+}
+
+/* Desktop never shows this - there is always room for the nav inline,
+   so a hamburger there would be pure decoration, not a real toggle.
+   Only the mobile breakpoint below turns it on. */
+.app-topbar-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--colour-text);
+}
+
+.app-topbar-hamburger:hover {
+  background: var(--colour-surface-hover);
 }
 
 .app-logo-mark {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: var(--radius);
   background: var(--colour-surface-hover);
   color: var(--colour-text);
   font-weight: 700;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   text-decoration: none;
 }
 
@@ -43,69 +65,58 @@
   color: var(--colour-text);
 }
 
-.nav-rail-items {
+.app-topbar-nav {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: 100%;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1;
 }
 
-.nav-rail-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0 0.5rem;
-  padding: 0.5rem 0.25rem;
+.app-topbar-nav-item {
+  padding: 0.5rem 0.85rem;
   border-radius: var(--radius);
   color: var(--colour-muted);
   text-decoration: none;
-  border: none;
-  background: none;
-  cursor: pointer;
-}
-
-/* PagesIcon/MenusIcon/MediaIcon/RedirectsIcon (icons/index.tsx) each
-   render their svg at width/height: 100% - this box is what actually
-   sizes them, in rem rather than a fixed pixel prop, so the whole nav
-   rail's icon size is one number to change here. 1.25rem matches the
-   icons' previous fixed 20px default (at the browser's un-overridden
-   16px root), not a value chosen for its own sake. */
-.nav-rail-icon {
-  display: flex;
-  flex: 0 0 auto;
-  width: 2rem;
-  height: 2rem;
-}
-
-.nav-rail-label {
-  font-size: 0.7rem;
+  font-size: 0.9rem;
   font-weight: 500;
 }
 
-.nav-rail-item:hover {
+.app-topbar-nav-item:hover {
   background: var(--colour-surface-hover);
   color: var(--colour-text);
 }
 
-/* The new fixed-palette icons (docs/design/Icons) can't shift colour
-   on their own via currentColor the way the old stroke icons did - a
-   background box behind the whole icon+label is the active indicator
-   instead, matching the same convention the device toggle uses. */
-[aria-current='page'].nav-rail-item {
+.app-topbar-nav-item[aria-current='page'] {
   background: var(--colour-surface-hover);
   color: var(--colour-text);
 }
 
-.nav-rail-item[aria-disabled='true'] {
+.app-topbar-nav-item[aria-disabled='true'] {
   color: var(--colour-border);
   cursor: not-allowed;
   pointer-events: none;
 }
 
+.app-topbar-end {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+/* Wherever the current leaf route has pushed its own action buttons
+   via usePageActions (PageActionsContext.tsx) - empty and invisible
+   the rest of the time, e.g. PageEditorPage's Discard/Save Changes
+   pair, which only render at all once there's a draft to act on. */
+.app-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .nav-rail-account {
   position: relative;
-  margin-top: auto;
 }
 
 .app-avatar {
@@ -135,13 +146,13 @@
   border: 2px solid var(--colour-surface);
 }
 
-/* Floats to the right of the rail, per docs/design/Account Logout.png
-   - the rail itself is only 92px wide, nowhere near enough for a
-   name/email/menu popover. */
+/* Hangs below the avatar now, not out to the side - the top bar has
+   the opposite space constraint the old 92px-wide rail did, plenty of
+   room above, none to the right of the last item in the row. */
 .account-popover {
   position: absolute;
-  bottom: 0;
-  left: calc(100% + 0.75rem);
+  top: calc(100% + 0.75rem);
+  right: 0;
   width: 232px;
   background: var(--colour-surface);
   border: 1px solid var(--colour-border);
@@ -220,4 +231,59 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* Mobile: the nav collapses behind the hamburger (docs/designs/
+   Phone-Pages.png) - a dropdown panel anchored under the top bar
+   itself, spanning its full width, rather than inline. The page-
+   actions slot (Discard/Save Changes) relocates to a bar fixed at the
+   bottom of the screen instead (docs/designs/Phone-Page-Edit--Section-
+   Edit.png) - the top bar stays reserved for the hamburger, logo, and
+   account only. .app-content gets bottom padding equal to that bar's
+   own height so it never sits underneath the fixed bar's content. */
+@media (max-width: 720px) {
+  .app-topbar-hamburger {
+    display: flex;
+  }
+
+  .app-topbar-nav {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+    padding: 0.75rem;
+    background: var(--colour-surface);
+    border-bottom: 1px solid var(--colour-border);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+    z-index: 20;
+  }
+
+  .app-topbar-nav.is-open {
+    display: flex;
+  }
+
+  .app-topbar-nav-item {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .app-topbar-actions:empty {
+    display: none;
+  }
+
+  .app-topbar-actions:not(:empty) {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 35;
+    justify-content: flex-end;
+    gap: 1.25rem;
+    padding: 1rem 1.25rem;
+    background: var(--colour-surface);
+    border-top: 1px solid var(--colour-border);
+  }
 }

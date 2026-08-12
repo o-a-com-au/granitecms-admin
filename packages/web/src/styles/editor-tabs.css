@@ -40,8 +40,7 @@
 /* TabPageIcon/TabSectionsIcon/TabFieldsIcon (icons/index.tsx) render
    their svg at width/height: 100% - this box does the actual sizing,
    matching the icons' previous fixed 16px default (at the browser's
-   un-overridden 16px root), same rem-container approach as the nav
-   rail's own .nav-rail-icon. */
+   un-overridden 16px root). */
 .tab-icon {
   display: flex;
   flex: 0 0 auto;

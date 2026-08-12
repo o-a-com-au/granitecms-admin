@@ -77,15 +77,16 @@ afterEach(() => {
 });
 
 describe('AppShell', () => {
-  it('renders all four sidebar nav items, with Media and Redirects always disabled', async () => {
+  it('renders all five top-bar nav items, with Media, Redirects, and History always disabled', async () => {
     installFakeApi();
     renderShell('/sites/site-1/content');
 
     await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
-    expect(screen.getByTitle('Pages')).toBeDefined();
-    expect(screen.getByTitle('Menus')).toBeDefined();
+    expect(screen.getByRole('link', { name: 'Pages' })).toBeDefined();
+    expect(screen.getByRole('link', { name: 'Menus' })).toBeDefined();
     expect(screen.getByTitle('Media (unavailable)')).toBeDefined();
     expect(screen.getByTitle('Redirects (unavailable)')).toBeDefined();
+    expect(screen.getByTitle('History (unavailable)')).toBeDefined();
   });
 
   it('sees siteId via useParams and points Pages/Menus at the current site', async () => {
@@ -93,8 +94,8 @@ describe('AppShell', () => {
     renderShell('/sites/site-1/content');
 
     await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
-    expect(screen.getByTitle('Pages').getAttribute('href')).toBe('/sites/site-1/content');
-    expect(screen.getByTitle('Menus').getAttribute('href')).toBe('/sites/site-1/menus');
+    expect(screen.getByRole('link', { name: 'Pages' }).getAttribute('href')).toBe('/sites/site-1/content');
+    expect(screen.getByRole('link', { name: 'Menus' }).getAttribute('href')).toBe('/sites/site-1/menus');
   });
 
   it('highlights the active nav item via aria-current', async () => {
@@ -102,8 +103,8 @@ describe('AppShell', () => {
     renderShell('/sites/site-1/menus');
 
     await waitFor(() => expect(screen.getByText('menus content')).toBeDefined());
-    expect(screen.getByTitle('Menus').getAttribute('aria-current')).toBe('page');
-    expect(screen.getByTitle('Pages').getAttribute('aria-current')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Menus' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('link', { name: 'Pages' }).getAttribute('aria-current')).toBeNull();
   });
 
   it('disables Pages and Menus too when no site is selected (the registry, "/")', async () => {
@@ -170,5 +171,39 @@ describe('AppShell', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Logout' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }));
+  });
+
+  it('the hamburger toggles the mobile nav dropdown open and closed', async () => {
+    installFakeApi();
+    renderShell('/sites/site-1/content');
+    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
+
+    const hamburger = screen.getByRole('button', { name: 'Open menu' });
+    expect(hamburger.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByRole('navigation', { name: 'Primary' }).className).not.toContain('is-open');
+
+    fireEvent.click(hamburger);
+
+    expect(screen.getByRole('button', { name: 'Close menu' }).getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('navigation', { name: 'Primary' }).className).toContain('is-open');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close menu' }));
+
+    expect(screen.getByRole('button', { name: 'Open menu' }).getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByRole('navigation', { name: 'Primary' }).className).not.toContain('is-open');
+  });
+
+  it('picking a nav item from the open mobile dropdown closes it', async () => {
+    installFakeApi();
+    renderShell('/sites/site-1/content');
+    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    expect(screen.getByRole('navigation', { name: 'Primary' }).className).toContain('is-open');
+
+    fireEvent.click(screen.getByRole('link', { name: 'Menus' }));
+
+    await waitFor(() => expect(screen.getByText('menus content')).toBeDefined());
+    expect(screen.getByRole('navigation', { name: 'Primary' }).className).not.toContain('is-open');
   });
 });

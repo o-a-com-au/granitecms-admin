@@ -24,8 +24,7 @@
 /* DeviceDesktopIcon/DeviceTabletIcon/DeviceMobileIcon (icons/index.tsx)
    render their svg at width/height: 100% - this box does the actual
    sizing, matching the icons' previous fixed 18px default (at the
-   browser's un-overridden 16px root), same rem-container approach as
-   the nav rail's own .nav-rail-icon. Deliberately smaller than the
+   browser's un-overridden 16px root). Deliberately smaller than the
    2rem button around it, so there's visible padding inside the
    pressed/hover background box rather than the icon filling it edge
    to edge. */

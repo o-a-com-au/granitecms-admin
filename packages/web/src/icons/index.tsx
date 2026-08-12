@@ -93,6 +93,17 @@ export function IconSprite() {
         />
       </symbol>
 
+      <symbol id="icon-history" viewBox="0 0 64 64">
+        <circle fill="#c4c4c4" cx="32" cy="33" r="26" />
+        <circle fill="#fff" cx="32" cy="33" r="20.5" />
+        <rect fill="#717171" x="30.5" y="16" width="3" height="19" rx="1.5" ry="1.5" />
+        <rect fill="#717171" x="30.5" y="31.5" width="14" height="3" rx="1.5" ry="1.5" transform="translate(-11.6 32.9) rotate(-40)" />
+        <path
+          fill="#575757"
+          d="M32,4.5c-2.3,0-4.55.24-6.72.7-.81.17-1.33.97-1.16,1.78s.97,1.33,1.78,1.16c1.96-.41,3.99-.63,6.09-.63,16.02,0,29,12.98,29,29s-12.98,29-29,29S3,49.02,3,33c0-8.61,3.75-16.34,9.71-21.66l-.32,3.63c-.07.82.54,1.55,1.36,1.62.05,0,.09,0,.14,0,.77,0,1.42-.59,1.48-1.36l.66-7.51c.07-.82-.54-1.55-1.36-1.62l-7.51-.66c-.82-.07-1.55.54-1.62,1.36-.07.82.54,1.55,1.36,1.62l3.94.34C4.68,15.24,0,23.62,0,33c0,17.67,14.33,32,32,32s32-14.33,32-32S49.67,4.5,32,4.5Z"
+        />
+      </symbol>
+
       <symbol id="icon-tab-page" viewBox="0 0 64 64">
         <path
           fill="#717171"
@@ -164,6 +175,10 @@ export function MediaIcon() {
 
 export function RedirectsIcon() {
   return <Icon id="icon-redirects" />;
+}
+
+export function HistoryIcon() {
+  return <Icon id="icon-history" />;
 }
 
 export function TabPageIcon() {

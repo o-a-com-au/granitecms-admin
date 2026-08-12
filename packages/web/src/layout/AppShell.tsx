@@ -2,44 +2,45 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Outlet, useLocation, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { useTheme } from '../theme/ThemeContext.tsx';
-import { IconSprite, MediaIcon, MenusIcon, PagesIcon, RedirectsIcon } from '../icons/index.tsx';
+import { IconSprite } from '../icons/index.tsx';
+import { HamburgerIcon } from '../icons/HamburgerIcon.tsx';
+import { PageActionsProvider } from './PageActionsContext.tsx';
 
-interface SidebarNavItemProps {
+interface TopNavItemProps {
   label: string;
   to: string | undefined;
   active: boolean;
-  icon: ReactNode;
 }
 
 // A nav item with no destination (siteId not yet known, e.g. on the
-// registry, or a section like Media/Redirects with no page built yet)
-// renders disabled rather than being omitted - the mockups show all
-// four sidebar icons consistently present, each with its own label
-// underneath now (docs/design/Pages.png), not icon-only.
-function SidebarNavItem({ label, to, active, icon }: SidebarNavItemProps) {
+// registry, or a section like Media/Redirects/History with no page
+// built yet) renders disabled rather than being omitted - the revised
+// designs (docs/designs/Revised-Pages.png) show every nav item
+// consistently present in the top bar.
+function TopNavItem({ label, to, active }: TopNavItemProps) {
   if (!to) {
     return (
-      <span className="nav-rail-item" aria-disabled="true" title={`${label} (unavailable)`}>
-        <span className="nav-rail-icon">{icon}</span>
-        <span className="nav-rail-label">{label}</span>
+      <span className="app-topbar-nav-item" aria-disabled="true" title={`${label} (unavailable)`}>
+        {label}
       </span>
     );
   }
   return (
-    <Link className="nav-rail-item" to={to} aria-current={active ? 'page' : undefined} title={label}>
-      <span className="nav-rail-icon">{icon}</span>
-      <span className="nav-rail-label">{label}</span>
+    <Link className="app-topbar-nav-item" to={to} aria-current={active ? 'page' : undefined}>
+      {label}
     </Link>
   );
 }
 
-// Wraps every authenticated route as one shared layout - a single left
-// icon rail, full height, no top app-wide header bar (docs/design/
-// Pages.png and friends removed it entirely - the logo now sits at the
-// top of the rail itself, and each page owns whatever action bar it
-// needs directly in its own layout, e.g. PageEditorPage's own footer
-// Save/Discard and PreviewFrame's own top bar, rather than pushing
-// content up into a shared slot the way the old header did).
+// Wraps every authenticated route as one shared layout - a persistent
+// top bar (docs/designs/Revised-Pages.png; replaces the previous left
+// icon rail entirely) carrying primary nav, an account popover, and a
+// page-actions slot leaf routes can push buttons into (PageEditorPage
+// uses this for its own Save/Discard, previously pinned in its own
+// footer only because there was no shared header for them to live in
+// - see PageActionsContext.tsx). The primary nav collapses behind a
+// hamburger below the mobile breakpoint (docs/designs/Phone-Pages.png)
+// - desktop always shows it inline, no hamburger there at all.
 //
 // siteId comes from a plain useParams() call, not pathname parsing:
 // react-router's useParams() returns the deepest matched route's
@@ -54,11 +55,13 @@ export function AppShell() {
   const { theme, toggleTheme } = useTheme();
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [pageActions, setPageActions] = useState<ReactNode>(null);
 
   // Dismiss on an outside click - the popover has no backdrop of its
   // own (docs/design/Account Logout.png shows it floating directly
   // over the page content), so this is the only way to close it
-  // without picking Logout. Also dismisses on window blur: this rail
+  // without picking Logout. Also dismisses on window blur: this bar
   // renders on every authenticated route, including the editor, whose
   // live preview is an iframe - a click landing inside it is a
   // separate document and never bubbles a mousedown up here, but it
@@ -83,6 +86,15 @@ export function AppShell() {
     };
   }, [accountOpen]);
 
+  // A route change is always a deliberate nav pick (or a redirect
+  // following one) - closing the mobile drawer here covers both
+  // "tapped a link" and "navigated some other way while it happened
+  // to be open" with the one effect, rather than wiring a close call
+  // into every link individually.
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
   const initial = user?.username ? user.username[0]?.toUpperCase() : '?';
 
   const contentTo = siteId ? `/sites/${siteId}/content` : undefined;
@@ -97,57 +109,78 @@ export function AppShell() {
     <>
       <IconSprite />
       <div className="app-shell">
-        <nav className="app-sidebar" aria-label="Primary">
-          <Link className="app-logo-mark" to="/" title="Granite CMS">
-            G
-          </Link>
-          <div className="nav-rail-items">
-            <SidebarNavItem
-              label="Pages"
-              to={contentTo}
-              active={location.pathname === contentTo}
-              icon={<PagesIcon />}
-            />
-            <SidebarNavItem label="Menus" to={menusTo} active={location.pathname === menusTo} icon={<MenusIcon />} />
-            <SidebarNavItem label="Media" to={undefined} active={false} icon={<MediaIcon />} />
-            <SidebarNavItem label="Redirects" to={undefined} active={false} icon={<RedirectsIcon />} />
-          </div>
-          <div className="nav-rail-account" ref={accountRef}>
-            {accountOpen && (
-              <div className="account-popover" role="menu">
-                <div className="account-popover-header">
-                  <span className="app-avatar" aria-hidden="true">
-                    {initial}
-                    <span className="app-avatar-status" />
-                  </span>
-                  <div className="account-popover-identity">
-                    <p className="account-popover-name">{user?.name ?? user?.username}</p>
-                    <p className="account-popover-email">{user?.email}</p>
-                  </div>
-                </div>
-                <button type="button" role="menuitem" className="account-popover-item" onClick={toggleTheme}>
-                  {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                </button>
-                <button type="button" role="menuitem" className="account-popover-item" onClick={() => void handleLogout()}>
-                  Logout
-                </button>
-              </div>
-            )}
+        <header className="app-topbar">
+          <div className="app-topbar-start">
             <button
               type="button"
-              className="app-avatar"
+              className="app-topbar-hamburger"
               aria-haspopup="menu"
-              aria-expanded={accountOpen}
-              onClick={() => setAccountOpen((current) => !current)}
-              title={user ? user.username : 'Account'}
+              aria-expanded={mobileNavOpen}
+              aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
+              onClick={() => setMobileNavOpen((current) => !current)}
             >
-              {initial}
-              <span className="app-avatar-status" aria-hidden="true" />
+              <HamburgerIcon open={mobileNavOpen} />
             </button>
+            <Link className="app-logo-mark" to="/" title="Granite CMS">
+              G
+            </Link>
           </div>
-        </nav>
+          <nav className={`app-topbar-nav${mobileNavOpen ? ' is-open' : ''}`} aria-label="Primary">
+            <TopNavItem label="Pages" to={contentTo} active={location.pathname === contentTo} />
+            <TopNavItem label="Menus" to={menusTo} active={location.pathname === menusTo} />
+            <TopNavItem label="Media" to={undefined} active={false} />
+            <TopNavItem label="Redirects" to={undefined} active={false} />
+            {/* Placeholder - History is currently only reachable scoped
+                to one page (PageEditorPage's own historyHref), not yet
+                a real site-wide destination. */}
+            <TopNavItem label="History" to={undefined} active={false} />
+          </nav>
+          <div className="app-topbar-end">
+            <div className="app-topbar-actions">{pageActions}</div>
+            <div className="nav-rail-account" ref={accountRef}>
+              {accountOpen && (
+                <div className="account-popover" role="menu">
+                  <div className="account-popover-header">
+                    <span className="app-avatar" aria-hidden="true">
+                      {initial}
+                      <span className="app-avatar-status" />
+                    </span>
+                    <div className="account-popover-identity">
+                      <p className="account-popover-name">{user?.name ?? user?.username}</p>
+                      <p className="account-popover-email">{user?.email}</p>
+                    </div>
+                  </div>
+                  <button type="button" role="menuitem" className="account-popover-item" onClick={toggleTheme}>
+                    {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="account-popover-item"
+                    onClick={() => void handleLogout()}
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+              <button
+                type="button"
+                className="app-avatar"
+                aria-haspopup="menu"
+                aria-expanded={accountOpen}
+                onClick={() => setAccountOpen((current) => !current)}
+                title={user ? user.username : 'Account'}
+              >
+                {initial}
+                <span className="app-avatar-status" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        </header>
         <div className="app-content">
-          <Outlet />
+          <PageActionsProvider setActions={setPageActions}>
+            <Outlet />
+          </PageActionsProvider>
         </div>
       </div>
     </>
