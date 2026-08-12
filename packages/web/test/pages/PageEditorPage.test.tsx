@@ -436,6 +436,48 @@ describe('PageEditorPage', () => {
     );
   });
 
+  it('hovering a section row outlines the matching element in the live preview iframe, and leaving clears it', async () => {
+    installFakeEditorApi({
+      content: JSON.stringify({
+        title: 'Hi',
+        published: true,
+        sections: [
+          { id: 'a', type: 'hero', settings: {} },
+          { id: 'b', type: 'hero', settings: {} },
+        ],
+      }),
+      etag: '"etag-1"',
+      source: 'draft',
+    });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Section' })).toBeDefined());
+
+    // jsdom never actually navigates the iframe to its real src, so the
+    // real site's rendered HTML (which does carry data-section-id, per
+    // every theme template) is stood in for here directly.
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const doc = iframe.contentDocument as Document;
+    // jsdom never navigates the iframe, so its document has no <body>
+    // yet (unlike a real browser's about:blank) - write one in.
+    doc.open();
+    doc.write('<body></body>');
+    doc.close();
+    const sectionA = doc.createElement('div');
+    sectionA.dataset.sectionId = 'a';
+    const sectionB = doc.createElement('div');
+    sectionB.dataset.sectionId = 'b';
+    doc.body.append(sectionA, sectionB);
+
+    const rows = screen.getAllByRole('button', { name: 'Edit hero' });
+    fireEvent.mouseEnter(rows[0] as HTMLElement);
+    expect(sectionA.style.outline).toBe('2px solid #3b6ef6');
+    expect(sectionB.style.outline).toBe('');
+
+    fireEvent.mouseLeave(rows[0] as HTMLElement);
+    expect(sectionA.style.outline).toBe('');
+  });
+
   it('the preview panel renders before the edit panel in the DOM, matching the design\'s preview-left/panel-right layout', async () => {
     installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
     renderPage();

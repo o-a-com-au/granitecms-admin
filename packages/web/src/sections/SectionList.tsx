@@ -27,6 +27,7 @@ interface SectionRowProps {
   onRemove: () => void;
   onChange: (section: Instance) => void;
   onEditInstance: (id: string) => void;
+  onHighlightSection?: (id: string | null) => void;
 }
 
 // I4: a section's OWN acceptsBlocks flag (not a block's) decides
@@ -50,6 +51,7 @@ function SectionRow({
   onRemove,
   onChange,
   onEditInstance,
+  onHighlightSection,
 }: SectionRowProps) {
   const acceptsBlocks = sectionTypes.acceptsBlocks[section.type] === true;
   // Sections with blocks start collapsed - keeps the list scannable
@@ -91,6 +93,8 @@ function SectionRow({
         aria-label={`Edit ${displayName}${hasError ? ' (has an error)' : ''}`}
         onClick={handleEdit}
         onKeyDown={handleEditKeyDown}
+        onMouseEnter={() => onHighlightSection?.(section.id)}
+        onMouseLeave={() => onHighlightSection?.(null)}
       >
         {acceptsBlocks && (
           <button
@@ -147,6 +151,7 @@ export interface SectionListProps {
   fieldErrors?: FieldErrorMap;
   onChange: (sections: Instance[]) => void;
   onEditInstance: (id: string) => void;
+  onHighlightSection?: (id: string | null) => void;
 }
 
 // I1: "editable, reorderable list" - drag the handle to reorder (a 4px
@@ -154,7 +159,15 @@ export interface SectionListProps {
 // fetched theme schemas)/remove-with-confirm, plus a nested BlockList
 // for section types that accept blocks (I4). A section's own settings
 // are edited via the Fields tab (onEditInstance), not inline here.
-export function SectionList({ sections, sectionTypes, blockTypes, fieldErrors, onChange, onEditInstance }: SectionListProps) {
+export function SectionList({
+  sections,
+  sectionTypes,
+  blockTypes,
+  fieldErrors,
+  onChange,
+  onEditInstance,
+  onHighlightSection,
+}: SectionListProps) {
   const sectionTypeNames = Object.keys(sectionTypes.schemas);
   const { open: addMenuOpen, setOpen: setAddMenuOpen, openUpward, ref: addMenuRef, toggle: toggleAddMenu } = useAddMenu();
   const [draggedIndex, setDraggedIndexState] = useState<number | null>(null);
@@ -235,6 +248,7 @@ export function SectionList({ sections, sectionTypes, blockTypes, fieldErrors, o
               onRemove={() => removeSection(index)}
               onChange={(updated) => updateSection(index, updated)}
               onEditInstance={onEditInstance}
+              onHighlightSection={onHighlightSection}
             />
           </Fragment>
         ))}

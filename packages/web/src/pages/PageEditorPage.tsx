@@ -23,6 +23,40 @@ export function PageEditorPage() {
   const [viewMode, setViewMode] = useState<'metafields' | 'sections' | 'fields' | 'raw'>('sections');
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const [device, setDevice] = useState<DeviceTier>('desktop');
+  const previewIframeRef = useRef<HTMLIFrameElement>(null);
+  const highlightedElementRef = useRef<HTMLElement | null>(null);
+
+  // Hover-to-highlight: reaches directly into the preview iframe's own
+  // DOM, safe only because PreviewFrame's src is same-origin (an admin
+  // route that proxies the site's real response, never the site
+  // directly - see PreviewFrame.tsx's own F1/F3 note). Every section's
+  // own theme template already carries data-section-id (confirmed live
+  // against the real demo theme, also asserted by the agent repo's own
+  // render-page.test.ts), so no renderer change was needed for this.
+  // Inline styles, not an injected class/stylesheet - anything added to
+  // the iframe's own <head> is wiped out the next time PreviewFrame
+  // reloads it (every completed autosave bumps its refresh token).
+  function highlightSection(id: string | null): void {
+    if (highlightedElementRef.current) {
+      highlightedElementRef.current.style.outline = '';
+      highlightedElementRef.current.style.outlineOffset = '';
+      highlightedElementRef.current = null;
+    }
+    if (id === null) {
+      return;
+    }
+    const doc = previewIframeRef.current?.contentDocument;
+    const target = doc
+      ? Array.from(doc.querySelectorAll<HTMLElement>('[data-section-id]')).find(
+          (element) => element.dataset.sectionId === id,
+        )
+      : undefined;
+    if (target) {
+      target.style.outline = '2px solid #3b6ef6';
+      target.style.outlineOffset = '-2px';
+      highlightedElementRef.current = target;
+    }
+  }
 
   // The registry list, not a dedicated single-site fetch - there is no
   // GET /api/sites/:id, and the list is already cheap/available, so
@@ -159,6 +193,7 @@ export function PageEditorPage() {
             status={status}
             device={device}
             onDeviceChange={setDevice}
+            iframeRef={previewIframeRef}
           />
         </div>
         <div className="editor-sidebar">
@@ -250,6 +285,7 @@ export function PageEditorPage() {
                   validationErrors={validationErrors}
                   view={effectiveViewMode === 'fields' ? 'fields' : 'list'}
                   onEditInstance={handleEditInstance}
+                  onHighlightSection={highlightSection}
                 />
               )}
               {effectiveViewMode === 'raw' && (

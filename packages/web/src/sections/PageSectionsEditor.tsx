@@ -15,6 +15,10 @@ export interface PageSectionsEditorProps {
   // fired at least once - PageEditorPage owns which is active.
   view: 'list' | 'fields';
   onEditInstance: (id: string) => void;
+  // Hovering a section row highlights the matching element in the
+  // live preview iframe - owned by PageEditorPage (it holds the
+  // iframe ref), just threaded through here to SectionList.
+  onHighlightSection?: (id: string | null) => void;
 }
 
 interface ParsedPage {
@@ -142,7 +146,15 @@ function updateInstance(instances: Instance[], id: string, updater: (instance: I
 // Title and Published both live on the Metafields tab, via
 // PageMetadataPanel) or, once something has been selected, the Fields
 // view for that one instance.
-export function PageSectionsEditor({ siteId, content, setContent, validationErrors, view, onEditInstance }: PageSectionsEditorProps) {
+export function PageSectionsEditor({
+  siteId,
+  content,
+  setContent,
+  validationErrors,
+  view,
+  onEditInstance,
+  onHighlightSection,
+}: PageSectionsEditorProps) {
   const [themeSchemas, setThemeSchemas] = useState<ThemeSchemas | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
@@ -227,6 +239,7 @@ export function PageSectionsEditor({ siteId, content, setContent, validationErro
         fieldErrors={fieldErrors}
         onChange={updateSections}
         onEditInstance={handleEditInstance}
+        onHighlightSection={onHighlightSection}
       />
     </div>
   );

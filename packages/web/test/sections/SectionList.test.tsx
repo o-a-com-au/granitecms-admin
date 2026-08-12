@@ -249,6 +249,27 @@ describe('SectionList', () => {
     expect(onEditInstance).toHaveBeenCalledWith('b');
   });
 
+  it('hovering a section row calls onHighlightSection with that section\'s id, and leaving it calls it with null', () => {
+    const onHighlightSection = vi.fn();
+    render(
+      <SectionList
+        sections={[section('a'), section('b')]}
+        sectionTypes={SECTION_TYPES}
+        blockTypes={BLOCK_TYPES}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+        onHighlightSection={onHighlightSection}
+      />,
+    );
+
+    const rows = screen.getAllByRole('button', { name: 'Edit hero' });
+    fireEvent.mouseEnter(rows[1] as HTMLElement);
+    expect(onHighlightSection).toHaveBeenCalledWith('b');
+
+    fireEvent.mouseLeave(rows[1] as HTMLElement);
+    expect(onHighlightSection).toHaveBeenCalledWith(null);
+  });
+
   it('I5: a fieldErrors entry keyed by section id is surfaced as an accessible "(has an error)" suffix on that row', () => {
     render(
       <SectionList

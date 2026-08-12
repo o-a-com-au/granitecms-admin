@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { EditorStatus } from './useAutosaveDraft.ts';
 import { DeviceToggle, type DeviceTier } from './DeviceToggle.tsx';
 
@@ -9,6 +9,11 @@ interface PreviewFrameProps {
   status: EditorStatus;
   device: DeviceTier;
   onDeviceChange: (tier: DeviceTier) => void;
+  // Exposed so PageEditorPage can reach into the previewed document's
+  // own DOM directly (hover-to-highlight a section) - safe only
+  // because the iframe's src is same-origin (see the F1/F3 note
+  // below), never a cross-origin document a normal page can't touch.
+  iframeRef?: RefObject<HTMLIFrameElement | null>;
 }
 
 const DEVICE_WIDTHS: Record<DeviceTier, string> = {
@@ -78,7 +83,7 @@ function usePreviewRefreshToken(status: EditorStatus): number {
 // route, only the registry list), and is null until that resolves, in
 // which case this falls back to the bare relative path rather than
 // showing nothing.
-export function PreviewFrame({ siteId, siteDomain, url, status, device, onDeviceChange }: PreviewFrameProps) {
+export function PreviewFrame({ siteId, siteDomain, url, status, device, onDeviceChange, iframeRef }: PreviewFrameProps) {
   const refreshToken = usePreviewRefreshToken(status);
 
   if (url === null) {
@@ -99,7 +104,7 @@ export function PreviewFrame({ siteId, siteDomain, url, status, device, onDevice
         <DeviceToggle device={device} onChange={onDeviceChange} />
       </div>
       <div className="preview-viewport" data-device={device}>
-        <iframe title="Live preview" src={src} style={{ width: DEVICE_WIDTHS[device] }} />
+        <iframe ref={iframeRef} title="Live preview" src={src} style={{ width: DEVICE_WIDTHS[device] }} />
       </div>
     </div>
   );
