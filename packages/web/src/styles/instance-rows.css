@@ -36,7 +36,11 @@
   cursor: pointer;
 }
 
-.instance-row-main:hover {
+.instance-row-main:hover,
+/* Same treatment as :hover, driven by state instead of the cursor -
+   set while the matching section is hovered in the live preview
+   itself, not this row (see PageEditorPage.tsx's highlightedSectionId). */
+.instance-row-main.is-highlighted {
   border-color: var(--colour-primary);
 }
 

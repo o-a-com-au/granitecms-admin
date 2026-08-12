@@ -25,42 +25,112 @@ export function PageEditorPage() {
   const [device, setDevice] = useState<DeviceTier>('desktop');
   const previewIframeRef = useRef<HTMLIFrameElement>(null);
   const highlightedElementRef = useRef<HTMLElement | null>(null);
+  // Single source of truth for "which section counts as highlighted
+  // right now" - set by either direction (hovering a row here, or
+  // hovering the section itself in the preview), so both the preview's
+  // own outline effect below and SectionList's row styling can react
+  // to the one value instead of each direction maintaining its own.
+  const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
 
-  // Hover-to-highlight: reaches directly into the preview iframe's own
-  // DOM, safe only because PreviewFrame's src is same-origin (an admin
-  // route that proxies the site's real response, never the site
-  // directly - see PreviewFrame.tsx's own F1/F3 note). Every section's
-  // own theme template already carries data-section-id (confirmed live
-  // against the real demo theme, also asserted by the agent repo's own
+  function findSectionElement(id: string): HTMLElement | undefined {
+    const doc = previewIframeRef.current?.contentDocument;
+    return doc
+      ? Array.from(doc.querySelectorAll<HTMLElement>('[data-section-id]')).find(
+          (element) => element.dataset.sectionId === id,
+        )
+      : undefined;
+  }
+
+  // Reaches directly into the preview iframe's own DOM, safe only
+  // because PreviewFrame's src is same-origin (an admin route that
+  // proxies the site's real response, never the site directly - see
+  // PreviewFrame.tsx's own F1/F3 note). Every section's own theme
+  // template already carries data-section-id (confirmed live against
+  // the real demo theme, also asserted by the agent repo's own
   // render-page.test.ts), so no renderer change was needed for this.
   // Inline styles, not an injected class/stylesheet - anything added to
   // the iframe's own <head> is wiped out the next time PreviewFrame
   // reloads it (every completed autosave bumps its refresh token).
-  function highlightSection(id: string | null): void {
+  // Reacts to highlightedSectionId regardless of which direction set
+  // it, so the preview outlines the right section either way.
+  useEffect(() => {
     if (highlightedElementRef.current) {
       highlightedElementRef.current.style.outline = '';
       highlightedElementRef.current.style.outlineOffset = '';
       highlightedElementRef.current = null;
     }
-    if (id === null) {
+    if (highlightedSectionId === null) {
       return;
     }
-    const doc = previewIframeRef.current?.contentDocument;
-    const target = doc
-      ? Array.from(doc.querySelectorAll<HTMLElement>('[data-section-id]')).find(
-          (element) => element.dataset.sectionId === id,
-        )
-      : undefined;
+    const target = findSectionElement(highlightedSectionId);
     if (target) {
       target.style.outline = '2px solid #3b6ef6';
       target.style.outlineOffset = '-2px';
       highlightedElementRef.current = target;
-      // 'center', not 'start' - a section taller than the viewport
-      // (the common case) already has its top edge in view the moment
-      // any part of it scrolls in, so 'start' would frequently be a
-      // no-op; 'center' actually moves the view for those too.
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+  }, [highlightedSectionId]);
+
+  // Admin-row hover also scrolls the preview to the section - a
+  // one-off action, deliberately not folded into the effect above,
+  // since the preview->admin direction below must NOT also trigger a
+  // scroll (the user is already looking straight at the section they
+  // just hovered in the preview; re-centring it under them would be a
+  // jarring, unrequested yank, not a helpful nudge).
+  function handleHighlightFromAdmin(id: string | null): void {
+    setHighlightedSectionId(id);
+    if (id === null) {
+      return;
+    }
+    const target = findSectionElement(id);
+    // 'center', not 'start' - a section taller than the viewport (the
+    // common case) already has its top edge in view the moment any
+    // part of it scrolls in, so 'start' would frequently be a no-op;
+    // 'center' actually moves the view for those too.
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  // The reverse direction: hovering a section in the preview itself
+  // highlights its row in the sidebar. mouseover/mouseout (not
+  // mouseenter/mouseleave, which don't bubble and so can't be
+  // delegated) with a relatedTarget check is the standard pattern for
+  // delegated hover-tracking - closest() finds which section (if any)
+  // owns the actual hovered element, and the relatedTarget check stops
+  // mouseout from firing (and clearing the highlight) when the pointer
+  // only moved to a child element still inside the same section.
+  // Reattached on every PreviewFrame onLoad, not just once on mount -
+  // the iframe fully re-navigates (a plain src reassignment) on every
+  // completed autosave, discarding its old document and any listeners
+  // on it entirely.
+  function handlePreviewFrameLoad(): void {
+    const doc = previewIframeRef.current?.contentDocument;
+    if (!doc) {
+      return;
+    }
+    // Duck-typed, not `target instanceof Element` - the iframe's
+    // document lives in its own separate realm with its own Element
+    // constructor, so an instanceof check against this module's own
+    // (parent-realm) Element would silently fail for every element
+    // actually inside it, same-origin or not (a well-known cross-frame
+    // instanceof pitfall, not specific to this app).
+    function sectionIdAt(target: EventTarget | null): string | null {
+      if (target === null || !('closest' in target)) {
+        return null;
+      }
+      return (target as Element).closest<HTMLElement>('[data-section-id]')?.dataset.sectionId ?? null;
+    }
+    doc.addEventListener('mouseover', (event) => {
+      const id = sectionIdAt(event.target);
+      if (id !== null) {
+        setHighlightedSectionId(id);
+      }
+    });
+    doc.addEventListener('mouseout', (event) => {
+      const id = sectionIdAt(event.target);
+      const relatedId = sectionIdAt((event as MouseEvent).relatedTarget);
+      if (id !== null && id !== relatedId) {
+        setHighlightedSectionId(null);
+      }
+    });
   }
 
   // The registry list, not a dedicated single-site fetch - there is no
@@ -199,6 +269,8 @@ export function PageEditorPage() {
             device={device}
             onDeviceChange={setDevice}
             iframeRef={previewIframeRef}
+            onFrameLoad={handlePreviewFrameLoad}
+            onFrameMouseLeave={() => setHighlightedSectionId(null)}
           />
         </div>
         <div className="editor-sidebar">
@@ -290,7 +362,8 @@ export function PageEditorPage() {
                   validationErrors={validationErrors}
                   view={effectiveViewMode === 'fields' ? 'fields' : 'list'}
                   onEditInstance={handleEditInstance}
-                  onHighlightSection={highlightSection}
+                  onHighlightSection={handleHighlightFromAdmin}
+                  highlightedSectionId={highlightedSectionId}
                 />
               )}
               {effectiveViewMode === 'raw' && (

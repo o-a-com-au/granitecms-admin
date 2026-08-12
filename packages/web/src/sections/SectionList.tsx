@@ -28,6 +28,11 @@ interface SectionRowProps {
   onChange: (section: Instance) => void;
   onEditInstance: (id: string) => void;
   onHighlightSection?: (id: string | null) => void;
+  // Whether THIS row counts as highlighted right now - not just from
+  // its own hover (handled locally via CSS :hover already), but also
+  // from the reverse direction, where hovering the section in the
+  // preview highlights this row despite the mouse never touching it.
+  isHighlighted: boolean;
 }
 
 // I4: a section's OWN acceptsBlocks flag (not a block's) decides
@@ -52,6 +57,7 @@ function SectionRow({
   onChange,
   onEditInstance,
   onHighlightSection,
+  isHighlighted,
 }: SectionRowProps) {
   const acceptsBlocks = sectionTypes.acceptsBlocks[section.type] === true;
   // Sections with blocks start collapsed - keeps the list scannable
@@ -87,7 +93,7 @@ function SectionRow({
   return (
     <li className={`instance-row${isDragging ? ' is-dragging' : ''}`} onDragOver={onDragOver} onDrop={onDrop}>
       <div
-        className={`instance-row-main${hasError ? ' has-error' : ''}`}
+        className={`instance-row-main${hasError ? ' has-error' : ''}${isHighlighted ? ' is-highlighted' : ''}`}
         role="button"
         tabIndex={0}
         aria-label={`Edit ${displayName}${hasError ? ' (has an error)' : ''}`}
@@ -152,6 +158,7 @@ export interface SectionListProps {
   onChange: (sections: Instance[]) => void;
   onEditInstance: (id: string) => void;
   onHighlightSection?: (id: string | null) => void;
+  highlightedSectionId?: string | null;
 }
 
 // I1: "editable, reorderable list" - drag the handle to reorder (a 4px
@@ -167,6 +174,7 @@ export function SectionList({
   onChange,
   onEditInstance,
   onHighlightSection,
+  highlightedSectionId,
 }: SectionListProps) {
   const sectionTypeNames = Object.keys(sectionTypes.schemas);
   const { open: addMenuOpen, setOpen: setAddMenuOpen, openUpward, ref: addMenuRef, toggle: toggleAddMenu } = useAddMenu();
@@ -249,6 +257,7 @@ export function SectionList({
               onChange={(updated) => updateSection(index, updated)}
               onEditInstance={onEditInstance}
               onHighlightSection={onHighlightSection}
+              isHighlighted={section.id === highlightedSectionId}
             />
           </Fragment>
         ))}

@@ -484,6 +484,94 @@ describe('PageEditorPage', () => {
     expect(sectionA.style.outline).toBe('');
   });
 
+  it('hovering a section in the live preview itself highlights the matching row in the sidebar', async () => {
+    installFakeEditorApi({
+      content: JSON.stringify({
+        title: 'Hi',
+        published: true,
+        sections: [
+          { id: 'a', type: 'hero', settings: {} },
+          { id: 'b', type: 'hero', settings: {} },
+        ],
+      }),
+      etag: '"etag-1"',
+      source: 'draft',
+    });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Section' })).toBeDefined());
+
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const doc = iframe.contentDocument as Document;
+    doc.open();
+    doc.write('<body></body>');
+    doc.close();
+    // A nested child (not the section element itself) - proves the
+    // delegated listener walks up via closest(), matching what a real
+    // theme section's own inner markup looks like.
+    const sectionA = doc.createElement('div');
+    sectionA.dataset.sectionId = 'a';
+    const heading = doc.createElement('h1');
+    sectionA.append(heading);
+    const sectionB = doc.createElement('div');
+    sectionB.dataset.sectionId = 'b';
+    doc.body.append(sectionA, sectionB);
+    // jsdom fires the iframe's own load event once its (blank)
+    // document is ready, which is when PageEditorPage attaches its
+    // delegated listeners - firing it again here (now that the fake
+    // section markup above actually exists) guarantees it happens
+    // against this exact content, rather than depending on timing.
+    fireEvent.load(iframe);
+
+    const rows = screen.getAllByRole('button', { name: 'Edit hero' });
+    expect(rows[0]?.className).not.toContain('is-highlighted');
+
+    fireEvent.mouseOver(heading);
+    await waitFor(() => expect(rows[0]?.className).toContain('is-highlighted'));
+    expect(rows[1]?.className).not.toContain('is-highlighted');
+
+    fireEvent.mouseOut(heading, { relatedTarget: doc.body });
+    await waitFor(() => expect(rows[0]?.className).not.toContain('is-highlighted'));
+  });
+
+  it('the pointer leaving the preview iframe entirely (not just moving between sections within it) also clears the highlighted row', async () => {
+    installFakeEditorApi({
+      content: JSON.stringify({
+        title: 'Hi',
+        published: true,
+        sections: [{ id: 'a', type: 'hero', settings: {} }],
+      }),
+      etag: '"etag-1"',
+      source: 'draft',
+    });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Section' })).toBeDefined());
+
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const doc = iframe.contentDocument as Document;
+    doc.open();
+    doc.write('<body></body>');
+    doc.close();
+    const sectionA = doc.createElement('div');
+    sectionA.dataset.sectionId = 'a';
+    doc.body.append(sectionA);
+    fireEvent.load(iframe);
+
+    fireEvent.mouseOver(sectionA);
+    const row = screen.getByRole('button', { name: 'Edit hero' });
+    await waitFor(() => expect(row.className).toContain('is-highlighted'));
+
+    // Real browsers don't reliably fire mouseout with a usable
+    // relatedTarget when the pointer leaves the iframe's own document
+    // for a different part of the parent page (confirmed live) - this
+    // is deliberately a plain mouseleave dispatched on the iframe
+    // element itself, the separate native listener that covers exactly
+    // that gap, not a mouseout inside the previewed document.
+    fireEvent.mouseLeave(iframe);
+    await waitFor(() => expect(row.className).not.toContain('is-highlighted'));
+  });
+
   it('the preview panel renders before the edit panel in the DOM, matching the design\'s preview-left/panel-right layout', async () => {
     installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
     renderPage();

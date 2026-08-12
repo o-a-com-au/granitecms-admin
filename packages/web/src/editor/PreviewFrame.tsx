@@ -14,6 +14,21 @@ interface PreviewFrameProps {
   // because the iframe's src is same-origin (see the F1/F3 note
   // below), never a cross-origin document a normal page can't touch.
   iframeRef?: RefObject<HTMLIFrameElement | null>;
+  // Fires on every load, including the very first one - PageEditorPage
+  // uses it to (re)attach its own hover listeners inside the previewed
+  // document, since a fresh document (and everything attached to it)
+  // replaces the old one entirely on each reload.
+  onFrameLoad?: () => void;
+  // A plain mouseleave on the iframe element itself, not something
+  // relayed from inside its document - PageEditorPage's own delegated
+  // mouseout listener (attached via onFrameLoad, above) only reliably
+  // fires when the pointer moves to another element still inside the
+  // iframe's document; browsers don't consistently fire mouseout with
+  // a usable relatedTarget when the pointer leaves the iframe's
+  // bounding box entirely. mouseleave on the element itself, tracked
+  // from this side by ordinary browser hit-testing against its layout
+  // box, is unaffected by any of that and fires reliably either way.
+  onFrameMouseLeave?: () => void;
 }
 
 const DEVICE_WIDTHS: Record<DeviceTier, string> = {
@@ -83,8 +98,41 @@ function usePreviewRefreshToken(status: EditorStatus): number {
 // route, only the registry list), and is null until that resolves, in
 // which case this falls back to the bare relative path rather than
 // showing nothing.
-export function PreviewFrame({ siteId, siteDomain, url, status, device, onDeviceChange, iframeRef }: PreviewFrameProps) {
+export function PreviewFrame({
+  siteId,
+  siteDomain,
+  url,
+  status,
+  device,
+  onDeviceChange,
+  iframeRef,
+  onFrameLoad,
+  onFrameMouseLeave,
+}: PreviewFrameProps) {
   const refreshToken = usePreviewRefreshToken(status);
+
+  // A native listener, not the iframeRef.current.
+  //
+  // React's synthetic mouseleave (delegated, like all its pointer
+  // events) simulates enter/leave from bubbling mouseover/mouseout
+  // rather than binding the browser's own non-bubbling mouseleave -
+  // for most elements that's an invisible implementation detail, but
+  // confirmed live to not fire reliably for this specific transition
+  // (pointer leaving the iframe's own document to a different part of
+  // the parent page). The plain DOM mouseleave, bound directly to the
+  // element itself here, does fire correctly for exactly that case -
+  // this sidesteps the synthetic layer entirely rather than fighting
+  // it. Depends on url (not just mount) since the iframe itself is
+  // only ever rendered - and therefore only ever assigned to
+  // iframeRef.current - once url is non-null.
+  useEffect(() => {
+    const element = iframeRef?.current;
+    if (!element || !onFrameMouseLeave) {
+      return;
+    }
+    element.addEventListener('mouseleave', onFrameMouseLeave);
+    return () => element.removeEventListener('mouseleave', onFrameMouseLeave);
+  }, [iframeRef, onFrameMouseLeave, url]);
 
   if (url === null) {
     return (
@@ -104,7 +152,7 @@ export function PreviewFrame({ siteId, siteDomain, url, status, device, onDevice
         <DeviceToggle device={device} onChange={onDeviceChange} />
       </div>
       <div className="preview-viewport" data-device={device}>
-        <iframe ref={iframeRef} title="Live preview" src={src} style={{ width: DEVICE_WIDTHS[device] }} />
+        <iframe ref={iframeRef} title="Live preview" src={src} style={{ width: DEVICE_WIDTHS[device] }} onLoad={onFrameLoad} />
       </div>
     </div>
   );

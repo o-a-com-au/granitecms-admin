@@ -17,8 +17,12 @@ export interface PageSectionsEditorProps {
   onEditInstance: (id: string) => void;
   // Hovering a section row highlights the matching element in the
   // live preview iframe - owned by PageEditorPage (it holds the
-  // iframe ref), just threaded through here to SectionList.
+  // iframe ref), just threaded through here to SectionList. The id
+  // itself flows the other way too: hovering a section in the preview
+  // sets this, so SectionList can highlight the matching row even
+  // though the mouse was never actually over it.
   onHighlightSection?: (id: string | null) => void;
+  highlightedSectionId?: string | null;
 }
 
 interface ParsedPage {
@@ -154,6 +158,7 @@ export function PageSectionsEditor({
   view,
   onEditInstance,
   onHighlightSection,
+  highlightedSectionId,
 }: PageSectionsEditorProps) {
   const [themeSchemas, setThemeSchemas] = useState<ThemeSchemas | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -240,6 +245,7 @@ export function PageSectionsEditor({
         onChange={updateSections}
         onEditInstance={handleEditInstance}
         onHighlightSection={onHighlightSection}
+        highlightedSectionId={highlightedSectionId}
       />
     </div>
   );
