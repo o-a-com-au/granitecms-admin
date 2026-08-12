@@ -436,7 +436,7 @@ describe('PageEditorPage', () => {
     );
   });
 
-  it('hovering a section row outlines the matching element in the live preview iframe, and leaving clears it', async () => {
+  it('hovering a section row outlines the matching element in the live preview iframe and scrolls it into view, and leaving clears the outline', async () => {
     installFakeEditorApi({
       content: JSON.stringify({
         title: 'Hi',
@@ -468,11 +468,17 @@ describe('PageEditorPage', () => {
     const sectionB = doc.createElement('div');
     sectionB.dataset.sectionId = 'b';
     doc.body.append(sectionA, sectionB);
+    const scrollIntoViewA = vi.fn();
+    sectionA.scrollIntoView = scrollIntoViewA;
+    const scrollIntoViewB = vi.fn();
+    sectionB.scrollIntoView = scrollIntoViewB;
 
     const rows = screen.getAllByRole('button', { name: 'Edit hero' });
     fireEvent.mouseEnter(rows[0] as HTMLElement);
     expect(sectionA.style.outline).toBe('2px solid #3b6ef6');
     expect(sectionB.style.outline).toBe('');
+    expect(scrollIntoViewA).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    expect(scrollIntoViewB).not.toHaveBeenCalled();
 
     fireEvent.mouseLeave(rows[0] as HTMLElement);
     expect(sectionA.style.outline).toBe('');

@@ -55,6 +55,11 @@ export function PageEditorPage() {
       target.style.outline = '2px solid #3b6ef6';
       target.style.outlineOffset = '-2px';
       highlightedElementRef.current = target;
+      // 'center', not 'start' - a section taller than the viewport
+      // (the common case) already has its top edge in view the moment
+      // any part of it scrolls in, so 'start' would frequently be a
+      // no-op; 'center' actually moves the view for those too.
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }
 
