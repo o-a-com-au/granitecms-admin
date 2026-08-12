@@ -6,9 +6,11 @@ import { backfillPageName, derivePageLabel } from './derivePageLabel.ts';
 import { PreviewFrame } from '../editor/PreviewFrame.tsx';
 import { type DeviceTier } from '../editor/DeviceToggle.tsx';
 import { canEditAsSections, PageSectionsEditor } from '../sections/PageSectionsEditor.tsx';
+import { SectionFieldsPanel } from '../sections/SectionFieldsPanel.tsx';
 import { PageMetadataPanel } from '../editor/PageMetadataPanel.tsx';
-import { TabFieldsIcon, TabPageIcon, TabSectionsIcon } from '../icons/index.tsx';
+import { TabPageIcon, TabSectionsIcon } from '../icons/index.tsx';
 import { useSites } from '../sites/useSites.ts';
+import { usePageActions } from '../layout/PageActionsContext.tsx';
 
 // Group I: the structured section/block editor (PageSectionsEditor) is
 // the default view, driving the exact same useAutosaveDraft hook Group
@@ -20,9 +22,13 @@ export function PageEditorPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const path = searchParams.get('path') ?? '';
   const previewUrl = searchParams.get('url');
-  const [viewMode, setViewMode] = useState<'metafields' | 'sections' | 'fields' | 'raw'>('sections');
+  const [viewMode, setViewMode] = useState<'metafields' | 'sections' | 'raw'>('sections');
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const [device, setDevice] = useState<DeviceTier>('desktop');
+  // Phone only (docs/designs/Phone-Preview.png) - desktop always shows
+  // the preview alongside both side panels, so this toggle has nothing
+  // to do there; see .editor-mobile-preview-toggle's own CSS.
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const previewIframeRef = useRef<HTMLIFrameElement>(null);
   const highlightedElementRef = useRef<HTMLElement | null>(null);
   // Single source of truth for "which section counts as highlighted
@@ -167,22 +173,20 @@ export function PageEditorPage() {
     setContentRaw(path.startsWith('posts/') ? value : backfillPageName(value));
   }
 
-  // Sections/Fields are only ever an option when the content is
-  // actually a sections-shaped document - a menu, or any content
-  // without a sections array, falls back to raw regardless of which
-  // tab was last selected. Raw JSON has no button of its own any more
-  // (Page/Sections/Fields are the three visible tabs) - it's reachable
-  // only as this automatic fallback. Page has no such dependency (it
-  // isn't wired to real data yet - see PageMetadataPanel's own note).
+  // Sections is only ever an option when the content is actually a
+  // sections-shaped document - a menu, or any content without a
+  // sections array, falls back to raw regardless of which tab was
+  // last selected. Raw JSON has no button of its own any more (Page
+  // Meta/Sections are the two visible tabs) - it's reachable only as
+  // this automatic fallback. Page has no such dependency (it isn't
+  // wired to real data yet - see PageMetadataPanel's own note).
   const sectionsAvailable = canEditAsSections(content);
-  const effectiveViewMode =
-    (viewMode === 'sections' || viewMode === 'fields') && !sectionsAvailable ? 'raw' : viewMode;
+  const effectiveViewMode = viewMode === 'sections' && !sectionsAvailable ? 'raw' : viewMode;
 
-  // Replays the fade-in-from-right CSS animation on every tab switch,
-  // including Sections <-> Fields (which share one PageSectionsEditor
-  // instance and so never remount) - toggling the class via a ref
-  // instead of keying the panel on effectiveViewMode, which would
-  // remount PageSectionsEditor and lose its scroll/selection state.
+  // Replays the fade-in-from-right CSS animation on every Page Meta
+  // <-> Sections tab switch - toggling the class via a ref rather than
+  // keying the panel on effectiveViewMode, which would remount
+  // PageSectionsEditor and lose its scroll state.
   const tabPanelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const node = tabPanelRef.current;
@@ -196,9 +200,18 @@ export function PageEditorPage() {
 
   const historyHref = `/sites/${siteId}/history?path=${encodeURIComponent(path)}${previewUrl ? `&url=${encodeURIComponent(previewUrl)}` : ''}`;
 
+  // Selecting an instance no longer switches the left column to a
+  // "Fields" mode in place - the revised layout (docs/designs/Revised-
+  // Page-Edit--Section-Edit.png) shows the Sections list and the
+  // fields form side by side, so this just opens the independent
+  // right-hand panel (SectionFieldsPanel, mounted below whenever
+  // selectedInstanceId is non-null) without touching viewMode at all.
   function handleEditInstance(id: string): void {
     setSelectedInstanceId(id);
-    setViewMode('fields');
+  }
+
+  function handleCloseFields(): void {
+    setSelectedInstanceId(null);
   }
 
   // After a successful slug rename the old path/url no longer exist -
@@ -220,15 +233,47 @@ export function PageEditorPage() {
     reloadLatest,
   );
 
-  // Save/Discard render in this page's own footer now (docs/design/
-  // Sections Tab.png), not the app's shared header - there is no
-  // shared header any more (AppShell.tsx's own refactor). Gated on
-  // there actually being something to act on - a draft already
-  // exists, or the current editing session has started changing/
-  // saving/failed/conflicted - rather than sitting there permanently.
+  // Save/Discard render in AppShell's own top bar now (docs/designs/
+  // Revised-Page-Edit--Section-Edit.png), via the page-actions slot
+  // (PageActionsContext.tsx) - there is no shared header for a footer
+  // to sit beneath any more (AppShell.tsx's own refactor moved the nav
+  // there too), and .app-topbar-actions itself relocates to a bottom
+  // bar below the mobile breakpoint (docs/designs/Phone-Page-Edit--
+  // Section-Edit.png) via CSS alone, not a second copy of these
+  // buttons. Gated on there actually being something to act on - a
+  // draft already exists, or the current editing session has started
+  // changing/saving/failed/conflicted - rather than sitting there
+  // permanently.
   const contentLoaded = status !== 'loading' && status !== 'not-found' && status !== 'load-error';
   const hasPendingChanges = source === 'draft' || status !== 'ready';
-  const showFooter = contentLoaded && hasPendingChanges;
+  // Suppressed while the phone-only full-screen preview is open, not
+  // just visually - .app-topbar-actions relocates to a fixed bottom
+  // bar below the mobile breakpoint (app-shell.css), which would
+  // otherwise sit right on top of that preview's own Close Preview
+  // button (found live: real overlapping hit-test regions, not just a
+  // visual layering nit). docs/designs/Phone-Preview.png itself shows
+  // no Save/Discard while previewing either - close the preview first.
+  const showActions = contentLoaded && hasPendingChanges && !mobilePreviewOpen;
+
+  usePageActions(
+    showActions ? (
+      <>
+        <button type="button" onClick={() => void handleDiscard()} disabled={actionBusy || status === 'saving'}>
+          Discard Changes
+        </button>
+        <button
+          type="button"
+          className="button-primary"
+          onClick={() => void handlePublish()}
+          disabled={
+            actionBusy || status === 'dirty' || status === 'saving' || status === 'save-error' || status === 'conflict'
+          }
+        >
+          Save Changes
+        </button>
+      </>
+    ) : null,
+  );
 
   if (status === 'loading') {
     return (
@@ -260,19 +305,6 @@ export function PageEditorPage() {
   return (
     <div className="editor-page">
       <div className="editor-shell">
-        <div className="editor-preview-full">
-          <PreviewFrame
-            siteId={siteId}
-            siteDomain={siteDomain}
-            url={previewUrl}
-            status={status}
-            device={device}
-            onDeviceChange={setDevice}
-            iframeRef={previewIframeRef}
-            onFrameLoad={handlePreviewFrameLoad}
-            onFrameMouseLeave={() => setHighlightedSectionId(null)}
-          />
-        </div>
         <div className="editor-sidebar">
           <div className="editor-sidebar-top">
             {invalidJson && <p role="alert">Not valid JSON yet - not saved.</p>}
@@ -309,7 +341,7 @@ export function PageEditorPage() {
                 <span className="tab-icon">
                   <TabPageIcon />
                 </span>
-                Page
+                Page Meta
               </button>
               <button
                 type="button"
@@ -323,19 +355,6 @@ export function PageEditorPage() {
                 </span>
                 Sections
               </button>
-              {selectedInstanceId !== null && (
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={effectiveViewMode === 'fields'}
-                  onClick={() => setViewMode('fields')}
-                >
-                  <span className="tab-icon">
-                    <TabFieldsIcon />
-                  </span>
-                  Fields
-                </button>
-              )}
             </div>
           </div>
 
@@ -354,13 +373,12 @@ export function PageEditorPage() {
                   onRenamed={handleRenamed}
                 />
               )}
-              {(effectiveViewMode === 'sections' || effectiveViewMode === 'fields') && (
+              {effectiveViewMode === 'sections' && (
                 <PageSectionsEditor
                   siteId={siteId}
                   content={content}
                   setContent={setContent}
                   validationErrors={validationErrors}
-                  view={effectiveViewMode === 'fields' ? 'fields' : 'list'}
                   onEditInstance={handleEditInstance}
                   onHighlightSection={handleHighlightFromAdmin}
                   highlightedSectionId={highlightedSectionId}
@@ -374,25 +392,47 @@ export function PageEditorPage() {
               )}
             </div>
           </div>
+        </div>
 
-          {showFooter && (
-            <div className="editor-footer">
-              <button type="button" onClick={() => void handleDiscard()} disabled={actionBusy || status === 'saving'}>
-                Discard Changes
-              </button>
-              <button
-                type="button"
-                className="button-primary"
-                onClick={() => void handlePublish()}
-                disabled={
-                  actionBusy || status === 'dirty' || status === 'saving' || status === 'save-error' || status === 'conflict'
-                }
-              >
-                Save Changes
-              </button>
-            </div>
+        {/* A sibling of .editor-preview-full, not nested inside it -
+            that panel is itself hidden by default below the mobile
+            breakpoint, which would hide a child toggle button along
+            with it, leaving no way to ever open it. */}
+        <button type="button" className="editor-mobile-preview-toggle" onClick={() => setMobilePreviewOpen(true)}>
+          Preview
+        </button>
+
+        <div className={`editor-preview-full${mobilePreviewOpen ? ' is-open-mobile' : ''}`}>
+          <PreviewFrame
+            siteId={siteId}
+            siteDomain={siteDomain}
+            url={previewUrl}
+            status={status}
+            device={device}
+            onDeviceChange={setDevice}
+            iframeRef={previewIframeRef}
+            onFrameLoad={handlePreviewFrameLoad}
+            onFrameMouseLeave={() => setHighlightedSectionId(null)}
+          />
+          {mobilePreviewOpen && (
+            <button type="button" className="editor-mobile-preview-close" onClick={() => setMobilePreviewOpen(false)}>
+              Close Preview
+            </button>
           )}
         </div>
+
+        {selectedInstanceId !== null && (
+          <div className="editor-fields-panel">
+            <SectionFieldsPanel
+              siteId={siteId}
+              content={content}
+              setContent={setContent}
+              validationErrors={validationErrors}
+              selectedInstanceId={selectedInstanceId}
+              onClose={handleCloseFields}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

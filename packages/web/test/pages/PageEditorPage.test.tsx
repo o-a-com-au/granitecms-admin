@@ -1,7 +1,23 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useState, type ReactNode } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { PageEditorPage } from '../../src/pages/PageEditorPage.tsx';
+import { PageActionsProvider } from '../../src/layout/PageActionsContext.tsx';
+
+// Stands in for AppShell's own top-bar actions slot - PageEditorPage
+// pushes Discard/Save Changes into it via usePageActions rather than
+// rendering them itself, so a bare render() with no provider would
+// silently drop them (usePageActions no-ops without one).
+function TestPageActionsHost({ children }: { children: ReactNode }) {
+  const [actions, setActions] = useState<ReactNode>(null);
+  return (
+    <PageActionsProvider setActions={setActions}>
+      <div className="app-topbar-actions">{actions}</div>
+      {children}
+    </PageActionsProvider>
+  );
+}
 
 interface FakeState {
   content: string | null;
@@ -159,12 +175,14 @@ function dragOnto(fromHandle: HTMLElement, toRow: HTMLElement, half: 'top' | 'bo
 
 function renderPage(initialEntry = '/sites/site-1/editor?path=pages%2Fabout.json') {
   return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <Routes>
-        <Route path="/sites/:siteId/editor" element={<PageEditorPage />} />
-        <Route path="/" element={<div>registry home</div>} />
-      </Routes>
-    </MemoryRouter>,
+    <TestPageActionsHost>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <Routes>
+          <Route path="/sites/:siteId/editor" element={<PageEditorPage />} />
+          <Route path="/" element={<div>registry home</div>} />
+        </Routes>
+      </MemoryRouter>
+    </TestPageActionsHost>,
   );
 }
 
@@ -172,10 +190,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// Save/Discard render in PageEditorPage's own footer (no shared
-// AppShell header any more), one commit after Content itself appears
-// in the tree - waiting for Content alone is not enough of a
-// guarantee before interacting with either button.
+// Save/Discard render into the page-actions slot (TestPageActionsHost
+// above, standing in for AppShell's own top bar) one commit after
+// Content itself appears in the tree - waiting for Content alone is
+// not enough of a guarantee before interacting with either button.
 async function waitForActions(): Promise<void> {
   await waitFor(() => expect(screen.getByRole('button', { name: 'Discard Changes' })).toBeDefined());
 }
@@ -331,6 +349,22 @@ describe('PageEditorPage', () => {
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
     expect(screen.getByText('No live preview available for this content type.')).toBeDefined();
     expect(screen.queryByTitle('Live preview')).toBeNull();
+  });
+
+  it('opening the phone-only preview toggle hides Discard/Save Changes, and closing it brings them back - found live: the bar they share a screen edge with otherwise sits on top of Close Preview', async () => {
+    installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+    await waitForActions();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+
+    expect(screen.queryByRole('button', { name: 'Discard Changes' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Save Changes' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close Preview' }));
+
+    await waitForActions();
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDefined();
   });
 
   it('G1: publishing sends an auto-generated message with no prompt, then reflects the page as now-live', async () => {
@@ -572,15 +606,15 @@ describe('PageEditorPage', () => {
     await waitFor(() => expect(row.className).not.toContain('is-highlighted'));
   });
 
-  it('the preview panel renders before the edit panel in the DOM, matching the design\'s preview-left/panel-right layout', async () => {
+  it('the edit panel renders before the preview in the DOM, matching the revised design\'s panel-left/preview-right layout', async () => {
     installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
     renderPage();
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
 
     const shell = screen.getByLabelText('Content').closest('.editor-shell') as HTMLElement;
-    const preview = shell.querySelector('.editor-preview-full') as Node;
     const sidebar = shell.querySelector('.editor-sidebar') as Node;
-    const position = preview.compareDocumentPosition(sidebar);
+    const preview = shell.querySelector('.editor-preview-full') as Node;
+    const position = sidebar.compareDocumentPosition(preview);
     expect(Boolean(position & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
   });
 
@@ -589,7 +623,7 @@ describe('PageEditorPage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Page' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Page Meta' }));
 
     expect(screen.getByText('Page attributes')).toBeDefined();
     expect((screen.getByLabelText('Page title') as HTMLInputElement).value).toBe('Hi');
@@ -611,7 +645,7 @@ describe('PageEditorPage', () => {
     // Already on the Sections tab (the default) - Title isn't here any more.
     expect(screen.queryByLabelText('Title')).toBeNull();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Page' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Page Meta' }));
     fireEvent.change(screen.getByLabelText('Page title'), { target: { value: 'A new title' } });
 
     expect((screen.getByLabelText('Page title') as HTMLInputElement).value).toBe('A new title');
@@ -623,13 +657,13 @@ describe('PageEditorPage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Page' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Page Meta' }));
     fireEvent.change(screen.getByLabelText('Author'), { target: { value: 'Ada Lovelace' } });
 
     expect((screen.getByLabelText('Author') as HTMLInputElement).value).toBe('Ada Lovelace');
   });
 
-  it('the Fields tab is not shown until a section has been clicked to edit', async () => {
+  it('the Fields panel is not shown until a section has been clicked to edit', async () => {
     installFakeEditorApi({
       content: JSON.stringify({ title: 'Hi', published: true, sections: [{ id: 'a', type: 'hero', settings: { heading: 'Hi there' } }] }),
       etag: '"etag-1"',
@@ -638,10 +672,10 @@ describe('PageEditorPage', () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined());
-    expect(screen.queryByRole('tab', { name: 'Fields' })).toBeNull();
+    expect(screen.queryByLabelText('heading')).toBeNull();
   });
 
-  it('clicking "Edit fields" on a section shows the Fields tab, switches to it, and shows that section\'s own field', async () => {
+  it('clicking a section opens its own Fields panel on the right, seeded with its settings - a separate panel now, not a third tab sharing the left column', async () => {
     installFakeEditorApi({
       content: JSON.stringify({ title: 'Hi', published: true, sections: [{ id: 'a', type: 'hero', settings: { heading: 'Hi there' } }] }),
       etag: '"etag-1"',
@@ -652,11 +686,13 @@ describe('PageEditorPage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined());
     fireEvent.click(screen.getByRole('button', { name: 'Edit hero' }));
 
-    expect(screen.getByRole('tab', { name: 'Fields' })).toHaveProperty('ariaSelected', 'true');
-    expect((screen.getByLabelText('heading') as HTMLInputElement).value).toBe('Hi there');
+    await waitFor(() => expect((screen.getByLabelText('heading') as HTMLInputElement).value).toBe('Hi there'));
+    // Still there, untouched - the Sections list and the Fields panel
+    // are independent now, not two states of the one column.
+    expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined();
   });
 
-  it('editing a field in the Fields tab saves through the same autosave path as everything else', async () => {
+  it('editing a field in the Fields panel saves through the same autosave path as everything else', async () => {
     const api = installFakeEditorApi({
       content: JSON.stringify({ title: 'Hi', published: true, sections: [{ id: 'a', type: 'hero', settings: { heading: 'Hi there' } }] }),
       etag: '"etag-1"',
@@ -666,6 +702,7 @@ describe('PageEditorPage', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined());
     fireEvent.click(screen.getByRole('button', { name: 'Edit hero' }));
+    await waitFor(() => expect(screen.getByLabelText('heading')).toBeDefined());
     fireEvent.change(screen.getByLabelText('heading'), { target: { value: 'Changed heading' } });
 
     await waitFor(
@@ -674,7 +711,7 @@ describe('PageEditorPage', () => {
     );
   });
 
-  it('switching back to the Sections tab and then to Fields again keeps showing the same selected section', async () => {
+  it('switching between the Page Meta and Sections tabs on the left leaves the Fields panel on the right open - they are independent now', async () => {
     installFakeEditorApi({
       content: JSON.stringify({ title: 'Hi', published: true, sections: [{ id: 'a', type: 'hero', settings: { heading: 'Hi there' } }] }),
       etag: '"etag-1"',
@@ -684,12 +721,29 @@ describe('PageEditorPage', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined());
     fireEvent.click(screen.getByRole('button', { name: 'Edit hero' }));
-    expect(screen.getByLabelText('heading')).toBeDefined();
+    await waitFor(() => expect(screen.getByLabelText('heading')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Page Meta' }));
+    expect((screen.getByLabelText('heading') as HTMLInputElement).value).toBe('Hi there');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Sections' }));
-    expect(screen.queryByLabelText('heading')).toBeNull();
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Fields' }));
     expect((screen.getByLabelText('heading') as HTMLInputElement).value).toBe('Hi there');
+  });
+
+  it('closing the Fields panel via its own close button clears the selection', async () => {
+    installFakeEditorApi({
+      content: JSON.stringify({ title: 'Hi', published: true, sections: [{ id: 'a', type: 'hero', settings: { heading: 'Hi there' } }] }),
+      etag: '"etag-1"',
+      source: 'draft',
+    });
+    renderPage();
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Edit hero' }));
+    await waitFor(() => expect(screen.getByLabelText('heading')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    expect(screen.queryByLabelText('heading')).toBeNull();
   });
 });
