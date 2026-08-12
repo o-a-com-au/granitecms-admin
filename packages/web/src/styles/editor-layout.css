@@ -216,33 +216,17 @@
   display: none;
 }
 
-/* PreviewFrame's own top bar (docs/design/Sections Tab.png) - the
-   page's relative URL on the left, the device-size toggle on the
-   right. Replaces the old shared-app-header placement entirely. */
+/* No top bar of its own any more (docs/designs/Revised-Page-Edit--
+   Section-Edit.png dropped both the address-bar-style URL display and
+   the device-size toggle that used to live here - the toggle moved up
+   into AppShell's own top bar, and the URL was dropped entirely) -
+   just the iframe's own flex column now. */
 .preview-pane {
   flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-}
-
-.preview-topbar {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.6rem 1rem;
-}
-
-.preview-url {
-  min-width: 0;
-  font-size: 0.8rem;
-  color: var(--colour-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .editor-preview-full .preview-empty {

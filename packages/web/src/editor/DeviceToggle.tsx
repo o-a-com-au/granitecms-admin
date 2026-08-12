@@ -13,11 +13,12 @@ export interface DeviceToggleProps {
   onChange: (tier: DeviceTier) => void;
 }
 
-// Lives in PreviewFrame's own top bar now (docs/design/Sections Tab.png),
-// not the app's shared header - a controlled component rather than
-// owning its own state, since PreviewFrame also needs the current tier
-// to size its iframe. Icon-only, per the new design - the label still
-// exists as an accessible name (aria-label), just not shown visually.
+// Lives in AppShell's own top bar now (docs/designs/Revised-Page-Edit--
+// Section-Edit.png), pushed there via usePageDeviceToggle - a
+// controlled component rather than owning its own state, since
+// PreviewFrame also needs the current tier to size its iframe. Icon-
+// only, per the design - the label still exists as an accessible name
+// (aria-label), just not shown visually.
 export function DeviceToggle({ device, onChange }: DeviceToggleProps) {
   return (
     <div className="device-toggle" role="group" aria-label="Preview device size">

@@ -1,9 +1,9 @@
-/* Live preview device-size toggle - lives in PreviewFrame's own
-   .preview-topbar now (docs/design/Sections Tab.png), icon-only (the
-   label survives as aria-label, not visible text). The new fixed-
+/* Live preview device-size toggle - lives in AppShell's own top bar
+   now (docs/designs/Revised-Page-Edit--Section-Edit.png), icon-only
+   (the label survives as aria-label, not visible text). The fixed-
    palette device icons can't tint via currentColor, so the pressed
    state is a background box behind the icon instead, same convention
-   as the nav rail's own active state. */
+   as the nav bar's own active state. */
 .device-toggle {
   display: flex;
   gap: 0.3rem;

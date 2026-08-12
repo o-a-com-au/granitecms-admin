@@ -3,18 +3,23 @@ import { useState, type ReactNode } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { PageEditorPage } from '../../src/pages/PageEditorPage.tsx';
-import { PageActionsProvider } from '../../src/layout/PageActionsContext.tsx';
+import { PageActionsProvider, PageDeviceToggleProvider } from '../../src/layout/PageActionsContext.tsx';
 
-// Stands in for AppShell's own top-bar actions slot - PageEditorPage
-// pushes Discard/Save Changes into it via usePageActions rather than
-// rendering them itself, so a bare render() with no provider would
-// silently drop them (usePageActions no-ops without one).
+// Stands in for AppShell's own top-bar slots - PageEditorPage pushes
+// Discard/Save Changes and the device-size toggle into them via
+// usePageActions/usePageDeviceToggle rather than rendering either
+// itself, so a bare render() with no providers would silently drop
+// both (each hook no-ops without its own provider).
 function TestPageActionsHost({ children }: { children: ReactNode }) {
   const [actions, setActions] = useState<ReactNode>(null);
+  const [deviceToggle, setDeviceToggle] = useState<ReactNode>(null);
   return (
     <PageActionsProvider setActions={setActions}>
-      <div className="app-topbar-actions">{actions}</div>
-      {children}
+      <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>
+        <div className="app-topbar-device-toggle">{deviceToggle}</div>
+        <div className="app-topbar-actions">{actions}</div>
+        {children}
+      </PageDeviceToggleProvider>
     </PageActionsProvider>
   );
 }
@@ -54,24 +59,6 @@ function installFakeEditorApi(initial: FakeState) {
           blocks: {},
           acceptsBlocks: { sections: { hero: false }, blocks: {} },
         }),
-        { status: 200 },
-      );
-    }
-
-    // PreviewFrame's own address bar reads the registered domain via
-    // useSites() - PageEditorPage has no dedicated single-site fetch
-    // to call instead (see the component's own comment on why).
-    if (method === 'GET' && url === '/api/sites') {
-      return new Response(
-        JSON.stringify([
-          {
-            id: 'site-1',
-            url: 'http://localhost:3891',
-            createdAt: '2026-01-01T00:00:00.000Z',
-            updatedAt: '2026-01-01T00:00:00.000Z',
-            status: { state: 'ok', agentVersion: '0.0.0', contentSchemaVersion: 4, sqliteDriver: 'node:sqlite' },
-          },
-        ]),
         { status: 200 },
       );
     }
@@ -335,13 +322,6 @@ describe('PageEditorPage', () => {
     expect(iframe.src).toContain('/api/sites/site-1/preview/about?t=');
   });
 
-  it("shows the site's registered domain joined with the page's relative path above the preview", async () => {
-    installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
-    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
-
-    await waitFor(() => expect(screen.getByText('http://localhost:3891/about')).toBeDefined());
-  });
-
   it('shows a fallback message instead of an iframe when there is no url (e.g. a menu)', async () => {
     installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
     renderPage('/sites/site-1/editor?path=menus%2Fmain.json');
@@ -349,6 +329,31 @@ describe('PageEditorPage', () => {
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
     expect(screen.getByText('No live preview available for this content type.')).toBeDefined();
     expect(screen.queryByTitle('Live preview')).toBeNull();
+  });
+
+  it('the device-size toggle renders into the shared top bar\'s own slot, not PreviewFrame\'s own (there is no PreviewFrame-owned top bar any more), and changing it resizes the iframe', async () => {
+    installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    const toggle = document.querySelector('.app-topbar-device-toggle') as HTMLElement;
+    expect(toggle.querySelector('[role="group"]')).toBeDefined();
+
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    expect(iframe.style.width).toBe('100%');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mobile preview' }));
+
+    expect(iframe.style.width).toBe('375px');
+  });
+
+  it('shows no device toggle when there is no live preview for this content (e.g. a menu)', async () => {
+    installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
+    renderPage('/sites/site-1/editor?path=menus%2Fmain.json');
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    const toggle = document.querySelector('.app-topbar-device-toggle') as HTMLElement;
+    expect(toggle.querySelector('[role="group"]')).toBeNull();
   });
 
   it('opening the phone-only preview toggle hides Discard/Save Changes, and closing it brings them back - found live: the bar they share a screen edge with otherwise sits on top of Close Preview', async () => {

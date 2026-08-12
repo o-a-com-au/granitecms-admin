@@ -115,6 +115,16 @@
   gap: 0.75rem;
 }
 
+/* PageEditorPage's own device-size toggle (usePageDeviceToggle,
+   PageActionsContext.tsx) - previously PreviewFrame's own top bar,
+   alongside an address-bar-style URL display this revision drops
+   entirely (docs/designs/Revised-Page-Edit--Section-Edit.png shows
+   neither the old preview top bar nor a URL anywhere, just the
+   device icons here, between the nav and Save Changes). */
+.app-topbar-device-toggle:empty {
+  display: none;
+}
+
 .nav-rail-account {
   position: relative;
 }
@@ -244,6 +254,14 @@
 @media (max-width: 720px) {
   .app-topbar-hamburger {
     display: flex;
+  }
+
+  /* Simulating a device size makes no sense once you're already
+     looking at a real phone - the phone-only Preview toggle
+     (editor-layout.css) is this breakpoint's own way to see the live
+     site instead. */
+  .app-topbar-device-toggle {
+    display: none;
   }
 
   .app-topbar-nav {

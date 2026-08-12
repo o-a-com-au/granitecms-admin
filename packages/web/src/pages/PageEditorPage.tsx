@@ -9,8 +9,8 @@ import { canEditAsSections, PageSectionsEditor } from '../sections/PageSectionsE
 import { SectionFieldsPanel } from '../sections/SectionFieldsPanel.tsx';
 import { PageMetadataPanel } from '../editor/PageMetadataPanel.tsx';
 import { TabPageIcon, TabSectionsIcon } from '../icons/index.tsx';
-import { useSites } from '../sites/useSites.ts';
-import { usePageActions } from '../layout/PageActionsContext.tsx';
+import { usePageActions, usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
+import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 
 // Group I: the structured section/block editor (PageSectionsEditor) is
 // the default view, driving the exact same useAutosaveDraft hook Group
@@ -139,15 +139,6 @@ export function PageEditorPage() {
     });
   }
 
-  // The registry list, not a dedicated single-site fetch - there is no
-  // GET /api/sites/:id, and the list is already cheap/available, so
-  // reusing it here avoids adding a new server route just to read one
-  // field. null (not yet loaded, or this siteId isn't in the list)
-  // just means PreviewFrame shows the relative path on its own,
-  // exactly as it already did before this domain existed.
-  const { sites } = useSites();
-  const siteDomain = sites?.find((site) => site.id === siteId)?.url ?? null;
-
   const {
     status,
     content,
@@ -274,6 +265,17 @@ export function PageEditorPage() {
       </>
     ) : null,
   );
+
+  // The device-size toggle - lives in AppShell's own top bar now, not
+  // PreviewFrame's (docs/designs/Revised-Page-Edit--Section-Edit.png
+  // dropped the address-bar-style URL display it used to sit beside
+  // entirely, and moved the toggle itself up into the shared header).
+  // Shown regardless of pending changes, unlike the actions above -
+  // it's a view control, not an editing action, so it stays available
+  // even with nothing to save. previewUrl === null (no live preview
+  // for this content type) is the one case with genuinely nothing for
+  // it to control.
+  usePageDeviceToggle(previewUrl !== null ? <DeviceToggle device={device} onChange={setDevice} /> : null);
 
   if (status === 'loading') {
     return (
@@ -405,11 +407,9 @@ export function PageEditorPage() {
         <div className={`editor-preview-full${mobilePreviewOpen ? ' is-open-mobile' : ''}`}>
           <PreviewFrame
             siteId={siteId}
-            siteDomain={siteDomain}
             url={previewUrl}
             status={status}
             device={device}
-            onDeviceChange={setDevice}
             iframeRef={previewIframeRef}
             onFrameLoad={handlePreviewFrameLoad}
             onFrameMouseLeave={() => setHighlightedSectionId(null)}

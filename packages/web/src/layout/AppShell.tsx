@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext.tsx';
 import { useTheme } from '../theme/ThemeContext.tsx';
 import { IconSprite } from '../icons/index.tsx';
 import { HamburgerIcon } from '../icons/HamburgerIcon.tsx';
-import { PageActionsProvider } from './PageActionsContext.tsx';
+import { PageActionsProvider, PageDeviceToggleProvider } from './PageActionsContext.tsx';
 
 interface TopNavItemProps {
   label: string;
@@ -34,11 +34,13 @@ function TopNavItem({ label, to, active }: TopNavItemProps) {
 
 // Wraps every authenticated route as one shared layout - a persistent
 // top bar (docs/designs/Revised-Pages.png; replaces the previous left
-// icon rail entirely) carrying primary nav, an account popover, and a
-// page-actions slot leaf routes can push buttons into (PageEditorPage
-// uses this for its own Save/Discard, previously pinned in its own
-// footer only because there was no shared header for them to live in
-// - see PageActionsContext.tsx). The primary nav collapses behind a
+// icon rail entirely) carrying primary nav, an account popover, and
+// two slots leaf routes can push content into: page actions
+// (PageEditorPage's own Save/Discard, previously pinned in its own
+// footer only because there was no shared header for them to live in)
+// and a device-size toggle (previously PreviewFrame's own, alongside
+// an address-bar-style URL display this revision drops entirely - see
+// PageActionsContext.tsx). The primary nav collapses behind a
 // hamburger below the mobile breakpoint (docs/designs/Phone-Pages.png)
 // - desktop always shows it inline, no hamburger there at all.
 //
@@ -57,6 +59,7 @@ export function AppShell() {
   const accountRef = useRef<HTMLDivElement>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [pageActions, setPageActions] = useState<ReactNode>(null);
+  const [deviceToggle, setDeviceToggle] = useState<ReactNode>(null);
 
   // Dismiss on an outside click - the popover has no backdrop of its
   // own (docs/design/Account Logout.png shows it floating directly
@@ -136,6 +139,7 @@ export function AppShell() {
             <TopNavItem label="History" to={undefined} active={false} />
           </nav>
           <div className="app-topbar-end">
+            <div className="app-topbar-device-toggle">{deviceToggle}</div>
             <div className="app-topbar-actions">{pageActions}</div>
             <div className="nav-rail-account" ref={accountRef}>
               {accountOpen && (
@@ -179,7 +183,9 @@ export function AppShell() {
         </header>
         <div className="app-content">
           <PageActionsProvider setActions={setPageActions}>
-            <Outlet />
+            <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>
+              <Outlet />
+            </PageDeviceToggleProvider>
           </PageActionsProvider>
         </div>
       </div>

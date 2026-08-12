@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { EditorStatus } from './useAutosaveDraft.ts';
-import { DeviceToggle, type DeviceTier } from './DeviceToggle.tsx';
+import type { DeviceTier } from './DeviceToggle.tsx';
 
 interface PreviewFrameProps {
   siteId: string;
-  siteDomain: string | null;
   url: string | null;
   status: EditorStatus;
   device: DeviceTier;
-  onDeviceChange: (tier: DeviceTier) => void;
   // Exposed so PageEditorPage can reach into the previewed document's
   // own DOM directly (hover-to-highlight a section) - safe only
   // because the iframe's src is same-origin (see the F1/F3 note
@@ -44,17 +42,6 @@ function encodeUrlSegments(url: string): string {
   return url.split('/').map(encodeURIComponent).join('/');
 }
 
-// SiteListEntry.url is a registered origin, e.g. "http://host:3891" -
-// but new URL() always normalises a bare origin to include a trailing
-// slash ("http://host:3891/"), so a naive concatenation with url
-// (which always starts with its own leading slash) can end up
-// "host:3891//about". Stripping any trailing slash first guarantees
-// exactly one, regardless of which form this particular domain was
-// stored in.
-function joinDomainAndPath(domain: string, path: string): string {
-  return domain.replace(/\/$/, '') + path;
-}
-
 // F2: bumps only on a real completed autosave ('saving' -> 'ready'),
 // never on the initial load ('loading' -> 'ready') or on entering/
 // leaving a conflict - a plain ref-tracked transition, not a hook on
@@ -88,23 +75,18 @@ function usePreviewRefreshToken(status: EditorStatus): number {
 // accomplishes natively, without touching the admin SPA's own router
 // or state.
 //
-// device is owned by PageEditorPage, not this component - the same
-// tier drives both this iframe's width and the toggle buttons, which
-// now live in PreviewFrame's own top bar (docs/design/Sections Tab.png)
-// rather than the app's shared header, so it has to be lifted above
-// both. That top bar also shows the page's own full address, standing
-// in for the design's own address bar - siteDomain comes from
-// PageEditorPage's own useSites() lookup (there is no per-site fetch
-// route, only the registry list), and is null until that resolves, in
-// which case this falls back to the bare relative path rather than
-// showing nothing.
+// device is owned by PageEditorPage, not this component - the toggle
+// itself now lives in AppShell's own top bar (docs/designs/Revised-
+// Page-Edit--Section-Edit.png dropped both the address-bar-style URL
+// display and PreviewFrame's own top bar entirely, pushing the device
+// toggle up into the shared one via PageDeviceToggleContext), but this
+// component still needs the current tier to size its iframe, so it
+// stays a plain prop here rather than moving with the toggle.
 export function PreviewFrame({
   siteId,
-  siteDomain,
   url,
   status,
   device,
-  onDeviceChange,
   iframeRef,
   onFrameLoad,
   onFrameMouseLeave,
@@ -143,14 +125,9 @@ export function PreviewFrame({
   }
 
   const src = `/api/sites/${encodeURIComponent(siteId)}/preview${encodeUrlSegments(url)}?t=${refreshToken}`;
-  const displayedAddress = siteDomain !== null ? joinDomainAndPath(siteDomain, url) : url;
 
   return (
     <div className="preview-pane">
-      <div className="preview-topbar">
-        <span className="preview-url">{displayedAddress}</span>
-        <DeviceToggle device={device} onChange={onDeviceChange} />
-      </div>
       <div className="preview-viewport" data-device={device}>
         <iframe ref={iframeRef} title="Live preview" src={src} style={{ width: DEVICE_WIDTHS[device] }} onLoad={onFrameLoad} />
       </div>
