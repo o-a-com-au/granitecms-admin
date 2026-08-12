@@ -75,7 +75,12 @@ export function MenuEditorPage() {
     reloadLatest,
   } = useAutosaveDraft(siteId, path);
 
-  const { actionBusy, actionError, handlePublish, handleDiscard } = useDraftPublishActions(siteId, path, reloadLatest);
+  const { actionBusy, actionError, handlePublish, handleDiscard } = useDraftPublishActions(
+    siteId,
+    path,
+    deriveMenuName(path),
+    reloadLatest,
+  );
 
   // Save/Discard render in this page's own footer now (docs/design/
   // Sections Tab.png's pattern, matching PageEditorPage), not the
@@ -248,7 +253,9 @@ export function MenuEditorPage() {
             type="button"
             className="button-primary"
             onClick={() => void handlePublish()}
-            disabled={actionBusy || status === 'dirty' || status === 'saving'}
+            disabled={
+              actionBusy || status === 'dirty' || status === 'saving' || status === 'save-error' || status === 'conflict'
+            }
           >
             Save Changes
           </button>

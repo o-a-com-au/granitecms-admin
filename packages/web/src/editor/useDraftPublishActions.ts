@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { discardSiteDraft, publishSiteDraft } from '../api/site-publishing.ts';
+import { buildPublishMessage } from './publishMessage.ts';
 
 export interface UseDraftPublishActionsResult {
   actionBusy: boolean;
@@ -9,35 +10,30 @@ export interface UseDraftPublishActionsResult {
 }
 
 // Shared by PageEditorPage and MenuEditorPage - publish/discard are the
-// same shape (a window prompt/confirm, then the site call, then
-// reloadLatest on success) regardless of what kind of content is being
-// edited. Kept beside useAutosaveDraft, not inside it - that hook stays
-// UI-agnostic (Group E/F's own design principle). reloadLatest is only
-// ever reached past a successful await, so a thrown error can't touch
-// useAutosaveDraft's own state (G5).
+// same shape (the site call, then reloadLatest on success) regardless of
+// what kind of content is being edited. Kept beside useAutosaveDraft, not
+// inside it - that hook stays UI-agnostic (Group E/F's own design
+// principle). reloadLatest is only ever reached past a successful await,
+// so a thrown error can't touch useAutosaveDraft's own state (G5).
+//
+// label identifies what's being published (a page's name/title, or a
+// menu's derived name) - the commit message is auto-generated from it via
+// buildPublishMessage, no longer typed by hand (previously a
+// window.prompt the user found annoying).
 export function useDraftPublishActions(
   siteId: string,
   path: string,
+  label: string,
   reloadLatest: () => void,
 ): UseDraftPublishActionsResult {
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   async function handlePublish(): Promise<void> {
-    const message = window.prompt('Describe this change for the publish history:');
-    if (message === null) {
-      return;
-    }
-    const trimmed = message.trim();
-    if (!trimmed) {
-      setActionError('A commit message is required to publish.');
-      return;
-    }
-
     setActionBusy(true);
     setActionError(null);
     try {
-      await publishSiteDraft(siteId, path, trimmed);
+      await publishSiteDraft(siteId, path, buildPublishMessage(label));
       reloadLatest();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Failed to publish');

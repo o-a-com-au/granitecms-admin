@@ -215,10 +215,9 @@ describe('PageMetadataPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Update slug' }));
 
     // reasonFromResponse (site-editor.ts) prefers the response's own
-    // "error" field over "message" - the same established priority
-    // every other error path in this app already shows, not something
-    // this feature changes.
-    await screen.findByText('Conflict');
+    // specific "message" over the generic "error" status phrase - the
+    // same priority every error path in this app now shows.
+    await screen.findByText('A page already exists at that path');
     expect(onRenamed).not.toHaveBeenCalled();
   });
 

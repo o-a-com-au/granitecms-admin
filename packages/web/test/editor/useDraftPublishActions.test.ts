@@ -33,48 +33,26 @@ afterEach(() => {
 });
 
 describe('useDraftPublishActions', () => {
-  it('publishing prompts for a message, calls publish, then reloadLatest on success', async () => {
-    installFakeFetch({ publish: new Response(JSON.stringify({ ok: true }), { status: 200 }) });
-    vi.spyOn(window, 'prompt').mockReturnValue('Ship it');
+  it('publishing sends an auto-generated message built from the given label, then reloadLatest on success', async () => {
+    const fetchMock = installFakeFetch({ publish: new Response(JSON.stringify({ ok: true }), { status: 200 }) });
     const reloadLatest = vi.fn();
-    const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', reloadLatest));
+    const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', 'Main Menu', reloadLatest));
 
     await act(() => result.current.handlePublish());
 
+    const [, init] = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit];
+    const body = JSON.parse(init.body as string) as { message: string };
+    expect(body.message.startsWith('Main Menu - ')).toBe(true);
     expect(reloadLatest).toHaveBeenCalledOnce();
     expect(result.current.actionError).toBeNull();
-  });
-
-  it('cancelling the publish prompt makes no call and does not reload', async () => {
-    const fetchMock = installFakeFetch({});
-    vi.spyOn(window, 'prompt').mockReturnValue(null);
-    const reloadLatest = vi.fn();
-    const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', reloadLatest));
-
-    await act(() => result.current.handlePublish());
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(reloadLatest).not.toHaveBeenCalled();
-  });
-
-  it('a blank publish message is rejected client-side with an inline error, no call made', async () => {
-    const fetchMock = installFakeFetch({});
-    vi.spyOn(window, 'prompt').mockReturnValue('   ');
-    const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', vi.fn()));
-
-    await act(() => result.current.handlePublish());
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(result.current.actionError).toBe('A commit message is required to publish.');
   });
 
   it('a failed publish surfaces the error and does not reload', async () => {
     installFakeFetch({
       publish: new Response(JSON.stringify({ error: 'Could not reach the site' }), { status: 502 }),
     });
-    vi.spyOn(window, 'prompt').mockReturnValue('Ship it');
     const reloadLatest = vi.fn();
-    const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', reloadLatest));
+    const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', 'Main Menu', reloadLatest));
 
     await act(() => result.current.handlePublish());
 
@@ -86,7 +64,7 @@ describe('useDraftPublishActions', () => {
     const fetchMock = installFakeFetch({});
     vi.spyOn(window, 'confirm').mockReturnValue(false);
     const reloadLatest = vi.fn();
-    const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', reloadLatest));
+    const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', 'Main Menu', reloadLatest));
 
     await act(() => result.current.handleDiscard());
 
@@ -98,7 +76,7 @@ describe('useDraftPublishActions', () => {
     installFakeFetch({ discard: new Response(null, { status: 204 }) });
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const reloadLatest = vi.fn();
-    const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', reloadLatest));
+    const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', 'Main Menu', reloadLatest));
 
     await act(() => result.current.handleDiscard());
 

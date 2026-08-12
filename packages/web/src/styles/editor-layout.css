@@ -89,6 +89,41 @@
   background: linear-gradient(to bottom, var(--colour-surface) 0%, var(--colour-bg) 100%);
 }
 
+/* Fades in from the right on every Page/Sections/Fields tab switch.
+   Kept on an inner wrapper (not .editor-tab-content itself) so the
+   animation's transform can't fight the scroll container's own
+   overflow-y, and the class is toggled via PageEditorPage's ref effect
+   rather than a React key, since keying this on effectiveViewMode
+   would remount PageSectionsEditor between the Sections and Fields
+   tabs (it shares one instance across both) and lose its state. */
+.editor-tab-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-tab-panel.tab-fade-in {
+  animation: editor-tab-fade-in 0.25s ease;
+}
+
+@keyframes editor-tab-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-tab-panel.tab-fade-in {
+    animation: none;
+  }
+}
+
 .raw-json-label {
   flex: 1;
 }

@@ -17,6 +17,10 @@ interface FakeState {
   // G5: forces publish itself to fail with a real 502, independent of
   // content nullity - the initial load still succeeds.
   forceActionFailure?: boolean;
+  // Forces the draft-save PUT itself to fail with a 400, independent
+  // of the ETag check - for asserting on the resulting 'save-error'
+  // state (and that Save Changes becomes unclickable while in it).
+  forceDraftSaveError?: boolean;
 }
 
 function installFakeEditorApi(initial: FakeState) {
@@ -73,6 +77,12 @@ function installFakeEditorApi(initial: FakeState) {
         return new Response(JSON.stringify({ statusCode: 409, error: 'Conflict', message: 'stale' }), {
           status: 409,
         });
+      }
+      if (state.forceDraftSaveError) {
+        return new Response(
+          JSON.stringify({ statusCode: 400, error: 'Bad Request', message: 'must have required property \'name\'' }),
+          { status: 400 },
+        );
       }
       state.content = init?.body as string;
       etagCounter += 1;
@@ -192,13 +202,45 @@ describe('PageEditorPage', () => {
 
     fireEvent.change(screen.getByLabelText('Content'), { target: { value: '{"title":"Edited"}' } });
 
-    await waitFor(() => expect(api.state.content).toBe('{"title":"Edited"}'), PAST_DEBOUNCE);
+    // "name" (absent here) is backfilled from "title" before every
+    // save - content saved before Group J required it must not fail
+    // validation on the very next edit.
+    await waitFor(
+      () => expect(api.state.content).toBe(JSON.stringify({ title: 'Edited', name: 'Edited' }, null, 2)),
+      PAST_DEBOUNCE,
+    );
     // Once the autosave lands, status returns to 'ready' - Save is
     // no longer disabled by an in-flight/dirty state.
     await waitFor(
       () => expect(screen.getByRole('button', { name: 'Save Changes' })).toHaveProperty('disabled', false),
       PAST_DEBOUNCE,
     );
+  });
+
+  it('does not backfill "name" for a post - posts have no "name" property and reject unknown ones', async () => {
+    const api = installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
+    renderPage('/sites/site-1/editor?path=posts%2Fhello-world.json');
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    fireEvent.change(screen.getByLabelText('Content'), { target: { value: '{"title":"Edited"}' } });
+
+    await waitFor(() => expect(api.state.content).toBe('{"title":"Edited"}'), PAST_DEBOUNCE);
+  });
+
+  it('Save Changes is disabled while the last save failed, so publishing a draft that was never actually saved is impossible', async () => {
+    installFakeEditorApi({
+      content: '{"title":"Hi","name":"Hi"}',
+      etag: '"etag-1"',
+      source: 'draft',
+      forceDraftSaveError: true,
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    fireEvent.change(screen.getByLabelText('Content'), { target: { value: '{"title":"Edited","name":"Edited"}' } });
+
+    await waitFor(() => expect(screen.getByText('must have required property \'name\'')).toBeDefined(), PAST_DEBOUNCE);
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toHaveProperty('disabled', true);
   });
 
   it('shows a clear message while JSON is invalid, and never sends it', async () => {
@@ -291,9 +333,8 @@ describe('PageEditorPage', () => {
     expect(screen.queryByTitle('Live preview')).toBeNull();
   });
 
-  it('G1: publishing prompts for a message, then reflects the page as now-live', async () => {
+  it('G1: publishing sends an auto-generated message with no prompt, then reflects the page as now-live', async () => {
     const api = installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
-    vi.spyOn(window, 'prompt').mockReturnValue('Ship the about page');
     renderPage();
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
     await waitForActions();
@@ -307,33 +348,6 @@ describe('PageEditorPage', () => {
     expect(screen.queryByRole('button', { name: 'Discard Changes' })).toBeNull();
   });
 
-  it('G1: cancelling the publish prompt makes no call at all', async () => {
-    const api = installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
-    vi.spyOn(window, 'prompt').mockReturnValue(null);
-    renderPage();
-    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
-    await waitForActions();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(api.state.source).toBe('draft');
-  });
-
-  it('G1, G5: a blank publish message is rejected client-side, leaving draft state untouched', async () => {
-    const api = installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
-    vi.spyOn(window, 'prompt').mockReturnValue('   ');
-    renderPage();
-    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
-    await waitForActions();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-    await waitFor(() => expect(screen.getByText('A commit message is required to publish.')).toBeDefined());
-    expect(api.state.source).toBe('draft');
-    expect((screen.getByLabelText('Content') as HTMLTextAreaElement).value).toBe('{"title":"Hi"}');
-  });
-
   it('G5: a failed publish leaves the draft state untouched and shows an inline error', async () => {
     const api = installFakeEditorApi({
       content: '{"title":"Hi"}',
@@ -341,7 +355,6 @@ describe('PageEditorPage', () => {
       source: 'draft',
       forceActionFailure: true,
     });
-    vi.spyOn(window, 'prompt').mockReturnValue('Ship it');
     renderPage();
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
     await waitForActions();

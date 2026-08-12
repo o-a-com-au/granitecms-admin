@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { useAutosaveDraft } from '../editor/useAutosaveDraft.ts';
 import { useDraftPublishActions } from '../editor/useDraftPublishActions.ts';
+import { backfillPageName, derivePageLabel } from './derivePageLabel.ts';
 import { PreviewFrame } from '../editor/PreviewFrame.tsx';
 import { type DeviceTier } from '../editor/DeviceToggle.tsx';
 import { canEditAsSections, PageSectionsEditor } from '../sections/PageSectionsEditor.tsx';
@@ -35,7 +36,7 @@ export function PageEditorPage() {
   const {
     status,
     content,
-    setContent,
+    setContent: setContentRaw,
     source,
     errorMessage,
     validationErrors,
@@ -44,6 +45,18 @@ export function PageEditorPage() {
     loadComparison,
     reloadLatest,
   } = useAutosaveDraft(siteId, path);
+
+  // Backfills a missing "name" before every edit reaches the hook, not
+  // just once on load - viewing an untouched page must never silently
+  // create a draft, but the moment the user actually changes anything,
+  // the save that follows must not fail purely because older content
+  // never had this field. Posts are excluded (post.schema.json has no
+  // "name" property at all and rejects it as an unknown one) - matches
+  // the agent's own path-prefix dispatch (validateContent) rather than
+  // trusting the content's own unconstrained "type" string.
+  function setContent(value: string): void {
+    setContentRaw(path.startsWith('posts/') ? value : backfillPageName(value));
+  }
 
   // Sections/Fields are only ever an option when the content is
   // actually a sections-shaped document - a menu, or any content
@@ -55,6 +68,22 @@ export function PageEditorPage() {
   const sectionsAvailable = canEditAsSections(content);
   const effectiveViewMode =
     (viewMode === 'sections' || viewMode === 'fields') && !sectionsAvailable ? 'raw' : viewMode;
+
+  // Replays the fade-in-from-right CSS animation on every tab switch,
+  // including Sections <-> Fields (which share one PageSectionsEditor
+  // instance and so never remount) - toggling the class via a ref
+  // instead of keying the panel on effectiveViewMode, which would
+  // remount PageSectionsEditor and lose its scroll/selection state.
+  const tabPanelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const node = tabPanelRef.current;
+    if (!node) {
+      return;
+    }
+    node.classList.remove('tab-fade-in');
+    void node.offsetWidth;
+    node.classList.add('tab-fade-in');
+  }, [effectiveViewMode]);
 
   const historyHref = `/sites/${siteId}/history?path=${encodeURIComponent(path)}${previewUrl ? `&url=${encodeURIComponent(previewUrl)}` : ''}`;
 
@@ -75,7 +104,12 @@ export function PageEditorPage() {
     setSearchParams(next);
   }
 
-  const { actionBusy, actionError, handlePublish, handleDiscard } = useDraftPublishActions(siteId, path, reloadLatest);
+  const { actionBusy, actionError, handlePublish, handleDiscard } = useDraftPublishActions(
+    siteId,
+    path,
+    derivePageLabel(content, path),
+    reloadLatest,
+  );
 
   // Save/Discard render in this page's own footer now (docs/design/
   // Sections Tab.png), not the app's shared header - there is no
@@ -194,35 +228,37 @@ export function PageEditorPage() {
           </div>
 
           <div className="editor-tab-content">
-            {effectiveViewMode === 'metafields' && (
-              <PageMetadataPanel
-                key={path}
-                content={content}
-                setContent={setContent}
-                historyHref={historyHref}
-                siteId={siteId}
-                path={path}
-                previewUrl={previewUrl}
-                renameDisabled={hasPendingChanges}
-                onRenamed={handleRenamed}
-              />
-            )}
-            {(effectiveViewMode === 'sections' || effectiveViewMode === 'fields') && (
-              <PageSectionsEditor
-                siteId={siteId}
-                content={content}
-                setContent={setContent}
-                validationErrors={validationErrors}
-                view={effectiveViewMode === 'fields' ? 'fields' : 'list'}
-                onEditInstance={handleEditInstance}
-              />
-            )}
-            {effectiveViewMode === 'raw' && (
-              <label className="raw-json-label">
-                Content
-                <textarea value={content} onChange={(event) => setContent(event.target.value)} />
-              </label>
-            )}
+            <div className="editor-tab-panel" ref={tabPanelRef}>
+              {effectiveViewMode === 'metafields' && (
+                <PageMetadataPanel
+                  key={path}
+                  content={content}
+                  setContent={setContent}
+                  historyHref={historyHref}
+                  siteId={siteId}
+                  path={path}
+                  previewUrl={previewUrl}
+                  renameDisabled={hasPendingChanges}
+                  onRenamed={handleRenamed}
+                />
+              )}
+              {(effectiveViewMode === 'sections' || effectiveViewMode === 'fields') && (
+                <PageSectionsEditor
+                  siteId={siteId}
+                  content={content}
+                  setContent={setContent}
+                  validationErrors={validationErrors}
+                  view={effectiveViewMode === 'fields' ? 'fields' : 'list'}
+                  onEditInstance={handleEditInstance}
+                />
+              )}
+              {effectiveViewMode === 'raw' && (
+                <label className="raw-json-label">
+                  Content
+                  <textarea value={content} onChange={(event) => setContent(event.target.value)} />
+                </label>
+              )}
+            </div>
           </div>
 
           {showFooter && (
@@ -234,7 +270,9 @@ export function PageEditorPage() {
                 type="button"
                 className="button-primary"
                 onClick={() => void handlePublish()}
-                disabled={actionBusy || status === 'dirty' || status === 'saving'}
+                disabled={
+                  actionBusy || status === 'dirty' || status === 'saving' || status === 'save-error' || status === 'conflict'
+                }
               >
                 Save Changes
               </button>

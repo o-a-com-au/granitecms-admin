@@ -199,9 +199,8 @@ describe('MenuEditorPage', () => {
     await waitFor(() => expect(screen.getByText('This menu changed since you opened it.')).toBeDefined(), PAST_DEBOUNCE);
   });
 
-  it('publishing prompts for a message, then reflects the menu as now-live', async () => {
+  it('publishing sends an auto-generated message with no prompt, then reflects the menu as now-live', async () => {
     const api = installFakeMenuApi({ content: MENU_CONTENT, etag: '"etag-1"', source: 'draft' });
-    vi.spyOn(window, 'prompt').mockReturnValue('Update main menu');
     renderPage();
     await waitFor(() => expect(screen.getAllByLabelText('Label')).toHaveLength(2));
     await waitForActions();
@@ -231,7 +230,6 @@ describe('MenuEditorPage', () => {
       source: 'draft',
       forceActionFailure: true,
     });
-    vi.spyOn(window, 'prompt').mockReturnValue('Ship it');
     renderPage();
     await waitFor(() => expect(screen.getAllByLabelText('Label')).toHaveLength(2));
     await waitForActions();

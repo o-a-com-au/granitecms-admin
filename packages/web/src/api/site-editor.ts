@@ -69,7 +69,13 @@ export async function reasonFromResponse(response: Response, fallback: SiteEdito
   let validationErrors: ValidationFieldError[] | undefined;
   try {
     const body = (await response.json()) as { error?: string; message?: string; reason?: unknown; errors?: unknown };
-    message = body.error ?? body.message ?? message;
+    // "message" is the specific, useful reason ("A page already exists
+    // at that path"); "error" is just the generic HTTP status phrase
+    // ("Conflict", "Bad Request") every server error response also
+    // carries. Preferring message over error is what actually surfaces
+    // why a save/publish failed, instead of a status phrase that's
+    // never more informative than the field it was masking.
+    message = body.message ?? body.error ?? message;
     if (isReason(body.reason)) {
       reason = body.reason;
     }
