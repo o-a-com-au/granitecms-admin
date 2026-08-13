@@ -73,7 +73,7 @@
 }
 
 .instance-row-main.is-selected button.instance-row-remove:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: none;
   color: #fff;
 }
 
@@ -142,8 +142,8 @@ button.instance-row-remove:focus-visible {
 }
 
 button.instance-row-remove:hover {
-  background: var(--colour-surface-hover);
-  color: var(--colour-danger);
+  background: none;
+  color: #fff;
   border-color: transparent;
 }
 
@@ -268,4 +268,16 @@ button.instance-add-button:hover {
 
 .instance-add-menu-item:hover {
   background: var(--colour-surface-hover);
+}
+
+/* No rollover on a phone to ever reveal button.instance-row-remove
+   (it only shows on hover/focus - see the opacity rule above), so it
+   just sits there uselessly small and hard to hit accurately - hidden
+   here rather than left reachable-only-by-luck. SectionFieldsPanel's
+   own "Delete Section"/"Delete Block" link (editor-layout.css) is the
+   one way to delete at all below this breakpoint. */
+@media (max-width: 720px) {
+  button.instance-row-remove {
+    display: none;
+  }
 }

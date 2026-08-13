@@ -214,6 +214,26 @@
   color: var(--colour-text);
 }
 
+/* Sits at the bottom of the panel (SectionFieldsPanel.tsx renders it
+   last, after the settings form) - a plain text link, same shape as
+   .instance-add-button, but red: the only way to delete at all on
+   mobile, where .instance-row-remove's hover-only trigger is hidden,
+   and a second route to the same immediate (no confirmation) removal
+   on desktop too. */
+button.fields-panel-delete {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--colour-danger);
+  padding: 0;
+  font-weight: 600;
+}
+
+button.fields-panel-delete:hover {
+  background: none;
+  color: var(--colour-danger-hover);
+}
+
 /* Phone only (docs/designs/Phone-Preview.png) - the live preview
    itself is otherwise unreachable once the mobile breakpoint below
    stacks the panels full-screen, so this is the only way to see it

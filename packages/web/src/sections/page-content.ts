@@ -119,3 +119,16 @@ export function updateInstance(instances: Instance[], id: string, updater: (inst
     return instance;
   });
 }
+
+// Same recursive shape again, this time dropping exactly the one
+// instance with a matching id wherever it sits in the tree - used by
+// SectionFieldsPanel's own "Delete Section"/"Delete Block" link, the
+// same removal SectionList/BlockList's own trash icon already does,
+// just reachable from inside the Fields panel too (the only way to
+// delete at all on mobile, where that icon is hidden - no rollover to
+// reveal it there).
+export function removeInstance(instances: Instance[], id: string): Instance[] {
+  return instances
+    .filter((instance) => instance.id !== id)
+    .map((instance) => (instance.blocks ? { ...instance, blocks: removeInstance(instance.blocks, id) } : instance));
+}

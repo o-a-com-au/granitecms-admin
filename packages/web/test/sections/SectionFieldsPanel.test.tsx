@@ -179,6 +179,61 @@ describe('SectionFieldsPanel', () => {
     expect(screen.queryByLabelText('heading')).toBeNull();
   });
 
+  it('shows "Delete Section" for a selected section, which removes it immediately (no confirmation) and closes the panel', async () => {
+    installFakeThemeSchemasFetch();
+    const setContent = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <SectionFieldsPanel
+        siteId="site-1"
+        content={PAGE_WITH_SECTIONS}
+        setContent={setContent}
+        validationErrors={null}
+        selectedInstanceId="section-1"
+        onClose={onClose}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete Section' })).toBeDefined());
+    expect(screen.queryByRole('button', { name: 'Delete Block' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Section' }));
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    const updated = JSON.parse(setContent.mock.calls[0]?.[0] as string) as { sections: unknown[] };
+    expect(updated.sections).toHaveLength(0);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows "Delete Block" for a selected block, which removes just that block from its parent section', async () => {
+    installFakeThemeSchemasFetch();
+    const setContent = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <SectionFieldsPanel
+        siteId="site-1"
+        content={PAGE_WITH_SECTIONS}
+        setContent={setContent}
+        validationErrors={null}
+        selectedInstanceId="block-1"
+        onClose={onClose}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete Block' })).toBeDefined());
+    expect(screen.queryByRole('button', { name: 'Delete Section' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Block' }));
+
+    const updated = JSON.parse(setContent.mock.calls[0]?.[0] as string) as {
+      sections: Array<{ id: string; blocks: unknown[] }>;
+    };
+    expect(updated.sections).toHaveLength(1);
+    expect(updated.sections[0]?.id).toBe('section-1');
+    expect(updated.sections[0]?.blocks).toHaveLength(0);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('clicking the close button calls onClose', async () => {
     installFakeThemeSchemasFetch();
     const onClose = vi.fn();

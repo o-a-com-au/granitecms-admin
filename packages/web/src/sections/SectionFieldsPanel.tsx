@@ -1,6 +1,6 @@
 import { SectionSettingsForm } from './SectionSettingsForm.tsx';
 import { schemaTitle, type Instance } from './instance-types.ts';
-import { buildFieldErrorMap, findInstance, parsePage, updateInstance } from './page-content.ts';
+import { buildFieldErrorMap, findInstance, parsePage, removeInstance, updateInstance } from './page-content.ts';
 import { useThemeSchemas } from './useThemeSchemas.ts';
 import type { ValidationFieldError } from '../api/site-editor.ts';
 
@@ -59,6 +59,21 @@ export function SectionFieldsPanel({
     setContent(JSON.stringify({ ...page, sections }, null, 2));
   }
 
+  // Same immediate removal (no confirmation) as SectionList/BlockList's
+  // own trash icon - this is just a second way to reach the exact same
+  // action, not a different one. Closes the panel afterward, since it
+  // would otherwise keep showing fields for an instance that no longer
+  // exists in the content. pageSections, not page.sections directly -
+  // TS's null-narrowing of page (via the guard above) doesn't reach
+  // into a hoisted function declaration like this one, only into
+  // expressions (e.g. the inline onChange below) already in scope at
+  // their own point of definition.
+  const pageSections = page.sections;
+  function handleDelete(): void {
+    updateSections(removeInstance(pageSections, instance.id));
+    onClose();
+  }
+
   return (
     <div className="fields-panel">
       <div className="fields-panel-header">
@@ -75,6 +90,9 @@ export function SectionFieldsPanel({
           updateSections(updateInstance(page.sections, instance.id, (found2) => ({ ...found2, settings })))
         }
       />
+      <button type="button" className="fields-panel-delete" onClick={handleDelete}>
+        {kind === 'section' ? 'Delete Section' : 'Delete Block'}
+      </button>
     </div>
   );
 }
