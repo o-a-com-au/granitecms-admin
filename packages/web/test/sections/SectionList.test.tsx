@@ -195,6 +195,84 @@ describe('SectionList', () => {
     expect(screen.getByRole('button', { name: 'Add Block' })).toBeDefined();
   });
 
+  it('a section becomes the selected instance (blue background) and auto-expands its blocks, without needing a manual chevron click', () => {
+    const { rerender } = render(
+      <SectionList
+        sections={[{ ...section('a'), blocks: [] }]}
+        sectionTypes={SECTION_TYPES}
+        blockTypes={BLOCK_TYPES}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    // Starts collapsed (I4's own precedent) and unselected.
+    expect(screen.getByRole('button', { name: 'Expand' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Edit hero' }).className).not.toContain('is-selected');
+
+    rerender(
+      <SectionList
+        sections={[{ ...section('a'), blocks: [] }]}
+        sectionTypes={SECTION_TYPES}
+        blockTypes={BLOCK_TYPES}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+        selectedInstanceId="a"
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Edit hero' }).className).toContain('is-selected');
+    // Auto-expanded - the chevron now reads "Collapse", and Add Block
+    // (only rendered once expanded, per I4 above) is reachable without
+    // an extra click.
+    expect(screen.getByRole('button', { name: 'Collapse' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Add Block' })).toBeDefined();
+  });
+
+  it('selecting a different section does not force a section the user manually collapsed back open', () => {
+    const { rerender } = render(
+      <SectionList
+        sections={[{ ...section('a'), blocks: [] }, { ...section('c'), blocks: [] }]}
+        sectionTypes={SECTION_TYPES}
+        blockTypes={BLOCK_TYPES}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+        selectedInstanceId="a"
+      />,
+    );
+
+    // "a" (selected) starts auto-expanded; "c" (unselected) starts
+    // collapsed by default, same as I4's own precedent.
+    const [collapseA] = screen.getAllByRole('button', { name: 'Collapse' });
+    expect(screen.getAllByRole('button', { name: 'Expand' })).toHaveLength(1);
+    fireEvent.click(collapseA as HTMLElement);
+    // Both now read "Expand" - "a" manually, "c" still by default.
+    expect(screen.getAllByRole('button', { name: 'Expand' })).toHaveLength(2);
+
+    // Selecting the OTHER section ("c") - "a" must stay exactly as the
+    // user left it (collapsed), not snap back open just because a
+    // render happened. Only the section that actually BECOMES selected
+    // gets the auto-expand treatment.
+    rerender(
+      <SectionList
+        sections={[{ ...section('a'), blocks: [] }, { ...section('c'), blocks: [] }]}
+        sectionTypes={SECTION_TYPES}
+        blockTypes={BLOCK_TYPES}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+        selectedInstanceId="c"
+      />,
+    );
+
+    const rows = screen.getAllByRole('button', { name: /^Edit hero$/ });
+    expect(rows[0]?.className).not.toContain('is-selected');
+    expect(rows[1]?.className).toContain('is-selected');
+    // "a" (now unselected) is still collapsed - only "c" (newly
+    // selected) auto-expanded.
+    expect(screen.getByRole('button', { name: 'Expand' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Collapse' })).toBeDefined();
+  });
+
   it('I4: a section whose type does not accept blocks shows no block controls at all', () => {
     render(
       <SectionList

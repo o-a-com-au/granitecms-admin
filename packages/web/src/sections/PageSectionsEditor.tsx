@@ -18,6 +18,7 @@ export interface PageSectionsEditorProps {
   // though the mouse was never actually over it.
   onHighlightSection?: (id: string | null) => void;
   highlightedSectionId?: string | null;
+  selectedInstanceId?: string | null;
 }
 
 export { canEditAsSections };
@@ -39,6 +40,7 @@ export function PageSectionsEditor({
   onEditInstance,
   onHighlightSection,
   highlightedSectionId,
+  selectedInstanceId,
 }: PageSectionsEditorProps) {
   const { themeSchemas, loadError } = useThemeSchemas(siteId);
 
@@ -74,6 +76,7 @@ export function PageSectionsEditor({
         onEditInstance={onEditInstance}
         onHighlightSection={onHighlightSection}
         highlightedSectionId={highlightedSectionId}
+        selectedInstanceId={selectedInstanceId}
       />
     </div>
   );

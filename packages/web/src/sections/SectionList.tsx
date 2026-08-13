@@ -1,4 +1,4 @@
-import { Fragment, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { Fragment, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { AddIcon } from './AddIcon.tsx';
 import { BlockList } from './BlockList.tsx';
 import { DragHandleIcon } from './DragHandleIcon.tsx';
@@ -33,6 +33,11 @@ interface SectionRowProps {
   // from the reverse direction, where hovering the section in the
   // preview highlights this row despite the mouse never touching it.
   isHighlighted: boolean;
+  // The instance currently open in the Fields panel (a section or a
+  // block, anywhere in the tree) - threaded all the way down so a
+  // selected block still gets its own blue background even nested
+  // several BlockLists deep, not just at the top level.
+  selectedInstanceId?: string | null;
 }
 
 // I4: a section's OWN acceptsBlocks flag (not a block's) decides
@@ -58,11 +63,23 @@ function SectionRow({
   onEditInstance,
   onHighlightSection,
   isHighlighted,
+  selectedInstanceId,
 }: SectionRowProps) {
   const acceptsBlocks = sectionTypes.acceptsBlocks[section.type] === true;
   // Sections with blocks start collapsed - keeps the list scannable
   // for a page with many sections, matching docs/design/Sections.png.
   const [collapsed, setCollapsed] = useState(acceptsBlocks);
+  const isSelected = section.id === selectedInstanceId;
+  // Expands the moment this section becomes the selected one, so its
+  // blocks are visible without an extra manual chevron click - keyed
+  // on the selection actually changing (not every render), so the
+  // user can still collapse it again afterward without this snapping
+  // it back open on the next unrelated re-render.
+  useEffect(() => {
+    if (isSelected) {
+      setCollapsed(false);
+    }
+  }, [isSelected]);
   const hasError = Boolean(fieldErrors?.[section.id] && Object.keys(fieldErrors[section.id] as object).length > 0);
   const displayName = schemaTitle(sectionTypes.schemas[section.type], section.type);
   const allowedTypes = allowedBlockTypes(sectionTypes.schemas[section.type]);
@@ -93,7 +110,7 @@ function SectionRow({
   return (
     <li className={`instance-row${isDragging ? ' is-dragging' : ''}`} onDragOver={onDragOver} onDrop={onDrop}>
       <div
-        className={`instance-row-main${hasError ? ' has-error' : ''}${isHighlighted ? ' is-highlighted' : ''}`}
+        className={`instance-row-main${hasError ? ' has-error' : ''}${isHighlighted ? ' is-highlighted' : ''}${isSelected ? ' is-selected' : ''}`}
         role="button"
         tabIndex={0}
         aria-label={`Edit ${displayName}${hasError ? ' (has an error)' : ''}`}
@@ -144,6 +161,7 @@ function SectionRow({
           fieldErrors={fieldErrors}
           onChange={(blocks) => onChange({ ...section, blocks })}
           onEditInstance={onEditInstance}
+          selectedInstanceId={selectedInstanceId}
         />
       )}
     </li>
@@ -159,6 +177,7 @@ export interface SectionListProps {
   onEditInstance: (id: string) => void;
   onHighlightSection?: (id: string | null) => void;
   highlightedSectionId?: string | null;
+  selectedInstanceId?: string | null;
 }
 
 // I1: "editable, reorderable list" - drag the handle to reorder (a 4px
@@ -175,6 +194,7 @@ export function SectionList({
   onEditInstance,
   onHighlightSection,
   highlightedSectionId,
+  selectedInstanceId,
 }: SectionListProps) {
   const sectionTypeNames = Object.keys(sectionTypes.schemas);
   const { open: addMenuOpen, setOpen: setAddMenuOpen, openUpward, ref: addMenuRef, toggle: toggleAddMenu } = useAddMenu();
@@ -258,6 +278,7 @@ export function SectionList({
               onEditInstance={onEditInstance}
               onHighlightSection={onHighlightSection}
               isHighlighted={section.id === highlightedSectionId}
+              selectedInstanceId={selectedInstanceId}
             />
           </Fragment>
         ))}

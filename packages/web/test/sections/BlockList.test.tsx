@@ -183,6 +183,35 @@ describe('BlockList', () => {
     expect(screen.getAllByRole('button', { name: 'Add Block' })).toHaveLength(2);
   });
 
+  it('a block becomes the selected instance (blue background) and auto-expands its nested blocks, without needing a manual chevron click', () => {
+    const { rerender } = render(
+      <BlockList
+        blocks={[{ id: 'g1', type: 'group', settings: {}, blocks: [block('nested')] }]}
+        blockTypes={BLOCK_TYPES}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Expand' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Edit group' }).className).not.toContain('is-selected');
+
+    rerender(
+      <BlockList
+        blocks={[{ id: 'g1', type: 'group', settings: {}, blocks: [block('nested')] }]}
+        blockTypes={BLOCK_TYPES}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+        selectedInstanceId="g1"
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Edit group' }).className).toContain('is-selected');
+    expect(screen.getByRole('button', { name: 'Collapse' })).toBeDefined();
+    // The nested block ("nested") is now visible without an extra click.
+    expect(screen.getByRole('button', { name: 'Edit button' })).toBeDefined();
+  });
+
   it('I4: a block whose type does not accept nested blocks shows no nested block controls', () => {
     render(<BlockList blocks={[block('a')]} blockTypes={BLOCK_TYPES} onChange={vi.fn()} onEditInstance={vi.fn()} />);
 

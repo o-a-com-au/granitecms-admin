@@ -49,6 +49,34 @@
   outline-offset: 1px;
 }
 
+/* The instance currently open in the Fields panel - a persistent
+   marker independent of hover/highlight (which fade the moment the
+   pointer or preview scroll moves on), so it stays obvious which row
+   the panel on the right is actually showing. */
+.instance-row-main.is-selected {
+  background: var(--colour-primary);
+  border-color: var(--colour-primary);
+  color: #fff;
+}
+
+.instance-row-main.is-selected strong {
+  color: #fff;
+}
+
+.instance-row-main.is-selected button.instance-row-chevron,
+.instance-row-main.is-selected .instance-row-drag-handle {
+  color: #fff;
+}
+
+.instance-row-main.is-selected button.instance-row-remove {
+  color: #fff;
+}
+
+.instance-row-main.is-selected button.instance-row-remove:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
 .instance-row-main.has-error strong {
   color: var(--colour-danger);
 }

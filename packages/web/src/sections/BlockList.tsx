@@ -1,4 +1,4 @@
-import { Fragment, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { Fragment, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { AddIcon } from './AddIcon.tsx';
 import { DragHandleIcon } from './DragHandleIcon.tsx';
 import { TrashIcon } from './TrashIcon.tsx';
@@ -25,6 +25,7 @@ interface BlockRowProps {
   onRemove: () => void;
   onChange: (block: Instance) => void;
   onEditInstance: (id: string) => void;
+  selectedInstanceId?: string | null;
 }
 
 // I4: nested blocks (a block that itself accepts blocks - e.g. a
@@ -46,11 +47,21 @@ function BlockRow({
   onRemove,
   onChange,
   onEditInstance,
+  selectedInstanceId,
 }: BlockRowProps) {
   const acceptsNestedBlocks = blockTypes.acceptsBlocks[block.type] === true;
   // Blocks with nested blocks start collapsed too, for the same reason
   // as sections - keeps a deeply-nested tree scannable by default.
   const [collapsed, setCollapsed] = useState(acceptsNestedBlocks);
+  const isSelected = block.id === selectedInstanceId;
+  // Same reasoning as SectionRow's own version - expands the moment
+  // this block becomes selected, without fighting a later manual
+  // collapse.
+  useEffect(() => {
+    if (isSelected) {
+      setCollapsed(false);
+    }
+  }, [isSelected]);
   const hasError = Boolean(fieldErrors?.[block.id] && Object.keys(fieldErrors[block.id] as object).length > 0);
   const displayName = schemaTitle(blockTypes.schemas[block.type], block.type);
   const nestedAllowedTypes = allowedBlockTypes(blockTypes.schemas[block.type]);
@@ -81,7 +92,7 @@ function BlockRow({
   return (
     <li className={`instance-row${isDragging ? ' is-dragging' : ''}`} onDragOver={onDragOver} onDrop={onDrop}>
       <div
-        className={`instance-row-main${hasError ? ' has-error' : ''}`}
+        className={`instance-row-main${hasError ? ' has-error' : ''}${isSelected ? ' is-selected' : ''}`}
         role="button"
         tabIndex={0}
         aria-label={`Edit ${displayName}${hasError ? ' (has an error)' : ''}`}
@@ -130,6 +141,7 @@ function BlockRow({
           fieldErrors={fieldErrors}
           onChange={(blocks) => onChange({ ...block, blocks })}
           onEditInstance={onEditInstance}
+          selectedInstanceId={selectedInstanceId}
         />
       )}
     </li>
@@ -146,6 +158,7 @@ export interface BlockListProps {
   fieldErrors?: FieldErrorMap;
   onChange: (blocks: Instance[]) => void;
   onEditInstance: (id: string) => void;
+  selectedInstanceId?: string | null;
 }
 
 // I1, I4: drag the handle to reorder (a 4px blue line marks the
@@ -155,7 +168,15 @@ export interface BlockListProps {
 // renders at ALL for a given section/block is the caller's decision
 // (I4's "shows no block controls") - once rendered, it always shows
 // full controls.
-export function BlockList({ blocks, blockTypes, allowedTypes, fieldErrors, onChange, onEditInstance }: BlockListProps) {
+export function BlockList({
+  blocks,
+  blockTypes,
+  allowedTypes,
+  fieldErrors,
+  onChange,
+  onEditInstance,
+  selectedInstanceId,
+}: BlockListProps) {
   const blockTypeNames = allowedTypes
     ? Object.keys(blockTypes.schemas).filter((type) => allowedTypes.includes(type))
     : Object.keys(blockTypes.schemas);
@@ -238,6 +259,7 @@ export function BlockList({ blocks, blockTypes, allowedTypes, fieldErrors, onCha
               onRemove={() => removeBlock(index)}
               onChange={(updated) => updateBlock(index, updated)}
               onEditInstance={onEditInstance}
+              selectedInstanceId={selectedInstanceId}
             />
           </Fragment>
         ))}

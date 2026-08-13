@@ -582,6 +582,7 @@ export function PageEditorPage() {
                     onEditInstance={handleEditInstance}
                     onHighlightSection={handleHighlightFromAdmin}
                     highlightedSectionId={highlightedSectionId}
+                    selectedInstanceId={selectedInstanceId}
                   />
                 )}
                 {effectiveViewMode === 'raw' && (
