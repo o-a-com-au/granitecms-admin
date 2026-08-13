@@ -30,6 +30,10 @@ function installFakeFetch(handlers: { publish?: Response | (() => Response); dis
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // vi.spyOn(window, 'confirm') elsewhere in this file returns the
+  // SAME accumulated mock (with its prior call history) on every
+  // repeat call within a file unless explicitly restored.
+  vi.restoreAllMocks();
 });
 
 describe('useDraftPublishActions', () => {
@@ -81,5 +85,34 @@ describe('useDraftPublishActions', () => {
     await act(() => result.current.handleDiscard());
 
     expect(reloadLatest).toHaveBeenCalledOnce();
+  });
+
+  // The blocked-navigation flow (PageEditorPage/MenuEditorPage) needs
+  // to know synchronously whether Save/Discard actually went through,
+  // to decide whether to let the pending navigation proceed.
+  it('handlePublish resolves true on success and false on failure', async () => {
+    const fetchMock = installFakeFetch({ publish: new Response(JSON.stringify({ ok: true }), { status: 200 }) });
+    const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', 'Main Menu', vi.fn()));
+    await expect(act(() => result.current.handlePublish())).resolves.toBe(true);
+
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ error: 'nope' }), { status: 502 }));
+    await expect(act(() => result.current.handlePublish())).resolves.toBe(false);
+  });
+
+  // skipConfirm - the blocked-navigation flow's own modal IS the
+  // confirmation there; without this, discard-from-that-flow would
+  // always show a second, redundant native confirm on top of it.
+  it('handleDiscard({ skipConfirm: true }) calls discard directly, with no window.confirm at all', async () => {
+    installFakeFetch({ discard: new Response(null, { status: 204 }) });
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    const reloadLatest = vi.fn();
+    const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', 'Main Menu', reloadLatest));
+
+    const ok = await act(() => result.current.handleDiscard({ skipConfirm: true }));
+
+    expect(ok).toBe(true);
+    expect(reloadLatest).toHaveBeenCalledOnce();
+    expect(confirmSpy).not.toHaveBeenCalled();
   });
 });

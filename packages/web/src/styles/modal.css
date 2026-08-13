@@ -1,0 +1,43 @@
+/* The first modal in this app (UnsavedChangesPrompt.tsx) - everything
+   else here is either an inline banner (the E5 conflict UI) or a
+   native window.confirm. z-index 50 is deliberately above every other
+   layer already in use (.account-popover 20, .editor-fields-panel
+   mobile overlay 25, .editor-preview-full.is-open-mobile 30,
+   .app-topbar-actions mobile bar 35) - this has to sit above all of
+   them, since navigation can be attempted from any of those states. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.modal {
+  width: 100%;
+  max-width: 420px;
+  padding: var(--space-lg);
+  border-radius: var(--radius);
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+}
+
+.modal h2 {
+  margin: 0 0 var(--space-sm);
+  font-size: 1.1rem;
+}
+
+.modal p {
+  margin: 0 0 var(--space-md);
+  color: var(--colour-muted);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}

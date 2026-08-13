@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { type ReactNode } from 'react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { createMemoryRouter, Link, RouterProvider } from 'react-router';
 import { MenuEditorPage } from '../../src/pages/MenuEditorPage.tsx';
 
 interface FakeState {
@@ -70,15 +71,32 @@ function installFakeMenuApi(initial: FakeState) {
 
 const PAST_DEBOUNCE = { timeout: 2000 };
 
-function renderPage(initialEntry = '/sites/site-1/menus/edit?path=menus%2Fmain.json') {
-  return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <Routes>
-        <Route path="/sites/:siteId/menus/edit" element={<MenuEditorPage />} />
-        <Route path="/" element={<div>registry home</div>} />
-      </Routes>
-    </MemoryRouter>,
+// createMemoryRouter/RouterProvider, not the plain <MemoryRouter>/
+// <Routes> this used before - useBlocker (guarding navigation away
+// from a menu with unpublished changes) only works under a data
+// router. editorRouteExtra renders alongside MenuEditorPage on its own
+// route, standing in for a real link elsewhere in the app (e.g.
+// AppShell's top nav), matching PageEditorPage.test.tsx's own version.
+function renderPage(
+  initialEntry = '/sites/site-1/menus/edit?path=menus%2Fmain.json',
+  editorRouteExtra: ReactNode = null,
+) {
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/sites/:siteId/menus/edit',
+        element: (
+          <>
+            <MenuEditorPage />
+            {editorRouteExtra}
+          </>
+        ),
+      },
+      { path: '/', element: <div>registry home</div> },
+    ],
+    { initialEntries: [initialEntry] },
   );
+  return render(<RouterProvider router={router} />);
 }
 
 async function waitForActions(): Promise<void> {
@@ -87,6 +105,7 @@ async function waitForActions(): Promise<void> {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 const MENU_CONTENT = JSON.stringify({
@@ -254,5 +273,55 @@ describe('MenuEditorPage', () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText('No content found at this path.')).toBeDefined());
+  });
+
+  describe('a menu with unpublished changes (source: draft) blocks navigating away', () => {
+    it('prompts before a route change (e.g. the top nav), and Cancel leaves everything untouched', async () => {
+      installFakeMenuApi({ content: MENU_CONTENT, etag: '"etag-1"', source: 'draft' });
+      renderPage('/sites/site-1/menus/edit?path=menus%2Fmain.json', <Link to="/">Pages</Link>);
+      await waitFor(() => expect(screen.getAllByLabelText('Label')).toHaveLength(2));
+      await waitForActions();
+
+      fireEvent.click(screen.getByRole('link', { name: 'Pages' }));
+
+      await waitFor(() => expect(screen.getByRole('alertdialog')).toBeDefined());
+      expect(screen.queryByText('registry home')).toBeNull();
+
+      fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel' }));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(screen.queryByText('registry home')).toBeNull();
+    });
+
+    it('Save Changes publishes, then proceeds to the blocked route', async () => {
+      const api = installFakeMenuApi({ content: MENU_CONTENT, etag: '"etag-1"', source: 'draft' });
+      renderPage('/sites/site-1/menus/edit?path=menus%2Fmain.json', <Link to="/">Pages</Link>);
+      await waitFor(() => expect(screen.getAllByLabelText('Label')).toHaveLength(2));
+      await waitForActions();
+
+      fireEvent.click(screen.getByRole('link', { name: 'Pages' }));
+      await waitFor(() => expect(screen.getByRole('alertdialog')).toBeDefined());
+
+      fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Save Changes' }));
+
+      await waitFor(() => expect(api.state.source).toBe('live'));
+      await waitFor(() => expect(screen.getByText('registry home')).toBeDefined());
+    });
+
+    it('Discard Changes reverts the draft with no extra native confirm, then proceeds to the blocked route', async () => {
+      const api = installFakeMenuApi({ content: MENU_CONTENT, etag: '"etag-1"', source: 'draft' });
+      const confirmSpy = vi.spyOn(window, 'confirm');
+      renderPage('/sites/site-1/menus/edit?path=menus%2Fmain.json', <Link to="/">Pages</Link>);
+      await waitFor(() => expect(screen.getAllByLabelText('Label')).toHaveLength(2));
+      await waitForActions();
+
+      fireEvent.click(screen.getByRole('link', { name: 'Pages' }));
+      await waitFor(() => expect(screen.getByRole('alertdialog')).toBeDefined());
+
+      fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Discard Changes' }));
+
+      await waitFor(() => expect(api.state.source).toBe('live'));
+      await waitFor(() => expect(screen.getByText('registry home')).toBeDefined());
+      expect(confirmSpy).not.toHaveBeenCalled();
+    });
   });
 });

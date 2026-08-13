@@ -5,8 +5,13 @@ import { buildPublishMessage } from './publishMessage.ts';
 export interface UseDraftPublishActionsResult {
   actionBusy: boolean;
   actionError: string | null;
-  handlePublish: () => Promise<void>;
-  handleDiscard: () => Promise<void>;
+  // Both resolve to whether the action actually went through - reading
+  // actionError straight after an await isn't reliable for this (it's
+  // state, so the closure holding it here is stale until the next
+  // render), and the blocked-navigation flow (PageEditorPage/
+  // MenuEditorPage) needs to know synchronously whether to proceed.
+  handlePublish: () => Promise<boolean>;
+  handleDiscard: (options?: { skipConfirm?: boolean }) => Promise<boolean>;
 }
 
 // Shared by PageEditorPage and MenuEditorPage - publish/discard are the
@@ -29,22 +34,28 @@ export function useDraftPublishActions(
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  async function handlePublish(): Promise<void> {
+  async function handlePublish(): Promise<boolean> {
     setActionBusy(true);
     setActionError(null);
     try {
       await publishSiteDraft(siteId, path, buildPublishMessage(label));
       reloadLatest();
+      return true;
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Failed to publish');
+      return false;
     } finally {
       setActionBusy(false);
     }
   }
 
-  async function handleDiscard(): Promise<void> {
-    if (!window.confirm('Discard the draft and return to the live version? This cannot be undone.')) {
-      return;
+  // skipConfirm - the blocked-navigation flow's own modal (Unsaved
+  // ChangesPrompt) IS the confirmation there; a second native one on
+  // top would just be an annoying, redundant re-ask of a choice the
+  // user already just made explicitly.
+  async function handleDiscard(options?: { skipConfirm?: boolean }): Promise<boolean> {
+    if (!options?.skipConfirm && !window.confirm('Discard the draft and return to the live version? This cannot be undone.')) {
+      return false;
     }
 
     setActionBusy(true);
@@ -52,8 +63,10 @@ export function useDraftPublishActions(
     try {
       await discardSiteDraft(siteId, path);
       reloadLatest();
+      return true;
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Failed to discard the draft');
+      return false;
     } finally {
       setActionBusy(false);
     }

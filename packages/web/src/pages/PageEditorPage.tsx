@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { useBlocker, useParams, useSearchParams } from 'react-router';
 import { listSiteContent } from '../api/site-content.ts';
 import { useAutosaveDraft } from '../editor/useAutosaveDraft.ts';
 import { useDraftPublishActions } from '../editor/useDraftPublishActions.ts';
@@ -9,6 +9,7 @@ import { type DeviceTier } from '../editor/DeviceToggle.tsx';
 import { canEditAsSections, PageSectionsEditor } from '../sections/PageSectionsEditor.tsx';
 import { SectionFieldsPanel } from '../sections/SectionFieldsPanel.tsx';
 import { PageMetadataPanel } from '../editor/PageMetadataPanel.tsx';
+import { UnsavedChangesPrompt } from '../editor/UnsavedChangesPrompt.tsx';
 import { TabPageIcon, TabSectionsIcon } from '../icons/index.tsx';
 import { usePageActions, usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
@@ -25,6 +26,14 @@ export function PageEditorPage() {
   const previewUrl = searchParams.get('url');
   const [viewMode, setViewMode] = useState<'metafields' | 'sections' | 'raw'>('sections');
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
+  // A selected instance belongs to whatever page's content was loaded
+  // when it was selected - once path itself changes (any navigation
+  // that actually went through, preview link or otherwise), the id no
+  // longer refers to anything in the new content, so the Fields panel
+  // must close rather than show stale/mismatched data.
+  useEffect(() => {
+    setSelectedInstanceId(null);
+  }, [path]);
   const [device, setDevice] = useState<DeviceTier>('desktop');
   // Phone only (docs/designs/Phone-Preview.png) - desktop always shows
   // the preview alongside both side panels, so this toggle has nothing
@@ -283,12 +292,6 @@ export function PageEditorPage() {
     loadComparison,
     reloadLatest,
   } = useAutosaveDraft(siteId, path);
-  // See previewUrlRef/contentIndexRef above - navigateToPage's dirty
-  // check runs from the same potentially-stale preview click listener,
-  // so it needs the live status too, not whatever it was at the last
-  // iframe reload.
-  const statusRef = useRef(status);
-  statusRef.current = status;
 
   // Backfills a missing "name" before every edit reaches the hook, not
   // just once on load - viewing an untouched page must never silently
@@ -358,24 +361,13 @@ export function PageEditorPage() {
   // Following a link inside the preview to another page it manages -
   // same query-param swap as handleRenamed above, since as far as
   // useAutosaveDraft and PreviewFrame are concerned this is no
-  // different from any other path/url change. status is checked
-  // against the debounce, not against source/hasPendingChanges - a
-  // draft the user is happy publishing later is not what's at risk
-  // here, only an edit still sitting in the 1s window before autosave
-  // actually writes it (or a save already in flight/failed) - leaving
-  // now would drop that edit on the floor with no warning otherwise.
+  // different from any other path/url change. No guard of its own any
+  // more - the useBlocker below intercepts every path/url-changing
+  // navigation uniformly (this one, top nav clicks, content-list
+  // links, browser back/forward), so a single UnsavedChangesPrompt
+  // covers all of them instead of this one call site having its own
+  // separate window.confirm.
   function navigateToPage(newPath: string, newUrl: string): void {
-    if (statusRef.current === 'dirty' || statusRef.current === 'saving' || statusRef.current === 'save-error') {
-      const proceed = window.confirm(
-        'This page has changes that have not finished saving yet. Leave this page anyway?',
-      );
-      if (!proceed) {
-        return;
-      }
-    }
-    // The Fields panel's selectedInstanceId belongs to the page being
-    // left - it won't match any section id in whatever loads next.
-    setSelectedInstanceId(null);
     const next = new URLSearchParams(searchParams);
     next.set('path', newPath);
     next.set('url', newUrl);
@@ -402,6 +394,46 @@ export function PageEditorPage() {
   // permanently.
   const contentLoaded = status !== 'loading' && status !== 'not-found' && status !== 'load-error';
   const hasPendingChanges = source === 'draft' || status !== 'ready';
+
+  // Guards navigation away from this page while a draft is unpublished
+  // - top nav clicks, the content browser's own page links, and this
+  // page's own preview-link handling above, not just one specific
+  // click handler. Only a data router (main.tsx/App.tsx's own
+  // migration) makes this hook available at all. Renaming is exempt
+  // for free, not by any special-casing here -
+  // renameDisabled={hasPendingChanges} below already makes
+  // handleRenamed's own path/url change unreachable whenever this
+  // blocker would have fired anyway.
+  //
+  // Does NOT reliably cover the browser's own back/forward buttons
+  // (a POP navigation) - confirmed live: the URL correctly fails to
+  // change, but the prompt below never renders, leaving a silent dead
+  // end rather than a clean block. This is a known, still-open
+  // upstream limitation of useBlocker itself (react-router issue
+  // #11589), not something wrong with this wiring - accepted as a gap
+  // rather than chasing a hand-rolled popstate workaround on top of
+  // react-router's own history handling.
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      contentLoaded &&
+      hasPendingChanges &&
+      (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search),
+  );
+
+  async function handlePromptSave(): Promise<void> {
+    const ok = await handlePublish();
+    if (ok) {
+      blocker.proceed?.();
+    }
+  }
+
+  async function handlePromptDiscard(): Promise<void> {
+    const ok = await handleDiscard({ skipConfirm: true });
+    if (ok) {
+      blocker.proceed?.();
+    }
+  }
+
   // Suppressed while the phone-only full-screen preview is open, not
   // just visually - .app-topbar-actions relocates to a fixed bottom
   // bar below the mobile breakpoint (app-shell.css), which would
@@ -470,135 +502,146 @@ export function PageEditorPage() {
   }
 
   return (
-    <div className="editor-page">
-      <div className="editor-shell">
-        <div className="editor-sidebar">
-          <div className="editor-sidebar-top">
-            {invalidJson && <p role="alert">Not valid JSON yet - not saved.</p>}
-            {status === 'save-error' && errorMessage && <p role="alert">{errorMessage}</p>}
-            {actionError && <p role="alert">{actionError}</p>}
-
-            {status === 'conflict' && (
-              <section>
-                <p role="alert">This page changed since you opened it.</p>
-                <button type="button" onClick={reloadLatest}>
-                  Reload latest version
+    <>
+      <div className="editor-page">
+        <div className="editor-shell">
+          <div className="editor-sidebar">
+            <div className="editor-sidebar-top">
+              {invalidJson && <p role="alert">Not valid JSON yet - not saved.</p>}
+              {status === 'save-error' && errorMessage && <p role="alert">{errorMessage}</p>}
+              {actionError && <p role="alert">{actionError}</p>}
+  
+              {status === 'conflict' && (
+                <section>
+                  <p role="alert">This page changed since you opened it.</p>
+                  <button type="button" onClick={reloadLatest}>
+                    Reload latest version
+                  </button>
+                  <button type="button" onClick={loadComparison}>
+                    View changes
+                  </button>
+                  {comparisonContent !== null && (
+                    <div>
+                      <h2>Latest on the server</h2>
+                      <pre>{comparisonContent}</pre>
+                      <h2>Your unsaved version</h2>
+                      <pre>{content}</pre>
+                    </div>
+                  )}
+                </section>
+              )}
+  
+              <div className="editor-tabs" role="tablist" aria-label="Editor view">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={effectiveViewMode === 'metafields'}
+                  onClick={() => setViewMode('metafields')}
+                >
+                  <span className="tab-icon">
+                    <TabPageIcon />
+                  </span>
+                  Page Meta
                 </button>
-                <button type="button" onClick={loadComparison}>
-                  View changes
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={effectiveViewMode === 'sections'}
+                  disabled={!sectionsAvailable}
+                  onClick={() => setViewMode('sections')}
+                >
+                  <span className="tab-icon">
+                    <TabSectionsIcon />
+                  </span>
+                  Sections
                 </button>
-                {comparisonContent !== null && (
-                  <div>
-                    <h2>Latest on the server</h2>
-                    <pre>{comparisonContent}</pre>
-                    <h2>Your unsaved version</h2>
-                    <pre>{content}</pre>
-                  </div>
+              </div>
+            </div>
+  
+            <div className="editor-tab-content">
+              <div className="editor-tab-panel" ref={tabPanelRef}>
+                {effectiveViewMode === 'metafields' && (
+                  <PageMetadataPanel
+                    key={path}
+                    content={content}
+                    setContent={setContent}
+                    historyHref={historyHref}
+                    siteId={siteId}
+                    path={path}
+                    previewUrl={previewUrl}
+                    renameDisabled={hasPendingChanges}
+                    onRenamed={handleRenamed}
+                  />
                 )}
-              </section>
-            )}
-
-            <div className="editor-tabs" role="tablist" aria-label="Editor view">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={effectiveViewMode === 'metafields'}
-                onClick={() => setViewMode('metafields')}
-              >
-                <span className="tab-icon">
-                  <TabPageIcon />
-                </span>
-                Page Meta
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={effectiveViewMode === 'sections'}
-                disabled={!sectionsAvailable}
-                onClick={() => setViewMode('sections')}
-              >
-                <span className="tab-icon">
-                  <TabSectionsIcon />
-                </span>
-                Sections
-              </button>
+                {effectiveViewMode === 'sections' && (
+                  <PageSectionsEditor
+                    siteId={siteId}
+                    content={content}
+                    setContent={setContent}
+                    validationErrors={validationErrors}
+                    onEditInstance={handleEditInstance}
+                    onHighlightSection={handleHighlightFromAdmin}
+                    highlightedSectionId={highlightedSectionId}
+                  />
+                )}
+                {effectiveViewMode === 'raw' && (
+                  <label className="raw-json-label">
+                    Content
+                    <textarea value={content} onChange={(event) => setContent(event.target.value)} />
+                  </label>
+                )}
+              </div>
             </div>
           </div>
-
-          <div className="editor-tab-content">
-            <div className="editor-tab-panel" ref={tabPanelRef}>
-              {effectiveViewMode === 'metafields' && (
-                <PageMetadataPanel
-                  key={path}
-                  content={content}
-                  setContent={setContent}
-                  historyHref={historyHref}
-                  siteId={siteId}
-                  path={path}
-                  previewUrl={previewUrl}
-                  renameDisabled={hasPendingChanges}
-                  onRenamed={handleRenamed}
-                />
-              )}
-              {effectiveViewMode === 'sections' && (
-                <PageSectionsEditor
-                  siteId={siteId}
-                  content={content}
-                  setContent={setContent}
-                  validationErrors={validationErrors}
-                  onEditInstance={handleEditInstance}
-                  onHighlightSection={handleHighlightFromAdmin}
-                  highlightedSectionId={highlightedSectionId}
-                />
-              )}
-              {effectiveViewMode === 'raw' && (
-                <label className="raw-json-label">
-                  Content
-                  <textarea value={content} onChange={(event) => setContent(event.target.value)} />
-                </label>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* A sibling of .editor-preview-full, not nested inside it -
-            that panel is itself hidden by default below the mobile
-            breakpoint, which would hide a child toggle button along
-            with it, leaving no way to ever open it. */}
-        <button type="button" className="editor-mobile-preview-toggle" onClick={() => setMobilePreviewOpen(true)}>
-          Preview
-        </button>
-
-        <div className={`editor-preview-full${mobilePreviewOpen ? ' is-open-mobile' : ''}`}>
-          <PreviewFrame
-            siteId={siteId}
-            url={previewUrl}
-            status={status}
-            device={device}
-            iframeRef={previewIframeRef}
-            onFrameLoad={handlePreviewFrameLoad}
-            onFrameMouseLeave={() => setHighlightedSectionId(null)}
-          />
-          {mobilePreviewOpen && (
-            <button type="button" className="editor-mobile-preview-close" onClick={() => setMobilePreviewOpen(false)}>
-              Close Preview
-            </button>
-          )}
-        </div>
-
-        <div className={`editor-fields-panel${selectedInstanceId !== null ? ' is-open' : ''}`}>
-          {selectedInstanceId !== null && (
-            <SectionFieldsPanel
+  
+          {/* A sibling of .editor-preview-full, not nested inside it -
+              that panel is itself hidden by default below the mobile
+              breakpoint, which would hide a child toggle button along
+              with it, leaving no way to ever open it. */}
+          <button type="button" className="editor-mobile-preview-toggle" onClick={() => setMobilePreviewOpen(true)}>
+            Preview
+          </button>
+  
+          <div className={`editor-preview-full${mobilePreviewOpen ? ' is-open-mobile' : ''}`}>
+            <PreviewFrame
               siteId={siteId}
-              content={content}
-              setContent={setContent}
-              validationErrors={validationErrors}
-              selectedInstanceId={selectedInstanceId}
-              onClose={handleCloseFields}
+              url={previewUrl}
+              status={status}
+              device={device}
+              iframeRef={previewIframeRef}
+              onFrameLoad={handlePreviewFrameLoad}
+              onFrameMouseLeave={() => setHighlightedSectionId(null)}
             />
-          )}
+            {mobilePreviewOpen && (
+              <button type="button" className="editor-mobile-preview-close" onClick={() => setMobilePreviewOpen(false)}>
+                Close Preview
+              </button>
+            )}
+          </div>
+  
+          <div className={`editor-fields-panel${selectedInstanceId !== null ? ' is-open' : ''}`}>
+            {selectedInstanceId !== null && (
+              <SectionFieldsPanel
+                siteId={siteId}
+                content={content}
+                setContent={setContent}
+                validationErrors={validationErrors}
+                selectedInstanceId={selectedInstanceId}
+                onClose={handleCloseFields}
+              />
+            )}
+          </div>
         </div>
       </div>
-    </div>
+      {blocker.state === 'blocked' && (
+        <UnsavedChangesPrompt
+          busy={actionBusy}
+          error={actionError}
+          onSave={() => void handlePromptSave()}
+          onDiscard={() => void handlePromptDiscard()}
+          onCancel={() => blocker.reset?.()}
+        />
+      )}
+    </>
   );
 }

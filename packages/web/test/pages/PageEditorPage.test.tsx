@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useState, type ReactNode } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { createMemoryRouter, Link, RouterProvider } from 'react-router';
 import { PageEditorPage } from '../../src/pages/PageEditorPage.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider } from '../../src/layout/PageActionsContext.tsx';
 
@@ -182,15 +182,34 @@ function dragOnto(fromHandle: HTMLElement, toRow: HTMLElement, half: 'top' | 'bo
   fireEvent.drop(toRow);
 }
 
-function renderPage(initialEntry = '/sites/site-1/editor?path=pages%2Fabout.json') {
+// createMemoryRouter/RouterProvider, not the plain <MemoryRouter>/
+// <Routes> this used before - useBlocker (guarding navigation away
+// from a page with unpublished changes) only works under a data
+// router, and throws otherwise. editorRouteExtra renders alongside
+// PageEditorPage on its own route - used only by the tests proving the
+// blocker also catches a genuine ROUTE change (not just the preview-
+// link search-param kind), standing in for a real link elsewhere in
+// the app (e.g. AppShell's top nav) without needing to render AppShell
+// itself here.
+function renderPage(initialEntry = '/sites/site-1/editor?path=pages%2Fabout.json', editorRouteExtra: ReactNode = null) {
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/sites/:siteId/editor',
+        element: (
+          <>
+            <PageEditorPage />
+            {editorRouteExtra}
+          </>
+        ),
+      },
+      { path: '/', element: <div>registry home</div> },
+    ],
+    { initialEntries: [initialEntry] },
+  );
   return render(
     <TestPageActionsHost>
-      <MemoryRouter initialEntries={[initialEntry]}>
-        <Routes>
-          <Route path="/sites/:siteId/editor" element={<PageEditorPage />} />
-          <Route path="/" element={<div>registry home</div>} />
-        </Routes>
-      </MemoryRouter>
+      <RouterProvider router={router} />
     </TestPageActionsHost>,
   );
 }
@@ -672,11 +691,13 @@ describe('PageEditorPage', () => {
     return { doc, link };
   }
 
-  it('clicking a preview link to another page this CMS manages switches both the iframe and the admin to it', async () => {
+  it('clicking a preview link to another page this CMS manages switches both the iframe and the admin to it, when nothing is pending', async () => {
     const api = installFakeEditorApi({
       content: JSON.stringify({ title: 'About', published: true, sections: [] }),
       etag: '"etag-1"',
-      source: 'draft',
+      // 'live', not 'draft' - hasPendingChanges must be false here so
+      // the blocker never fires, proving a clean page navigates freely.
+      source: 'live',
       contentList: [
         { path: 'pages/about.json', url: '/about' },
         { path: 'pages/docs.json', url: '/docs' },
@@ -689,52 +710,104 @@ describe('PageEditorPage', () => {
     const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
     const { link } = writeIframeDocWithLink(iframe, '/docs');
 
-    const confirmSpy = vi.spyOn(window, 'confirm');
     fireEvent.click(link);
 
     await waitFor(() => expect(iframe.src).toContain('/api/sites/site-1/preview/docs?t='));
-    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
-  it('clicking a preview link while the current page has unsaved edits asks for confirmation first, and does nothing if declined', async () => {
-    const api = installFakeEditorApi({
-      content: JSON.stringify({ title: 'About', published: true, sections: [] }),
-      etag: '"etag-1"',
-      source: 'draft',
-      contentList: [
-        { path: 'pages/about.json', url: '/about' },
-        { path: 'pages/docs.json', url: '/docs' },
-      ],
+  describe('a page with unpublished changes (source: draft) blocks navigating away', () => {
+    function setUpDirtyPage() {
+      const api = installFakeEditorApi({
+        content: JSON.stringify({ title: 'About', published: true, sections: [] }),
+        etag: '"etag-1"',
+        source: 'draft',
+        contentList: [
+          { path: 'pages/about.json', url: '/about' },
+          { path: 'pages/docs.json', url: '/docs' },
+        ],
+      });
+      return api;
+    }
+
+    it('prompts before following a preview link to another page, and Cancel leaves everything untouched', async () => {
+      const api = setUpDirtyPage();
+      renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+      await waitForActions();
+      await waitForContentIndexLoaded(api.fetchMock);
+
+      const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+      const { link } = writeIframeDocWithLink(iframe, '/docs');
+      const originalSrc = iframe.src;
+
+      fireEvent.click(link);
+      await waitFor(() => expect(screen.getByRole('alertdialog')).toBeDefined());
+      expect(screen.getByText(/haven't been published yet/)).toBeDefined();
+
+      fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel' }));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(iframe.src).toBe(originalSrc);
     });
-    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
-    await waitForActions();
-    await waitForContentIndexLoaded(api.fetchMock);
 
-    // The click listener is attached here, against the iframe's one
-    // and only load event - it must NOT go stale once the edit below
-    // makes status 'dirty' without the iframe itself reloading (it
-    // only ever reloads on a completed autosave or a page switch,
-    // neither of which has happened yet).
-    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
-    const { link } = writeIframeDocWithLink(iframe, '/docs');
-    const originalSrc = iframe.src;
+    it('Save Changes publishes the current page, then proceeds to the page that was clicked', async () => {
+      const api = setUpDirtyPage();
+      renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+      await waitForActions();
+      await waitForContentIndexLoaded(api.fetchMock);
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Sections' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add Section' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'hero' }));
-    // A change is now sitting in the debounce window - status is
-    // 'dirty', not yet autosaved, and the iframe has not reloaded.
+      const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+      const { link } = writeIframeDocWithLink(iframe, '/docs');
 
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
-    fireEvent.click(link);
-    expect(window.confirm).toHaveBeenCalledWith(
-      'This page has changes that have not finished saving yet. Leave this page anyway?',
-    );
-    expect(iframe.src).toBe(originalSrc);
+      fireEvent.click(link);
+      await waitFor(() => expect(screen.getByRole('alertdialog')).toBeDefined());
 
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    fireEvent.click(link);
-    await waitFor(() => expect(iframe.src).toContain('/api/sites/site-1/preview/docs?t='));
+      fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Save Changes' }));
+
+      await waitFor(() => expect(api.state.source).toBe('live'));
+      await waitFor(() => expect(iframe.src).toContain('/api/sites/site-1/preview/docs?t='));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+
+    it('Discard Changes reverts the draft with no extra native confirm, then proceeds to the page that was clicked', async () => {
+      const api = setUpDirtyPage();
+      const confirmSpy = vi.spyOn(window, 'confirm');
+      renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+      await waitForActions();
+      await waitForContentIndexLoaded(api.fetchMock);
+
+      const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+      const { link } = writeIframeDocWithLink(iframe, '/docs');
+
+      fireEvent.click(link);
+      await waitFor(() => expect(screen.getByRole('alertdialog')).toBeDefined());
+
+      fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Discard Changes' }));
+
+      await waitFor(() => expect(api.state.source).toBe('live'));
+      await waitFor(() => expect(iframe.src).toContain('/api/sites/site-1/preview/docs?t='));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      // The UnsavedChangesPrompt IS the confirmation here - a second,
+      // native window.confirm on top (useDraftPublishActions' own
+      // standalone Discard Changes button still has one) would just
+      // be an annoying re-ask of a choice already made explicitly.
+      expect(confirmSpy).not.toHaveBeenCalled();
+    });
+
+    it('also blocks a genuine route change elsewhere in the app (e.g. the top nav), not just the preview-link search-param kind', async () => {
+      const api = setUpDirtyPage();
+      renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout', <Link to="/">Pages</Link>);
+      await waitForActions();
+      void api;
+
+      fireEvent.click(screen.getByRole('link', { name: 'Pages' }));
+
+      await waitFor(() => expect(screen.getByRole('alertdialog')).toBeDefined());
+      expect(screen.queryByText('registry home')).toBeNull();
+
+      fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel' }));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(screen.queryByText('registry home')).toBeNull();
+    });
   });
 
   it('clicking a preview link to a page outside this CMS opens it in a new tab instead of navigating the preview or the admin', async () => {
