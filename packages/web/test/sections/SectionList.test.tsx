@@ -310,7 +310,7 @@ describe('SectionList', () => {
     expect(screen.queryByRole('button', { name: 'Add Block' })).toBeNull();
   });
 
-  it('I4: removing a section asks for confirmation first, without also opening its Fields tab', () => {
+  it('I4: removing a section removes it immediately, with no confirmation step, without also opening its Fields tab', () => {
     const onChange = vi.fn();
     const onEditInstance = vi.fn();
     render(
@@ -324,29 +324,9 @@ describe('SectionList', () => {
     );
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove section' })[0] as HTMLElement);
-    expect(onChange).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Section' }));
 
     expect(onChange).toHaveBeenCalledWith([section('b')]);
     expect(onEditInstance).not.toHaveBeenCalled();
-  });
-
-  it('declining the removal confirmation makes no change', () => {
-    const onChange = vi.fn();
-    render(
-      <SectionList
-        sections={[section('a')]}
-        sectionTypes={SECTION_TYPES}
-        blockTypes={BLOCK_TYPES}
-        onChange={onChange}
-        onEditInstance={vi.fn()}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Remove section' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-
-    expect(onChange).not.toHaveBeenCalled();
     expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
@@ -479,12 +459,13 @@ describe('SectionList', () => {
       },
       acceptsBlocks: { hero: false, faq: false },
     };
+    const onChange = vi.fn();
     render(
       <SectionList
         sections={[section('a', 'hero')]}
         sectionTypes={typesWithTitle}
         blockTypes={BLOCK_TYPES}
-        onChange={vi.fn()}
+        onChange={onChange}
         onEditInstance={vi.fn()}
       />,
     );
@@ -498,7 +479,7 @@ describe('SectionList', () => {
     expect(screen.getByRole('menuitem', { name: 'FAQ' })).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove section' }));
-    expect(screen.getByText('Remove this "Hero" section? This cannot be undone.')).toBeDefined();
+    expect(onChange).toHaveBeenCalledWith([]);
   });
 
   it('K4: a section\'s own allowedBlocks restricts its Add Block menu to just those types', () => {

@@ -157,7 +157,7 @@ describe('BlockList', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it('I4: removing a block asks for confirmation first, then removes only that block, without also opening its Fields tab', () => {
+  it('I4: removing a block removes it immediately, with no confirmation step, without also opening its Fields tab', () => {
     const onChange = vi.fn();
     const onEditInstance = vi.fn();
     render(
@@ -170,21 +170,9 @@ describe('BlockList', () => {
     );
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove block' })[0] as HTMLElement);
-    expect(onChange).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Block' }));
 
     expect(onChange).toHaveBeenCalledWith([block('b')]);
     expect(onEditInstance).not.toHaveBeenCalled();
-  });
-
-  it('I4: declining the removal confirmation makes no change', () => {
-    const onChange = vi.fn();
-    render(<BlockList blocks={[block('a')]} blockTypes={BLOCK_TYPES} onChange={onChange} onEditInstance={vi.fn()} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Remove block' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-
-    expect(onChange).not.toHaveBeenCalled();
     expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
@@ -350,8 +338,9 @@ describe('BlockList', () => {
       },
       acceptsBlocks: { button: false, group: true },
     };
+    const onChange = vi.fn();
     render(
-      <BlockList blocks={[block('a', 'button')]} blockTypes={typesWithTitle} onChange={vi.fn()} onEditInstance={vi.fn()} />,
+      <BlockList blocks={[block('a', 'button')]} blockTypes={typesWithTitle} onChange={onChange} onEditInstance={vi.fn()} />,
     );
 
     expect(screen.getByText('Button', { selector: 'strong' })).toBeDefined();
@@ -363,7 +352,7 @@ describe('BlockList', () => {
     expect(screen.getByRole('menuitem', { name: 'Group' })).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove block' }));
-    expect(screen.getByText('Remove this "Button" block? This cannot be undone.')).toBeDefined();
+    expect(onChange).toHaveBeenCalledWith([]);
   });
 
   it('K4: the add-block menu is restricted to allowedTypes when the parent schema declares one', () => {
