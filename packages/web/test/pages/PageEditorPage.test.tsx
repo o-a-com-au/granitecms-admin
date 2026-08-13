@@ -197,6 +197,11 @@ function renderPage(initialEntry = '/sites/site-1/editor?path=pages%2Fabout.json
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // vi.spyOn(window, 'confirm'/'open') elsewhere in this file returns
+  // the SAME accumulated mock (with its prior call history) on every
+  // repeat call within a file unless explicitly restored - vitest 3
+  // apparently reset this implicitly between tests, vitest 4 does not.
+  vi.restoreAllMocks();
 });
 
 // Save/Discard render into the page-actions slot (TestPageActionsHost

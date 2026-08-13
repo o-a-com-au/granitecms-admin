@@ -1,9 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router';
+import { createBrowserRouter, RouterProvider } from 'react-router';
 import { AuthProvider } from './auth/AuthContext.tsx';
 import { ThemeProvider } from './theme/ThemeContext.tsx';
-import { App } from './App.tsx';
+import { routes } from './App.tsx';
 // Self-hosted (not a Google Fonts <link>) - no external request at
 // runtime, matching this being a self-hosted admin tool, and each
 // weight is its own CSS file so only the four this app actually sets
@@ -20,13 +20,13 @@ if (!container) {
   throw new Error('root element not found');
 }
 
+const router = createBrowserRouter(routes);
+
 createRoot(container).render(
   <StrictMode>
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <RouterProvider router={router} />
       </AuthProvider>
     </ThemeProvider>
   </StrictMode>,
