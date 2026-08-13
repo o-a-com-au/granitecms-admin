@@ -8,8 +8,8 @@
    content there, not bled full-width to the panel edges. */
 .editor-tabs {
   display: flex;
-  gap: 0.25rem;
-  padding: 0.25rem;
+  gap: var(--space-xs);
+  padding: var(--space-xs);
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
   background: var(--colour-surface);

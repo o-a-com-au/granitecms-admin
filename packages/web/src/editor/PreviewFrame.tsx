@@ -47,12 +47,28 @@ function encodeUrlSegments(url: string): string {
 // leaving a conflict - a plain ref-tracked transition, not a hook on
 // useAutosaveDraft itself, which stays deliberately UI-agnostic and
 // shared with a future Group I form editor.
-function usePreviewRefreshToken(status: EditorStatus): number {
+//
+// Every bump is a real iframe navigation (a plain src reassignment),
+// which resets scroll to the top like any browser navigation would -
+// jarring after e.g. adding a block deep in a long page, so the old
+// document's scroll position is captured here (its very last moment
+// still on screen, right before the reload it's about to trigger) and
+// handed back via pendingScrollRef for handleFrameLoad, below, to
+// restore once the new document has actually loaded.
+function usePreviewRefreshToken(
+  status: EditorStatus,
+  iframeRef: RefObject<HTMLIFrameElement | null> | undefined,
+  pendingScrollRef: RefObject<{ x: number; y: number } | null>,
+): number {
   const previousStatusRef = useRef(status);
   const [token, setToken] = useState(0);
 
   useEffect(() => {
     if (previousStatusRef.current === 'saving' && status === 'ready') {
+      const win = iframeRef?.current?.contentWindow;
+      if (win) {
+        pendingScrollRef.current = { x: win.scrollX, y: win.scrollY };
+      }
       setToken((current) => current + 1);
     }
     previousStatusRef.current = status;
@@ -91,7 +107,22 @@ export function PreviewFrame({
   onFrameLoad,
   onFrameMouseLeave,
 }: PreviewFrameProps) {
-  const refreshToken = usePreviewRefreshToken(status);
+  const pendingScrollRef = useRef<{ x: number; y: number } | null>(null);
+  const refreshToken = usePreviewRefreshToken(status, iframeRef, pendingScrollRef);
+
+  // Restores whatever usePreviewRefreshToken captured, above, right
+  // before triggering this reload - only ever set for that one case
+  // (an autosave-triggered refresh of the SAME page), never for the
+  // very first load or a genuine switch to a different page, so this
+  // is a no-op the rest of the time.
+  function handleFrameLoad(): void {
+    const pending = pendingScrollRef.current;
+    if (pending) {
+      iframeRef?.current?.contentWindow?.scrollTo(pending.x, pending.y);
+      pendingScrollRef.current = null;
+    }
+    onFrameLoad?.();
+  }
 
   // A native listener, not the iframeRef.current.
   //
@@ -129,7 +160,7 @@ export function PreviewFrame({
   return (
     <div className="preview-pane">
       <div className="preview-viewport" data-device={device}>
-        <iframe ref={iframeRef} title="Live preview" src={src} style={{ width: DEVICE_WIDTHS[device] }} onLoad={onFrameLoad} />
+        <iframe ref={iframeRef} title="Live preview" src={src} style={{ width: DEVICE_WIDTHS[device] }} onLoad={handleFrameLoad} />
       </div>
     </div>
   );

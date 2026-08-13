@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { createRef } from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { PreviewFrame } from '../../src/editor/PreviewFrame.tsx';
 
 describe('PreviewFrame', () => {
@@ -83,5 +84,56 @@ describe('PreviewFrame', () => {
     const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
     expect(iframe.style.width).toBe('375px');
     expect(iframe.closest('.preview-viewport')?.getAttribute('data-device')).toBe('mobile');
+  });
+
+  it('F2: a completed autosave preserves the previous scroll position across the reload it triggers', () => {
+    const iframeRef = createRef<HTMLIFrameElement>();
+    const { rerender } = render(
+      <PreviewFrame siteId="site-1" url="/about" status="saving" device="desktop" iframeRef={iframeRef} />,
+    );
+
+    // jsdom's window.scrollX/scrollY are plain read-only getters -
+    // redefined here to stand in for "how far down the old document
+    // was scrolled" at the moment the reload is triggered, below.
+    const oldWin = iframeRef.current?.contentWindow as Window;
+    Object.defineProperty(oldWin, 'scrollX', { value: 40, configurable: true });
+    Object.defineProperty(oldWin, 'scrollY', { value: 820, configurable: true });
+
+    // saving -> ready is what actually reloads the iframe (F2) - the
+    // scroll position above must be captured in that same instant,
+    // before the reload wipes it.
+    rerender(<PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" iframeRef={iframeRef} />);
+
+    // The reload itself: jsdom never really navigates, so the new
+    // document's own load event is simulated directly, same pattern
+    // PageEditorPage.test.tsx already uses for this iframe. jsdom
+    // hands the iframe a fresh contentWindow the moment src changes
+    // (matching a real browser navigating to a new document), so the
+    // spy is set up on THAT one, not the pre-reload reference above.
+    const newWin = iframeRef.current?.contentWindow as Window;
+    const scrollToSpy = vi.spyOn(newWin, 'scrollTo').mockImplementation(() => {});
+    fireEvent.load(iframeRef.current as HTMLIFrameElement);
+
+    expect(scrollToSpy).toHaveBeenCalledWith(40, 820);
+  });
+
+  it('does not restore any scroll position on the very first load, or on switching to a different page', () => {
+    const iframeRef = createRef<HTMLIFrameElement>();
+    const { rerender } = render(
+      <PreviewFrame siteId="site-1" url="/about" status="loading" device="desktop" iframeRef={iframeRef} />,
+    );
+    const scrollToSpy = vi.spyOn(iframeRef.current?.contentWindow as Window, 'scrollTo').mockImplementation(() => {});
+
+    // Initial load (loading -> ready) - never captured anything to restore.
+    rerender(<PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" iframeRef={iframeRef} />);
+    fireEvent.load(iframeRef.current as HTMLIFrameElement);
+    expect(scrollToSpy).not.toHaveBeenCalled();
+
+    // A genuine switch to a different page - same reasoning, a fresh
+    // page starting at the top is correct, not a leftover position
+    // from whatever page was open before.
+    rerender(<PreviewFrame siteId="site-1" url="/docs" status="ready" device="desktop" iframeRef={iframeRef} />);
+    fireEvent.load(iframeRef.current as HTMLIFrameElement);
+    expect(scrollToSpy).not.toHaveBeenCalled();
   });
 });
