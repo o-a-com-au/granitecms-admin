@@ -42,6 +42,12 @@ interface FakeState {
   // of the ETag check - for asserting on the resulting 'save-error'
   // state (and that Save Changes becomes unclickable while in it).
   forceDraftSaveError?: boolean;
+  // Backs the site's content listing (GET /content, no trailing path -
+  // distinct from the single-item GET /content/:path read below) that
+  // PageEditorPage indexes url -> path from, for the preview-click-to-
+  // navigate feature. Left empty by default - most tests never click a
+  // link inside the preview, so there is nothing to resolve.
+  contentList?: Array<{ path: string; url: string | null }>;
 }
 
 function installFakeEditorApi(initial: FakeState) {
@@ -61,6 +67,22 @@ function installFakeEditorApi(initial: FakeState) {
         }),
         { status: 200 },
       );
+    }
+
+    // The listing endpoint (no path segment after /content) - checked
+    // ahead of the single-item read below, which always has one.
+    if (method === 'GET' && /\/content(\?|$)/.test(url)) {
+      const entries = (state.contentList ?? []).map((entry) => ({
+        path: entry.path,
+        name: entry.path,
+        title: entry.path,
+        type: 'page',
+        published: true,
+        hasDraft: false,
+        url: entry.url,
+        changedAt: null,
+      }));
+      return new Response(JSON.stringify(entries), { status: 200 });
     }
 
     if (method === 'GET' && url.includes('/content/')) {
@@ -128,7 +150,7 @@ function installFakeEditorApi(initial: FakeState) {
   });
 
   vi.stubGlobal('fetch', fetchMock);
-  return { state };
+  return { state, fetchMock };
 }
 
 // PageEditorPage uses useAutosaveDraft's real production debounce
@@ -609,6 +631,127 @@ describe('PageEditorPage', () => {
     // that gap, not a mouseout inside the previewed document.
     fireEvent.mouseLeave(iframe);
     await waitFor(() => expect(row.className).not.toContain('is-highlighted'));
+  });
+
+  // The url -> path index is fetched in parallel with the page's own
+  // content on mount - waiting for the real network call it drives
+  // (rather than just the "Add Section" button, which only proves the
+  // page's own content loaded) avoids a race where a test clicks a
+  // preview link before the index exists yet, which would make every
+  // link look unresolvable.
+  async function waitForContentIndexLoaded(fetchMock: ReturnType<typeof vi.fn>): Promise<void> {
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some((call) => {
+          const input = call[0] as RequestInfo | URL;
+          return /\/content(\?|$)/.test(typeof input === 'string' ? input : input.toString());
+        }),
+      ).toBe(true),
+    );
+  }
+
+  function writeIframeDocWithLink(iframe: HTMLIFrameElement, linkHref: string): { doc: Document; link: HTMLAnchorElement } {
+    const doc = iframe.contentDocument as Document;
+    doc.open();
+    // The real preview response carries <base href="{site.url}/">
+    // (site-preview.ts) so relative theme links resolve to the site's
+    // own origin - reproduced here since jsdom never actually
+    // navigates the iframe to fetch this for real.
+    doc.write('<head><base href="http://localhost:3891/"></head><body></body>');
+    doc.close();
+    const link = doc.createElement('a');
+    link.setAttribute('href', linkHref);
+    link.textContent = 'link';
+    doc.body.append(link);
+    fireEvent.load(iframe);
+    return { doc, link };
+  }
+
+  it('clicking a preview link to another page this CMS manages switches both the iframe and the admin to it', async () => {
+    const api = installFakeEditorApi({
+      content: JSON.stringify({ title: 'About', published: true, sections: [] }),
+      etag: '"etag-1"',
+      source: 'draft',
+      contentList: [
+        { path: 'pages/about.json', url: '/about' },
+        { path: 'pages/docs.json', url: '/docs' },
+      ],
+    });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Section' })).toBeDefined());
+    await waitForContentIndexLoaded(api.fetchMock);
+
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const { link } = writeIframeDocWithLink(iframe, '/docs');
+
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    fireEvent.click(link);
+
+    await waitFor(() => expect(iframe.src).toContain('/api/sites/site-1/preview/docs?t='));
+    expect(confirmSpy).not.toHaveBeenCalled();
+  });
+
+  it('clicking a preview link while the current page has unsaved edits asks for confirmation first, and does nothing if declined', async () => {
+    const api = installFakeEditorApi({
+      content: JSON.stringify({ title: 'About', published: true, sections: [] }),
+      etag: '"etag-1"',
+      source: 'draft',
+      contentList: [
+        { path: 'pages/about.json', url: '/about' },
+        { path: 'pages/docs.json', url: '/docs' },
+      ],
+    });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+    await waitForActions();
+    await waitForContentIndexLoaded(api.fetchMock);
+
+    // The click listener is attached here, against the iframe's one
+    // and only load event - it must NOT go stale once the edit below
+    // makes status 'dirty' without the iframe itself reloading (it
+    // only ever reloads on a completed autosave or a page switch,
+    // neither of which has happened yet).
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const { link } = writeIframeDocWithLink(iframe, '/docs');
+    const originalSrc = iframe.src;
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Sections' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Section' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'hero' }));
+    // A change is now sitting in the debounce window - status is
+    // 'dirty', not yet autosaved, and the iframe has not reloaded.
+
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    fireEvent.click(link);
+    expect(window.confirm).toHaveBeenCalledWith(
+      'This page has changes that have not finished saving yet. Leave this page anyway?',
+    );
+    expect(iframe.src).toBe(originalSrc);
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fireEvent.click(link);
+    await waitFor(() => expect(iframe.src).toContain('/api/sites/site-1/preview/docs?t='));
+  });
+
+  it('clicking a preview link to a page outside this CMS opens it in a new tab instead of navigating the preview or the admin', async () => {
+    const api = installFakeEditorApi({
+      content: JSON.stringify({ title: 'About', published: true, sections: [] }),
+      etag: '"etag-1"',
+      source: 'draft',
+      contentList: [{ path: 'pages/about.json', url: '/about' }],
+    });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Section' })).toBeDefined());
+    await waitForContentIndexLoaded(api.fetchMock);
+
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const { link } = writeIframeDocWithLink(iframe, 'https://example.com/pricing');
+    const originalSrc = iframe.src;
+
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+    fireEvent.click(link);
+
+    expect(openSpy).toHaveBeenCalledWith('https://example.com/pricing', '_blank', 'noopener,noreferrer');
+    expect(iframe.src).toBe(originalSrc);
   });
 
   it('the edit panel renders before the preview in the DOM, matching the revised design\'s panel-left/preview-right layout', async () => {

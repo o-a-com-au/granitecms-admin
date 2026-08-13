@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
+import { listSiteContent } from '../api/site-content.ts';
 import { useAutosaveDraft } from '../editor/useAutosaveDraft.ts';
 import { useDraftPublishActions } from '../editor/useDraftPublishActions.ts';
 import { backfillPageName, derivePageLabel } from './derivePageLabel.ts';
@@ -37,6 +38,56 @@ export function PageEditorPage() {
   // own outline effect below and SectionList's row styling can react
   // to the one value instead of each direction maintaining its own.
   const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
+  // url -> path, so a clicked preview link can be resolved to a
+  // content file synchronously (no per-click network round trip).
+  // Neither the admin's own proxy nor the site's /v1/content itself
+  // offers a single-URL lookup (only a full listing), so the whole
+  // site's content is indexed once per siteId rather than added as a
+  // new endpoint on either side.
+  const [contentIndex, setContentIndex] = useState<Map<string, string> | null>(null);
+  // The click listener below is attached inside handlePreviewFrameLoad,
+  // which only reruns when the iframe's own load event actually fires
+  // (a real reload) - not on every render. Editing content doesn't
+  // reload the iframe until autosave completes, so a listener reading
+  // previewUrl/contentIndex/status directly from its own closure would
+  // see whatever they were at the LAST reload, not live values - wrong
+  // in exactly the case that matters most (an edit sitting dirty,
+  // mid-debounce, is precisely when nothing has reloaded yet). Refs
+  // kept current every render sidestep that; setHighlightedSectionId/
+  // handleEditInstance elsewhere in this same listener don't need this
+  // treatment since they only ever call stable useState setters, never
+  // read a value themselves.
+  const previewUrlRef = useRef(previewUrl);
+  previewUrlRef.current = previewUrl;
+  const contentIndexRef = useRef(contentIndex);
+  contentIndexRef.current = contentIndex;
+
+  useEffect(() => {
+    let cancelled = false;
+    setContentIndex(null);
+    listSiteContent(siteId, {})
+      .then((entries) => {
+        if (cancelled) {
+          return;
+        }
+        const index = new Map<string, string>();
+        for (const entry of entries) {
+          if (entry.url !== null) {
+            index.set(entry.url, entry.path);
+          }
+        }
+        setContentIndex(index);
+      })
+      .catch(() => {
+        // A preview link just won't be recognised as internal
+        // navigation until this loads (or a future siteId change
+        // retries it) - clicking it falls back to opening in a new
+        // tab, same as any other unresolvable link.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [siteId]);
 
   function findSectionElement(id: string): HTMLElement | undefined {
     const doc = previewIframeRef.current?.contentDocument;
@@ -141,12 +192,23 @@ export function PageEditorPage() {
     // as clicking its row in the sidebar - capture phase (true), not
     // bubble, so this fires and can preventDefault before a real link
     // or button inside the section (e.g. cta-banner's own "Get
-    // started") acts on the click itself; editing the section is
-    // always what a click in the preview should do here, never a
-    // navigation away from the page being edited.
+    // started") acts on the click itself. A real link to another page
+    // of this site is the one exception (handlePreviewAnchorClick,
+    // below) - everything else clicked inside a section still just
+    // opens its Fields panel rather than doing whatever it would
+    // normally do.
     doc.addEventListener(
       'click',
       (event) => {
+        const mouseEvent = event as MouseEvent;
+        const anchor =
+          mouseEvent.target !== null && 'closest' in mouseEvent.target
+            ? (mouseEvent.target as Element).closest<HTMLAnchorElement>('a[href]')
+            : null;
+        if (anchor !== null) {
+          handlePreviewAnchorClick(mouseEvent, anchor, doc);
+          return;
+        }
         const id = sectionIdAt(event.target);
         if (id !== null) {
           event.preventDefault();
@@ -156,6 +218,57 @@ export function PageEditorPage() {
       },
       true,
     );
+  }
+
+  // A link inside the preview always means one of three things, never
+  // the iframe's own default navigation - staying inside the admin-
+  // proxied preview (F1/F3 above) is what keeps published-vs-draft
+  // preview accuracy intact, which a raw navigation to the site's real
+  // origin would silently break:
+  //  1. Another page this CMS actually manages - confirm first if the
+  //     current page has edits the debounce hasn't flushed yet, then
+  //     hand the admin itself over to that page (setSearchParams),
+  //     same mechanism handleRenamed already uses below.
+  //  2. The current page again (a hash link, or a link to itself) -
+  //     nothing to do; just stop the iframe navigating to its own real
+  //     origin for no reason.
+  //  3. Anything else (external, or not a page this CMS tracks) - open
+  //     it in a real new tab instead, so it's still reachable without
+  //     ever pulling the admin's own preview iframe off the proxy.
+  function handlePreviewAnchorClick(event: MouseEvent, anchor: HTMLAnchorElement, doc: Document): void {
+    const href = anchor.getAttribute('href');
+    if (href === null) {
+      return;
+    }
+    let resolved: URL;
+    let siteOrigin: string;
+    try {
+      resolved = new URL(href, doc.baseURI);
+      siteOrigin = new URL(doc.baseURI).origin;
+    } catch {
+      return;
+    }
+
+    if (resolved.origin !== siteOrigin) {
+      event.preventDefault();
+      window.open(resolved.href, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    if (resolved.pathname === previewUrlRef.current) {
+      event.preventDefault();
+      return;
+    }
+
+    const matchedPath = contentIndexRef.current?.get(resolved.pathname) ?? null;
+    if (matchedPath === null) {
+      event.preventDefault();
+      window.open(resolved.href, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    event.preventDefault();
+    navigateToPage(matchedPath, resolved.pathname);
   }
 
   const {
@@ -170,6 +283,12 @@ export function PageEditorPage() {
     loadComparison,
     reloadLatest,
   } = useAutosaveDraft(siteId, path);
+  // See previewUrlRef/contentIndexRef above - navigateToPage's dirty
+  // check runs from the same potentially-stale preview click listener,
+  // so it needs the live status too, not whatever it was at the last
+  // iframe reload.
+  const statusRef = useRef(status);
+  statusRef.current = status;
 
   // Backfills a missing "name" before every edit reaches the hook, not
   // just once on load - viewing an untouched page must never silently
@@ -230,6 +349,33 @@ export function PageEditorPage() {
   // below re-fetches from the page's new real location instead of
   // continuing to read/write the now-gone old one.
   function handleRenamed(newPath: string, newUrl: string): void {
+    const next = new URLSearchParams(searchParams);
+    next.set('path', newPath);
+    next.set('url', newUrl);
+    setSearchParams(next);
+  }
+
+  // Following a link inside the preview to another page it manages -
+  // same query-param swap as handleRenamed above, since as far as
+  // useAutosaveDraft and PreviewFrame are concerned this is no
+  // different from any other path/url change. status is checked
+  // against the debounce, not against source/hasPendingChanges - a
+  // draft the user is happy publishing later is not what's at risk
+  // here, only an edit still sitting in the 1s window before autosave
+  // actually writes it (or a save already in flight/failed) - leaving
+  // now would drop that edit on the floor with no warning otherwise.
+  function navigateToPage(newPath: string, newUrl: string): void {
+    if (statusRef.current === 'dirty' || statusRef.current === 'saving' || statusRef.current === 'save-error') {
+      const proceed = window.confirm(
+        'This page has changes that have not finished saving yet. Leave this page anyway?',
+      );
+      if (!proceed) {
+        return;
+      }
+    }
+    // The Fields panel's selectedInstanceId belongs to the page being
+    // left - it won't match any section id in whatever loads next.
+    setSelectedInstanceId(null);
     const next = new URLSearchParams(searchParams);
     next.set('path', newPath);
     next.set('url', newUrl);
