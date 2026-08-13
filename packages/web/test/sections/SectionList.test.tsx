@@ -400,8 +400,9 @@ describe('SectionList', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
+    // BLOCK_TYPES here declares only one type - Add Block skips the
+    // picker and adds it directly.
     fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'button' }));
 
     expect(onChange).toHaveBeenCalledTimes(1);
     const [[updatedSections]] = onChange.mock.calls as [[Instance[]]];
@@ -495,20 +496,27 @@ describe('SectionList', () => {
       },
       acceptsBlocks: { button: false, group: false },
     };
+    const onChange = vi.fn();
     render(
       <SectionList
         sections={[{ ...section('a'), blocks: [] }]}
         sectionTypes={restrictedSectionTypes}
         blockTypes={twoBlockTypes}
-        onChange={vi.fn()}
+        onChange={onChange}
         onEditInstance={vi.fn()}
       />,
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
+    // Restricted down to exactly one type ('button', out of the two
+    // twoBlockTypes declares overall) - Add Block skips the picker and
+    // adds it directly, so there's no menu left to assert against
+    // here; onChange having been called with a 'button' block is the
+    // restriction actually taking effect.
     fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
 
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['button']);
+    const [[updatedSections]] = onChange.mock.calls as [[Instance[]]];
+    expect(updatedSections[0]?.blocks?.[0]?.type).toBe('button');
   });
 
   it('K4: a section with no allowedBlocks offers every block type (regression)', () => {

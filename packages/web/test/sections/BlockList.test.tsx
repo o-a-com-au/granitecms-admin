@@ -83,6 +83,26 @@ describe('BlockList', () => {
     expect(screen.queryByRole('menuitem')).toBeNull();
   });
 
+  it('when only one block type is available, Add Block skips the picker entirely and adds that type directly', () => {
+    const onChange = vi.fn();
+    render(
+      <BlockList blocks={[]} blockTypes={BLOCK_TYPES} allowedTypes={['button']} onChange={onChange} onEditInstance={vi.fn()} />,
+    );
+
+    const addButton = screen.getByRole('button', { name: 'Add Block' });
+    // No popup to announce - aria-haspopup/aria-expanded would be
+    // actively misleading on a button that never opens one.
+    expect(addButton.getAttribute('aria-haspopup')).toBeNull();
+    expect(addButton.getAttribute('aria-expanded')).toBeNull();
+
+    fireEvent.click(addButton);
+
+    expect(screen.queryByRole('menuitem')).toBeNull();
+    const [newBlocks] = onChange.mock.calls[0] as [Instance[]];
+    expect(newBlocks).toHaveLength(1);
+    expect(newBlocks[0]?.type).toBe('button');
+  });
+
   it('L3: a newly-added block is pre-filled from its schema\'s declared defaults, not left empty', () => {
     const typesWithDefaults: ThemeTypeSchemas = {
       schemas: {
@@ -100,8 +120,9 @@ describe('BlockList', () => {
     const onChange = vi.fn();
     render(<BlockList blocks={[]} blockTypes={typesWithDefaults} onChange={onChange} onEditInstance={vi.fn()} />);
 
+    // Only one type is declared here - Add Block skips the picker
+    // entirely and adds it directly (see the dedicated test for that).
     fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'button' }));
 
     const [newBlocks] = onChange.mock.calls[0] as [Instance[]];
     expect(newBlocks[0]?.settings).toEqual({ label: 'Learn more', url: '#' });
@@ -345,11 +366,17 @@ describe('BlockList', () => {
   });
 
   it('K4: the add-block menu is restricted to allowedTypes when the parent schema declares one', () => {
-    render(<BlockList blocks={[]} blockTypes={BLOCK_TYPES} allowedTypes={['button']} onChange={vi.fn()} onEditInstance={vi.fn()} />);
+    const onChange = vi.fn();
+    render(<BlockList blocks={[]} blockTypes={BLOCK_TYPES} allowedTypes={['button']} onChange={onChange} onEditInstance={vi.fn()} />);
 
+    // Restricted down to exactly one type - Add Block skips the picker
+    // and adds it directly, so there's no menu left to assert against
+    // here; onChange having been called with a 'button' block is the
+    // restriction actually taking effect.
     fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
 
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['button']);
+    const [newBlocks] = onChange.mock.calls[0] as [Instance[]];
+    expect(newBlocks[0]?.type).toBe('button');
   });
 
   it('K4: the add-block menu is unrestricted when allowedTypes is omitted (regression)', () => {
@@ -368,11 +395,12 @@ describe('BlockList', () => {
       },
       acceptsBlocks: { button: false, group: true },
     };
+    const onChange = vi.fn();
     render(
       <BlockList
         blocks={[{ id: 'g1', type: 'group', settings: {}, blocks: [] }]}
         blockTypes={typesWithNestedRestriction}
-        onChange={vi.fn()}
+        onChange={onChange}
         onEditInstance={vi.fn()}
       />,
     );
@@ -382,12 +410,17 @@ describe('BlockList', () => {
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['button', 'group']);
     fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
 
-    // The nested menu, inside the group block, is restricted to its own
-    // allowedBlocks. It sits inside the row's own <li>, so it precedes
-    // the outer add-menu (rendered after the whole <ul>) in DOM order.
+    // The nested add-menu, inside the group block, is restricted to
+    // its own allowedBlocks - down to exactly one type here, so Add
+    // Block there skips the picker and adds it directly (same as any
+    // other single-type list) rather than opening a one-item menu. It
+    // sits inside the row's own <li>, so it precedes the outer
+    // add-button (rendered after the whole <ul>) in DOM order.
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
     const addButtons = screen.getAllByRole('button', { name: 'Add Block' });
     fireEvent.click(addButtons[0] as HTMLElement);
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['button']);
+
+    const [newBlocks] = onChange.mock.calls[0] as [Instance[]];
+    expect(newBlocks[0]?.blocks?.[0]?.type).toBe('button');
   });
 });

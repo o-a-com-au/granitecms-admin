@@ -230,6 +230,17 @@ export function BlockList({
     setAddMenuOpen(false);
   }
 
+  // A picker with exactly one option is just an extra click for no
+  // real choice - skips straight to adding it instead of opening a
+  // menu with a single, forced item.
+  function handleAddButtonClick(): void {
+    if (blockTypeNames.length === 1) {
+      addBlock(blockTypeNames[0] as string);
+      return;
+    }
+    toggleAddMenu();
+  }
+
   function handleDragOver(event: DragEvent<HTMLLIElement>, index: number): void {
     event.preventDefault();
     setDropIndex(computeDropIndex(event.clientY, event.currentTarget.getBoundingClientRect(), index));
@@ -294,9 +305,9 @@ export function BlockList({
           <button
             type="button"
             className="instance-add-button"
-            aria-haspopup="menu"
-            aria-expanded={addMenuOpen}
-            onClick={toggleAddMenu}
+            aria-haspopup={blockTypeNames.length === 1 ? undefined : 'menu'}
+            aria-expanded={blockTypeNames.length === 1 ? undefined : addMenuOpen}
+            onClick={handleAddButtonClick}
           >
             <AddIcon />
             Add Block
