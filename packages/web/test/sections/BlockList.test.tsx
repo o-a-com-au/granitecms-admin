@@ -183,6 +183,29 @@ describe('BlockList', () => {
     expect(screen.getAllByRole('button', { name: 'Add Block' })).toHaveLength(2);
   });
 
+  it('expanding one block\'s nested blocks collapses whichever sibling block was already open - an accordion, not independent per-row state', () => {
+    render(
+      <BlockList
+        blocks={[
+          { id: 'g1', type: 'group', settings: {}, blocks: [] },
+          { id: 'g2', type: 'group', settings: {}, blocks: [] },
+        ]}
+        blockTypes={BLOCK_TYPES}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    const [expandG1, expandG2] = screen.getAllByRole('button', { name: 'Expand' });
+    fireEvent.click(expandG1 as HTMLElement);
+    expect(screen.getAllByRole('button', { name: 'Collapse' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Expand' })).toHaveLength(1);
+
+    fireEvent.click(expandG2 as HTMLElement);
+    expect(screen.getAllByRole('button', { name: 'Collapse' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Expand' })).toHaveLength(1);
+  });
+
   it('a block becomes the selected instance (blue background) and auto-expands its nested blocks, without needing a manual chevron click', () => {
     const { rerender } = render(
       <BlockList

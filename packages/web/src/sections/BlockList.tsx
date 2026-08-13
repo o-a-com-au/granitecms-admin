@@ -26,6 +26,10 @@ interface BlockRowProps {
   onChange: (block: Instance) => void;
   onEditInstance: (id: string) => void;
   selectedInstanceId?: string | null;
+  // Accordion state lives one level up, in BlockList - see SectionList
+  // for the same pattern at the top level.
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }
 
 // I4: nested blocks (a block that itself accepts blocks - e.g. a
@@ -48,20 +52,11 @@ function BlockRow({
   onChange,
   onEditInstance,
   selectedInstanceId,
+  collapsed,
+  onToggleCollapsed,
 }: BlockRowProps) {
   const acceptsNestedBlocks = blockTypes.acceptsBlocks[block.type] === true;
-  // Blocks with nested blocks start collapsed too, for the same reason
-  // as sections - keeps a deeply-nested tree scannable by default.
-  const [collapsed, setCollapsed] = useState(acceptsNestedBlocks);
   const isSelected = block.id === selectedInstanceId;
-  // Same reasoning as SectionRow's own version - expands the moment
-  // this block becomes selected, without fighting a later manual
-  // collapse.
-  useEffect(() => {
-    if (isSelected) {
-      setCollapsed(false);
-    }
-  }, [isSelected]);
   const hasError = Boolean(fieldErrors?.[block.id] && Object.keys(fieldErrors[block.id] as object).length > 0);
   const displayName = schemaTitle(blockTypes.schemas[block.type], block.type);
   const nestedAllowedTypes = allowedBlockTypes(blockTypes.schemas[block.type]);
@@ -86,7 +81,7 @@ function BlockRow({
 
   function handleToggleCollapsed(event: React.MouseEvent): void {
     event.stopPropagation();
-    setCollapsed((current) => !current);
+    onToggleCollapsed();
   }
 
   return (
@@ -183,6 +178,18 @@ export function BlockList({
   const { open: addMenuOpen, setOpen: setAddMenuOpen, openUpward, ref: addMenuRef, toggle: toggleAddMenu } = useAddMenu();
   const [draggedIndex, setDraggedIndexState] = useState<number | null>(null);
   const [dropIndex, setDropIndexState] = useState<number | null>(null);
+  // Accordion, scoped to this one BlockList instance - see
+  // SectionList's own version of the same pattern. Each nesting level
+  // (a section's own blocks, a block's own nested blocks) is a
+  // separate BlockList instance with its own independent state, so
+  // expanding one doesn't collapse an unrelated sibling list elsewhere
+  // in the tree.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (selectedInstanceId !== null && blocks.some((block) => block.id === selectedInstanceId)) {
+      setExpandedId(selectedInstanceId ?? null);
+    }
+  }, [selectedInstanceId]);
   // Native dragover and drop can both fire within the same browser
   // tick, before React has re-rendered - handleDrop closing over the
   // *state* value of dropIndex would then read a stale (pre-dragover)
@@ -260,6 +267,8 @@ export function BlockList({
               onChange={(updated) => updateBlock(index, updated)}
               onEditInstance={onEditInstance}
               selectedInstanceId={selectedInstanceId}
+              collapsed={block.id !== expandedId}
+              onToggleCollapsed={() => setExpandedId((current) => (current === block.id ? null : block.id))}
             />
           </Fragment>
         ))}

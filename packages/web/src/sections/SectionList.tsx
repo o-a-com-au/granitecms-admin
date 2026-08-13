@@ -38,6 +38,12 @@ interface SectionRowProps {
   // selected block still gets its own blue background even nested
   // several BlockLists deep, not just at the top level.
   selectedInstanceId?: string | null;
+  // Accordion state now lives one level up, in SectionList - so
+  // opening one section's blocks can collapse every sibling's, which
+  // a row managing its own local collapsed state could never do on
+  // its own.
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }
 
 // I4: a section's OWN acceptsBlocks flag (not a block's) decides
@@ -64,22 +70,11 @@ function SectionRow({
   onHighlightSection,
   isHighlighted,
   selectedInstanceId,
+  collapsed,
+  onToggleCollapsed,
 }: SectionRowProps) {
   const acceptsBlocks = sectionTypes.acceptsBlocks[section.type] === true;
-  // Sections with blocks start collapsed - keeps the list scannable
-  // for a page with many sections, matching docs/design/Sections.png.
-  const [collapsed, setCollapsed] = useState(acceptsBlocks);
   const isSelected = section.id === selectedInstanceId;
-  // Expands the moment this section becomes the selected one, so its
-  // blocks are visible without an extra manual chevron click - keyed
-  // on the selection actually changing (not every render), so the
-  // user can still collapse it again afterward without this snapping
-  // it back open on the next unrelated re-render.
-  useEffect(() => {
-    if (isSelected) {
-      setCollapsed(false);
-    }
-  }, [isSelected]);
   const hasError = Boolean(fieldErrors?.[section.id] && Object.keys(fieldErrors[section.id] as object).length > 0);
   const displayName = schemaTitle(sectionTypes.schemas[section.type], section.type);
   const allowedTypes = allowedBlockTypes(sectionTypes.schemas[section.type]);
@@ -104,7 +99,7 @@ function SectionRow({
 
   function handleToggleCollapsed(event: React.MouseEvent): void {
     event.stopPropagation();
-    setCollapsed((current) => !current);
+    onToggleCollapsed();
   }
 
   return (
@@ -200,6 +195,26 @@ export function SectionList({
   const { open: addMenuOpen, setOpen: setAddMenuOpen, openUpward, ref: addMenuRef, toggle: toggleAddMenu } = useAddMenu();
   const [draggedIndex, setDraggedIndexState] = useState<number | null>(null);
   const [dropIndex, setDropIndexState] = useState<number | null>(null);
+  // Accordion, not independent per-row state - at most one top-level
+  // section's own blocks are ever expanded at a time, so opening one
+  // always closes whichever other one was open. Starts with none open
+  // (every section with blocks starts collapsed, matching the previous
+  // per-row default).
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Expands the moment a section becomes the selected one, so its
+  // blocks are visible without an extra manual chevron click - keyed
+  // on the selection actually changing (not every render), so the
+  // user can still collapse it again afterward without this snapping
+  // it back open on the next unrelated re-render. Only reacts when the
+  // selected instance IS one of these top-level sections - a selected
+  // block nested inside one leaves expandedId alone, since that
+  // section must already be expanded for the block to have been
+  // clickable in the first place.
+  useEffect(() => {
+    if (selectedInstanceId !== null && sections.some((section) => section.id === selectedInstanceId)) {
+      setExpandedId(selectedInstanceId ?? null);
+    }
+  }, [selectedInstanceId]);
   // Native dragover and drop can both fire within the same browser
   // tick, before React has re-rendered - handleDrop closing over the
   // *state* value of dropIndex would then read a stale (pre-dragover)
@@ -279,6 +294,8 @@ export function SectionList({
               onHighlightSection={onHighlightSection}
               isHighlighted={section.id === highlightedSectionId}
               selectedInstanceId={selectedInstanceId}
+              collapsed={section.id !== expandedId}
+              onToggleCollapsed={() => setExpandedId((current) => (current === section.id ? null : section.id))}
             />
           </Fragment>
         ))}

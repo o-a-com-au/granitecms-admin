@@ -195,6 +195,29 @@ describe('SectionList', () => {
     expect(screen.getByRole('button', { name: 'Add Block' })).toBeDefined();
   });
 
+  it('expanding one section\'s blocks collapses whichever other section was already open - an accordion, not independent per-row state', () => {
+    render(
+      <SectionList
+        sections={[{ ...section('a'), blocks: [] }, { ...section('c'), blocks: [] }]}
+        sectionTypes={SECTION_TYPES}
+        blockTypes={BLOCK_TYPES}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    const [expandA, expandC] = screen.getAllByRole('button', { name: 'Expand' });
+    fireEvent.click(expandA as HTMLElement);
+    expect(screen.getAllByRole('button', { name: 'Collapse' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Expand' })).toHaveLength(1);
+
+    fireEvent.click(expandC as HTMLElement);
+    // "a" is back to Expand (closed) - opening "c" closed it, rather
+    // than both staying open at once.
+    expect(screen.getAllByRole('button', { name: 'Collapse' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Expand' })).toHaveLength(1);
+  });
+
   it('a section becomes the selected instance (blue background) and auto-expands its blocks, without needing a manual chevron click', () => {
     const { rerender } = render(
       <SectionList
