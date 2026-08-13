@@ -143,6 +143,27 @@ button.button-primary:disabled {
   color: var(--colour-muted);
 }
 
+/* Same treatment as .button-primary, but for a destructive confirm
+   (ConfirmDialog.tsx's own Discard/Remove button) - red instead of
+   blue, so the one action that can't be undone reads as such at a
+   glance. */
+button.button-danger {
+  background: var(--colour-danger);
+  border-color: var(--colour-danger);
+  color: #fff;
+}
+
+button.button-danger:hover {
+  background: var(--colour-danger-hover);
+  border-color: var(--colour-danger-hover);
+}
+
+button.button-danger:disabled {
+  background: var(--colour-border);
+  border-color: var(--colour-border);
+  color: var(--colour-muted);
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

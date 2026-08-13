@@ -30,10 +30,6 @@ function installFakeFetch(handlers: { publish?: Response | (() => Response); dis
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  // vi.spyOn(window, 'confirm') elsewhere in this file returns the
-  // SAME accumulated mock (with its prior call history) on every
-  // repeat call within a file unless explicitly restored.
-  vi.restoreAllMocks();
 });
 
 describe('useDraftPublishActions', () => {
@@ -64,26 +60,45 @@ describe('useDraftPublishActions', () => {
     expect(reloadLatest).not.toHaveBeenCalled();
   });
 
-  it('discard is confirmed first; declining makes no call and does not reload', async () => {
+  it('handleDiscard() with no options only asks for confirmation - no call yet, and does not reload', async () => {
     const fetchMock = installFakeFetch({});
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     const reloadLatest = vi.fn();
     const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', 'Main Menu', reloadLatest));
 
-    await act(() => result.current.handleDiscard());
+    const ok = await act(() => result.current.handleDiscard());
 
+    expect(ok).toBe(false);
+    expect(result.current.confirmingDiscard).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(reloadLatest).not.toHaveBeenCalled();
   });
 
-  it('confirming discard calls discard, then reloadLatest on success', async () => {
-    installFakeFetch({ discard: new Response(null, { status: 204 }) });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('cancelDiscard backs out of the pending confirmation with no call made', async () => {
+    const fetchMock = installFakeFetch({});
     const reloadLatest = vi.fn();
     const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', 'Main Menu', reloadLatest));
 
     await act(() => result.current.handleDiscard());
+    expect(result.current.confirmingDiscard).toBe(true);
 
+    act(() => result.current.cancelDiscard());
+
+    expect(result.current.confirmingDiscard).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(reloadLatest).not.toHaveBeenCalled();
+  });
+
+  it('confirming (skipConfirm: true after the pending confirmation) calls discard, then reloadLatest on success', async () => {
+    installFakeFetch({ discard: new Response(null, { status: 204 }) });
+    const reloadLatest = vi.fn();
+    const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', 'Main Menu', reloadLatest));
+
+    await act(() => result.current.handleDiscard());
+    expect(result.current.confirmingDiscard).toBe(true);
+
+    await act(() => result.current.handleDiscard({ skipConfirm: true }));
+
+    expect(result.current.confirmingDiscard).toBe(false);
     expect(reloadLatest).toHaveBeenCalledOnce();
   });
 
@@ -102,10 +117,9 @@ describe('useDraftPublishActions', () => {
 
   // skipConfirm - the blocked-navigation flow's own modal IS the
   // confirmation there; without this, discard-from-that-flow would
-  // always show a second, redundant native confirm on top of it.
-  it('handleDiscard({ skipConfirm: true }) calls discard directly, with no window.confirm at all', async () => {
+  // always show a second, redundant confirmation prompt on top of it.
+  it('handleDiscard({ skipConfirm: true }) calls discard directly, with no pending confirmation step at all', async () => {
     installFakeFetch({ discard: new Response(null, { status: 204 }) });
-    const confirmSpy = vi.spyOn(window, 'confirm');
     const reloadLatest = vi.fn();
     const { result } = renderHook(() => useDraftPublishActions('site-1', 'menus/main.json', 'Main Menu', reloadLatest));
 
@@ -113,6 +127,6 @@ describe('useDraftPublishActions', () => {
 
     expect(ok).toBe(true);
     expect(reloadLatest).toHaveBeenCalledOnce();
-    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(result.current.confirmingDiscard).toBe(false);
   });
 });

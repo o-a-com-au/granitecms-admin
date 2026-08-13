@@ -451,20 +451,23 @@ describe('PageEditorPage', () => {
     expect((screen.getByLabelText('Content') as HTMLTextAreaElement).value).toBe('{"title":"Hi"}');
   });
 
-  it('G3: discard is confirmed first; declining makes no call at all', async () => {
+  it('G3: discard is confirmed first (a styled popup, not window.confirm); declining makes no call at all', async () => {
     const api = installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     renderPage();
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
     await waitForActions();
 
     fireEvent.click(screen.getByRole('button', { name: 'Discard Changes' }));
+    await waitFor(() => expect(screen.getByRole('alertdialog')).toBeDefined());
 
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(api.state.source).toBe('draft');
   });
 
-  it('G3: confirming discard returns the editor to the live version', async () => {
+  it('G3: confirming discard (via the popup) returns the editor to the live version', async () => {
     const api = installFakeEditorApi({
       content: '{"title":"My edit"}',
       etag: '"etag-1"',
@@ -472,17 +475,21 @@ describe('PageEditorPage', () => {
       liveContent: '{"title":"Live version"}',
       liveEtag: '"live-etag"',
     });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderPage();
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
     await waitForActions();
 
     fireEvent.click(screen.getByRole('button', { name: 'Discard Changes' }));
+    await waitFor(() => expect(screen.getByRole('alertdialog')).toBeDefined());
+    expect(screen.getByText('Discard the draft and return to the live version? This cannot be undone.')).toBeDefined();
+
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Discard Changes' }));
 
     await waitFor(() =>
       expect((screen.getByLabelText('Content') as HTMLTextAreaElement).value).toBe('{"title":"Live version"}'),
     );
     expect(api.state.source).toBe('live');
+    expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
   it('Group I: content with no sections array falls back to the raw view, with the Sections tab disabled', async () => {

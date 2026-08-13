@@ -5,6 +5,10 @@ import { buildPublishMessage } from './publishMessage.ts';
 export interface UseDraftPublishActionsResult {
   actionBusy: boolean;
   actionError: string | null;
+  // True while handleDiscard() (no skipConfirm) is waiting on the
+  // caller to render a confirmation prompt and call handleDiscard
+  // again with skipConfirm: true, or cancelDiscard() to back out.
+  confirmingDiscard: boolean;
   // Both resolve to whether the action actually went through - reading
   // actionError straight after an await isn't reliable for this (it's
   // state, so the closure holding it here is stale until the next
@@ -12,6 +16,7 @@ export interface UseDraftPublishActionsResult {
   // MenuEditorPage) needs to know synchronously whether to proceed.
   handlePublish: () => Promise<boolean>;
   handleDiscard: (options?: { skipConfirm?: boolean }) => Promise<boolean>;
+  cancelDiscard: () => void;
 }
 
 // Shared by PageEditorPage and MenuEditorPage - publish/discard are the
@@ -33,6 +38,7 @@ export function useDraftPublishActions(
 ): UseDraftPublishActionsResult {
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
 
   async function handlePublish(): Promise<boolean> {
     setActionBusy(true);
@@ -50,13 +56,20 @@ export function useDraftPublishActions(
   }
 
   // skipConfirm - the blocked-navigation flow's own modal (Unsaved
-  // ChangesPrompt) IS the confirmation there; a second native one on
-  // top would just be an annoying, redundant re-ask of a choice the
-  // user already just made explicitly.
+  // ChangesPrompt) IS the confirmation there; a second prompt on top
+  // would just be an annoying, redundant re-ask of a choice the user
+  // already just made explicitly. Without it, this only flips
+  // confirmingDiscard on and returns - the caller renders its own
+  // confirmation UI for that state and calls back in with
+  // skipConfirm: true (or cancelDiscard()) once the user has actually
+  // decided, rather than this hook blocking synchronously on
+  // window.confirm the way it used to.
   async function handleDiscard(options?: { skipConfirm?: boolean }): Promise<boolean> {
-    if (!options?.skipConfirm && !window.confirm('Discard the draft and return to the live version? This cannot be undone.')) {
+    if (!options?.skipConfirm) {
+      setConfirmingDiscard(true);
       return false;
     }
+    setConfirmingDiscard(false);
 
     setActionBusy(true);
     setActionError(null);
@@ -72,5 +85,9 @@ export function useDraftPublishActions(
     }
   }
 
-  return { actionBusy, actionError, handlePublish, handleDiscard };
+  function cancelDiscard(): void {
+    setConfirmingDiscard(false);
+  }
+
+  return { actionBusy, actionError, confirmingDiscard, handlePublish, handleDiscard, cancelDiscard };
 }

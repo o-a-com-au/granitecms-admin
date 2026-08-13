@@ -1,6 +1,7 @@
 import { Link, useBlocker, useParams, useSearchParams } from 'react-router';
 import { useAutosaveDraft } from '../editor/useAutosaveDraft.ts';
 import { useDraftPublishActions } from '../editor/useDraftPublishActions.ts';
+import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
 import { UnsavedChangesPrompt } from '../editor/UnsavedChangesPrompt.tsx';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
 import { deriveMenuName } from './deriveMenuName.ts';
@@ -76,7 +77,7 @@ export function MenuEditorPage() {
     reloadLatest,
   } = useAutosaveDraft(siteId, path);
 
-  const { actionBusy, actionError, handlePublish, handleDiscard } = useDraftPublishActions(
+  const { actionBusy, actionError, confirmingDiscard, handlePublish, handleDiscard, cancelDiscard } = useDraftPublishActions(
     siteId,
     path,
     deriveMenuName(path),
@@ -295,6 +296,15 @@ export function MenuEditorPage() {
           onSave={() => void handlePromptSave()}
           onDiscard={() => void handlePromptDiscard()}
           onCancel={() => blocker.reset?.()}
+        />
+      )}
+      {confirmingDiscard && (
+        <ConfirmDialog
+          message="Discard the draft and return to the live version? This cannot be undone."
+          confirmLabel="Discard Changes"
+          busy={actionBusy}
+          onConfirm={() => void handleDiscard({ skipConfirm: true })}
+          onCancel={cancelDiscard}
         />
       )}
     </>

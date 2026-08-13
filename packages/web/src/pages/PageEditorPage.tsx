@@ -9,6 +9,7 @@ import { type DeviceTier } from '../editor/DeviceToggle.tsx';
 import { canEditAsSections, PageSectionsEditor } from '../sections/PageSectionsEditor.tsx';
 import { SectionFieldsPanel } from '../sections/SectionFieldsPanel.tsx';
 import { PageMetadataPanel } from '../editor/PageMetadataPanel.tsx';
+import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
 import { UnsavedChangesPrompt } from '../editor/UnsavedChangesPrompt.tsx';
 import { TabPageIcon, TabSectionsIcon } from '../icons/index.tsx';
 import { usePageActions, usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
@@ -374,7 +375,7 @@ export function PageEditorPage() {
     setSearchParams(next);
   }
 
-  const { actionBusy, actionError, handlePublish, handleDiscard } = useDraftPublishActions(
+  const { actionBusy, actionError, confirmingDiscard, handlePublish, handleDiscard, cancelDiscard } = useDraftPublishActions(
     siteId,
     path,
     derivePageLabel(content, path),
@@ -641,6 +642,15 @@ export function PageEditorPage() {
           onSave={() => void handlePromptSave()}
           onDiscard={() => void handlePromptDiscard()}
           onCancel={() => blocker.reset?.()}
+        />
+      )}
+      {confirmingDiscard && (
+        <ConfirmDialog
+          message="Discard the draft and return to the live version? This cannot be undone."
+          confirmLabel="Discard Changes"
+          busy={actionBusy}
+          onConfirm={() => void handleDiscard({ skipConfirm: true })}
+          onCancel={cancelDiscard}
         />
       )}
     </>

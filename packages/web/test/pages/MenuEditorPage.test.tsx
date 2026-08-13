@@ -230,16 +230,19 @@ describe('MenuEditorPage', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Save Changes' })).toBeNull());
   });
 
-  it('discard is confirmed first; confirming returns the editor to the live version', async () => {
+  it('discard is confirmed first (a styled popup, not window.confirm); confirming returns the editor to the live version', async () => {
     installFakeMenuApi({ content: MENU_CONTENT, etag: '"etag-1"', source: 'draft' });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderPage();
     await waitFor(() => expect(screen.getAllByLabelText('Label')).toHaveLength(2));
     await waitForActions();
 
     fireEvent.click(screen.getByRole('button', { name: 'Discard Changes' }));
+    await waitFor(() => expect(screen.getByRole('alertdialog')).toBeDefined());
+
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Discard Changes' }));
 
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Discard Changes' })).toBeNull());
+    expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
   it('a failed publish leaves the draft state untouched and shows an inline error', async () => {
