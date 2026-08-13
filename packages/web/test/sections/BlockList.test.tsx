@@ -158,7 +158,6 @@ describe('BlockList', () => {
   });
 
   it('I4: removing a block asks for confirmation first, then removes only that block, without also opening its Fields tab', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const onChange = vi.fn();
     const onEditInstance = vi.fn();
     render(
@@ -171,19 +170,22 @@ describe('BlockList', () => {
     );
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove block' })[0] as HTMLElement);
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Block' }));
 
     expect(onChange).toHaveBeenCalledWith([block('b')]);
     expect(onEditInstance).not.toHaveBeenCalled();
   });
 
   it('I4: declining the removal confirmation makes no change', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     const onChange = vi.fn();
     render(<BlockList blocks={[block('a')]} blockTypes={BLOCK_TYPES} onChange={onChange} onEditInstance={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove block' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     expect(onChange).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
   it('I4: a block whose type accepts nested blocks renders its own nested BlockList once expanded (blocks with nested blocks start collapsed)', () => {
@@ -341,7 +343,6 @@ describe('BlockList', () => {
   });
 
   it('shows the theme schema\'s own "title", not the raw type slug, once one is declared', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const typesWithTitle: ThemeTypeSchemas = {
       schemas: {
         button: { type: 'object', title: 'Button', properties: {} },
@@ -362,7 +363,7 @@ describe('BlockList', () => {
     expect(screen.getByRole('menuitem', { name: 'Group' })).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove block' }));
-    expect(window.confirm).toHaveBeenCalledWith('Remove this "Button" block? This cannot be undone.');
+    expect(screen.getByText('Remove this "Button" block? This cannot be undone.')).toBeDefined();
   });
 
   it('K4: the add-block menu is restricted to allowedTypes when the parent schema declares one', () => {

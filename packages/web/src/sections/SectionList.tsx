@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { AddIcon } from './AddIcon.tsx';
 import { BlockList } from './BlockList.tsx';
+import { ConfirmDialog } from './ConfirmDialog.tsx';
 import { DragHandleIcon } from './DragHandleIcon.tsx';
 import { TrashIcon } from './TrashIcon.tsx';
 import { computeDropIndex, reorderList } from './drag-reorder.ts';
@@ -78,6 +79,11 @@ function SectionRow({
   const hasError = Boolean(fieldErrors?.[section.id] && Object.keys(fieldErrors[section.id] as object).length > 0);
   const displayName = schemaTitle(sectionTypes.schemas[section.type], section.type);
   const allowedTypes = allowedBlockTypes(sectionTypes.schemas[section.type]);
+  // ConfirmDialog, not window.confirm - the same ask-before-losing-
+  // work pattern UnsavedChangesPrompt already established for
+  // navigation, applied here too rather than an OS-styled interruption
+  // that reads as coming from the browser, not this app.
+  const [confirmingRemoval, setConfirmingRemoval] = useState(false);
 
   function handleEdit(): void {
     onEditInstance(section.id);
@@ -92,9 +98,7 @@ function SectionRow({
 
   function handleRemove(event: React.MouseEvent): void {
     event.stopPropagation();
-    if (window.confirm(`Remove this "${displayName}" section? This cannot be undone.`)) {
-      onRemove();
-    }
+    setConfirmingRemoval(true);
   }
 
   function handleToggleCollapsed(event: React.MouseEvent): void {
@@ -159,6 +163,17 @@ function SectionRow({
           onChange={(blocks) => onChange({ ...section, blocks })}
           onEditInstance={onEditInstance}
           selectedInstanceId={selectedInstanceId}
+        />
+      )}
+      {confirmingRemoval && (
+        <ConfirmDialog
+          message={`Remove this "${displayName}" section? This cannot be undone.`}
+          confirmLabel="Remove Section"
+          onConfirm={() => {
+            setConfirmingRemoval(false);
+            onRemove();
+          }}
+          onCancel={() => setConfirmingRemoval(false)}
         />
       )}
     </li>

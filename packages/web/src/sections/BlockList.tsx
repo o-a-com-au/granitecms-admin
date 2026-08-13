@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { AddIcon } from './AddIcon.tsx';
+import { ConfirmDialog } from './ConfirmDialog.tsx';
 import { DragHandleIcon } from './DragHandleIcon.tsx';
 import { TrashIcon } from './TrashIcon.tsx';
 import { computeDropIndex, reorderList } from './drag-reorder.ts';
@@ -60,6 +61,9 @@ function BlockRow({
   const hasError = Boolean(fieldErrors?.[block.id] && Object.keys(fieldErrors[block.id] as object).length > 0);
   const displayName = schemaTitle(blockTypes.schemas[block.type], block.type);
   const nestedAllowedTypes = allowedBlockTypes(blockTypes.schemas[block.type]);
+  // ConfirmDialog, not window.confirm - see SectionRow's own version
+  // of this same change for the reasoning.
+  const [confirmingRemoval, setConfirmingRemoval] = useState(false);
 
   function handleEdit(): void {
     onEditInstance(block.id);
@@ -74,9 +78,7 @@ function BlockRow({
 
   function handleRemove(event: React.MouseEvent): void {
     event.stopPropagation();
-    if (window.confirm(`Remove this "${displayName}" block? This cannot be undone.`)) {
-      onRemove();
-    }
+    setConfirmingRemoval(true);
   }
 
   function handleToggleCollapsed(event: React.MouseEvent): void {
@@ -139,6 +141,17 @@ function BlockRow({
           onChange={(blocks) => onChange({ ...block, blocks })}
           onEditInstance={onEditInstance}
           selectedInstanceId={selectedInstanceId}
+        />
+      )}
+      {confirmingRemoval && (
+        <ConfirmDialog
+          message={`Remove this "${displayName}" block? This cannot be undone.`}
+          confirmLabel="Remove Block"
+          onConfirm={() => {
+            setConfirmingRemoval(false);
+            onRemove();
+          }}
+          onCancel={() => setConfirmingRemoval(false)}
         />
       )}
     </li>
