@@ -41,7 +41,7 @@ a:hover {
 section {
   background: var(--colour-surface);
   border: 1px solid var(--colour-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.5rem;
 }
@@ -70,7 +70,7 @@ textarea {
   color: var(--colour-text);
   padding: 0.5rem 0.65rem;
   border: 1px solid var(--colour-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: var(--colour-bg);
 }
 
@@ -91,7 +91,7 @@ button {
   font: inherit;
   padding: 0.5rem 1.1rem;
   border: 1px solid var(--colour-primary);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: var(--colour-primary);
   color: #fff;
   cursor: pointer;
@@ -148,7 +148,7 @@ table {
   border-collapse: collapse;
   background: var(--colour-surface);
   border: 1px solid var(--colour-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
 }
 
 th,
@@ -172,7 +172,7 @@ tr:last-child td {
 
 p[role='alert'] {
   padding: 0.6rem 0.85rem;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: rgba(240, 104, 92, 0.12);
   color: var(--colour-danger);
   border: 1px solid rgba(240, 104, 92, 0.35);
@@ -195,5 +195,5 @@ p[role='alert'] {
 
 iframe {
   border: 1px solid var(--colour-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
 }

@@ -39,7 +39,7 @@
   height: 2.25rem;
   padding: 0;
   border: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: none;
   color: var(--colour-text);
 }
@@ -54,7 +54,7 @@
   justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: var(--colour-surface-hover);
   color: var(--colour-text);
   font-weight: 700;
@@ -75,7 +75,7 @@
 
 .app-topbar-nav-item {
   padding: 0.5rem 0.85rem;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   color: var(--colour-muted);
   text-decoration: none;
   font-size: 0.9rem;
@@ -167,7 +167,7 @@
   width: 232px;
   background: var(--colour-surface);
   border: 1px solid var(--colour-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
   padding: 0.85rem;
   z-index: 20;
@@ -214,7 +214,7 @@
   color: var(--colour-text);
   padding: 0.5rem 0.25rem;
   font-weight: 500;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
 }
 
 .account-popover-item:hover {

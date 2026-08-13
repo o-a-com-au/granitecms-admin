@@ -96,7 +96,7 @@
   flex-direction: column;
   padding: var(--space-lg) var(--space-md);
   background: var(--colour-surface);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
 }
 
 /* Fades in from the right on every Page/Sections/Fields tab switch.
@@ -167,7 +167,7 @@
   padding: 0;
   margin: 0;
   background: var(--colour-surface);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   transition:
     width 0.3s ease,
     padding 0.3s ease,
@@ -202,7 +202,7 @@
   height: 1.75rem;
   padding: 0;
   border: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: none;
   color: var(--colour-muted);
   font-size: 1.2rem;

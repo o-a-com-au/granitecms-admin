@@ -125,7 +125,9 @@ function BlockRow({
             onDragEnd();
           }}
         >
-          <DragHandleIcon />
+          <span className="instance-row-drag-handle-icon">
+            <DragHandleIcon />
+          </span>
         </span>
       </div>
       {acceptsNestedBlocks && !collapsed && (

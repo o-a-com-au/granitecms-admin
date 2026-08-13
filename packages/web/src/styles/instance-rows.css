@@ -8,7 +8,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-xs);
 }
 
 .instance-list-nested {
@@ -28,11 +28,11 @@
 .instance-row-main {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
   border: 1px solid var(--colour-border);
-  border-radius: var(--radius);
-  background: var(--colour-surface);
+  border-radius: var(--radius-sm);
+  background: var(--colour-section);
   cursor: pointer;
 }
 
@@ -93,7 +93,7 @@
 .instance-row-main strong {
   flex: 1;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 /* button.instance-row-chevron, not just .instance-row-chevron - the
@@ -163,6 +163,17 @@ button.instance-row-remove:hover {
   cursor: grabbing;
 }
 
+/* DragHandleIcon.tsx renders its svg at width/height: 100% - this box
+   does the actual sizing, matching the icon's previous fixed 14x20px
+   default (at the browser's un-overridden 16px root), same convention
+   as .tab-icon/.device-icon elsewhere. */
+.instance-row-drag-handle-icon {
+  display: flex;
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 1rem;
+}
+
 /* The active drop location - a 4px blue line between rows. */
 .drop-indicator {
   height: 4px;
@@ -226,7 +237,7 @@ button.instance-add-button:hover {
   overflow-y: auto;
   background: var(--colour-surface);
   border: 1px solid var(--colour-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
   padding: 0.4rem;
   z-index: 20;
@@ -252,7 +263,7 @@ button.instance-add-button:hover {
   color: var(--colour-text);
   padding: 0.5rem 0.6rem;
   font-weight: 500;
-  border-radius: calc(var(--radius) - 2px);
+  border-radius: calc(var(--radius-sm) - 2px);
 }
 
 .instance-add-menu-item:hover {

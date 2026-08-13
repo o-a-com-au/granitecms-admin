@@ -20,6 +20,7 @@
      [data-theme='x'] block that redefines the --colour-* names; no
      other file needs to change. */
 :root {
+
   --grey-50: #f3f3f3;
   --grey-100: #e8e8e8;
   --grey-150: #dedede;
@@ -46,7 +47,11 @@
   --colour-warning: #f5a623;
   --colour-danger: #f0685c;
 
-  --radius: 5px;
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 10px;
+  --radius-lg: 15px;
+
   /* The editor sidebar's own fixed width - a named variable (not a
      bare 420px literal) purely so its handful of usages stay in sync
      if it ever changes. */
@@ -80,6 +85,8 @@
   --colour-text: var(--grey-200);
   --colour-viewport: var(--grey-50);
   --colour-table-header: var(--grey-900);
+  --colour-section: var(--grey-700);
+  --colour-section-block: var(--grey-800);
 }
 
 [data-theme='light'] {
@@ -92,4 +99,6 @@
   --colour-text: var(--grey-700);
   --colour-viewport: var(--grey-900);
   --colour-table-header: var(--grey-50);
+  --colour-section: var(--grey-700);
+  --colour-section-block: var(--grey-800);
 }

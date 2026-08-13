@@ -20,7 +20,7 @@
   border-collapse: separate;
   border-spacing: 0;
   background: var(--colour-surface);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   box-sizing: border-box;
   border: 1px solid var(--colour-border);
   overflow: hidden; /* clip the header's rounded corners, so the table's own border-radius is the only one visible */
@@ -130,14 +130,14 @@ button.page-tree-toggle:hover {
   flex: 0 0 auto;
   padding: 0.25rem;
   border: 1px solid var(--colour-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: var(--colour-surface);
 }
 
 .filter-tabs button {
   padding: 0.45rem 0.9rem;
   border: none;
-  border-radius: calc(var(--radius) - 3px);
+  border-radius: calc(var(--radius-sm) - 3px);
   background: none;
   color: var(--colour-muted);
   font-size: 0.85rem;

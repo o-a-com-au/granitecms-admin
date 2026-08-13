@@ -145,7 +145,9 @@ function SectionRow({
             onDragEnd();
           }}
         >
-          <DragHandleIcon />
+          <span className="instance-row-drag-handle-icon">
+            <DragHandleIcon />
+          </span>
         </span>
       </div>
       {acceptsBlocks && !collapsed && (
