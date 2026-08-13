@@ -39,7 +39,7 @@
   /* The editor sidebar's own fixed width - a named variable (not a
      bare 420px literal) purely so its handful of usages stay in sync
      if it ever changes. */
-  --editor-sidebar-width: 380px;
+  --editor-sidebar-width: 320px;
 
   /* Standard gap/spacing scale - every margin, padding, and gap in the
      app should reach for one of these rather than a bare rem value,

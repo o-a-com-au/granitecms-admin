@@ -421,8 +421,8 @@ export function PageEditorPage() {
           )}
         </div>
 
-        {selectedInstanceId !== null && (
-          <div className="editor-fields-panel">
+        <div className={`editor-fields-panel${selectedInstanceId !== null ? ' is-open' : ''}`}>
+          {selectedInstanceId !== null && (
             <SectionFieldsPanel
               siteId={siteId}
               content={content}
@@ -431,8 +431,8 @@ export function PageEditorPage() {
               selectedInstanceId={selectedInstanceId}
               onClose={handleCloseFields}
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
