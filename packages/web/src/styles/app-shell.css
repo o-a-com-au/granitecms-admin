@@ -66,14 +66,28 @@
   color: var(--colour-text);
 }
 
+/* flex: 1 (not 0 0 auto) plus justify-content: center is what actually
+   centres the nav between .app-topbar-start and .app-topbar-end
+   (docs/designs/App-Menu.png) - the nav's own flex-basis fills the
+   whole middle span so its content centres in that span rather than
+   just against the logo. */
 .app-topbar-nav {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.25rem;
   flex: 1;
 }
 
+/* Column layout, not row - .app-topbar-nav-item-underline below needs
+   to size to the label's own text width, not the anchor's padded
+   width, and a block child of a column flex item does that by
+   default (docs/designs/App-Menu.png shows the underline matching
+   "Pages" itself, not the full clickable hit area around it). */
 .app-topbar-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   padding: 0.5rem 0.85rem;
   border-radius: var(--radius-sm);
   color: var(--colour-muted);
@@ -87,9 +101,21 @@
   color: var(--colour-text);
 }
 
+/* No background pill any more (docs/designs/App-Menu.png) - the
+   active tab is marked by bold text plus its own underline bar
+   instead. */
 .app-topbar-nav-item[aria-current='page'] {
-  background: var(--colour-surface-hover);
   color: var(--colour-text);
+  font-weight: 700;
+}
+
+.app-topbar-nav-item-underline {
+  display: block;
+  align-self: stretch;
+  height: 2px;
+  margin-top: 0.4rem;
+  border-radius: 1px;
+  background: var(--colour-primary);
 }
 
 .app-topbar-nav-item[aria-disabled='true'] {
@@ -285,8 +311,18 @@
     display: flex;
   }
 
+  /* Left-aligned like every other row in the dropdown, not centred
+     like the desktop bar - align-items: center is a desktop-only
+     concern (docs/designs/App-Menu.png), the mobile drawer never
+     showed that layout in its own design. */
   .app-topbar-nav-item {
+    align-items: flex-start;
     padding: 0.75rem 0.85rem;
+  }
+
+  .app-topbar-nav-item-underline {
+    align-self: flex-start;
+    width: 1.5rem;
   }
 
   .app-topbar-actions:empty {

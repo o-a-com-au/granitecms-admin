@@ -28,6 +28,7 @@ function TopNavItem({ label, to, active }: TopNavItemProps) {
   return (
     <Link className="app-topbar-nav-item" to={to} aria-current={active ? 'page' : undefined}>
       {label}
+      {active && <span className="app-topbar-nav-item-underline" aria-hidden="true" />}
     </Link>
   );
 }
