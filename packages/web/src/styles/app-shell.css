@@ -79,11 +79,6 @@
   flex: 1;
 }
 
-/* Column layout, not row - .app-topbar-nav-item-underline below needs
-   to size to the label's own text width, not the anchor's padded
-   width, and a block child of a column flex item does that by
-   default (docs/designs/App-Menu.png shows the underline matching
-   "Pages" itself, not the full clickable hit area around it). */
 .app-topbar-nav-item {
   display: flex;
   flex-direction: column;
@@ -97,7 +92,6 @@
 }
 
 .app-topbar-nav-item:hover {
-  background: var(--colour-surface-hover);
   color: var(--colour-text);
 }
 
@@ -107,15 +101,6 @@
 .app-topbar-nav-item[aria-current='page'] {
   color: var(--colour-text);
   font-weight: 700;
-}
-
-.app-topbar-nav-item-underline {
-  display: block;
-  align-self: stretch;
-  height: 2px;
-  margin-top: 0.4rem;
-  border-radius: 1px;
-  background: var(--colour-primary);
 }
 
 .app-topbar-nav-item[aria-disabled='true'] {
@@ -318,11 +303,6 @@
   .app-topbar-nav-item {
     align-items: flex-start;
     padding: 0.75rem 0.85rem;
-  }
-
-  .app-topbar-nav-item-underline {
-    align-self: flex-start;
-    width: 1.5rem;
   }
 
   .app-topbar-actions:empty {
