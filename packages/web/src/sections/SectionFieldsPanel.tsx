@@ -1,4 +1,5 @@
 import { SectionSettingsForm } from './SectionSettingsForm.tsx';
+import { TrashIcon } from './TrashIcon.tsx';
 import { schemaTitle, type Instance } from './instance-types.ts';
 import { buildFieldErrorMap, findInstance, parsePage, removeInstance, updateInstance } from './page-content.ts';
 import { useThemeSchemas } from './useThemeSchemas.ts';
@@ -91,6 +92,7 @@ export function SectionFieldsPanel({
         }
       />
       <button type="button" className="fields-panel-delete" onClick={handleDelete}>
+        <TrashIcon />
         {kind === 'section' ? 'Delete Section' : 'Delete Block'}
       </button>
     </div>

@@ -12,7 +12,9 @@ interface ConfirmDialogProps {
 // "Discard Changes" button in the top bar) - a styled popup instead of
 // a plain window.confirm, so the one destructive, un-undoable action
 // left in this app reads as part of it rather than an OS-styled
-// interruption.
+// interruption. button-primary, the same one accent colour as the
+// rest of the editor, not a separate red - there is no second accent
+// colour in this app.
 export function ConfirmDialog({ message, confirmLabel, busy, onConfirm, onCancel }: ConfirmDialogProps) {
   return (
     <div className="modal-overlay">
@@ -23,7 +25,7 @@ export function ConfirmDialog({ message, confirmLabel, busy, onConfirm, onCancel
           <button type="button" onClick={onCancel} disabled={busy}>
             Cancel
           </button>
-          <button type="button" className="button-danger" onClick={onConfirm} disabled={busy}>
+          <button type="button" className="button-primary" onClick={onConfirm} disabled={busy}>
             {confirmLabel}
           </button>
         </div>
