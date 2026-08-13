@@ -114,11 +114,18 @@ export function PreviewFrame({
   // before triggering this reload - only ever set for that one case
   // (an autosave-triggered refresh of the SAME page), never for the
   // very first load or a genuine switch to a different page, so this
-  // is a no-op the rest of the time.
+  // is a no-op the rest of the time. behavior: 'instant', not the
+  // two-argument scrollTo(x, y) form - that shorthand is equivalent to
+  // behavior: 'auto', which still defers to the previewed page's own
+  // CSS scroll-behavior (the demo theme sets scroll-behavior: smooth
+  // site-wide, for its own anchor-link navigation) - found live, a
+  // restore that's supposed to be invisible was instead visibly
+  // animating back down the page on every autosave. 'instant' is the
+  // one value that always jumps immediately regardless of that.
   function handleFrameLoad(): void {
     const pending = pendingScrollRef.current;
     if (pending) {
-      iframeRef?.current?.contentWindow?.scrollTo(pending.x, pending.y);
+      iframeRef?.current?.contentWindow?.scrollTo({ left: pending.x, top: pending.y, behavior: 'instant' });
       pendingScrollRef.current = null;
     }
     onFrameLoad?.();

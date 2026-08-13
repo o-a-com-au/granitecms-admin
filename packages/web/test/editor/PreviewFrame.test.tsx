@@ -114,7 +114,11 @@ describe('PreviewFrame', () => {
     const scrollToSpy = vi.spyOn(newWin, 'scrollTo').mockImplementation(() => {});
     fireEvent.load(iframeRef.current as HTMLIFrameElement);
 
-    expect(scrollToSpy).toHaveBeenCalledWith(40, 820);
+    // behavior: 'instant', not a bare scrollTo(x, y) - that shorthand
+    // defers to the previewed page's own CSS scroll-behavior (the demo
+    // theme sets scroll-behavior: smooth site-wide), which would make
+    // this restore visibly animate instead of jumping straight there.
+    expect(scrollToSpy).toHaveBeenCalledWith({ left: 40, top: 820, behavior: 'instant' });
   });
 
   it('does not restore any scroll position on the very first load, or on switching to a different page', () => {
