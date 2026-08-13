@@ -137,6 +137,25 @@ export function PageEditorPage() {
         setHighlightedSectionId(null);
       }
     });
+    // Clicking a section in the preview opens its Fields panel, same
+    // as clicking its row in the sidebar - capture phase (true), not
+    // bubble, so this fires and can preventDefault before a real link
+    // or button inside the section (e.g. cta-banner's own "Get
+    // started") acts on the click itself; editing the section is
+    // always what a click in the preview should do here, never a
+    // navigation away from the page being edited.
+    doc.addEventListener(
+      'click',
+      (event) => {
+        const id = sectionIdAt(event.target);
+        if (id !== null) {
+          event.preventDefault();
+          setHighlightedSectionId(id);
+          handleEditInstance(id);
+        }
+      },
+      true,
+    );
   }
 
   const {
