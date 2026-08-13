@@ -39,6 +39,7 @@ function renderShell(initialEntry: string) {
               <Route path="/" element={<div>home content</div>} />
               <Route path="/sites/:siteId/content" element={<div>pages content</div>} />
               <Route path="/sites/:siteId/menus" element={<div>menus content</div>} />
+              <Route path="/sites/:siteId/editor" element={<div>editor content</div>} />
             </Route>
           </Routes>
         </MemoryRouter>
@@ -105,6 +106,27 @@ describe('AppShell', () => {
     await waitFor(() => expect(screen.getByText('menus content')).toBeDefined());
     expect(screen.getByRole('link', { name: 'Menus' }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('link', { name: 'Pages' }).getAttribute('aria-current')).toBeNull();
+  });
+
+  it('adds an active "Edit" item at the end of the nav only while a page is open in the editor', async () => {
+    installFakeApi();
+    renderShell('/sites/site-1/content');
+
+    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
+    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
+  });
+
+  it('shows "Edit" as the active item, after History, when a page is open in the editor', async () => {
+    installFakeApi();
+    renderShell('/sites/site-1/editor?path=pages%2Findex.json&url=%2F');
+
+    await waitFor(() => expect(screen.getByText('editor content')).toBeDefined());
+    const editLink = screen.getByRole('link', { name: 'Edit' });
+    expect(editLink.getAttribute('aria-current')).toBe('page');
+    expect(editLink.getAttribute('href')).toBe('/sites/site-1/editor?path=pages%2Findex.json&url=%2F');
+
+    const items = screen.getAllByRole('link').map((el) => el.textContent);
+    expect(items.at(-1)).toBe('Edit');
   });
 
   it('disables Pages and Menus too when no site is selected (the registry, "/")', async () => {

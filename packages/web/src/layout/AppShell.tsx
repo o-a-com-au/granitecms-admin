@@ -103,6 +103,8 @@ export function AppShell() {
 
   const contentTo = siteId ? `/sites/${siteId}/content` : undefined;
   const menusTo = siteId ? `/sites/${siteId}/menus` : undefined;
+  const editorTo = siteId ? `/sites/${siteId}/editor` : undefined;
+  const isEditingPage = location.pathname === editorTo;
 
   async function handleLogout(): Promise<void> {
     setAccountOpen(false);
@@ -138,6 +140,16 @@ export function AppShell() {
                 to one page (PageEditorPage's own historyHref), not yet
                 a real site-wide destination. */}
             <TopNavItem label="History" to={undefined} active={false} />
+            {/* Only appears while a page is actually open in the editor
+                - there's no standalone "Edit" destination to link to
+                from anywhere else, so unlike the other items above this
+                one is omitted rather than rendered disabled. Links to
+                the current location (path + search) rather than a
+                fixed target, so it stays a real, clickable link even
+                though it's already active. */}
+            {isEditingPage && (
+              <TopNavItem label="Edit" to={`${location.pathname}${location.search}`} active={true} />
+            )}
           </nav>
           <div className="app-topbar-end">
             <div className="app-topbar-device-toggle">{deviceToggle}</div>
