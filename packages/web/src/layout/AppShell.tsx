@@ -4,7 +4,15 @@ import { useAuth } from '../auth/AuthContext.tsx';
 import { useTheme } from '../theme/ThemeContext.tsx';
 import { IconSprite } from '../icons/index.tsx';
 import { HamburgerIcon } from '../icons/HamburgerIcon.tsx';
+import { GraniteLogo } from './GraniteLogo.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider } from './PageActionsContext.tsx';
+
+// Bumped by hand alongside any release worth surfacing in the brand
+// mark (docs/designs/Phone-Pages.png shows the same "GRANITE 2.3"
+// treatment already established for the mobile top bar) - not derived
+// from package.json, whose own version has stayed at the 0.0.0
+// placeholder throughout development and isn't meant for display.
+const APP_VERSION = '2.3';
 
 interface TopNavItemProps {
   label: string;
@@ -126,8 +134,13 @@ export function AppShell() {
             >
               <HamburgerIcon open={mobileNavOpen} />
             </button>
-            <Link className="app-logo-mark" to="/" title="Granite CMS">
-              G
+            <Link className="app-logo" to="/" title="Granite CMS">
+              <span className="app-logo-mark">
+                <GraniteLogo />
+              </span>
+              <span className="app-logo-word">
+                GRANITE<span className="app-logo-version">{APP_VERSION}</span>
+              </span>
             </Link>
           </div>
           <nav className={`app-topbar-nav${mobileNavOpen ? ' is-open' : ''}`} aria-label="Primary">

@@ -48,22 +48,43 @@
   background: var(--colour-surface-hover);
 }
 
-.app-logo-mark {
+/* GraniteLogo.tsx (docs/designs/granite-logo.svg) plus the "GRANITE
+   2.3" wordmark (docs/designs/Phone-Pages.png already establishes this
+   same treatment for the mobile top bar) - a plain link, not a solid
+   background box like the old bare "G" mark, since the full-colour
+   logo needs no contrast box behind it to read. */
+.app-logo {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: var(--radius-sm);
-  background: var(--colour-surface-hover);
-  color: var(--colour-text);
-  font-weight: 700;
-  font-size: 1.05rem;
+  gap: 0.6rem;
   text-decoration: none;
 }
 
-.app-logo-mark:hover {
+.app-logo-mark {
+  display: flex;
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+}
+
+.app-logo-word {
   color: var(--colour-text);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.app-logo:hover .app-logo-word {
+  color: var(--colour-text);
+}
+
+/* Same size as "GRANITE" itself (no separate font-size) - light
+   weight and the muted colour are what set it apart, per the same
+   "2.3" treatment in docs/designs/Phone-Pages.png. */
+.app-logo-version {
+  margin-left: 0.3rem;
+  color: var(--colour-muted);
+  font-weight: 300;
 }
 
 /* flex: 1 (not 0 0 auto) plus justify-content: center is what actually
@@ -84,7 +105,6 @@
   flex-direction: column;
   align-items: center;
   padding: 0.5rem 0.85rem;
-  border-radius: var(--radius-sm);
   color: var(--colour-muted);
   text-decoration: none;
   font-size: 0.9rem;
@@ -101,6 +121,20 @@
 .app-topbar-nav-item[aria-current='page'] {
   color: var(--colour-text);
   font-weight: 700;
+  position: relative;
+}
+.app-topbar-nav-item[aria-current='page']:after {
+  display: block;
+  content: '';
+  width: 100%;
+  height: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--colour-primary);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
 }
 
 .app-topbar-nav-item[aria-disabled='true'] {
