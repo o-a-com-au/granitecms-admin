@@ -41,6 +41,35 @@ export function allowedBlockTypes(schema: object | undefined): string[] | undefi
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string') ? value : undefined;
 }
 
+// I3: mirrors schemaTitle's own title-then-fallback shape, but the
+// fallback deliberately differs - a field's own raw property name is
+// camelCase (heading, codeTitle, posterImage), much harder to read as
+// UI text than a type's own kebab-case slug, so an untitled field
+// falls back to a humanised label (codeTitle -> "Code Title") rather
+// than the raw key verbatim. A theme author can still override it with
+// an explicit "title" on the property's own schema, same convention
+// as schemaTitle.
+export function fieldLabel(propertySchema: Record<string, unknown> | undefined, key: string): string {
+  const title = propertySchema?.title;
+  return typeof title === 'string' && title.trim() !== '' ? title : humanizeFieldKey(key);
+}
+
+// camelCase/snake_case/kebab-case -> "Title Case With Spaces". Not
+// exported - fieldLabel is the one thing anything outside this file
+// should ever call, so the raw-key transform stays swappable without
+// hunting down every call site.
+function humanizeFieldKey(key: string): string {
+  const spaced = key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .trim();
+  return spaced
+    .split(/\s+/)
+    .filter((word) => word.length > 0)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 // L3: builds the initial settings for a freshly-added section/block from
 // whatever "default" values its schema declares (standard JSON Schema
 // keyword, not required-specific) - previously always {}, leaving any

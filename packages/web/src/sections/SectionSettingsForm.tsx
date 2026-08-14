@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SchemaField } from './SchemaField.tsx';
+import { fieldLabel } from './instance-types.ts';
 
 export interface SectionSettingsFormProps {
   schema: Record<string, unknown> | undefined;
@@ -56,7 +57,7 @@ export function SectionSettingsForm({ schema, settings, onChange, fieldErrors }:
       {Object.entries(properties).map(([key, propertySchema]) => (
         <SchemaField
           key={key}
-          label={key}
+          label={fieldLabel(propertySchema, key)}
           schema={propertySchema}
           value={settings[key]}
           onChange={(value) => onChange({ ...settings, [key]: value })}

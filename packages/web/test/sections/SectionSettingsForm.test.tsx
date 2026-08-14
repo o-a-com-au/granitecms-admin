@@ -21,15 +21,41 @@ describe('SectionSettingsForm', () => {
       <SectionSettingsForm schema={HERO_SCHEMA} settings={{ heading: 'Hi', columns: 2 }} onChange={vi.fn()} />,
     );
 
-    expect((screen.getByLabelText('heading') as HTMLInputElement).value).toBe('Hi');
-    expect((screen.getByLabelText('columns') as HTMLInputElement).value).toBe('2');
+    expect((screen.getByLabelText('Heading') as HTMLInputElement).value).toBe('Hi');
+    expect((screen.getByLabelText('Columns') as HTMLInputElement).value).toBe('2');
+  });
+
+  it('humanises a camelCase property name into a Title Case label when the schema declares no title', () => {
+    render(
+      <SectionSettingsForm
+        schema={{ type: 'object', properties: { codeTitle: { type: 'string' }, posterImage: { type: 'object' } } }}
+        settings={{ codeTitle: '', posterImage: {} }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('Code Title')).toBeDefined();
+    expect(screen.getByLabelText('Poster Image')).toBeDefined();
+  });
+
+  it('prefers an explicit schema-declared title over the humanised property name', () => {
+    render(
+      <SectionSettingsForm
+        schema={{ type: 'object', properties: { ctaUrl: { type: 'string', title: 'Button link' } } }}
+        settings={{ ctaUrl: '' }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('Button link')).toBeDefined();
+    expect(screen.queryByLabelText('Cta Url')).toBeNull();
   });
 
   it('I3: editing a field calls onChange with the settings object updated at just that key', () => {
     const onChange = vi.fn();
     render(<SectionSettingsForm schema={HERO_SCHEMA} settings={{ heading: 'Hi', columns: 2 }} onChange={onChange} />);
 
-    fireEvent.change(screen.getByLabelText('heading'), { target: { value: 'Updated' } });
+    fireEvent.change(screen.getByLabelText('Heading'), { target: { value: 'Updated' } });
 
     expect(onChange).toHaveBeenCalledWith({ heading: 'Updated', columns: 2 });
   });
@@ -46,7 +72,7 @@ describe('SectionSettingsForm', () => {
 
     expect(screen.getByText('must NOT have fewer than 1 characters')).toBeDefined();
     // Only the heading field's own error shows - not attached to columns.
-    const columnsField = screen.getByLabelText('columns').closest('label');
+    const columnsField = screen.getByLabelText('Columns').closest('label');
     expect(columnsField?.textContent?.includes('must NOT have')).toBe(false);
   });
 
@@ -67,7 +93,7 @@ describe('SectionSettingsForm', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('poster'), { target: { value: 'https://example.com/b.jpg' } });
+    fireEvent.change(screen.getByLabelText('Poster'), { target: { value: 'https://example.com/b.jpg' } });
 
     expect(onChange).toHaveBeenCalledWith({
       heading: 'Hi',

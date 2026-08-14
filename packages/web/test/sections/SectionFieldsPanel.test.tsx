@@ -83,7 +83,7 @@ describe('SectionFieldsPanel', () => {
     );
 
     await waitFor(() => expect(screen.getByText('hero')).toBeDefined());
-    expect((screen.getByLabelText('heading') as HTMLInputElement).value).toBe('Hi');
+    expect((screen.getByLabelText('Heading') as HTMLInputElement).value).toBe('Hi');
   });
 
   it('shows the selected block\'s own settings when a block, not a section, is selected', async () => {
@@ -100,7 +100,7 @@ describe('SectionFieldsPanel', () => {
     );
 
     await waitFor(() => expect(screen.getByText('button')).toBeDefined());
-    expect((screen.getByLabelText('label') as HTMLInputElement).value).toBe('Click');
+    expect((screen.getByLabelText('Label') as HTMLInputElement).value).toBe('Click');
   });
 
   it('shows the theme schema\'s own "title", not the raw type slug, once one is declared', async () => {
@@ -138,8 +138,8 @@ describe('SectionFieldsPanel', () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByLabelText('heading')).toBeDefined());
-    fireEvent.change(screen.getByLabelText('heading'), { target: { value: 'Changed' } });
+    await waitFor(() => expect(screen.getByLabelText('Heading')).toBeDefined());
+    fireEvent.change(screen.getByLabelText('Heading'), { target: { value: 'Changed' } });
 
     expect(setContent).toHaveBeenCalledTimes(1);
     const updated = JSON.parse(setContent.mock.calls[0]?.[0] as string) as { sections: Array<{ settings: { heading: string } }> };

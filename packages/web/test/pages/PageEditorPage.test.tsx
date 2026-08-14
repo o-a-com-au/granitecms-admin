@@ -919,7 +919,7 @@ describe('PageEditorPage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined());
     fireEvent.click(screen.getByRole('button', { name: 'Edit hero' }));
 
-    await waitFor(() => expect((screen.getByLabelText('heading') as HTMLInputElement).value).toBe('Hi there'));
+    await waitFor(() => expect((screen.getByLabelText('Heading') as HTMLInputElement).value).toBe('Hi there'));
     // Still there, untouched - the Sections list and the Fields panel
     // are independent now, not two states of the one column.
     expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined();
@@ -935,8 +935,8 @@ describe('PageEditorPage', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined());
     fireEvent.click(screen.getByRole('button', { name: 'Edit hero' }));
-    await waitFor(() => expect(screen.getByLabelText('heading')).toBeDefined());
-    fireEvent.change(screen.getByLabelText('heading'), { target: { value: 'Changed heading' } });
+    await waitFor(() => expect(screen.getByLabelText('Heading')).toBeDefined());
+    fireEvent.change(screen.getByLabelText('Heading'), { target: { value: 'Changed heading' } });
 
     await waitFor(
       () => expect(JSON.parse(api.state.content ?? '{}').sections[0].settings.heading).toBe('Changed heading'),
@@ -954,13 +954,13 @@ describe('PageEditorPage', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined());
     fireEvent.click(screen.getByRole('button', { name: 'Edit hero' }));
-    await waitFor(() => expect(screen.getByLabelText('heading')).toBeDefined());
+    await waitFor(() => expect(screen.getByLabelText('Heading')).toBeDefined());
 
     fireEvent.click(screen.getByRole('tab', { name: 'Page Meta' }));
-    expect((screen.getByLabelText('heading') as HTMLInputElement).value).toBe('Hi there');
+    expect((screen.getByLabelText('Heading') as HTMLInputElement).value).toBe('Hi there');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Sections' }));
-    expect((screen.getByLabelText('heading') as HTMLInputElement).value).toBe('Hi there');
+    expect((screen.getByLabelText('Heading') as HTMLInputElement).value).toBe('Hi there');
   });
 
   it('closing the Fields panel via its own close button clears the selection', async () => {
@@ -973,7 +973,7 @@ describe('PageEditorPage', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined());
     fireEvent.click(screen.getByRole('button', { name: 'Edit hero' }));
-    await waitFor(() => expect(screen.getByLabelText('heading')).toBeDefined());
+    await waitFor(() => expect(screen.getByLabelText('Heading')).toBeDefined());
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
