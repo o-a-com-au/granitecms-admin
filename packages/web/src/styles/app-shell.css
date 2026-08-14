@@ -289,6 +289,17 @@
   flex-direction: column;
 }
 
+/* Pages/Menus (docs/designs/Revised-Pages.png) get their own full-
+   width grey panel (.list-page, pages-list.css) instead of the
+   centred, padded column every other route sits in - drop
+   .app-content's own max-width/padding here so that panel's margin is
+   relative to the viewport, not to an already-padded, already-narrow
+   column. */
+.app-content:has(.list-page) {
+  max-width: none;
+  padding: 0;
+}
+
 /* Mobile: the nav collapses behind the hamburger (docs/designs/
    Phone-Pages.png) - a dropdown panel anchored under the top bar
    itself, spanning its full width, rather than inline. The page-

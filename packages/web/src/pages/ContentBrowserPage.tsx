@@ -198,7 +198,7 @@ export function ContentBrowserPage() {
   const rows = pages !== null ? flattenVisibleTree(buildPageTree(pages), collapsedPaths) : null;
 
   return (
-    <div>
+    <div className="list-page">
       <h1>Browse Pages</h1>
 
       <div className="content-toolbar">

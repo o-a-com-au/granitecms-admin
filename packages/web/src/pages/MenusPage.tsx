@@ -87,7 +87,7 @@ export function MenusPage() {
   }, [siteId]);
 
   return (
-    <div>
+    <div className="list-page">
       <h1>Menus</h1>
 
       {error && (

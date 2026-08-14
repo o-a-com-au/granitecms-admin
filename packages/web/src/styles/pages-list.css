@@ -9,6 +9,19 @@
    (Menus' own "Menu items") or three (Pages' Type/Status/Changed). */
 
 
+/* ContentBrowserPage/MenusPage's own outer wrapper
+   (docs/designs/Revised-Pages.png) - a full-width panel sitting flush
+   against the top bar (no top margin/gap, unlike the other three
+   sides), rather than the app's usual centred, padded .app-content
+   column. app-shell.css's own :has(.list-page) override is what
+   actually removes that column for these two routes; this class just
+   supplies the panel itself. */
+.list-page {
+  margin: 0 var(--space-sm) var(--space-sm);
+  padding: 2rem 1.5rem 4rem;
+  background: var(--colour-surface);
+}
+
 .list-table {
   width: 100%;
   /* Not border-collapse: collapse - a table's own outer border
