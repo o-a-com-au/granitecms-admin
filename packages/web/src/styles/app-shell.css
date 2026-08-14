@@ -292,12 +292,21 @@
 /* Pages/Menus (docs/designs/Revised-Pages.png) get their own full-
    width grey panel (.list-page, pages-list.css) instead of the
    centred, padded column every other route sits in - drop
-   .app-content's own max-width/padding here so that panel's margin is
-   relative to the viewport, not to an already-padded, already-narrow
-   column. */
+   .app-content's own max-width here, and move the panel's gap from
+   the viewport onto this padding (flush on top, var(--space-sm) on
+   the other three sides) rather than a margin on .list-page itself.
+   display: flex + .list-page's own flex: 1 is what actually stretches
+   the panel to fill the remaining height - a min-height: 100% there
+   instead would resolve against .app-content's content-box height
+   alone, ignoring its own margin, so the panel's total box (height +
+   margin) would always overflow .app-content by exactly one
+   var(--space-sm) even when the content itself fits (confirmed live:
+   scrollHeight was 8px taller than clientHeight on every load). */
 .app-content:has(.list-page) {
   max-width: none;
-  padding: 0;
+  padding: 0 var(--space-sm) var(--space-sm);
+  display: flex;
+  flex-direction: column;
 }
 
 /* Mobile: the nav collapses behind the hamburger (docs/designs/
