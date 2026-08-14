@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import { ImageField } from './ImageField.tsx';
+import { RichTextField } from './RichTextField.tsx';
 
 export interface SchemaFieldProps {
   label: string;
@@ -61,10 +63,23 @@ function RawJsonFallback({ value, onChange }: { value: unknown; onChange: (value
 // plain jsdiff over a diff-viewer library in Group H).
 export function SchemaField({ label, schema, value, onChange, error }: SchemaFieldProps) {
   const type = typeof schema.type === 'string' ? schema.type : undefined;
+  const format = typeof schema.format === 'string' ? schema.format : undefined;
+  const fieldId = useId();
 
   let control: React.ReactNode;
 
-  if (isEnumSchema(schema)) {
+  // format checked ahead of the plain type-based branches below - a
+  // mismatched pair (e.g. format: 'image' on a non-object schema) is a
+  // theme-authoring mistake, not something to guess around, so it
+  // deliberately falls through to the existing chain unchanged rather
+  // than being special-cased further.
+  if (format === 'richtext' && type === 'string') {
+    control = (
+      <RichTextField value={typeof value === 'string' ? value : ''} onChange={onChange} labelledBy={fieldId} />
+    );
+  } else if (format === 'image' && type === 'object') {
+    control = <ImageField value={value} onChange={onChange} />;
+  } else if (isEnumSchema(schema)) {
     control = (
       <select value={String(value ?? '')} onChange={(event) => onChange(coerceEnumValue(schema.enum, event.target.value))}>
         {schema.enum.map((option) => (
@@ -112,7 +127,7 @@ export function SchemaField({ label, schema, value, onChange, error }: SchemaFie
 
   return (
     <label>
-      {label}
+      <span id={fieldId}>{label}</span>
       {control}
       {error && <p role="alert">{error}</p>}
     </label>

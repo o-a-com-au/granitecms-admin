@@ -87,6 +87,47 @@ describe('SchemaField', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('renders RichTextField for format: "richtext" ahead of the plain string branch', () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaField label="Body" schema={{ type: 'string', format: 'richtext' }} value="<p>Hi</p>" onChange={onChange} />,
+    );
+
+    const editor = screen.getByLabelText('Body');
+    expect(editor.getAttribute('contenteditable')).toBe('true');
+    expect(editor.innerHTML).toBe('<p>Hi</p>');
+  });
+
+  it('a format: "richtext" schema on a non-string type falls through to the raw JSON fallback, not RichTextField', () => {
+    render(<SchemaField label="Body" schema={{ type: 'object', format: 'richtext' }} value={{}} onChange={vi.fn()} />);
+
+    const field = screen.getByLabelText('Body');
+    expect(field.tagName).toBe('TEXTAREA');
+  });
+
+  it('renders ImageField for format: "image" ahead of the raw JSON fallback', () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaField
+        label="Poster"
+        schema={{ type: 'object', format: 'image' }}
+        value={{ url: 'https://example.com/a.jpg', focalX: 0.25, focalY: 0.75 }}
+        onChange={onChange}
+      />,
+    );
+
+    const input = screen.getByLabelText('Poster') as HTMLInputElement;
+    expect(input.type).toBe('text');
+    expect(input.value).toBe('https://example.com/a.jpg');
+  });
+
+  it('a format: "image" schema on a non-object type falls through to the plain text branch, not ImageField', () => {
+    render(<SchemaField label="Poster" schema={{ type: 'string', format: 'image' }} value="x" onChange={vi.fn()} />);
+
+    const input = screen.getByLabelText('Poster') as HTMLInputElement;
+    expect(input.type).toBe('text');
+  });
+
   it('I5: shows a field-specific error message when one is passed, not a generic banner', () => {
     render(
       <SchemaField label="Heading" schema={{ type: 'string' }} value="" onChange={vi.fn()} error="must be at least 1 character" />,

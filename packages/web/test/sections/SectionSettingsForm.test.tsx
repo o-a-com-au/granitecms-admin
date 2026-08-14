@@ -50,6 +50,31 @@ describe('SectionSettingsForm', () => {
     expect(columnsField?.textContent?.includes('must NOT have')).toBe(false);
   });
 
+  it('an object-shaped field (format: "image") still whole-object-replaces on change, preserving sibling fields', () => {
+    const onChange = vi.fn();
+    const schema = {
+      type: 'object',
+      properties: {
+        heading: { type: 'string' },
+        poster: { type: 'object', format: 'image' },
+      },
+    };
+    render(
+      <SectionSettingsForm
+        schema={schema}
+        settings={{ heading: 'Hi', poster: { url: 'https://example.com/a.jpg', focalX: 0.5, focalY: 0.5 } }}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('poster'), { target: { value: 'https://example.com/b.jpg' } });
+
+    expect(onChange).toHaveBeenCalledWith({
+      heading: 'Hi',
+      poster: { url: 'https://example.com/b.jpg', focalX: 0.5, focalY: 0.5 },
+    });
+  });
+
   it('falls back to raw settings editing for an unknown type, without discarding the instance', () => {
     const onChange = vi.fn();
     render(<SectionSettingsForm schema={undefined} settings={{ legacy: true }} onChange={onChange} />);

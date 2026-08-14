@@ -1,0 +1,143 @@
+/* RichTextField.tsx - a small contentEditable region with a fixed
+   toolbar (Paragraph/H1/H2/H3, Bold, Italic, Link, Bullet list,
+   Numbered list only). Own file, own classes, matching the app's
+   established one-feature-per-stylesheet convention (device-
+   preview.css owns .device-toggle, instance-rows.css owns
+   .instance-add-menu, etc). */
+.richtext-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* Same bordered/filled-pill treatment as .filter-tabs (pages-list.css)
+   - the outer group carries the border/background, individual buttons
+   sit flat with no box of their own until hovered. */
+.richtext-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.25rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
+  position: relative;
+}
+
+/* button.richtext-toolbar button, not just a bare selector - out-
+   specifies base.css's own button[type='button'] rule the same way
+   every other toolbar in this app already has to (see
+   button.instance-row-chevron's own comment for the identical
+   reasoning). */
+.richtext-toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 0.4rem;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: none;
+  color: var(--colour-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.richtext-toolbar button:hover {
+  background: var(--colour-surface-hover);
+  color: var(--colour-text);
+}
+
+.richtext-toolbar-bold {
+  font-weight: 800;
+}
+
+.richtext-toolbar-italic {
+  font-style: italic;
+}
+
+/* LinkIcon/BulletListIcon/NumberedListIcon (richtext-toolbar-icons.tsx)
+   render their svg at width/height: 100% - this box does the actual
+   sizing, same convention as .device-icon (device-preview.css). */
+.richtext-toolbar-icon {
+  display: flex;
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+}
+
+.richtext-link-wrap {
+  position: relative;
+}
+
+/* Same floating-popover treatment as .instance-add-menu
+   (instance-rows.css) - own class names rather than literal reuse, so
+   this file's own domain stays self-contained, but the same border/
+   radius/shadow/padding values. */
+.richtext-link-popover {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 220px;
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  padding: 0.6rem;
+  z-index: 20;
+}
+
+.richtext-link-popover input {
+  width: 100%;
+}
+
+.richtext-link-popover-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Deliberately no min-height/rows - a settings field editor, not a
+   full-page composer; grows with its own content up to a sane cap
+   rather than reserving a fixed block of vertical space on every
+   richtext field regardless of how much text it holds. */
+.richtext-editor {
+  min-height: 4rem;
+  max-height: 20rem;
+  overflow-y: auto;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
+  color: var(--colour-text);
+}
+
+.richtext-editor:focus-visible {
+  outline: 2px solid var(--colour-primary);
+  outline-offset: -1px;
+}
+
+.richtext-editor h1,
+.richtext-editor h2,
+.richtext-editor h3 {
+  margin: 0 0 0.5rem;
+}
+
+.richtext-editor p {
+  margin: 0 0 0.5rem;
+}
+
+.richtext-editor ul,
+.richtext-editor ol {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+}
+
+.richtext-editor > :last-child {
+  margin-bottom: 0;
+}

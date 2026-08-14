@@ -19,3 +19,12 @@ afterEach(() => {
 // check would narrow to `never` under strict mode - ??= sidesteps
 // that since it's a value check, not a type-narrowing one.
 Element.prototype.scrollIntoView ??= () => {};
+
+// Same problem, same fix, for RichTextField's own toolbar: jsdom
+// declares no execCommand at all (lib.dom.d.ts says it's always
+// present, so a runtime existence check would narrow to `never` under
+// strict mode - ??= sidesteps that the same way as scrollIntoView
+// above). Tests assert on the arguments a toolbar button passes to
+// execCommand via a spy, not on any resulting DOM formatting - jsdom
+// has no real implementation to produce that formatting anyway.
+document.execCommand ??= () => false;

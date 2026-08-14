@@ -40,7 +40,16 @@ export function parsePage(content: string): ParsedPage | null {
 // /sections/0/settings/heading (or, recursively,
 // /sections/0/blocks/1/settings/label) - re-keyed by instance id here
 // so the Fields view only ever looks up its own selected instance's
-// id, never re-parses a path string itself.
+// id, never re-parses a path string itself. A nested/object-shaped
+// field (e.g. the image field's own focalX/focalY) produces a longer
+// path like .../settings/image/focalX - collapsed to just the first
+// segment ("image") below, so it lands on the parent field's own error
+// slot rather than a key nothing ever looks up. Known, accepted
+// limitation: two distinct errors under the same nested parent (e.g.
+// both focalX and focalY invalid at once) collapse to one map entry,
+// last-processed-wins - every real schema's own nested object today
+// (just the image field) is small enough that showing one of the two
+// messages is still useful, not silently blank.
 export function buildFieldErrorMap(sections: Instance[], errors: ValidationFieldError[] | null): FieldErrorMap {
   const map: FieldErrorMap = {};
   if (!errors) {
@@ -54,7 +63,7 @@ export function buildFieldErrorMap(sections: Instance[], errors: ValidationField
       const settingsPrefix = `${instancePrefix}/settings/`;
       for (const error of fieldErrors) {
         if (error.path.startsWith(settingsPrefix)) {
-          const key = error.path.slice(settingsPrefix.length);
+          const key = error.path.slice(settingsPrefix.length).split('/')[0] ?? '';
           map[instance.id] = { ...map[instance.id], [key]: error.message };
         }
       }
