@@ -33,6 +33,13 @@
   padding: 2rem 1.5rem 4rem;
 }
 
+/* MediaLibraryPage's own override - the 900px cap above was tuned for
+   a table, not a photo grid. A starting point to sanity-check
+   visually, not a final number. */
+.media-library-page-inner {
+  max-width: 1200px;
+}
+
 .list-table {
   width: 100%;
   /* Not border-collapse: collapse - a table's own outer border

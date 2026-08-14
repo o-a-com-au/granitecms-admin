@@ -3,6 +3,7 @@ import { LoginPage } from './pages/LoginPage.tsx';
 import { HomePage } from './pages/HomePage.tsx';
 import { ContentBrowserPage } from './pages/ContentBrowserPage.tsx';
 import { MenusPage } from './pages/MenusPage.tsx';
+import { MediaLibraryPage } from './pages/MediaLibraryPage.tsx';
 import { MenuEditorPage } from './pages/MenuEditorPage.tsx';
 import { PageEditorPage } from './pages/PageEditorPage.tsx';
 import { PageHistoryPage } from './pages/PageHistoryPage.tsx';
@@ -28,6 +29,7 @@ export const routes: RouteObject[] = [
           { path: '/', element: <HomePage /> },
           { path: '/sites/:siteId/content', element: <ContentBrowserPage /> },
           { path: '/sites/:siteId/menus', element: <MenusPage /> },
+          { path: '/sites/:siteId/media', element: <MediaLibraryPage /> },
           { path: '/sites/:siteId/menus/edit', element: <MenuEditorPage /> },
           { path: '/sites/:siteId/editor', element: <PageEditorPage /> },
           { path: '/sites/:siteId/history', element: <PageHistoryPage /> },

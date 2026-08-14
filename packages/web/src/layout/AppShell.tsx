@@ -21,8 +21,8 @@ interface TopNavItemProps {
 }
 
 // A nav item with no destination (siteId not yet known, e.g. on the
-// registry, or a section like Media/Redirects/History with no page
-// built yet) renders disabled rather than being omitted - the revised
+// registry, or a section like Redirects/History with no page built
+// yet) renders disabled rather than being omitted - the revised
 // designs (docs/designs/Revised-Pages.png) show every nav item
 // consistently present in the top bar.
 function TopNavItem({ label, to, active }: TopNavItemProps) {
@@ -110,6 +110,7 @@ export function AppShell() {
 
   const contentTo = siteId ? `/sites/${siteId}/content` : undefined;
   const menusTo = siteId ? `/sites/${siteId}/menus` : undefined;
+  const mediaTo = siteId ? `/sites/${siteId}/media` : undefined;
   const editorTo = siteId ? `/sites/${siteId}/editor` : undefined;
   const isEditingPage = location.pathname === editorTo;
 
@@ -146,7 +147,7 @@ export function AppShell() {
           <nav className={`app-topbar-nav${mobileNavOpen ? ' is-open' : ''}`} aria-label="Primary">
             <TopNavItem label="Pages" to={contentTo} active={location.pathname === contentTo} />
             <TopNavItem label="Menus" to={menusTo} active={location.pathname === menusTo} />
-            <TopNavItem label="Media" to={undefined} active={false} />
+            <TopNavItem label="Media" to={mediaTo} active={location.pathname === mediaTo} />
             <TopNavItem label="Redirects" to={undefined} active={false} />
             {/* Placeholder - History is currently only reachable scoped
                 to one page (PageEditorPage's own historyHref), not yet

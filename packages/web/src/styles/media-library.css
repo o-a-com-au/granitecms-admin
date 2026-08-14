@@ -1,0 +1,151 @@
+/* MediaLibraryPage (full page) and MediaPickerModal (picker mode of
+   the same MediaLibrary component) both mount this - see
+   pages-list.css's .media-library-page-inner for the page wrapper's
+   own width override, and this file's own .media-picker-modal below
+   for the modal sizing. */
+
+.media-library-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.media-library-toolbar .content-search {
+  flex: 1;
+}
+
+.media-library-errors {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface-hover);
+  color: var(--colour-text);
+  list-style: none;
+}
+
+/* The whole grid area is the drop target (WordPress/Shopify's own
+   convention), not just a button - a generous dashed border only
+   appears once a drag is actually in progress, so the empty/idle
+   state doesn't look like a permanent upload box. */
+.media-library-dropzone {
+  min-height: 240px;
+  border-radius: var(--radius-sm);
+  border: 2px dashed transparent;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.media-library-dropzone.is-drag-active {
+  border-color: var(--colour-primary);
+  background: var(--colour-surface-hover);
+}
+
+.media-library-empty {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--colour-muted);
+}
+
+.media-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.media-library-item {
+  position: relative;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
+  overflow: hidden;
+}
+
+.media-library-item.is-selected {
+  border-color: var(--colour-primary);
+  box-shadow: 0 0 0 2px var(--colour-primary);
+}
+
+button.media-library-item-thumb {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.media-library-item-thumb img {
+  display: block;
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+  background: var(--colour-surface-hover);
+}
+
+.media-library-item-name {
+  display: block;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--colour-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Hidden until the card is hovered/focused, matching
+   instance-rows.css's own button.instance-row-remove convention. */
+button.media-library-item-delete {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border-color: transparent;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.media-library-item:hover button.media-library-item-delete,
+button.media-library-item-delete:hover,
+button.media-library-item-delete:focus-visible {
+  opacity: 1;
+}
+
+/* A sibling to .modal, not a resize of it - .modal is shared with
+   ConfirmDialog/UnsavedChangesPrompt and stays tuned for a short
+   confirmation message, not a photo grid. Reuses .modal-overlay as-is. */
+.media-picker-modal {
+  width: min(90vw, 960px);
+  height: min(85vh, 720px);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-lg);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+}
+
+.media-picker-modal h2 {
+  margin: 0 0 var(--space-sm);
+  font-size: 1.1rem;
+  flex: 0 0 auto;
+}
+
+.media-picker-modal-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.media-picker-modal .modal-actions {
+  flex: 0 0 auto;
+  margin-top: var(--space-md);
+}

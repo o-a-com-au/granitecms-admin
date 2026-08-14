@@ -5,7 +5,9 @@ export type SiteEditorErrorReason =
   | 'error'
   | 'conflict'
   | 'precondition-required'
-  | 'invalid';
+  | 'invalid'
+  | 'unsupported-type'
+  | 'too-large';
 
 // Group I, I5: the real ajv errors (already field-pointing, e.g.
 // /sections/0/settings/heading), forwarded all the way from the
@@ -50,7 +52,9 @@ function isReason(value: unknown): value is SiteEditorErrorReason {
     value === 'error' ||
     value === 'conflict' ||
     value === 'precondition-required' ||
-    value === 'invalid'
+    value === 'invalid' ||
+    value === 'unsupported-type' ||
+    value === 'too-large'
   );
 }
 
