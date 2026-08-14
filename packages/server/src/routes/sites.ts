@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import multipart from '@fastify/multipart';
 import type { FastifyInstance } from 'fastify';
 import type { Store } from '../store/store.ts';
 import type { AdminUser } from '../auth/users.ts';
@@ -19,6 +20,7 @@ import { fetchSiteRevision } from '../sites/site-revision.ts';
 import { revertSitePath } from '../sites/site-revert.ts';
 import { moveSitePath } from '../sites/site-move.ts';
 import { fetchSiteThemeSchemas } from '../sites/site-theme-schemas.ts';
+import { deleteSiteMedia, listSiteMedia, uploadSiteMedia } from '../sites/site-media.ts';
 
 // The raw token is never included here, full stop - built by this
 // explicit mapping function rather than spreading the Site record, so
@@ -625,6 +627,110 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
 
       reply.code(502);
       return { error: result.message, reason: result.outcome };
+    });
+
+    // Media routes live in their own nested plugin, not registered
+    // directly on `app` above: Fastify's register() gives a nested
+    // plugin its own encapsulation context, so registering
+    // @fastify/multipart only here scopes its content-type parser and
+    // request.file() decoration to just these three routes, leaving
+    // every other /api/sites/* route's default JSON body parsing
+    // completely untouched. Kept inside this same file rather than a
+    // new routes/media.ts - routes/ has no existing per-concern file
+    // split for site-scoped routes, every other concern here
+    // (content, drafts, preview, history, theme schemas) already
+    // shares this one file's sitesStore/requireAuth closure, and
+    // splitting only media out would be a larger, unrequested
+    // structural change.
+    await app.register(async (mediaRoutes) => {
+      // A defensive-only ceiling on the admin's own incoming upload,
+      // independent of any specific site's real configured cap (which
+      // is enforced authoritatively agent-side and forwarded back as a
+      // real 413 by uploadSiteMedia). 20MB, generously above any
+      // realistic web image.
+      await mediaRoutes.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } });
+
+      mediaRoutes.get<{ Params: { id: string } }>('/:id/media', { preHandler: requireAuth }, async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const result = await listSiteMedia(site);
+        if (result.outcome === 'ok') {
+          return { items: result.items, maxUploadBytes: result.maxUploadBytes };
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      });
+
+      mediaRoutes.post<{ Params: { id: string } }>(
+        '/:id/media',
+        { preHandler: requireAuth },
+        async (request, reply) => {
+          const site = await sitesStore.find(request.params.id);
+          if (!site) {
+            throw new SiteNotFoundError(request.params.id);
+          }
+
+          // A RequestFileTooLargeError from the ceiling registered
+          // above already carries its own .statusCode (413) - thrown
+          // straight through to the app's existing global error
+          // handler unchanged, no special catch needed here, same
+          // precedent already confirmed agent-side for the identical
+          // situation.
+          const data = await request.file();
+          if (!data) {
+            reply.code(400);
+            return { statusCode: 400, error: 'Bad Request', message: 'Expected a multipart file upload' };
+          }
+          const bytes = await data.toBuffer();
+
+          const result = await uploadSiteMedia(site, data.filename, bytes);
+          if (result.outcome === 'ok') {
+            reply.code(201);
+            return { name: result.name, size: result.size, url: result.url };
+          }
+          if (result.outcome === 'unsupported-type') {
+            reply.code(415);
+            return { statusCode: 415, error: 'Unsupported Media Type', message: result.message };
+          }
+          if (result.outcome === 'too-large') {
+            reply.code(413);
+            return { statusCode: 413, error: 'Payload Too Large', message: result.message };
+          }
+
+          reply.code(502);
+          return { error: result.message, reason: result.outcome };
+        },
+      );
+
+      // Wildcard, not a named :name param - mirrors this file's own
+      // /:id/drafts/* precedent and the agent's own DELETE
+      // /v1/media/* route.
+      mediaRoutes.delete<{ Params: { id: string; '*': string } }>(
+        '/:id/media/*',
+        { preHandler: requireAuth },
+        async (request, reply) => {
+          const site = await sitesStore.find(request.params.id);
+          if (!site) {
+            throw new SiteNotFoundError(request.params.id);
+          }
+
+          const result = await deleteSiteMedia(site, request.params['*']);
+          if (result.outcome === 'ok') {
+            return reply.code(204).send();
+          }
+          if (result.outcome === 'not-found') {
+            reply.code(404);
+            return { statusCode: 404, error: 'Not Found', message: result.message };
+          }
+
+          reply.code(502);
+          return { error: result.message, reason: result.outcome };
+        },
+      );
     });
 
     // C1: never gated on reachability - the registry is metadata

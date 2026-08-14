@@ -1608,4 +1608,202 @@ describe('sites routes', () => {
 
     await app.close();
   });
+
+  // Hand-builds a minimal, valid multipart/form-data body - same
+  // approach the agent repo's own routes/media.test.ts uses, since
+  // light-my-request's .inject() accepts an arbitrary raw
+  // payload/headers with no higher-level form-building helper needed.
+  function buildMultipartBody(
+    filename: string,
+    mimetype: string,
+    bytes: Buffer,
+  ): { payload: Buffer; contentType: string } {
+    const boundary = '----adminTestBoundary';
+    const head = Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${mimetype}\r\n\r\n`,
+    );
+    const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
+    return {
+      payload: Buffer.concat([head, bytes, tail]),
+      contentType: `multipart/form-data; boundary=${boundary}`,
+    };
+  }
+
+  it('GET /api/sites/:id/media forwards the list, with each url rewritten absolute', async () => {
+    const { app, cookie } = await buildTestServer();
+    fakeSite = createServer((req, res) => {
+      if (req.url === '/v1/capabilities') {
+        sendJson(res, 200, { maxMediaUploadBytes: 5000 });
+        return;
+      }
+      if (req.headers.authorization !== 'Bearer the-token') {
+        sendJson(res, 401, { error: 'invalid-token' });
+        return;
+      }
+      sendJson(res, 200, [{ name: 'photo.jpg', size: 5, mtimeMs: 123, url: '/media/photo.jpg' }]);
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const siteUrl = `http://127.0.0.1:${address.port}`;
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({ method: 'GET', url: `/api/sites/${id}/media`, headers: { cookie } });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), {
+      items: [{ name: 'photo.jpg', size: 5, mtimeMs: 123, url: `${siteUrl}/media/photo.jpg` }],
+      maxUploadBytes: 5000,
+    });
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/media returns 502 for an unreachable site', async () => {
+    const { app, cookie } = await buildTestServer();
+    const id = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');
+
+    const response = await app.inject({ method: 'GET', url: `/api/sites/${id}/media`, headers: { cookie } });
+
+    assert.equal(response.statusCode, 502);
+    assert.equal(response.json().reason, 'unreachable');
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/media forwards the upload and reports the site-returned url absolute', async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedContentType: string | undefined;
+    fakeSite = createServer((req, res) => {
+      if (req.headers.authorization !== 'Bearer the-token') {
+        sendJson(res, 401, { error: 'invalid-token' });
+        return;
+      }
+      receivedContentType = req.headers['content-type'];
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => sendJson(res, 201, { name: 'photo.jpg', size: 5, url: '/media/photo.jpg' }));
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const siteUrl = `http://127.0.0.1:${address.port}`;
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const { payload, contentType } = buildMultipartBody('photo.jpg', 'image/jpeg', Buffer.from('hello'));
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/media`,
+      headers: { cookie, 'content-type': contentType },
+      payload,
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.deepEqual(response.json(), { name: 'photo.jpg', size: 5, url: `${siteUrl}/media/photo.jpg` });
+    assert.match(receivedContentType ?? '', /^multipart\/form-data; boundary=/);
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/media returns 400 when the request has no file part', async () => {
+    const { app, cookie } = await buildTestServer();
+    const id = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');
+    // No filename param on the Content-Disposition - busboy (underneath
+    // @fastify/multipart) treats a part as a plain field, not a file,
+    // purely based on the presence of filename, regardless of the part's
+    // own field name.
+    const boundary = '----adminTestBoundaryNoFile';
+    const payload = Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="notes"\r\n\r\nhello\r\n--${boundary}--\r\n`,
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/media`,
+      headers: { cookie, 'content-type': `multipart/form-data; boundary=${boundary}` },
+      payload,
+    });
+
+    assert.equal(response.statusCode, 400);
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/media forwards a site 415 for an unsupported type', async () => {
+    const { app, cookie } = await buildTestServer();
+    fakeSite = createServer((_req, res) => sendJson(res, 415, { error: 'bad type' }));
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+    const { payload, contentType } = buildMultipartBody('icon.svg', 'image/svg+xml', Buffer.from('<svg/>'));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/media`,
+      headers: { cookie, 'content-type': contentType },
+      payload,
+    });
+
+    assert.equal(response.statusCode, 415);
+
+    await app.close();
+  });
+
+  it('DELETE /api/sites/:id/media/:name forwards the delete', async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedMethod = '';
+    let receivedPath = '';
+    fakeSite = createServer((req, res) => {
+      receivedMethod = req.method ?? '';
+      receivedPath = req.url ?? '';
+      res.writeHead(204);
+      res.end();
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/sites/${id}/media/photo.jpg`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 204);
+    assert.equal(receivedMethod, 'DELETE');
+    assert.equal(receivedPath, '/v1/media/photo.jpg');
+
+    await app.close();
+  });
+
+  it('DELETE /api/sites/:id/media/:name returns 404 when the site reports not-found', async () => {
+    const { app, cookie } = await buildTestServer();
+    fakeSite = createServer((_req, res) => sendJson(res, 404, { error: 'not found' }));
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/sites/${id}/media/missing.jpg`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 404);
+
+    await app.close();
+  });
 });

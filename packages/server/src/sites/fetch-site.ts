@@ -8,7 +8,11 @@ export interface FetchSiteOptions {
   authToken?: string;
   method?: string;
   headers?: Record<string, string>;
-  body?: string;
+  // FormData for a media upload (site-media.ts) - Node's built-in fetch
+  // (undici) computes the correct multipart/form-data; boundary=...
+  // header itself for a FormData body, so a caller passing one must
+  // never also set a Content-Type header, or the two would conflict.
+  body?: string | FormData;
 }
 
 export type FetchSiteResult = { outcome: 'response'; response: Response } | { outcome: 'unreachable' };
