@@ -88,42 +88,44 @@ export function MenusPage() {
 
   return (
     <div className="list-page">
-      <h1>Menus</h1>
+      <div className="list-page-inner">
+        <h1>Menus</h1>
 
-      {error && (
-        <p role="alert">
-          {error.reason === 'unreachable' && 'This site is unreachable right now.'}
-          {error.reason === 'unauthorized' && (
-            <>
-              This site&apos;s token was rejected. <Link to="/">Rotate it from the registry</Link>.
-            </>
-          )}
-          {error.reason === 'error' && error.message}
-        </p>
-      )}
+        {error && (
+          <p role="alert">
+            {error.reason === 'unreachable' && 'This site is unreachable right now.'}
+            {error.reason === 'unauthorized' && (
+              <>
+                This site&apos;s token was rejected. <Link to="/">Rotate it from the registry</Link>.
+              </>
+            )}
+            {error.reason === 'error' && error.message}
+          </p>
+        )}
 
-      {!error && menus === null && <p>Loading...</p>}
-      {!error && menus !== null && menus.length === 0 && <p>No menus found.</p>}
-      {!error && menus !== null && menus.length > 0 && (
-          <table className="list-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Menu items</th>
-              </tr>
-            </thead>
-            <tbody>
-              {menus.map((menu) => (
-                <tr key={menu.path}>
-                  <td>
-                    <Link to={`/sites/${siteId}/menus/edit?path=${encodeURIComponent(menu.path)}`}>{menu.name}</Link>
-                  </td>
-                  <td>{menu.items.length > 0 ? menu.items.join(', ') : 'No items'}</td>
+        {!error && menus === null && <p>Loading...</p>}
+        {!error && menus !== null && menus.length === 0 && <p>No menus found.</p>}
+        {!error && menus !== null && menus.length > 0 && (
+            <table className="list-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Menu items</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-      )}
+              </thead>
+              <tbody>
+                {menus.map((menu) => (
+                  <tr key={menu.path}>
+                    <td>
+                      <Link to={`/sites/${siteId}/menus/edit?path=${encodeURIComponent(menu.path)}`}>{menu.name}</Link>
+                    </td>
+                    <td>{menu.items.length > 0 ? menu.items.join(', ') : 'No items'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+        )}
+      </div>
     </div>
   );
 }

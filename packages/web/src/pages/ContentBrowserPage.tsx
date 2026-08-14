@@ -199,74 +199,76 @@ export function ContentBrowserPage() {
 
   return (
     <div className="list-page">
-      <h1>Browse Pages</h1>
+      <div className="list-page-inner">
+        <h1>Browse Pages</h1>
 
-      <div className="content-toolbar">
-        <input
-          type="search"
-          className="content-search"
-          placeholder="Search Pages"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-        <div className="filter-tabs" role="group" aria-label="Filter pages">
-          {STATUS_FILTERS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={status === value}
-              onClick={() => handleStatusChange(value)}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="content-toolbar">
+          <input
+            type="search"
+            className="content-search"
+            placeholder="Search Pages"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          <div className="filter-tabs" role="group" aria-label="Filter pages">
+            {STATUS_FILTERS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={status === value}
+                onClick={() => handleStatusChange(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {error && (
+          <p role="alert">
+            {error.reason === 'unreachable' && 'This site is unreachable right now.'}
+            {error.reason === 'unauthorized' && (
+              <>
+                This site&apos;s token was rejected. <Link to="/">Rotate it from the registry</Link>.
+              </>
+            )}
+            {error.reason === 'error' && error.message}
+          </p>
+        )}
+
+        {!error && entries === null && <p>Loading...</p>}
+
+        {!error && rows !== null && (
+          <>
+            {rows.length === 0 ? (
+              <p>No pages found.</p>
+            ) : (
+              <table className="list-table pages-list-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Changed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(({ node, depth }) => (
+                    <PageTreeRow
+                      key={node.entry.path}
+                      siteId={siteId}
+                      node={node}
+                      depth={depth}
+                      collapsed={collapsedPaths.has(node.entry.path)}
+                      onToggle={handleToggle}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
       </div>
-
-      {error && (
-        <p role="alert">
-          {error.reason === 'unreachable' && 'This site is unreachable right now.'}
-          {error.reason === 'unauthorized' && (
-            <>
-              This site&apos;s token was rejected. <Link to="/">Rotate it from the registry</Link>.
-            </>
-          )}
-          {error.reason === 'error' && error.message}
-        </p>
-      )}
-
-      {!error && entries === null && <p>Loading...</p>}
-
-      {!error && rows !== null && (
-        <>
-          {rows.length === 0 ? (
-            <p>No pages found.</p>
-          ) : (
-            <table className="list-table pages-list-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Changed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(({ node, depth }) => (
-                  <PageTreeRow
-                    key={node.entry.path}
-                    siteId={siteId}
-                    node={node}
-                    depth={depth}
-                    collapsed={collapsedPaths.has(node.entry.path)}
-                    onToggle={handleToggle}
-                  />
-                ))}
-              </tbody>
-            </table>
-          )}
-        </>
-      )}
     </div>
   );
 }

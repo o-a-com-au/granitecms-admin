@@ -15,11 +15,24 @@
    sides), rather than the app's usual centred, padded .app-content
    column. app-shell.css's own :has(.list-page) override is what
    actually removes that column for these two routes; this class just
-   supplies the panel itself. */
+   supplies the panel itself. min-height: 100% (not height) so the
+   panel still grows taller than the viewport, rather than clipping,
+   once a long page tree/menu list overflows it - 100% resolves
+   against .app-content's own flex-grown height (a definite value,
+   .app-shell being flex-direction: column, height: 100vh), not an
+   arbitrary guess. */
 .list-page {
+  min-height: 100%;
   margin: 0 var(--space-sm) var(--space-sm);
-  padding: 2rem 1.5rem 4rem;
   background: var(--colour-surface);
+}
+
+/* The actual heading/toolbar/table content, centred within the full-
+   width panel above rather than stretching edge to edge with it. */
+.list-page-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
 }
 
 .list-table {
