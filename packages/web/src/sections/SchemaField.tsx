@@ -3,6 +3,7 @@ import { ImageField } from './ImageField.tsx';
 import { RichTextField } from './RichTextField.tsx';
 
 export interface SchemaFieldProps {
+  siteId: string;
   label: string;
   schema: Record<string, unknown>;
   value: unknown;
@@ -61,7 +62,7 @@ function RawJsonFallback({ value, onChange }: { value: unknown; onChange: (value
 // warrants - matching this project's consistent preference for the
 // simplest mechanism that actually works (same reasoning as choosing
 // plain jsdiff over a diff-viewer library in Group H).
-export function SchemaField({ label, schema, value, onChange, error }: SchemaFieldProps) {
+export function SchemaField({ siteId, label, schema, value, onChange, error }: SchemaFieldProps) {
   const type = typeof schema.type === 'string' ? schema.type : undefined;
   const format = typeof schema.format === 'string' ? schema.format : undefined;
   const fieldId = useId();
@@ -78,7 +79,7 @@ export function SchemaField({ label, schema, value, onChange, error }: SchemaFie
       <RichTextField value={typeof value === 'string' ? value : ''} onChange={onChange} labelledBy={fieldId} />
     );
   } else if (format === 'image' && type === 'object') {
-    control = <ImageField value={value} onChange={onChange} />;
+    control = <ImageField siteId={siteId} value={value} onChange={onChange} />;
   } else if (isEnumSchema(schema)) {
     control = (
       <select value={String(value ?? '')} onChange={(event) => onChange(coerceEnumValue(schema.enum, event.target.value))}>

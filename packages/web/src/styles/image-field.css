@@ -7,8 +7,14 @@
   gap: 0.5rem;
 }
 
-.image-field input {
-  width: 100%;
+.image-field-url-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.image-field-url-row input {
+  flex: 1;
+  min-width: 0;
 }
 
 .image-field-preview {

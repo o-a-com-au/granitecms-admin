@@ -1,11 +1,31 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ImageField, type ImageFieldValue } from '../../src/sections/ImageField.tsx';
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
+
+function installFakeMediaApi() {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url === '/api/sites/site-1/media') {
+        return new Response(
+          JSON.stringify({
+            items: [{ name: 'chosen.jpg', size: 5, mtimeMs: 1, url: 'http://site.example/media/chosen.jpg' }],
+            maxUploadBytes: 1000,
+          }),
+          { status: 200 },
+        );
+      }
+      throw new Error(`unhandled fetch in test: ${url}`);
+    }),
+  );
+}
 
 function mockRect(img: HTMLElement, rect: Partial<DOMRect>): void {
   vi.spyOn(img, 'getBoundingClientRect').mockReturnValue({
@@ -31,7 +51,7 @@ function renderField(value: unknown, onChange = vi.fn()) {
   render(
     <label>
       Poster
-      <ImageField value={value} onChange={onChange} />
+      <ImageField siteId="site-1" value={value} onChange={onChange} />
     </label>,
   );
   return { onChange };
@@ -105,5 +125,45 @@ describe('ImageField', () => {
     const marker = document.querySelector('.image-field-focal-marker') as HTMLElement;
     expect(marker.style.left).toBe('30%');
     expect(marker.style.top).toBe('70%');
+  });
+
+  it('Choose Image opens the media picker modal', async () => {
+    installFakeMediaApi();
+    renderField(undefined);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose Image' }));
+
+    expect(screen.getByRole('dialog', { name: 'Choose an image' })).toBeDefined();
+    await waitFor(() => expect(screen.getByText('chosen.jpg')).toBeDefined());
+  });
+
+  it('selecting an image from the picker sets the url and preserves the existing focal point', async () => {
+    installFakeMediaApi();
+    const { onChange } = renderField({ url: 'https://example.com/a.jpg', focalX: 0.2, focalY: 0.8 });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose Image' }));
+    await waitFor(() => expect(screen.getByText('chosen.jpg')).toBeDefined());
+    fireEvent.click(screen.getByAltText('chosen.jpg'));
+    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
+
+    expect(onChange).toHaveBeenCalledWith({
+      url: 'http://site.example/media/chosen.jpg',
+      focalX: 0.2,
+      focalY: 0.8,
+    });
+    expect(screen.queryByRole('dialog', { name: 'Choose an image' })).toBeNull();
+  });
+
+  it('closing the picker without selecting leaves the existing value untouched', async () => {
+    installFakeMediaApi();
+    const { onChange } = renderField({ url: 'https://example.com/a.jpg', focalX: 0.2, focalY: 0.8 });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose Image' }));
+    await waitFor(() => expect(screen.getByText('chosen.jpg')).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByRole('dialog', { name: 'Choose an image' })).toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
+    expect((screen.getByLabelText('Poster') as HTMLInputElement).value).toBe('https://example.com/a.jpg');
   });
 });

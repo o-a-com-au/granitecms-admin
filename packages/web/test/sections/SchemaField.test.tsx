@@ -12,6 +12,7 @@ describe('SchemaField', () => {
     const onChange = vi.fn();
     render(
       <SchemaField
+        siteId="site-1"
         label="Style"
         schema={{ type: 'string', enum: ['primary', 'secondary', 'on-dark'] }}
         value="primary"
@@ -28,7 +29,7 @@ describe('SchemaField', () => {
   // Real fixture schema: fixtures/demo-site/theme/blocks/pricing-tier.liquid's highlighted field.
   it('I3: renders a checkbox for a boolean field', () => {
     const onChange = vi.fn();
-    render(<SchemaField label="Highlighted" schema={{ type: 'boolean' }} value={true} onChange={onChange} />);
+    render(<SchemaField siteId="site-1" label="Highlighted" schema={{ type: 'boolean' }} value={true} onChange={onChange} />);
 
     const checkbox = screen.getByLabelText('Highlighted') as HTMLInputElement;
     expect(checkbox.type).toBe('checkbox');
@@ -39,7 +40,7 @@ describe('SchemaField', () => {
 
   it('I3: renders a text input for a string field, respecting minLength/maxLength', () => {
     const onChange = vi.fn();
-    render(<SchemaField label="Heading" schema={{ type: 'string', minLength: 1 }} value="Hello" onChange={onChange} />);
+    render(<SchemaField siteId="site-1" label="Heading" schema={{ type: 'string', minLength: 1 }} value="Hello" onChange={onChange} />);
 
     const input = screen.getByLabelText('Heading') as HTMLInputElement;
     expect(input.type).toBe('text');
@@ -52,6 +53,7 @@ describe('SchemaField', () => {
     const onChange = vi.fn();
     render(
       <SchemaField
+        siteId="site-1"
         label="Columns"
         schema={{ type: 'integer', minimum: 1, maximum: 4 }}
         value={2}
@@ -69,7 +71,7 @@ describe('SchemaField', () => {
 
   it('I3: falls back to a raw JSON textarea for an unrecognised schema shape, never dropping the field', () => {
     const onChange = vi.fn();
-    render(<SchemaField label="Extra" schema={{ type: 'object' }} value={{ nested: true }} onChange={onChange} />);
+    render(<SchemaField siteId="site-1" label="Extra" schema={{ type: 'object' }} value={{ nested: true }} onChange={onChange} />);
 
     const textarea = screen.getByLabelText('Extra') as HTMLTextAreaElement;
     expect(textarea.tagName).toBe('TEXTAREA');
@@ -79,7 +81,7 @@ describe('SchemaField', () => {
 
   it('I3: an invalid-JSON edit in the raw fallback shows a message and never calls onChange', () => {
     const onChange = vi.fn();
-    render(<SchemaField label="Extra" schema={{ type: 'object' }} value={{ nested: true }} onChange={onChange} />);
+    render(<SchemaField siteId="site-1" label="Extra" schema={{ type: 'object' }} value={{ nested: true }} onChange={onChange} />);
 
     fireEvent.change(screen.getByLabelText('Extra'), { target: { value: '{ not valid' } });
 
@@ -90,7 +92,7 @@ describe('SchemaField', () => {
   it('renders RichTextField for format: "richtext" ahead of the plain string branch', () => {
     const onChange = vi.fn();
     render(
-      <SchemaField label="Body" schema={{ type: 'string', format: 'richtext' }} value="<p>Hi</p>" onChange={onChange} />,
+      <SchemaField siteId="site-1" label="Body" schema={{ type: 'string', format: 'richtext' }} value="<p>Hi</p>" onChange={onChange} />,
     );
 
     const editor = screen.getByLabelText('Body');
@@ -99,7 +101,7 @@ describe('SchemaField', () => {
   });
 
   it('a format: "richtext" schema on a non-string type falls through to the raw JSON fallback, not RichTextField', () => {
-    render(<SchemaField label="Body" schema={{ type: 'object', format: 'richtext' }} value={{}} onChange={vi.fn()} />);
+    render(<SchemaField siteId="site-1" label="Body" schema={{ type: 'object', format: 'richtext' }} value={{}} onChange={vi.fn()} />);
 
     const field = screen.getByLabelText('Body');
     expect(field.tagName).toBe('TEXTAREA');
@@ -109,6 +111,7 @@ describe('SchemaField', () => {
     const onChange = vi.fn();
     render(
       <SchemaField
+        siteId="site-1"
         label="Poster"
         schema={{ type: 'object', format: 'image' }}
         value={{ url: 'https://example.com/a.jpg', focalX: 0.25, focalY: 0.75 }}
@@ -122,7 +125,7 @@ describe('SchemaField', () => {
   });
 
   it('a format: "image" schema on a non-object type falls through to the plain text branch, not ImageField', () => {
-    render(<SchemaField label="Poster" schema={{ type: 'string', format: 'image' }} value="x" onChange={vi.fn()} />);
+    render(<SchemaField siteId="site-1" label="Poster" schema={{ type: 'string', format: 'image' }} value="x" onChange={vi.fn()} />);
 
     const input = screen.getByLabelText('Poster') as HTMLInputElement;
     expect(input.type).toBe('text');
@@ -130,7 +133,7 @@ describe('SchemaField', () => {
 
   it('I5: shows a field-specific error message when one is passed, not a generic banner', () => {
     render(
-      <SchemaField label="Heading" schema={{ type: 'string' }} value="" onChange={vi.fn()} error="must be at least 1 character" />,
+      <SchemaField siteId="site-1" label="Heading" schema={{ type: 'string' }} value="" onChange={vi.fn()} error="must be at least 1 character" />,
     );
 
     expect(screen.getByText('must be at least 1 character')).toBeDefined();

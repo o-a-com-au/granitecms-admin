@@ -84,6 +84,7 @@ export function SectionFieldsPanel({
         </button>
       </div>
       <SectionSettingsForm
+        siteId={siteId}
         schema={schema}
         settings={instance.settings}
         fieldErrors={fieldErrors[instance.id]}

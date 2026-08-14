@@ -1,3 +1,7 @@
+import { useState } from 'react';
+import { MediaPickerModal } from '../media/MediaPickerModal.tsx';
+import type { MediaItem } from '../api/site-media.ts';
+
 export interface ImageFieldValue {
   url: string;
   focalX: number;
@@ -5,22 +9,33 @@ export interface ImageFieldValue {
 }
 
 export interface ImageFieldProps {
+  siteId: string;
   value: unknown;
   onChange: (value: ImageFieldValue) => void;
 }
 
-// No Media/asset library exists in this app yet (AppShell.tsx's own
-// "Media" tab is a disabled placeholder) - scoped to what's buildable
-// without one: a URL text input plus a click-to-set focal point on
-// whatever image that URL loads. Deliberately not wrapped in its own
-// <label> - the outer SchemaField-provided <label> already covers this
-// field's one focusable control, same as the plain string field today,
-// and a nested <label> would be invalid HTML.
-export function ImageField({ value, onChange }: ImageFieldProps) {
+// A URL text input plus a "Choose Image" button opening the Media
+// library picker (MediaPickerModal), plus a click-to-set focal point
+// on whatever image ends up loaded. The text input stays too - both
+// remain valid ways to set the url. Deliberately not wrapped in its
+// own <label> - the outer SchemaField-provided <label> already covers
+// this field's own first focusable control (the text input), same as
+// the plain string field today, and a nested <label> would be invalid
+// HTML.
+export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
   const coerced = coerceImageValue(value);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   function handleUrlChange(event: React.ChangeEvent<HTMLInputElement>): void {
     onChange({ ...coerced, url: event.target.value });
+  }
+
+  // Only the url changes - an existing focal point (from a previous
+  // image) is preserved, same merge convention handleUrlChange already
+  // uses for typed input.
+  function handlePickerSelect(item: MediaItem): void {
+    onChange({ ...coerced, url: item.url });
+    setPickerOpen(false);
   }
 
   // clientX/clientY and getBoundingClientRect() are both already
@@ -39,7 +54,12 @@ export function ImageField({ value, onChange }: ImageFieldProps) {
 
   return (
     <div className="image-field">
-      <input type="text" placeholder="https://" value={coerced.url} onChange={handleUrlChange} />
+      <div className="image-field-url-row">
+        <input type="text" placeholder="https://" value={coerced.url} onChange={handleUrlChange} />
+        <button type="button" onClick={() => setPickerOpen(true)}>
+          Choose Image
+        </button>
+      </div>
       {coerced.url !== '' && (
         <div className="image-field-preview">
           <img src={coerced.url} alt="Click to set focal point" onClick={handleImageClick} />
@@ -49,6 +69,9 @@ export function ImageField({ value, onChange }: ImageFieldProps) {
             style={{ left: `${coerced.focalX * 100}%`, top: `${coerced.focalY * 100}%` }}
           />
         </div>
+      )}
+      {pickerOpen && (
+        <MediaPickerModal siteId={siteId} onSelect={handlePickerSelect} onClose={() => setPickerOpen(false)} />
       )}
     </div>
   );

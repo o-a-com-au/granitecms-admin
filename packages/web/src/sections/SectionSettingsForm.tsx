@@ -3,6 +3,7 @@ import { SchemaField } from './SchemaField.tsx';
 import { fieldLabel } from './instance-types.ts';
 
 export interface SectionSettingsFormProps {
+  siteId: string;
   schema: Record<string, unknown> | undefined;
   settings: Record<string, unknown>;
   onChange: (settings: Record<string, unknown>) => void;
@@ -45,7 +46,7 @@ function UnknownTypeFallback({ settings, onChange }: Pick<SectionSettingsFormPro
 // theme no longer declares (e.g. content authored against an older
 // theme version) falls back to raw settings editing rather than
 // silently hiding or discarding the instance.
-export function SectionSettingsForm({ schema, settings, onChange, fieldErrors }: SectionSettingsFormProps) {
+export function SectionSettingsForm({ siteId, schema, settings, onChange, fieldErrors }: SectionSettingsFormProps) {
   if (!schema) {
     return <UnknownTypeFallback settings={settings} onChange={onChange} />;
   }
@@ -57,6 +58,7 @@ export function SectionSettingsForm({ schema, settings, onChange, fieldErrors }:
       {Object.entries(properties).map(([key, propertySchema]) => (
         <SchemaField
           key={key}
+          siteId={siteId}
           label={fieldLabel(propertySchema, key)}
           schema={propertySchema}
           value={settings[key]}

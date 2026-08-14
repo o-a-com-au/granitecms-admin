@@ -18,7 +18,7 @@ const HERO_SCHEMA = {
 describe('SectionSettingsForm', () => {
   it('I3: renders one field per settings-schema property, bound to the current values', () => {
     render(
-      <SectionSettingsForm schema={HERO_SCHEMA} settings={{ heading: 'Hi', columns: 2 }} onChange={vi.fn()} />,
+      <SectionSettingsForm siteId="site-1" schema={HERO_SCHEMA} settings={{ heading: 'Hi', columns: 2 }} onChange={vi.fn()} />,
     );
 
     expect((screen.getByLabelText('Heading') as HTMLInputElement).value).toBe('Hi');
@@ -28,6 +28,7 @@ describe('SectionSettingsForm', () => {
   it('humanises a camelCase property name into a Title Case label when the schema declares no title', () => {
     render(
       <SectionSettingsForm
+        siteId="site-1"
         schema={{ type: 'object', properties: { codeTitle: { type: 'string' }, posterImage: { type: 'object' } } }}
         settings={{ codeTitle: '', posterImage: {} }}
         onChange={vi.fn()}
@@ -41,6 +42,7 @@ describe('SectionSettingsForm', () => {
   it('prefers an explicit schema-declared title over the humanised property name', () => {
     render(
       <SectionSettingsForm
+        siteId="site-1"
         schema={{ type: 'object', properties: { ctaUrl: { type: 'string', title: 'Button link' } } }}
         settings={{ ctaUrl: '' }}
         onChange={vi.fn()}
@@ -53,7 +55,7 @@ describe('SectionSettingsForm', () => {
 
   it('I3: editing a field calls onChange with the settings object updated at just that key', () => {
     const onChange = vi.fn();
-    render(<SectionSettingsForm schema={HERO_SCHEMA} settings={{ heading: 'Hi', columns: 2 }} onChange={onChange} />);
+    render(<SectionSettingsForm siteId="site-1" schema={HERO_SCHEMA} settings={{ heading: 'Hi', columns: 2 }} onChange={onChange} />);
 
     fireEvent.change(screen.getByLabelText('Heading'), { target: { value: 'Updated' } });
 
@@ -63,6 +65,7 @@ describe('SectionSettingsForm', () => {
   it('I5: a fieldErrors entry surfaces against the specific field, not a generic banner', () => {
     render(
       <SectionSettingsForm
+        siteId="site-1"
         schema={HERO_SCHEMA}
         settings={{ heading: '', columns: 2 }}
         onChange={vi.fn()}
@@ -87,6 +90,7 @@ describe('SectionSettingsForm', () => {
     };
     render(
       <SectionSettingsForm
+        siteId="site-1"
         schema={schema}
         settings={{ heading: 'Hi', poster: { url: 'https://example.com/a.jpg', focalX: 0.5, focalY: 0.5 } }}
         onChange={onChange}
@@ -103,7 +107,7 @@ describe('SectionSettingsForm', () => {
 
   it('falls back to raw settings editing for an unknown type, without discarding the instance', () => {
     const onChange = vi.fn();
-    render(<SectionSettingsForm schema={undefined} settings={{ legacy: true }} onChange={onChange} />);
+    render(<SectionSettingsForm siteId="site-1" schema={undefined} settings={{ legacy: true }} onChange={onChange} />);
 
     expect(screen.getByText('Unknown type - editing raw settings.')).toBeDefined();
     const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
