@@ -22,6 +22,7 @@
 .list-page {
   flex: 1;
   background: var(--colour-surface);
+  border-radius: var(--radius-sm);
 }
 
 /* The actual heading/toolbar/table content, centred within the full-
