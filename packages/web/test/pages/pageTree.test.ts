@@ -42,6 +42,32 @@ describe('buildPageTree', () => {
     expect(tree[0]?.children.map((child) => child.entry.name)).toEqual(['Bar', 'Zoo']);
   });
 
+  it('pins pages/index.json first and pages/404.json last, everything else alphabetical between them', () => {
+    const tree = buildPageTree([
+      entry('pages/zebra.json', 'Zebra'),
+      entry('pages/404.json', 'Not found'),
+      entry('pages/apple.json', 'Apple'),
+      entry('pages/index.json', 'Zzz - should still sort first by path, not name'),
+    ]);
+
+    expect(tree.map((node) => node.entry.path)).toEqual([
+      'pages/index.json',
+      'pages/apple.json',
+      'pages/zebra.json',
+      'pages/404.json',
+    ]);
+  });
+
+  it('a page merely named "404" or "index" at some other path is not pinned - only the literal reserved paths are', () => {
+    const tree = buildPageTree([
+      entry('pages/about/404.json', 'A page about the number 404'),
+      entry('pages/apple.json', 'Apple'),
+    ]);
+
+    // Alphabetical, same as any other pair - no pinning kicks in.
+    expect(tree.map((node) => node.entry.path)).toEqual(['pages/about/404.json', 'pages/apple.json']);
+  });
+
   it('sorts by name even when it differs from title - the entire point of a separate name field', () => {
     const tree = buildPageTree([
       { ...entry('pages/home.json', 'Zeta'), title: 'Welcome to Acme Co' },

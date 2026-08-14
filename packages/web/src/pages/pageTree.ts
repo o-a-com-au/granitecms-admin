@@ -22,12 +22,39 @@ function stemOf(relativePath: string): string {
   return relativePath.replace(/\.json$/, '');
 }
 
+// pages/index.json (the site root) and pages/404.json are not just
+// conventionally-named pages - the agent's own renderer hardcodes both
+// paths (public.ts: '/' resolves to index.json, any unmatched route
+// falls back to rendering 404.json specifically), so pinning the tree
+// display to those same two literal paths is keying off a real
+// structural fact, not guessing from a name a page author could
+// rename at any time.
+function sortRank(entry: ContentListEntry): 0 | 1 | 2 {
+  if (entry.path === 'pages/index.json') {
+    return 0;
+  }
+  if (entry.path === 'pages/404.json') {
+    return 2;
+  }
+  return 1;
+}
+
 // Sorted (and, per ContentBrowserPage.tsx, displayed) by name, not
 // title - the whole point of the name field is that the tree can read
 // "Home Page" while the rendered <title> says something else entirely
 // (docs/build discussion: WordPress-style name distinct from title).
+// The home/404 pin above only ever affects root-level ordering in
+// practice (neither page can be nested), but applies at every level -
+// simpler than special-casing just the root sort, and correct either
+// way since a page at any other path always ranks 1.
 function sortTree(nodes: PageTreeNode[]): void {
-  nodes.sort((a, b) => (a.entry.name || a.entry.path).localeCompare(b.entry.name || b.entry.path));
+  nodes.sort((a, b) => {
+    const rankDiff = sortRank(a.entry) - sortRank(b.entry);
+    if (rankDiff !== 0) {
+      return rankDiff;
+    }
+    return (a.entry.name || a.entry.path).localeCompare(b.entry.name || b.entry.path);
+  });
   nodes.forEach((node) => sortTree(node.children));
 }
 
