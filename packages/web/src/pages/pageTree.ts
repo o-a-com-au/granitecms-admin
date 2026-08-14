@@ -97,11 +97,12 @@ export interface FlatPageTreeRow {
   depth: number;
 }
 
-// Takes a *collapsed* set, not an expanded one - branches are expanded
-// by default (docs/design/Pages.png shows Home's own children already
-// visible on load), so "nothing collapsed yet" already means "show
-// everything" with no separate initialisation step needed once the
-// page list first loads.
+// Takes a *collapsed* set, not an expanded one - this function's own
+// default is "nothing collapsed" (an empty set shows everything), but
+// ContentBrowserPage.tsx now seeds the set with every parent path on
+// load so branches start collapsed there instead - this function
+// itself just renders whatever collapsed set it's handed, with no
+// opinion of its own on what the initial state should be.
 export function flattenVisibleTree(
   nodes: PageTreeNode[],
   collapsed: ReadonlySet<string>,

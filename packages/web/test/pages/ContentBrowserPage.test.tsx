@@ -219,7 +219,7 @@ describe('ContentBrowserPage', () => {
     expect(screen.getByRole('link', { name: 'Rotate it from the registry' })).toBeDefined();
   });
 
-  it('nests a page under its matching parent directory stem, expanded by default, and collapses/expands via the chevron', async () => {
+  it('nests a page under its matching parent directory stem, collapsed by default, and expands/collapses via the chevron', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(new Response(JSON.stringify([PARENT_ENTRY, CHILD_ENTRY]), { status: 200 })),
@@ -227,13 +227,17 @@ describe('ContentBrowserPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByRole('link', { name: 'Team' })).toBeDefined());
-    expect(screen.getByRole('link', { name: 'About' })).toBeDefined();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse About' }));
-    expect(screen.queryByRole('link', { name: 'Team' })).toBeNull();
+    await waitFor(() => expect(screen.getByRole('link', { name: 'About' })).toBeDefined());
+    // The collapsed-by-default seed runs in a follow-up effect after
+    // entries first resolves, not synchronously in the same render -
+    // waitFor rather than an immediate assertion, so this doesn't race
+    // that effect's own commit.
+    await waitFor(() => expect(screen.queryByRole('link', { name: 'Team' })).toBeNull());
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand About' }));
     expect(screen.getByRole('link', { name: 'Team' })).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse About' }));
+    expect(screen.queryByRole('link', { name: 'Team' })).toBeNull();
   });
 });

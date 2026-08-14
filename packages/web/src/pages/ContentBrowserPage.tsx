@@ -58,6 +58,20 @@ function matchesSearch(entry: ContentListEntry, query: string): boolean {
   );
 }
 
+// Every node with at least one child, at any depth - the full set of
+// paths a "start fully collapsed" default needs to seed collapsedPaths
+// with. Mutates the passed-in accumulator rather than returning a new
+// Set per recursive call, same reasoning as pageTree.ts's own
+// recursive helpers.
+function collectParentPaths(nodes: PageTreeNode[], into: Set<string>): void {
+  for (const node of nodes) {
+    if (node.children.length > 0) {
+      into.add(node.entry.path);
+      collectParentPaths(node.children, into);
+    }
+  }
+}
+
 interface LoadError {
   reason: 'unreachable' | 'unauthorized' | 'error';
   message: string;
@@ -160,6 +174,22 @@ export function ContentBrowserPage() {
       cancelled = true;
     };
   }, [siteId]);
+
+  // Branches start collapsed - seeded once per fresh fetch from the
+  // full, unfiltered page set (not whatever the search box/status tabs
+  // currently show), so the default reflects the site's real structure
+  // regardless of transient filter state. Runs once per successful
+  // load, not per render: entries only changes reference when the
+  // fetch effect above actually resolves a new result.
+  useEffect(() => {
+    if (entries === null) {
+      return;
+    }
+    const allPages = entries.filter((entry) => !isMenuPath(entry.path));
+    const parentPaths = new Set<string>();
+    collectParentPaths(buildPageTree(allPages), parentPaths);
+    setCollapsedPaths(parentPaths);
+  }, [entries]);
 
   function handleStatusChange(value: StatusFilter): void {
     const next = new URLSearchParams(searchParams);
