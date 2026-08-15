@@ -41,6 +41,7 @@ function renderShell(initialEntry: string) {
               <Route path="/sites/:siteId/menus" element={<div>menus content</div>} />
               <Route path="/sites/:siteId/media" element={<div>media content</div>} />
               <Route path="/sites/:siteId/redirects" element={<div>redirects content</div>} />
+              <Route path="/sites/:siteId/history" element={<div>history content</div>} />
               <Route path="/sites/:siteId/editor" element={<div>editor content</div>} />
             </Route>
           </Routes>
@@ -80,7 +81,7 @@ afterEach(() => {
 });
 
 describe('AppShell', () => {
-  it('renders all five top-bar nav items, with History always disabled', async () => {
+  it('renders all five top-bar nav items as real links once a site is selected', async () => {
     installFakeApi();
     renderShell('/sites/site-1/content');
 
@@ -89,10 +90,10 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: 'Menus' })).toBeDefined();
     expect(screen.getByRole('link', { name: 'Media' })).toBeDefined();
     expect(screen.getByRole('link', { name: 'Redirects' })).toBeDefined();
-    expect(screen.getByTitle('History (unavailable)')).toBeDefined();
+    expect(screen.getByRole('link', { name: 'History' })).toBeDefined();
   });
 
-  it('sees siteId via useParams and points Pages/Menus/Media/Redirects at the current site', async () => {
+  it('sees siteId via useParams and points Pages/Menus/Media/Redirects/History at the current site', async () => {
     installFakeApi();
     renderShell('/sites/site-1/content');
 
@@ -101,6 +102,9 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: 'Menus' }).getAttribute('href')).toBe('/sites/site-1/menus');
     expect(screen.getByRole('link', { name: 'Media' }).getAttribute('href')).toBe('/sites/site-1/media');
     expect(screen.getByRole('link', { name: 'Redirects' }).getAttribute('href')).toBe('/sites/site-1/redirects');
+    // No query string - the bare route is the site-wide destination
+    // (HistoryPage.tsx dispatches on presence/absence of ?path=).
+    expect(screen.getByRole('link', { name: 'History' }).getAttribute('href')).toBe('/sites/site-1/history');
   });
 
   it('highlights the active nav item via aria-current', async () => {

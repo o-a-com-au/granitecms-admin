@@ -7,7 +7,7 @@ import { MediaLibraryPage } from './pages/MediaLibraryPage.tsx';
 import { RedirectsPage } from './pages/RedirectsPage.tsx';
 import { MenuEditorPage } from './pages/MenuEditorPage.tsx';
 import { PageEditorPage } from './pages/PageEditorPage.tsx';
-import { PageHistoryPage } from './pages/PageHistoryPage.tsx';
+import { HistoryPage } from './pages/HistoryPage.tsx';
 import { RequireAuth } from './auth/RequireAuth.tsx';
 import { AppShell } from './layout/AppShell.tsx';
 
@@ -34,7 +34,7 @@ export const routes: RouteObject[] = [
           { path: '/sites/:siteId/redirects', element: <RedirectsPage /> },
           { path: '/sites/:siteId/menus/edit', element: <MenuEditorPage /> },
           { path: '/sites/:siteId/editor', element: <PageEditorPage /> },
-          { path: '/sites/:siteId/history', element: <PageHistoryPage /> },
+          { path: '/sites/:siteId/history', element: <HistoryPage /> },
         ],
       },
     ],
