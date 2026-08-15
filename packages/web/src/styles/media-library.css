@@ -54,39 +54,43 @@
   list-style: none;
 }
 
+/* The border/rounded corners live on the thumbnail itself, not a card
+   wrapping thumbnail+name together - the filename sits below as plain
+   text, outside any border. */
 .media-library-item {
   position: relative;
-  border: 1px solid var(--colour-border);
-  border-radius: var(--radius-sm);
-  background: var(--colour-surface);
-  overflow: hidden;
-}
-
-.media-library-item.is-selected {
-  border-color: var(--colour-primary);
-  box-shadow: 0 0 0 2px var(--colour-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 button.media-library-item-thumb {
+  position: relative;
   display: block;
   width: 100%;
+  aspect-ratio: 1 / 1;
   padding: 0;
-  border: none;
-  background: none;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface-hover);
   cursor: pointer;
+  overflow: hidden;
+}
+
+.media-library-item.is-selected button.media-library-item-thumb {
+  border-color: var(--colour-primary);
+  box-shadow: 0 0 0 2px var(--colour-primary);
 }
 
 .media-library-item-thumb img {
   display: block;
   width: 100%;
-  height: 110px;
+  height: 100%;
   object-fit: cover;
-  background: var(--colour-surface-hover);
 }
 
 .media-library-item-name {
   display: block;
-  padding: 0.4rem 0.6rem;
   font-size: 0.75rem;
   color: var(--colour-muted);
   overflow: hidden;
@@ -95,7 +99,12 @@ button.media-library-item-thumb {
 }
 
 /* Hidden until the card is hovered/focused, matching
-   instance-rows.css's own button.instance-row-remove convention. */
+   instance-rows.css's own button.instance-row-remove convention.
+   Positioned against .media-library-item (the flex column), not the
+   thumb button itself - the thumb's own overflow: hidden would clip it
+   at the square's edge, and a <button> can't nest another <button>. It
+   still lands on the image's top-right corner since the thumb is the
+   flex column's first child. */
 button.media-library-item-delete {
   position: absolute;
   top: 0.4rem;
