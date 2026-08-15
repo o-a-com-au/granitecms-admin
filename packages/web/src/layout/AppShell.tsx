@@ -111,6 +111,7 @@ export function AppShell() {
   const contentTo = siteId ? `/sites/${siteId}/content` : undefined;
   const menusTo = siteId ? `/sites/${siteId}/menus` : undefined;
   const mediaTo = siteId ? `/sites/${siteId}/media` : undefined;
+  const redirectsTo = siteId ? `/sites/${siteId}/redirects` : undefined;
   const editorTo = siteId ? `/sites/${siteId}/editor` : undefined;
   const isEditingPage = location.pathname === editorTo;
 
@@ -148,7 +149,7 @@ export function AppShell() {
             <TopNavItem label="Pages" to={contentTo} active={location.pathname === contentTo} />
             <TopNavItem label="Menus" to={menusTo} active={location.pathname === menusTo} />
             <TopNavItem label="Media" to={mediaTo} active={location.pathname === mediaTo} />
-            <TopNavItem label="Redirects" to={undefined} active={false} />
+            <TopNavItem label="Redirects" to={redirectsTo} active={location.pathname === redirectsTo} />
             {/* Placeholder - History is currently only reachable scoped
                 to one page (PageEditorPage's own historyHref), not yet
                 a real site-wide destination. */}

@@ -40,6 +40,7 @@ function renderShell(initialEntry: string) {
               <Route path="/sites/:siteId/content" element={<div>pages content</div>} />
               <Route path="/sites/:siteId/menus" element={<div>menus content</div>} />
               <Route path="/sites/:siteId/media" element={<div>media content</div>} />
+              <Route path="/sites/:siteId/redirects" element={<div>redirects content</div>} />
               <Route path="/sites/:siteId/editor" element={<div>editor content</div>} />
             </Route>
           </Routes>
@@ -79,7 +80,7 @@ afterEach(() => {
 });
 
 describe('AppShell', () => {
-  it('renders all five top-bar nav items, with Redirects and History always disabled', async () => {
+  it('renders all five top-bar nav items, with History always disabled', async () => {
     installFakeApi();
     renderShell('/sites/site-1/content');
 
@@ -87,11 +88,11 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: 'Pages' })).toBeDefined();
     expect(screen.getByRole('link', { name: 'Menus' })).toBeDefined();
     expect(screen.getByRole('link', { name: 'Media' })).toBeDefined();
-    expect(screen.getByTitle('Redirects (unavailable)')).toBeDefined();
+    expect(screen.getByRole('link', { name: 'Redirects' })).toBeDefined();
     expect(screen.getByTitle('History (unavailable)')).toBeDefined();
   });
 
-  it('sees siteId via useParams and points Pages/Menus/Media at the current site', async () => {
+  it('sees siteId via useParams and points Pages/Menus/Media/Redirects at the current site', async () => {
     installFakeApi();
     renderShell('/sites/site-1/content');
 
@@ -99,6 +100,7 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: 'Pages' }).getAttribute('href')).toBe('/sites/site-1/content');
     expect(screen.getByRole('link', { name: 'Menus' }).getAttribute('href')).toBe('/sites/site-1/menus');
     expect(screen.getByRole('link', { name: 'Media' }).getAttribute('href')).toBe('/sites/site-1/media');
+    expect(screen.getByRole('link', { name: 'Redirects' }).getAttribute('href')).toBe('/sites/site-1/redirects');
   });
 
   it('highlights the active nav item via aria-current', async () => {
