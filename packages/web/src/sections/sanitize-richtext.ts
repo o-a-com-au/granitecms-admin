@@ -1,13 +1,13 @@
 import DOMPurify from 'dompurify';
 
 // The one allow-list for every richtext field in the app - matches the
-// toolbar's own seven actions (Paragraph/H1/H2/H3, Bold, Italic, Link,
-// Bullet list, Numbered list) exactly, plus <br> for a soft Shift+Enter
-// line break (not in the toolbar itself, but silently eating a line
-// break a user actually typed would be a confusing bug, and a bare
-// <br> carries no attributes to sanitize). Not `as const` - DOMPurify's
-// own Config type wants a mutable string[], not a readonly tuple.
-const ALLOWED_TAGS = ['h1', 'h2', 'h3', 'p', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'br'];
+// toolbar's own format-dropdown/Bold/Italic/Link/Bullet-list/Numbered-
+// list actions exactly, plus <br> for a soft Shift+Enter line break
+// (not in the toolbar itself, but silently eating a line break a user
+// actually typed would be a confusing bug, and a bare <br> carries no
+// attributes to sanitize). Not `as const` - DOMPurify's own Config
+// type wants a mutable string[], not a readonly tuple.
+const ALLOWED_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'p', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'br'];
 
 // href is the only attribute any allowed tag legitimately carries.
 // DOMPurify's ALLOWED_ATTR is a single global list, not scoped per tag

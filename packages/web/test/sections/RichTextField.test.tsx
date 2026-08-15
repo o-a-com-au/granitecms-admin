@@ -133,6 +133,18 @@ describe('RichTextField', () => {
       expect(h3Trigger.textContent).toContain('H3');
 
       fireEvent.click(h3Trigger);
+      fireEvent.click(screen.getByRole('option', { name: 'H4' }));
+      expect(execSpy).toHaveBeenCalledWith('formatBlock', false, '<h4>');
+      const h4Trigger = screen.getByRole('button', { name: 'Paragraph style: H4' });
+      expect(h4Trigger.textContent).toContain('H4');
+
+      fireEvent.click(h4Trigger);
+      fireEvent.click(screen.getByRole('option', { name: 'H5' }));
+      expect(execSpy).toHaveBeenCalledWith('formatBlock', false, '<h5>');
+      const h5Trigger = screen.getByRole('button', { name: 'Paragraph style: H5' });
+      expect(h5Trigger.textContent).toContain('H5');
+
+      fireEvent.click(h5Trigger);
       fireEvent.click(screen.getByRole('option', { name: 'Paragraph' }));
       expect(execSpy).toHaveBeenCalledWith('formatBlock', false, '<p>');
       expect(trigger().textContent).toContain('P');

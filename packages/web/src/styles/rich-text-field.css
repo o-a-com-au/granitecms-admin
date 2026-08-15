@@ -221,7 +221,9 @@
 
 .richtext-editor h1,
 .richtext-editor h2,
-.richtext-editor h3 {
+.richtext-editor h3,
+.richtext-editor h4,
+.richtext-editor h5 {
   margin: 0 0 0.5rem;
 }
 

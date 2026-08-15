@@ -28,12 +28,17 @@ interface FormatOption {
 
 // docs/designs/richtext-field.png's own top-left dropdown, replacing
 // the four separate Paragraph/H1/H2/H3 buttons this field used to
-// render individually.
+// render individually. H4/H5 added on top of the design reference -
+// keep sanitize-richtext.ts's own ALLOWED_TAGS in sync with whatever
+// tags are listed here, or a selected heading level would be stripped
+// straight back out on the very next sanitize pass.
 const FORMAT_OPTIONS: FormatOption[] = [
   { label: 'Paragraph', shortLabel: 'P', formatBlockValue: '<p>' },
   { label: 'H1', shortLabel: 'H1', formatBlockValue: '<h1>' },
   { label: 'H2', shortLabel: 'H2', formatBlockValue: '<h2>' },
   { label: 'H3', shortLabel: 'H3', formatBlockValue: '<h3>' },
+  { label: 'H4', shortLabel: 'H4', formatBlockValue: '<h4>' },
+  { label: 'H5', shortLabel: 'H5', formatBlockValue: '<h5>' },
 ];
 
 // contentEditable is deliberately uncontrolled, not a React-managed
