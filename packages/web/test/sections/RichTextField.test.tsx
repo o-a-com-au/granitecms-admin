@@ -99,12 +99,16 @@ describe('RichTextField', () => {
       expect(execSpy).toHaveBeenCalledWith('italic', false, undefined);
     });
 
-    it('the format dropdown defaults to "Paragraph", opens on click, and each option calls execCommand("formatBlock", ...)', () => {
+    it('the format dropdown defaults to "Paragraph" (shown compactly as "P"), opens on click, and each option calls execCommand("formatBlock", ...)', () => {
       const execSpy = vi.spyOn(document, 'execCommand');
       renderField('<p>x</p>');
 
-      const trigger = () => screen.getByRole('button', { name: /^Paragraph style:/ });
-      expect(trigger().textContent).toContain('Paragraph');
+      // The trigger's visible text is the compact shortLabel ("P", not
+      // "Paragraph") - docs/designs/richtext-field.png shows "H1", not
+      // "Heading 1" - but its aria-label stays the full word, so screen
+      // reader users still get an unambiguous name.
+      const trigger = () => screen.getByRole('button', { name: 'Paragraph style: Paragraph' });
+      expect(trigger().textContent).toContain('P');
       expect(screen.queryByRole('listbox')).toBeNull();
 
       fireEvent.click(trigger());
@@ -113,22 +117,25 @@ describe('RichTextField', () => {
       expect(execSpy).toHaveBeenCalledWith('formatBlock', false, '<h1>');
       // Selecting an option closes the menu and relabels the trigger.
       expect(screen.queryByRole('listbox')).toBeNull();
-      expect(trigger().textContent).toContain('H1');
+      const h1Trigger = screen.getByRole('button', { name: 'Paragraph style: H1' });
+      expect(h1Trigger.textContent).toContain('H1');
 
-      fireEvent.click(trigger());
+      fireEvent.click(h1Trigger);
       fireEvent.click(screen.getByRole('option', { name: 'H2' }));
       expect(execSpy).toHaveBeenCalledWith('formatBlock', false, '<h2>');
-      expect(trigger().textContent).toContain('H2');
+      const h2Trigger = screen.getByRole('button', { name: 'Paragraph style: H2' });
+      expect(h2Trigger.textContent).toContain('H2');
 
-      fireEvent.click(trigger());
+      fireEvent.click(h2Trigger);
       fireEvent.click(screen.getByRole('option', { name: 'H3' }));
       expect(execSpy).toHaveBeenCalledWith('formatBlock', false, '<h3>');
-      expect(trigger().textContent).toContain('H3');
+      const h3Trigger = screen.getByRole('button', { name: 'Paragraph style: H3' });
+      expect(h3Trigger.textContent).toContain('H3');
 
-      fireEvent.click(trigger());
+      fireEvent.click(h3Trigger);
       fireEvent.click(screen.getByRole('option', { name: 'Paragraph' }));
       expect(execSpy).toHaveBeenCalledWith('formatBlock', false, '<p>');
-      expect(trigger().textContent).toContain('Paragraph');
+      expect(trigger().textContent).toContain('P');
     });
 
     it('mousedown on a format option is prevented too, so it never steals focus/selection from the editor', () => {

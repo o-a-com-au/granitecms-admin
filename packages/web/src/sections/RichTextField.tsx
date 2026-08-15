@@ -18,6 +18,11 @@ export interface RichTextFieldProps {
 
 interface FormatOption {
   label: string;
+  // The trigger's own compact display text (docs/designs/richtext-field.png
+  // shows "H1", not "Heading 1") - the menu list and the trigger's
+  // aria-label still use the full `label` below, where space isn't
+  // tight and "Paragraph" reads far clearer than a bare "P".
+  shortLabel: string;
   formatBlockValue: string;
 }
 
@@ -25,10 +30,10 @@ interface FormatOption {
 // the four separate Paragraph/H1/H2/H3 buttons this field used to
 // render individually.
 const FORMAT_OPTIONS: FormatOption[] = [
-  { label: 'Paragraph', formatBlockValue: '<p>' },
-  { label: 'H1', formatBlockValue: '<h1>' },
-  { label: 'H2', formatBlockValue: '<h2>' },
-  { label: 'H3', formatBlockValue: '<h3>' },
+  { label: 'Paragraph', shortLabel: 'P', formatBlockValue: '<p>' },
+  { label: 'H1', shortLabel: 'H1', formatBlockValue: '<h1>' },
+  { label: 'H2', shortLabel: 'H2', formatBlockValue: '<h2>' },
+  { label: 'H3', shortLabel: 'H3', formatBlockValue: '<h3>' },
 ];
 
 // contentEditable is deliberately uncontrolled, not a React-managed
@@ -51,6 +56,7 @@ export function RichTextField({ value, onChange, labelledBy }: RichTextFieldProp
   const [format, setFormat] = useState(FORMAT_OPTIONS[0]!.label);
   const { open: linkOpen, setOpen: setLinkOpen, ref: linkMenuRef, toggle: toggleLink } = useAddMenu();
   const { open: formatOpen, setOpen: setFormatOpen, ref: formatMenuRef, toggle: toggleFormat } = useAddMenu();
+  const currentFormatOption = FORMAT_OPTIONS.find((option) => option.label === format) ?? FORMAT_OPTIONS[0]!;
 
   // Also re-runs when `expanded` flips: the inline editor and the
   // popup editor are two different DOM nodes in the tree (only one is
@@ -170,7 +176,7 @@ export function RichTextField({ value, onChange, labelledBy }: RichTextFieldProp
           <span className="richtext-toolbar-icon richtext-format-chevron">
             <ChevronDownIcon />
           </span>
-          {format}
+          {currentFormatOption.shortLabel}
         </button>
         {formatOpen && (
           <div className="richtext-format-menu" role="listbox" aria-label="Paragraph style">
