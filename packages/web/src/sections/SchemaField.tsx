@@ -126,11 +126,28 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
     control = <RawJsonFallback value={value} onChange={onChange} />;
   }
 
+  // richtext gets a plain <div>, not a native <label> - a bare <label>
+  // implicitly redirects a click on any non-"labelable" descendant (a
+  // contentEditable div is not one, per the HTML spec's own labelable-
+  // elements list: button/input/select/textarea/meter/output/progress
+  // only) to its first labelable descendant instead. RichTextField's
+  // toolbar puts a real <button> first, so every click anywhere in the
+  // editor - meant to place the cursor or start a text selection - was
+  // being silently redirected into a synthetic click on that button,
+  // which (for the format dropdown specifically) toggled it open and
+  // stole focus, making it impossible to select text at all. Confirmed
+  // live: even clicking the plain "Body" label text alone reproduced
+  // it. RichTextField already sets aria-labelledby on its own editor
+  // element, so it doesn't need the native label association here -
+  // every other field type still does, and keeps the <label> wrapper.
+  const isCompoundField = format === 'richtext' && type === 'string';
+  const Wrapper = isCompoundField ? 'div' : 'label';
+
   return (
-    <label>
+    <Wrapper>
       <span id={fieldId}>{label}</span>
       {control}
       {error && <p role="alert">{error}</p>}
-    </label>
+    </Wrapper>
   );
 }

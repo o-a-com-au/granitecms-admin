@@ -6,13 +6,21 @@
    not the app's usual per-file convention of naming every class after
    this file alone - richtext-field-box/richtext-field-modal are
    deliberately reused as-is inside the popup editor. */
+/* No overflow: hidden here - the format dropdown/link popover are
+   absolutely positioned descendants that need to overflow this box's
+   own bounds (the box's own height is just the toolbar row plus a few
+   lines of text, far shorter than an open dropdown). overflow: hidden
+   would clip them at the box's bottom edge instead of letting them
+   float freely above whatever's beneath - confirmed live: the format
+   menu's real height (4 options) is roughly double a minimal editor's
+   own height, so clipping cut off its bottom two options entirely.
+   Each piece rounds its own respective corners below instead. */
 .richtext-field-box {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
   background: var(--colour-surface);
-  overflow: hidden;
 }
 
 .richtext-toolbar {
@@ -21,6 +29,7 @@
   gap: 0.15rem;
   padding: 0.3rem 0.4rem;
   border-bottom: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 
 /* button.richtext-toolbar button, not just a bare selector - out-
@@ -86,11 +95,20 @@
   height: 0.7rem;
 }
 
+/* A horizontal row, not a vertical list - a 4-item vertical list is
+   taller than this field's own minimal editor height (min-height: 4rem
+   on .richtext-editor), so it was covering the entire editable area
+   while open, not just the toolbar strip, making it impossible to
+   click into the editor to place a cursor or select text without
+   dismissing the dropdown first. A row is only ever about one button
+   tall, matching the trigger's own height, so it no longer reaches
+   down into the editor at all in the common case. */
 .richtext-format-menu {
   position: absolute;
   top: calc(100% + 0.4rem);
   left: 0;
-  min-width: 140px;
+  display: flex;
+  gap: 0.15rem;
   background: var(--colour-surface);
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
@@ -100,9 +118,6 @@
 }
 
 .richtext-format-menu-item {
-  display: block;
-  width: 100%;
-  text-align: left;
   background: none;
   border: none;
   color: var(--colour-text);
@@ -110,6 +125,7 @@
   font-size: 0.85rem;
   font-weight: 500;
   border-radius: calc(var(--radius-sm) - 2px);
+  white-space: nowrap;
 }
 
 .richtext-format-menu-item:hover {
@@ -188,6 +204,7 @@
   max-height: 20rem;
   overflow-y: auto;
   padding: 0.6rem 0.75rem;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   /* Same background as base.css's own plain input/select/textarea
      rule - the typing surface should read as the same kind of control,
      even though the toolbar chrome above it stays --colour-surface. */
@@ -196,8 +213,7 @@
 }
 
 /* An inset ring rather than outline - an outline would sit outside
-   .richtext-field-box's own rounded corners and get visibly clipped by
-   its overflow: hidden. */
+   this element's own rounded bottom corners. */
 .richtext-editor:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--colour-primary);
