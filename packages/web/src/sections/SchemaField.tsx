@@ -143,8 +143,14 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
   const isCompoundField = format === 'richtext' && type === 'string';
   const Wrapper = isCompoundField ? 'div' : 'label';
 
+  // base.css styles every plain <label> (layout, muted colour,
+  // font-size) via a bare `label` element selector - harmless for
+  // every other field type here, which still renders a real <label>,
+  // but the richtext <div> above needs that same look applied
+  // explicitly via a class, or its own "Body"-style caption reads
+  // differently from every other field's.
   return (
-    <Wrapper>
+    <Wrapper className="schema-field-label">
       <span id={fieldId}>{label}</span>
       {control}
       {error && <p role="alert">{error}</p>}

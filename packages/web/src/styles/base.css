@@ -53,7 +53,14 @@ form {
   align-items: flex-start;
 }
 
-label {
+label,
+/* SchemaField.tsx's own richtext branch renders a plain <div> here
+   instead of a real <label> (a native label implicitly redirects
+   clicks on non-"labelable" descendants, like a contentEditable
+   region, to its first labelable one - see that file's own comment),
+   so it needs this same look applied explicitly rather than picking
+   it up for free from the bare `label` selector above. */
+.schema-field-label {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
