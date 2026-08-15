@@ -99,19 +99,45 @@ describe('RichTextField', () => {
       expect(execSpy).toHaveBeenCalledWith('italic', false, undefined);
     });
 
-    it('H1/H2/H3/Paragraph call execCommand("formatBlock", ...)', () => {
+    it('the format dropdown defaults to "Paragraph", opens on click, and each option calls execCommand("formatBlock", ...)', () => {
       const execSpy = vi.spyOn(document, 'execCommand');
       renderField('<p>x</p>');
 
-      fireEvent.click(screen.getByRole('button', { name: 'H1' }));
-      fireEvent.click(screen.getByRole('button', { name: 'H2' }));
-      fireEvent.click(screen.getByRole('button', { name: 'H3' }));
-      fireEvent.click(screen.getByRole('button', { name: '¶' }));
+      const trigger = () => screen.getByRole('button', { name: /^Paragraph style:/ });
+      expect(trigger().textContent).toContain('Paragraph');
+      expect(screen.queryByRole('listbox')).toBeNull();
 
+      fireEvent.click(trigger());
+      expect(screen.getByRole('listbox')).toBeDefined();
+      fireEvent.click(screen.getByRole('option', { name: 'H1' }));
       expect(execSpy).toHaveBeenCalledWith('formatBlock', false, '<h1>');
+      // Selecting an option closes the menu and relabels the trigger.
+      expect(screen.queryByRole('listbox')).toBeNull();
+      expect(trigger().textContent).toContain('H1');
+
+      fireEvent.click(trigger());
+      fireEvent.click(screen.getByRole('option', { name: 'H2' }));
       expect(execSpy).toHaveBeenCalledWith('formatBlock', false, '<h2>');
+      expect(trigger().textContent).toContain('H2');
+
+      fireEvent.click(trigger());
+      fireEvent.click(screen.getByRole('option', { name: 'H3' }));
       expect(execSpy).toHaveBeenCalledWith('formatBlock', false, '<h3>');
+      expect(trigger().textContent).toContain('H3');
+
+      fireEvent.click(trigger());
+      fireEvent.click(screen.getByRole('option', { name: 'Paragraph' }));
       expect(execSpy).toHaveBeenCalledWith('formatBlock', false, '<p>');
+      expect(trigger().textContent).toContain('Paragraph');
+    });
+
+    it('mousedown on a format option is prevented too, so it never steals focus/selection from the editor', () => {
+      renderField('<p>x</p>');
+
+      fireEvent.click(screen.getByRole('button', { name: /^Paragraph style:/ }));
+      const event = fireEvent.mouseDown(screen.getByRole('option', { name: 'H1' }));
+
+      expect(event).toBe(false);
     });
 
     it('Bullet list / Numbered list call the matching execCommand', () => {
@@ -171,5 +197,47 @@ describe('RichTextField', () => {
     const insertHtmlCall = execSpy.mock.calls.find((call) => call[0] === 'insertHTML');
     expect(insertHtmlCall?.[2]).not.toContain('onclick');
     expect(insertHtmlCall?.[2]).toContain('pasted');
+  });
+
+  describe('enlarge / popup editor', () => {
+    it('Enlarge opens a popup with the same content, and Collapse closes it again', () => {
+      renderField('<p>Hello</p>');
+
+      expect(screen.queryByRole('dialog', { name: 'Edit rich text' })).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Enlarge editor' }));
+
+      const dialog = screen.getByRole('dialog', { name: 'Edit rich text' });
+      expect(dialog).toBeDefined();
+      // Only one editor is mounted at a time - the inline one is gone,
+      // replaced by the popup's own, carrying the same value across.
+      expect(screen.getByLabelText('Body').innerHTML).toBe('<p>Hello</p>');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Collapse editor' }));
+
+      expect(screen.queryByRole('dialog', { name: 'Edit rich text' })).toBeNull();
+      expect(screen.getByLabelText('Body').innerHTML).toBe('<p>Hello</p>');
+    });
+
+    it('editing inside the popup still calls onChange with sanitized HTML', () => {
+      const { onChange } = renderField('<p>Hello</p>');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Enlarge editor' }));
+      const editor = screen.getByLabelText('Body');
+      editor.innerHTML = '<p>Hello there</p>';
+      fireEvent.input(editor);
+
+      expect(onChange).toHaveBeenCalledWith('<p>Hello there</p>');
+    });
+
+    it('the toolbar (format dropdown, Bold, Link, etc.) still works inside the popup', () => {
+      const execSpy = vi.spyOn(document, 'execCommand');
+      renderField('<p>x</p>');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Enlarge editor' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Bold' }));
+
+      expect(execSpy).toHaveBeenCalledWith('bold', false, undefined);
+    });
   });
 });

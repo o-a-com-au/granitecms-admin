@@ -1,28 +1,26 @@
 /* RichTextField.tsx - a small contentEditable region with a fixed
-   toolbar (Paragraph/H1/H2/H3, Bold, Italic, Link, Bullet list,
-   Numbered list only). Own file, own classes, matching the app's
-   established one-feature-per-stylesheet convention (device-
-   preview.css owns .device-toggle, instance-rows.css owns
-   .instance-add-menu, etc). */
-.richtext-field {
+   toolbar (a Paragraph/H1/H2/H3 dropdown, Bold, Italic, Link, Bullet
+   list, Numbered list, and an Enlarge toggle only). Matches
+   docs/designs/richtext-field.png: one unified bordered card (toolbar
+   row + editor, divided by a border rather than two separate boxes),
+   not the app's usual per-file convention of naming every class after
+   this file alone - richtext-field-box/richtext-field-modal are
+   deliberately reused as-is inside the popup editor. */
+.richtext-field-box {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-}
-
-/* Same bordered/filled-pill treatment as .filter-tabs (pages-list.css)
-   - the outer group carries the border/background, individual buttons
-   sit flat with no box of their own until hovered. */
-.richtext-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.15rem;
-  padding: 0.25rem;
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
   background: var(--colour-surface);
-  position: relative;
+  overflow: hidden;
+}
+
+.richtext-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid var(--colour-border);
 }
 
 /* button.richtext-toolbar button, not just a bare selector - out-
@@ -58,14 +56,90 @@
   font-style: italic;
 }
 
-/* LinkIcon/BulletListIcon/NumberedListIcon (richtext-toolbar-icons.tsx)
-   render their svg at width/height: 100% - this box does the actual
-   sizing, same convention as .device-icon (device-preview.css). */
+/* LinkIcon/BulletListIcon/NumberedListIcon/ChevronDownIcon/EnlargeIcon/
+   CollapseIcon (richtext-toolbar-icons.tsx) render their svg at
+   width/height: 100% - this box does the actual sizing, same
+   convention as .device-icon (device-preview.css). */
 .richtext-toolbar-icon {
   display: flex;
   flex: 0 0 auto;
   width: 1rem;
   height: 1rem;
+}
+
+/* The Paragraph/H1/H2/H3 dropdown, top-left (docs/designs/richtext-field.png)
+   - a chevron plus the current selection's label, replacing four
+   separate always-visible buttons. Wider than a plain icon button, so
+   min-width/padding are overridden rather than inherited as-is. */
+.richtext-format-wrap {
+  position: relative;
+}
+
+.richtext-format-trigger {
+  min-width: auto;
+  gap: 0.3rem;
+  padding: 0 0.5rem;
+}
+
+.richtext-format-chevron {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.richtext-format-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  min-width: 140px;
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  padding: 0.3rem;
+  z-index: 20;
+}
+
+.richtext-format-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--colour-text);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: calc(var(--radius-sm) - 2px);
+}
+
+.richtext-format-menu-item:hover {
+  background: var(--colour-surface-hover);
+}
+
+.richtext-format-menu-item[aria-selected='true'] {
+  color: var(--colour-primary);
+  font-weight: 700;
+}
+
+/* A thin vertical rule, matching docs/designs/richtext-field.png's own
+   two dividers (after the format dropdown, and before the Enlarge
+   button). align-self: stretch rather than a fixed height, so it
+   always matches the toolbar row's real height regardless of any
+   future padding tweak. */
+.richtext-toolbar-divider {
+  flex: 0 0 auto;
+  width: 1px;
+  align-self: stretch;
+  margin: 0.15rem 0.25rem;
+  background: var(--colour-border);
+}
+
+/* Pushes the Enlarge button to the toolbar's far right
+   (docs/designs/richtext-field.png), same flex:1-spacer technique used
+   nowhere else in this app yet but the simplest correct option for a
+   single flexible gap in an otherwise fixed-content row. */
+.richtext-toolbar-spacer {
+  flex: 1;
 }
 
 .richtext-link-wrap {
@@ -105,21 +179,25 @@
 /* Deliberately no min-height/rows - a settings field editor, not a
    full-page composer; grows with its own content up to a sane cap
    rather than reserving a fixed block of vertical space on every
-   richtext field regardless of how much text it holds. */
+   richtext field regardless of how much text it holds. Border/radius
+   live on .richtext-field-box (the shared outer card) instead of
+   here, now that the toolbar and editor are one unified box rather
+   than two separately bordered ones. */
 .richtext-editor {
   min-height: 4rem;
   max-height: 20rem;
   overflow-y: auto;
   padding: 0.6rem 0.75rem;
-  border: 1px solid var(--colour-border);
-  border-radius: var(--radius-sm);
   background: var(--colour-surface);
   color: var(--colour-text);
 }
 
+/* An inset ring rather than outline - an outline would sit outside
+   .richtext-field-box's own rounded corners and get visibly clipped by
+   its overflow: hidden. */
 .richtext-editor:focus-visible {
-  outline: 2px solid var(--colour-primary);
-  outline-offset: -1px;
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--colour-primary);
 }
 
 .richtext-editor h1,
@@ -140,4 +218,37 @@
 
 .richtext-editor > :last-child {
   margin-bottom: 0;
+}
+
+/* The Enlarge button's popup editor - the same .richtext-field-box
+   (toolbar + editor) rendered larger inside a modal, reusing
+   .modal-overlay as-is (already the highest z-index in the app). A
+   sibling to .modal/.media-picker-modal, not a resize of either -
+   .modal is tuned for a short confirmation message and
+   .media-picker-modal for a photo grid, neither fits a text editor. */
+.richtext-field-modal {
+  width: min(90vw, 720px);
+  height: min(85vh, 640px);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-lg);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* min-height: 0 is load-bearing - without it a flex child's default
+   min-height: auto stops it (and therefore the editor's own
+   overflow-y: auto below) from ever shrinking below its content's
+   natural height, so long text would grow the modal itself instead of
+   scrolling inside it. */
+.richtext-field-modal .richtext-field-box {
+  flex: 1;
+  min-height: 0;
+}
+
+.richtext-field-modal .richtext-editor {
+  flex: 1;
+  max-height: none;
 }

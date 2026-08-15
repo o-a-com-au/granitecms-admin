@@ -59,3 +59,38 @@ export function NumberedListIcon() {
     </svg>
   );
 }
+
+// The format-dropdown trigger's own chevron (docs/designs/richtext-field.png).
+export function ChevronDownIcon() {
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M4 6.5l4 4 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// The "enlarge" toolbar button (docs/designs/richtext-field.png) - four
+// corner brackets pointing outward, the standard fullscreen/maximize
+// glyph. CollapseIcon is its mirror (brackets pointing inward), shown
+// in the same toolbar slot once the popup editor is open.
+export function EnlargeIcon() {
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M1.5 5.5v-4h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10.5 1.5h4v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14.5 10.5v4h-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5.5 14.5h-4v-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function CollapseIcon() {
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M5.5 1.5v4h-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14.5 5.5h-4v-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10.5 14.5v-4h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M1.5 10.5h4v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
