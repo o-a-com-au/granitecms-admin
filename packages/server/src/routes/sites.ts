@@ -15,12 +15,13 @@ import { publishSite } from '../sites/site-publish.ts';
 import { discardSiteDraft } from '../sites/site-draft-discard.ts';
 import { unpublishSite } from '../sites/site-unpublish.ts';
 import type { CommitAuthor } from '../sites/commit-author.ts';
-import { fetchSiteHistory } from '../sites/site-history.ts';
+import { fetchSiteContentHistory, fetchSiteHistory } from '../sites/site-history.ts';
 import { fetchSiteRevision } from '../sites/site-revision.ts';
 import { revertSitePath } from '../sites/site-revert.ts';
 import { moveSitePath } from '../sites/site-move.ts';
 import { fetchSiteThemeSchemas } from '../sites/site-theme-schemas.ts';
 import { deleteSiteMedia, listSiteMedia, uploadSiteMedia } from '../sites/site-media.ts';
+import { createSiteRedirect, deleteSiteRedirect, listSiteRedirects, updateSiteRedirect } from '../sites/site-redirects.ts';
 
 // The raw token is never included here, full stop - built by this
 // explicit mapping function rather than spreading the Site record, so
@@ -219,6 +220,52 @@ function parseMoveBody(body: unknown): MoveBody | null {
     return null;
   }
   return { from: record.from, to: record.to, message: record.message };
+}
+
+interface UpsertRedirectBody {
+  from: string;
+  to: string;
+  note?: string;
+  message: string;
+}
+
+function parseUpsertRedirectBody(body: unknown): UpsertRedirectBody | null {
+  if (typeof body !== 'object' || body === null) {
+    return null;
+  }
+  const record = body as Record<string, unknown>;
+  if (typeof record.from !== 'string' || record.from.trim() === '') {
+    return null;
+  }
+  if (typeof record.to !== 'string' || record.to.trim() === '') {
+    return null;
+  }
+  if (record.note !== undefined && typeof record.note !== 'string') {
+    return null;
+  }
+  if (typeof record.message !== 'string' || record.message.trim() === '') {
+    return null;
+  }
+  return { from: record.from, to: record.to, note: record.note, message: record.message };
+}
+
+interface DeleteRedirectBody {
+  from: string;
+  message: string;
+}
+
+function parseDeleteRedirectBody(body: unknown): DeleteRedirectBody | null {
+  if (typeof body !== 'object' || body === null) {
+    return null;
+  }
+  const record = body as Record<string, unknown>;
+  if (typeof record.from !== 'string' || record.from.trim() === '') {
+    return null;
+  }
+  if (typeof record.message !== 'string' || record.message.trim() === '') {
+    return null;
+  }
+  return { from: record.from, message: record.message };
 }
 
 // The browser never supplies a commit author - it's always the
@@ -475,6 +522,37 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
       },
     );
 
+    // The site-wide History tab's own route - an exact match, distinct
+    // from the wildcard page-scoped one below (find-my-way treats
+    // "/:id/history" and "/:id/history/*" as separate route trees, no
+    // collision). Scoped to path=content (not the whole repo) - a
+    // deliberate choice confirmed with the project owner, so theme/
+    // vhost config commits don't show up alongside real content edits.
+    app.get<{ Params: { id: string }; Querystring: HistoryQuery }>(
+      '/:id/history',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const limit = parseHistoryLimit(request.query);
+        if (limit === null) {
+          reply.code(400);
+          return { error: '"limit" must be a positive integer' };
+        }
+
+        const result = await fetchSiteContentHistory(site, limit);
+        if (result.outcome === 'ok') {
+          return { commits: result.commits, hasMore: result.hasMore };
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
+
     // H1: flat, top-level route (not nested under a shared "/history"
     // prefix with the two routes below) - a real page path could
     // otherwise collide with a static route segment and be silently
@@ -606,6 +684,120 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
       if (result.outcome === 'destination-exists') {
         reply.code(409);
         return { statusCode: 409, error: 'Conflict', message: result.message };
+      }
+
+      reply.code(502);
+      return { error: result.message, reason: result.outcome };
+    });
+
+    // from/to/note all travel in the body on every verb below, never a
+    // URL path segment - they're arbitrary public URLs that may
+    // contain slashes, matching /:id/move's own precedent above and
+    // the agent's own POST /v1/content/move route.
+    app.get<{ Params: { id: string } }>('/:id/redirects', { preHandler: requireAuth }, async (request, reply) => {
+      const site = await sitesStore.find(request.params.id);
+      if (!site) {
+        throw new SiteNotFoundError(request.params.id);
+      }
+
+      const result = await listSiteRedirects(site);
+      if (result.outcome === 'ok') {
+        return { entries: result.entries };
+      }
+
+      reply.code(502);
+      return { error: result.message, reason: result.outcome };
+    });
+
+    app.post<{ Params: { id: string } }>('/:id/redirects', { preHandler: requireAuth }, async (request, reply) => {
+      const site = await sitesStore.find(request.params.id);
+      if (!site) {
+        throw new SiteNotFoundError(request.params.id);
+      }
+
+      const body = parseUpsertRedirectBody(request.body);
+      if (!body) {
+        reply.code(400);
+        return { error: 'from, to, and message are all required' };
+      }
+
+      const author = requireCommitAuthor(request.currentUser);
+      const result = await createSiteRedirect(site, body.from, body.to, body.note, body.message, author);
+
+      if (result.outcome === 'ok') {
+        return { entry: result.entry, retargeted: result.retargeted };
+      }
+      if (result.outcome === 'invalid') {
+        reply.code(400);
+        return { statusCode: 400, error: 'Bad Request', message: result.message };
+      }
+      if (result.outcome === 'conflict') {
+        reply.code(409);
+        return { statusCode: 409, error: 'Conflict', message: result.message };
+      }
+
+      reply.code(502);
+      return { error: result.message, reason: result.outcome };
+    });
+
+    // PUT matches the existing entry by from - there is no rename-from
+    // operation, from is the entry's own key (see site-redirects.ts).
+    app.put<{ Params: { id: string } }>('/:id/redirects', { preHandler: requireAuth }, async (request, reply) => {
+      const site = await sitesStore.find(request.params.id);
+      if (!site) {
+        throw new SiteNotFoundError(request.params.id);
+      }
+
+      const body = parseUpsertRedirectBody(request.body);
+      if (!body) {
+        reply.code(400);
+        return { error: 'from, to, and message are all required' };
+      }
+
+      const author = requireCommitAuthor(request.currentUser);
+      const result = await updateSiteRedirect(site, body.from, body.to, body.note, body.message, author);
+
+      if (result.outcome === 'ok') {
+        return { entry: result.entry, retargeted: result.retargeted };
+      }
+      if (result.outcome === 'invalid') {
+        reply.code(400);
+        return { statusCode: 400, error: 'Bad Request', message: result.message };
+      }
+      if (result.outcome === 'not-found') {
+        reply.code(404);
+        return { error: result.message, reason: 'not-found' };
+      }
+      if (result.outcome === 'conflict') {
+        reply.code(409);
+        return { statusCode: 409, error: 'Conflict', message: result.message };
+      }
+
+      reply.code(502);
+      return { error: result.message, reason: result.outcome };
+    });
+
+    app.delete<{ Params: { id: string } }>('/:id/redirects', { preHandler: requireAuth }, async (request, reply) => {
+      const site = await sitesStore.find(request.params.id);
+      if (!site) {
+        throw new SiteNotFoundError(request.params.id);
+      }
+
+      const body = parseDeleteRedirectBody(request.body);
+      if (!body) {
+        reply.code(400);
+        return { error: 'from and message are both required' };
+      }
+
+      const author = requireCommitAuthor(request.currentUser);
+      const result = await deleteSiteRedirect(site, body.from, body.message, author);
+
+      if (result.outcome === 'ok') {
+        return reply.code(204).send();
+      }
+      if (result.outcome === 'not-found') {
+        reply.code(404);
+        return { error: result.message, reason: 'not-found' };
       }
 
       reply.code(502);

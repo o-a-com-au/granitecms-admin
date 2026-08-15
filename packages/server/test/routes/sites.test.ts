@@ -1806,4 +1806,239 @@ describe('sites routes', () => {
 
     await app.close();
   });
+
+  it('GET /api/sites/:id/history (site-wide) scopes the agent call to path=content, not a page/theme path', async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedPath = '';
+    const commit = {
+      hash: 'abc123',
+      author: { name: 'Jane Editor', email: 'jane@example.com' },
+      date: '2026-01-01T00:00:00.000Z',
+      message: 'Update about page',
+      isCheckpoint: false,
+    };
+    fakeSite = createServer((req, res) => {
+      receivedPath = req.url ?? '';
+      sendJson(res, 200, { commits: [commit], hasMore: false });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({ method: 'GET', url: `/api/sites/${id}/history`, headers: { cookie } });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { commits: [commit], hasMore: false });
+    assert.equal(receivedPath, '/v1/git/log?path=content&limit=100');
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/history returns 502 for an unreachable site', async () => {
+    const { app, cookie } = await buildTestServer();
+    const id = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');
+
+    const response = await app.inject({ method: 'GET', url: `/api/sites/${id}/history`, headers: { cookie } });
+
+    assert.equal(response.statusCode, 502);
+    assert.equal(response.json().reason, 'unreachable');
+
+    await app.close();
+  });
+
+  const REDIRECT_ENTRY = { from: '/old', to: '/new', note: 'moved page' };
+
+  it('GET /api/sites/:id/redirects forwards the entries list', async () => {
+    const { app, cookie } = await buildTestServer();
+    fakeSite = createServer((_req, res) => sendJson(res, 200, { schemaVersion: 1, entries: [REDIRECT_ENTRY] }));
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({ method: 'GET', url: `/api/sites/${id}/redirects`, headers: { cookie } });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { entries: [REDIRECT_ENTRY] });
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/redirects sends the logged-in admin\'s own name/email as author, never something the caller supplied', async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedBody: Record<string, unknown> = {};
+    fakeSite = createServer((req, res) => {
+      // Registering a site triggers its own GET /v1/capabilities call
+      // first (checkSiteStatus) - matching every other body-forwarding
+      // test in this file (e.g. POST /:id/move below), a real request
+      // has to be distinguished from that one, or its own empty body
+      // fails to parse as JSON before this test's real request ever
+      // arrives.
+      if (req.method !== 'POST' || req.url !== '/v1/redirects') {
+        sendJson(res, 200, { agentVersion: '1.0.0', contentSchemaVersion: 3, sqliteDriver: 'node:sqlite' });
+        return;
+      }
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        receivedBody = JSON.parse(Buffer.concat(chunks).toString());
+        sendJson(res, 200, { entry: REDIRECT_ENTRY, retargeted: [] });
+      });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/redirects`,
+      headers: { cookie },
+      payload: { from: '/old', to: '/new', note: 'moved page', message: 'Add redirect', author: { name: 'Attacker', email: 'x@x.com' } },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { entry: REDIRECT_ENTRY, retargeted: [] });
+    assert.equal(receivedBody.author && (receivedBody.author as { name: string }).name, 'Jane Editor');
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/redirects rejects a missing from/to/message with 400, without ever calling the site', async () => {
+    const { app, cookie } = await buildTestServer();
+    const id = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/redirects`,
+      headers: { cookie },
+      payload: { from: '/old' },
+    });
+
+    assert.equal(response.statusCode, 400);
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/redirects forwards a site 409 as a real conflict, with the site\'s own message', async () => {
+    const { app, cookie } = await buildTestServer();
+    fakeSite = createServer((_req, res) => sendJson(res, 409, { message: 'A redirect from that path already exists' }));
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/redirects`,
+      headers: { cookie },
+      payload: { from: '/old', to: '/new', message: 'Add redirect' },
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(response.json().message, 'A redirect from that path already exists');
+
+    await app.close();
+  });
+
+  it('PUT /api/sites/:id/redirects updates the entry matched by from', async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedMethod = '';
+    fakeSite = createServer((req, res) => {
+      receivedMethod = req.method ?? '';
+      sendJson(res, 200, { entry: { from: '/old', to: '/newer' }, retargeted: [] });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/sites/${id}/redirects`,
+      headers: { cookie },
+      payload: { from: '/old', to: '/newer', message: 'Update redirect' },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(receivedMethod, 'PUT');
+    assert.deepEqual(response.json(), { entry: { from: '/old', to: '/newer' }, retargeted: [] });
+
+    await app.close();
+  });
+
+  it('DELETE /api/sites/:id/redirects removes the entry matched by from in the body', async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedMethod = '';
+    let receivedBody: Record<string, unknown> = {};
+    fakeSite = createServer((req, res) => {
+      // See the POST test above for why non-matching requests (the
+      // capabilities pre-check from registration) need their own,
+      // separate branch here.
+      if (req.method !== 'DELETE' || req.url !== '/v1/redirects') {
+        sendJson(res, 200, { agentVersion: '1.0.0', contentSchemaVersion: 3, sqliteDriver: 'node:sqlite' });
+        return;
+      }
+      receivedMethod = req.method ?? '';
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        receivedBody = JSON.parse(Buffer.concat(chunks).toString());
+        res.writeHead(204);
+        res.end();
+      });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/sites/${id}/redirects`,
+      headers: { cookie },
+      payload: { from: '/old', message: 'Remove redirect' },
+    });
+
+    assert.equal(response.statusCode, 204);
+    assert.equal(receivedMethod, 'DELETE');
+    assert.equal(receivedBody.from, '/old');
+
+    await app.close();
+  });
+
+  it('DELETE /api/sites/:id/redirects returns 404 when the site reports not-found', async () => {
+    const { app, cookie } = await buildTestServer();
+    fakeSite = createServer((_req, res) => sendJson(res, 404, { message: 'No redirect found at that path' }));
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/sites/${id}/redirects`,
+      headers: { cookie },
+      payload: { from: '/gone', message: 'Remove redirect' },
+    });
+
+    assert.equal(response.statusCode, 404);
+
+    await app.close();
+  });
 });
