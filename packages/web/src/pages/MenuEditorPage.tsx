@@ -117,27 +117,33 @@ export function MenuEditorPage() {
 
   if (status === 'loading') {
     return (
-      <div>
-        <h1>Menu</h1>
-        <p>Loading...</p>
+      <div className="list-page">
+        <div className="list-page-inner menu-editor-page">
+          <h1>Menu</h1>
+          <p>Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (status === 'not-found') {
     return (
-      <div>
-        <h1>Menu</h1>
-        <p role="alert">No content found at this path.</p>
+      <div className="list-page">
+        <div className="list-page-inner menu-editor-page">
+          <h1>Menu</h1>
+          <p role="alert">No content found at this path.</p>
+        </div>
       </div>
     );
   }
 
   if (status === 'load-error') {
     return (
-      <div>
-        <h1>Menu</h1>
-        <p role="alert">{errorMessage ?? 'Failed to load content.'}</p>
+      <div className="list-page">
+        <div className="list-page-inner menu-editor-page">
+          <h1>Menu</h1>
+          <p role="alert">{errorMessage ?? 'Failed to load content.'}</p>
+        </div>
       </div>
     );
   }
@@ -196,98 +202,100 @@ export function MenuEditorPage() {
 
   return (
     <>
-      <div className="menu-editor-page">
-        <h1>{deriveMenuName(path)}</h1>
-  
-        {invalidJson && <p role="alert">Not valid JSON yet - not saved.</p>}
-        {status === 'save-error' && errorMessage && <p role="alert">{errorMessage}</p>}
-        {actionError && <p role="alert">{actionError}</p>}
-  
-        {status === 'conflict' && (
-          <section>
-            <p role="alert">This menu changed since you opened it.</p>
-            <button type="button" onClick={reloadLatest}>
-              Reload latest version
+      <div className="list-page">
+        <div className="list-page-inner menu-editor-page">
+          <h1>{deriveMenuName(path)}</h1>
+
+          {invalidJson && <p role="alert">Not valid JSON yet - not saved.</p>}
+          {status === 'save-error' && errorMessage && <p role="alert">{errorMessage}</p>}
+          {actionError && <p role="alert">{actionError}</p>}
+
+          {status === 'conflict' && (
+            <section>
+              <p role="alert">This menu changed since you opened it.</p>
+              <button type="button" onClick={reloadLatest}>
+                Reload latest version
+              </button>
+              <button type="button" onClick={loadComparison}>
+                View changes
+              </button>
+              {comparisonContent !== null && (
+                <div>
+                  <h2>Latest on the server</h2>
+                  <pre>{comparisonContent}</pre>
+                  <h2>Your unsaved version</h2>
+                  <pre>{content}</pre>
+                </div>
+              )}
+            </section>
+          )}
+
+          {menu === null ? (
+            <p role="alert">This menu&apos;s content isn&apos;t valid right now - fix it before it can be edited here.</p>
+          ) : (
+            <ul className="menu-item-list">
+              {menu.items.map((item, index) => (
+                // No stable id in the data model (menu.schema.json's items
+                // are additionalProperties: false - a client-side id has
+                // nowhere to live) - index is the only key available, an
+                // accepted trade-off for a short, non-virtualised list.
+                <li key={index} className="menu-item-row">
+                  <label>
+                    Label
+                    <input value={item.label} onChange={(event) => handleLabelChange(index, event.target.value)} />
+                  </label>
+                  <label>
+                    URL
+                    <input value={item.url} onChange={(event) => handleUrlChange(index, event.target.value)} />
+                  </label>
+                  <button type="button" onClick={() => handleMove(index, -1)} disabled={index === 0} aria-label="Move up">
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMove(index, 1)}
+                    disabled={index === menu.items.length - 1}
+                    aria-label="Move down"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    className="instance-row-remove"
+                    aria-label={`Remove ${item.label || 'menu item'}`}
+                    onClick={() => handleRemoveItem(index)}
+                  >
+                    <TrashIcon />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="menu-editor-footer">
+            <button type="button" className="instance-add-button" onClick={handleAddItem}>
+              + Add menu item
             </button>
-            <button type="button" onClick={loadComparison}>
-              View changes
-            </button>
-            {comparisonContent !== null && (
-              <div>
-                <h2>Latest on the server</h2>
-                <pre>{comparisonContent}</pre>
-                <h2>Your unsaved version</h2>
-                <pre>{content}</pre>
-              </div>
-            )}
-          </section>
-        )}
-  
-        {menu === null ? (
-          <p role="alert">This menu&apos;s content isn&apos;t valid right now - fix it before it can be edited here.</p>
-        ) : (
-          <ul className="menu-item-list">
-            {menu.items.map((item, index) => (
-              // No stable id in the data model (menu.schema.json's items
-              // are additionalProperties: false - a client-side id has
-              // nowhere to live) - index is the only key available, an
-              // accepted trade-off for a short, non-virtualised list.
-              <li key={index} className="menu-item-row">
-                <label>
-                  Label
-                  <input value={item.label} onChange={(event) => handleLabelChange(index, event.target.value)} />
-                </label>
-                <label>
-                  URL
-                  <input value={item.url} onChange={(event) => handleUrlChange(index, event.target.value)} />
-                </label>
-                <button type="button" onClick={() => handleMove(index, -1)} disabled={index === 0} aria-label="Move up">
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleMove(index, 1)}
-                  disabled={index === menu.items.length - 1}
-                  aria-label="Move down"
-                >
-                  ↓
-                </button>
-                <button
-                  type="button"
-                  className="instance-row-remove"
-                  aria-label={`Remove ${item.label || 'menu item'}`}
-                  onClick={() => handleRemoveItem(index)}
-                >
-                  <TrashIcon />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="menu-editor-footer">
-          <button type="button" className="instance-add-button" onClick={handleAddItem}>
-            + Add menu item
-          </button>
-          <Link to={historyHref}>History</Link>
-        </div>
-  
-        {showFooter && (
-          <div className="editor-footer">
-            <button type="button" onClick={() => void handleDiscard()} disabled={actionBusy || status === 'saving'}>
-              Discard Changes
-            </button>
-            <button
-              type="button"
-              className="button-primary"
-              onClick={() => void handlePublish()}
-              disabled={
-                actionBusy || status === 'dirty' || status === 'saving' || status === 'save-error' || status === 'conflict'
-              }
-            >
-              Save Changes
-            </button>
+            <Link to={historyHref}>History</Link>
           </div>
-        )}
+
+          {showFooter && (
+            <div className="editor-footer">
+              <button type="button" onClick={() => void handleDiscard()} disabled={actionBusy || status === 'saving'}>
+                Discard Changes
+              </button>
+              <button
+                type="button"
+                className="button-primary"
+                onClick={() => void handlePublish()}
+                disabled={
+                  actionBusy || status === 'dirty' || status === 'saving' || status === 'save-error' || status === 'conflict'
+                }
+              >
+                Save Changes
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       {blocker.state === 'blocked' && (
         <UnsavedChangesPrompt
