@@ -31,6 +31,14 @@
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
   cursor: crosshair;
+  /* The draggable={false} attribute alone doesn't stop every browser's
+     own native drag-ghost (ghost preview + "not-allowed" cursor) when
+     the user clicks and moves slightly to set a precise focal point -
+     -webkit-user-drag covers Safari's own separate mechanism, and
+     user-select stops a stray text/image selection from the same
+     click-drag gesture. */
+  -webkit-user-drag: none;
+  user-select: none;
 }
 
 /* Centred on the click coordinate via the transform, not a negative

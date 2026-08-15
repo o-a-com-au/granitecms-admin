@@ -62,7 +62,7 @@ export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
       </div>
       {coerced.url !== '' && (
         <div className="image-field-preview">
-          <img src={coerced.url} alt="Click to set focal point" onClick={handleImageClick} />
+          <img src={coerced.url} alt="Click to set focal point" onClick={handleImageClick} draggable={false} />
           <span
             className="image-field-focal-marker"
             aria-hidden="true"
