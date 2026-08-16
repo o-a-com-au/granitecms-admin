@@ -51,7 +51,6 @@ export function PageHistoryTab({ siteId, path, previewRef, onSelectRevision, onR
   const [hasMore, setHasMore] = useState(false);
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [showCheckpoints, setShowCheckpoints] = useState(false);
 
   const [confirmingRestore, setConfirmingRestore] = useState<HistoryCommit | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
@@ -102,7 +101,10 @@ export function PageHistoryTab({ siteId, path, previewRef, onSelectRevision, onR
     }
   }
 
-  const visibleCommits = commits?.filter((commit) => showCheckpoints || !commit.isCheckpoint) ?? null;
+  // Checkpoint commits (the agent's own periodic draft autosaves, not
+  // a deliberate user action) are always excluded here - noise no one
+  // asked to see, not something worth a toggle to reveal.
+  const visibleCommits = commits?.filter((commit) => !commit.isCheckpoint) ?? null;
 
   return (
     <div className="history-panel">
@@ -121,15 +123,6 @@ export function PageHistoryTab({ siteId, path, previewRef, onSelectRevision, onR
               ← Back to current version
             </button>
           )}
-
-          <label className="history-checkpoint-toggle">
-            <input
-              type="checkbox"
-              checked={showCheckpoints}
-              onChange={(event) => setShowCheckpoints(event.target.checked)}
-            />
-            Show checkpoint commits
-          </label>
 
           {visibleCommits?.length === 0 && <p>No commits to show.</p>}
 

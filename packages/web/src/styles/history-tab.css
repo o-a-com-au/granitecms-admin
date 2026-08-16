@@ -30,14 +30,6 @@
   background: var(--colour-surface-hover);
 }
 
-.history-checkpoint-toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-size: 0.85rem;
-  color: var(--colour-muted);
-}
-
 .history-list {
   gap: var(--space-sm);
 }

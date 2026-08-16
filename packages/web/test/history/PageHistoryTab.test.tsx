@@ -97,18 +97,13 @@ describe('PageHistoryTab', () => {
     expect(screen.queryByText('Jane Editor', { exact: false })).toBeNull();
   });
 
-  it('checkpoint commits are hidden by default; the toggle reveals them without an extra fetch', async () => {
-    const api = installFakeHistoryApi({ commits: [COMMIT_NEWEST, COMMIT_CHECKPOINT, COMMIT_OLDEST], hasMore: false });
+  it('checkpoint commits (the agent\'s own periodic draft autosaves) are always excluded, with no way to reveal them', async () => {
+    installFakeHistoryApi({ commits: [COMMIT_NEWEST, COMMIT_CHECKPOINT, COMMIT_OLDEST], hasMore: false });
     renderTab();
 
     await waitFor(() => expect(screen.getByText(formatCommitTimestamp(COMMIT_NEWEST.date))).toBeDefined());
     expect(screen.queryByText(formatCommitTimestamp(COMMIT_CHECKPOINT.date))).toBeNull();
-
-    const countBeforeToggle = api.getHistoryFetchCount();
-    fireEvent.click(screen.getByLabelText('Show checkpoint commits'));
-
-    await waitFor(() => expect(screen.getByText(formatCommitTimestamp(COMMIT_CHECKPOINT.date))).toBeDefined());
-    expect(api.getHistoryFetchCount()).toBe(countBeforeToggle);
+    expect(screen.queryByLabelText('Show checkpoint commits')).toBeNull();
   });
 
   it('clicking a row calls onSelectRevision with that commit\'s hash', async () => {
