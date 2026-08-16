@@ -21,8 +21,7 @@ interface TopNavItemProps {
 }
 
 // A nav item with no destination (siteId not yet known, e.g. on the
-// registry, or a section like Redirects/History with no page built
-// yet) renders disabled rather than being omitted - the revised
+// registry) renders disabled rather than being omitted - the revised
 // designs (docs/designs/Revised-Pages.png) show every nav item
 // consistently present in the top bar.
 function TopNavItem({ label, to, active }: TopNavItemProps) {
@@ -150,15 +149,6 @@ export function AppShell() {
             <TopNavItem label="Menus" to={menusTo} active={location.pathname === menusTo} />
             <TopNavItem label="Media" to={mediaTo} active={location.pathname === mediaTo} />
             <TopNavItem label="Redirects" to={redirectsTo} active={location.pathname === redirectsTo} />
-            {/* Placeholder, deliberately - History is only ever reached
-                scoped to one page (PageEditorPage's/MenuEditorPage's own
-                historyHref). A site-wide activity feed was built and
-                then removed: read-only with no way to act on what it
-                showed, while the one thing that actually matters
-                (reverting a mistake) was already fully served by a
-                page's own History - not worth the added surface for an
-                audience of content marketers, not developers. */}
-            <TopNavItem label="History" to={undefined} active={false} />
             {/* Only appears while a page is actually open in the editor
                 - there's no standalone "Edit" destination to link to
                 from anywhere else, so unlike the other items above this

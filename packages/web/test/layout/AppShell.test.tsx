@@ -80,7 +80,7 @@ afterEach(() => {
 });
 
 describe('AppShell', () => {
-  it('renders all five top-bar nav items, with History always disabled', async () => {
+  it('renders all four top-bar nav items, with no History item - history is reached per-page from the editor now', async () => {
     installFakeApi();
     renderShell('/sites/site-1/content');
 
@@ -89,7 +89,7 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: 'Menus' })).toBeDefined();
     expect(screen.getByRole('link', { name: 'Media' })).toBeDefined();
     expect(screen.getByRole('link', { name: 'Redirects' })).toBeDefined();
-    expect(screen.getByTitle('History (unavailable)')).toBeDefined();
+    expect(screen.queryByText('History')).toBeNull();
   });
 
   it('sees siteId via useParams and points Pages/Menus/Media/Redirects at the current site', async () => {
@@ -120,7 +120,7 @@ describe('AppShell', () => {
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
   });
 
-  it('shows "Edit" as the active item, after History, when a page is open in the editor', async () => {
+  it('shows "Edit" as the active, last item when a page is open in the editor', async () => {
     installFakeApi();
     renderShell('/sites/site-1/editor?path=pages%2Findex.json&url=%2F');
 
