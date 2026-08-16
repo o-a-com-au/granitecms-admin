@@ -26,7 +26,7 @@
   border-radius: calc(var(--radius-sm) - 3px);
   background: none;
   color: var(--colour-muted);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
