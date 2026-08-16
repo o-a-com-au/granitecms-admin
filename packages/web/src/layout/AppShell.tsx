@@ -157,7 +157,7 @@ export function AppShell() {
                 fixed target, so it stays a real, clickable link even
                 though it's already active. */}
             {isEditingPage && (
-              <TopNavItem label="Edit" to={`${location.pathname}${location.search}`} active={true} />
+              <TopNavItem label="Editor" to={`${location.pathname}${location.search}`} active={true} />
             )}
           </nav>
           <div className="app-topbar-end">

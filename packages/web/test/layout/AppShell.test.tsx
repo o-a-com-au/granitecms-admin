@@ -112,25 +112,25 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: 'Pages' }).getAttribute('aria-current')).toBeNull();
   });
 
-  it('adds an active "Edit" item at the end of the nav only while a page is open in the editor', async () => {
+  it('adds an active "Editor" item at the end of the nav only while a page is open in the editor', async () => {
     installFakeApi();
     renderShell('/sites/site-1/content');
 
     await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
-    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Editor' })).toBeNull();
   });
 
-  it('shows "Edit" as the active, last item when a page is open in the editor', async () => {
+  it('shows "Editor" as the active, last item when a page is open in the editor', async () => {
     installFakeApi();
     renderShell('/sites/site-1/editor?path=pages%2Findex.json&url=%2F');
 
     await waitFor(() => expect(screen.getByText('editor content')).toBeDefined());
-    const editLink = screen.getByRole('link', { name: 'Edit' });
+    const editLink = screen.getByRole('link', { name: 'Editor' });
     expect(editLink.getAttribute('aria-current')).toBe('page');
     expect(editLink.getAttribute('href')).toBe('/sites/site-1/editor?path=pages%2Findex.json&url=%2F');
 
     const items = screen.getAllByRole('link').map((el) => el.textContent);
-    expect(items.at(-1)).toBe('Edit');
+    expect(items.at(-1)).toBe('Editor');
   });
 
   it('disables Pages and Menus too when no site is selected (the registry, "/")', async () => {
