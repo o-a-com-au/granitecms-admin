@@ -48,7 +48,7 @@
 .metadata-panel {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap:  var(--space-md);
 }
 
 /* Shared small-caps section heading - originally just "Page
@@ -64,6 +64,16 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--colour-text);
+}
+
+/* Shared small-print helper text under a panel heading - History was
+   the first (PageHistoryTab.tsx's "Restoring replaces the published
+   version..." note), kept generic from the start rather than
+   history-specific so any other panel can reuse it. */
+.panel-note {
+  margin: 0;
+  color: var(--colour-muted);
+  font-size: 0.8rem;
 }
 
 /* Sections/Fields views (PageSectionsEditor.tsx) get the same
