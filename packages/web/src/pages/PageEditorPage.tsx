@@ -356,9 +356,16 @@ export function PageEditorPage() {
   // Page-Edit--Section-Edit.png) shows the Sections list and the
   // fields form side by side, so this just opens the independent
   // right-hand panel (SectionFieldsPanel, mounted below whenever
-  // selectedInstanceId is non-null) without touching viewMode at all.
+  // selectedInstanceId is non-null). It does switch the left column to
+  // the Sections tab, though: clicking a section directly in the
+  // preview while on Page Meta/History should bring its row into view
+  // alongside the Fields panel it just opened, not leave the sidebar
+  // showing an unrelated tab. A no-op when called from the Sections
+  // list's own row click (the only other caller), since that can only
+  // happen while already on this tab.
   function handleEditInstance(id: string): void {
     setSelectedInstanceId(id);
+    setViewMode('sections');
   }
 
   function handleCloseFields(): void {

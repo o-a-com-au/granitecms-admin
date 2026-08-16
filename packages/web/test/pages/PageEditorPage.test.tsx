@@ -943,6 +943,39 @@ describe('PageEditorPage', () => {
     expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined();
   });
 
+  it('clicking a section directly in the preview switches the left column to the Sections tab', async () => {
+    installFakeEditorApi({
+      content: JSON.stringify({
+        title: 'Hi',
+        published: true,
+        sections: [{ id: 'a', type: 'hero', settings: { heading: 'Hi there' } }],
+      }),
+      etag: '"etag-1"',
+      source: 'draft',
+    });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+    await waitFor(() => expect(screen.getByTitle('Live preview')).toBeDefined());
+
+    // Starting on Page Meta, not Sections.
+    fireEvent.click(screen.getByRole('tab', { name: 'Page Meta' }));
+    await waitFor(() => expect(screen.getByLabelText('Page title')).toBeDefined());
+
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const doc = iframe.contentDocument as Document;
+    doc.open();
+    doc.write('<body></body>');
+    doc.close();
+    const sectionA = doc.createElement('div');
+    sectionA.dataset.sectionId = 'a';
+    doc.body.append(sectionA);
+    fireEvent.load(iframe);
+
+    fireEvent.click(sectionA);
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'Sections' })).toHaveProperty('ariaSelected', 'true'));
+    expect((screen.getByLabelText('Heading') as HTMLInputElement).value).toBe('Hi there');
+  });
+
   it('editing a field in the Fields panel saves through the same autosave path as everything else', async () => {
     const api = installFakeEditorApi({
       content: JSON.stringify({ title: 'Hi', published: true, sections: [{ id: 'a', type: 'hero', settings: { heading: 'Hi there' } }] }),
