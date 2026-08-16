@@ -112,12 +112,6 @@ export function AppShell() {
   const menusTo = siteId ? `/sites/${siteId}/menus` : undefined;
   const mediaTo = siteId ? `/sites/${siteId}/media` : undefined;
   const redirectsTo = siteId ? `/sites/${siteId}/redirects` : undefined;
-  // No query string - HistoryPage.tsx dispatches to the site-wide view
-  // when ?path= is absent, which is what this top-nav destination
-  // always means. A page's own History link (PageEditorPage.tsx,
-  // MenuEditorPage.tsx) still always includes ?path=, reaching the
-  // same route but the page-scoped view instead.
-  const historyTo = siteId ? `/sites/${siteId}/history` : undefined;
   const editorTo = siteId ? `/sites/${siteId}/editor` : undefined;
   const isEditingPage = location.pathname === editorTo;
 
@@ -156,7 +150,15 @@ export function AppShell() {
             <TopNavItem label="Menus" to={menusTo} active={location.pathname === menusTo} />
             <TopNavItem label="Media" to={mediaTo} active={location.pathname === mediaTo} />
             <TopNavItem label="Redirects" to={redirectsTo} active={location.pathname === redirectsTo} />
-            <TopNavItem label="History" to={historyTo} active={location.pathname === historyTo} />
+            {/* Placeholder, deliberately - History is only ever reached
+                scoped to one page (PageEditorPage's/MenuEditorPage's own
+                historyHref). A site-wide activity feed was built and
+                then removed: read-only with no way to act on what it
+                showed, while the one thing that actually matters
+                (reverting a mistake) was already fully served by a
+                page's own History - not worth the added surface for an
+                audience of content marketers, not developers. */}
+            <TopNavItem label="History" to={undefined} active={false} />
             {/* Only appears while a page is actually open in the editor
                 - there's no standalone "Edit" destination to link to
                 from anywhere else, so unlike the other items above this

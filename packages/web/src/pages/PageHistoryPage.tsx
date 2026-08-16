@@ -155,97 +155,99 @@ export function PageHistoryPage() {
   const visibleCommits = commits?.filter((commit) => showCheckpoints || !commit.isCheckpoint) ?? null;
 
   return (
-    <div>
-      <h1>History</h1>
-      <p>
-        Site: <code>{siteId}</code> Path: <code>{path}</code>
-      </p>
-      <p>
-        <Link
-          to={`/sites/${siteId}/editor?path=${encodeURIComponent(path)}${previewUrl ? `&url=${encodeURIComponent(previewUrl)}` : ''}`}
-        >
-          Back to editor
-        </Link>
-      </p>
-      <p>Reverting only affects the published version - an open draft on this page is unaffected.</p>
+    <div className="list-page">
+      <div className="list-page-inner">
+        <h1>History</h1>
+        <p>
+          Site: <code>{siteId}</code> Path: <code>{path}</code>
+        </p>
+        <p>
+          <Link
+            to={`/sites/${siteId}/editor?path=${encodeURIComponent(path)}${previewUrl ? `&url=${encodeURIComponent(previewUrl)}` : ''}`}
+          >
+            Back to editor
+          </Link>
+        </p>
+        <p>Reverting only affects the published version - an open draft on this page is unaffected.</p>
 
-      {loadError && <p role="alert">{loadError}</p>}
+        {loadError && <p role="alert">{loadError}</p>}
 
-      {!loadError && commits === null && <p>Loading...</p>}
+        {!loadError && commits === null && <p>Loading...</p>}
 
-      {!loadError && commits !== null && (
-        <>
-          <label>
-            <input
-              type="checkbox"
-              checked={showCheckpoints}
-              onChange={(event) => setShowCheckpoints(event.target.checked)}
-            />
-            Show checkpoint commits
-          </label>
+        {!loadError && commits !== null && (
+          <>
+            <label>
+              <input
+                type="checkbox"
+                checked={showCheckpoints}
+                onChange={(event) => setShowCheckpoints(event.target.checked)}
+              />
+              Show checkpoint commits
+            </label>
 
-          {visibleCommits?.length === 0 && <p>No commits to show.</p>}
+            {visibleCommits?.length === 0 && <p>No commits to show.</p>}
 
-          {visibleCommits && visibleCommits.length > 0 && (
-            <table>
-              <thead>
-                <tr>
-                  <th>Compare</th>
-                  <th>Message</th>
-                  <th>Author</th>
-                  <th>Date</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleCommits.map((commit) => (
-                  <tr key={commit.hash}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selectedHashes.includes(commit.hash)}
-                        onChange={() => toggleSelected(commit.hash)}
-                        aria-label={`Select ${shortHash(commit.hash)} for comparison`}
-                      />
-                    </td>
-                    <td>
-                      {commit.message}
-                      {commit.isCheckpoint && ' (checkpoint)'}
-                    </td>
-                    <td>{commit.author.name}</td>
-                    <td>{commit.date}</td>
-                    <td>
-                      <button type="button" onClick={() => void handleRevert(commit.hash)} disabled={actionBusy}>
-                        Revert to this version
-                      </button>
-                    </td>
+            {visibleCommits && visibleCommits.length > 0 && (
+              <table className="list-table">
+                <thead>
+                  <tr>
+                    <th>Compare</th>
+                    <th>Message</th>
+                    <th>Author</th>
+                    <th>Date</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {visibleCommits.map((commit) => (
+                    <tr key={commit.hash}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedHashes.includes(commit.hash)}
+                          onChange={() => toggleSelected(commit.hash)}
+                          aria-label={`Select ${shortHash(commit.hash)} for comparison`}
+                        />
+                      </td>
+                      <td>
+                        {commit.message}
+                        {commit.isCheckpoint && ' (checkpoint)'}
+                      </td>
+                      <td>{commit.author.name}</td>
+                      <td>{commit.date}</td>
+                      <td>
+                        <button type="button" onClick={() => void handleRevert(commit.hash)} disabled={actionBusy}>
+                          Revert to this version
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
 
-          {hasMore && (
-            <button type="button" onClick={() => setLimit((current) => current + LOAD_MORE_STEP)}>
-              Load older commits
+            {hasMore && (
+              <button type="button" onClick={() => setLimit((current) => current + LOAD_MORE_STEP)}>
+                Load older commits
+              </button>
+            )}
+
+            <button type="button" onClick={() => void handleCompare()} disabled={selectedHashes.length === 0}>
+              Compare
             </button>
-          )}
-
-          <button type="button" onClick={() => void handleCompare()} disabled={selectedHashes.length === 0}>
-            Compare
-          </button>
-          {actionError && <p role="alert">{actionError}</p>}
-          {diffError && <p role="alert">{diffError}</p>}
-          {diff && (
-            <PageDiffView
-              fromLabel={diff.fromLabel}
-              toLabel={diff.toLabel}
-              fromContent={diff.fromContent}
-              toContent={diff.toContent}
-            />
-          )}
-        </>
-      )}
+            {actionError && <p role="alert">{actionError}</p>}
+            {diffError && <p role="alert">{diffError}</p>}
+            {diff && (
+              <PageDiffView
+                fromLabel={diff.fromLabel}
+                toLabel={diff.toLabel}
+                fromContent={diff.fromContent}
+                toContent={diff.toContent}
+              />
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

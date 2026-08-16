@@ -32,20 +32,6 @@ export async function fetchPageHistory(siteId: string, path: string, limit: numb
   return (await response.json()) as HistoryResult;
 }
 
-// The top-nav History tab's own site-wide view - no path segment,
-// scoped server-side to path=content (see site-history.ts's own
-// fetchSiteContentHistory), so it never needs a not-found branch the
-// way the page-scoped call above does.
-export async function fetchSiteWideHistory(siteId: string, limit: number): Promise<HistoryResult> {
-  const query = new URLSearchParams({ limit: String(limit) });
-  const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/history?${query.toString()}`);
-
-  if (!response.ok) {
-    throw await reasonFromResponse(response, 'error');
-  }
-  return (await response.json()) as HistoryResult;
-}
-
 // H3: ref is passed through unmodified - the literal string "HEAD" is
 // what "compare against current" means, handled entirely server-side.
 export async function fetchPageRevision(siteId: string, ref: string, path: string): Promise<string> {

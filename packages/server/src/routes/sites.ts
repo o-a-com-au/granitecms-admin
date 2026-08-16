@@ -15,7 +15,7 @@ import { publishSite } from '../sites/site-publish.ts';
 import { discardSiteDraft } from '../sites/site-draft-discard.ts';
 import { unpublishSite } from '../sites/site-unpublish.ts';
 import type { CommitAuthor } from '../sites/commit-author.ts';
-import { fetchSiteContentHistory, fetchSiteHistory } from '../sites/site-history.ts';
+import { fetchSiteHistory } from '../sites/site-history.ts';
 import { fetchSiteRevision } from '../sites/site-revision.ts';
 import { revertSitePath } from '../sites/site-revert.ts';
 import { moveSitePath } from '../sites/site-move.ts';
@@ -515,37 +515,6 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
         if (result.outcome === 'not-found') {
           reply.code(404);
           return { error: result.message, reason: 'not-found' };
-        }
-
-        reply.code(502);
-        return { error: result.message, reason: result.outcome };
-      },
-    );
-
-    // The site-wide History tab's own route - an exact match, distinct
-    // from the wildcard page-scoped one below (find-my-way treats
-    // "/:id/history" and "/:id/history/*" as separate route trees, no
-    // collision). Scoped to path=content (not the whole repo) - a
-    // deliberate choice confirmed with the project owner, so theme/
-    // vhost config commits don't show up alongside real content edits.
-    app.get<{ Params: { id: string }; Querystring: HistoryQuery }>(
-      '/:id/history',
-      { preHandler: requireAuth },
-      async (request, reply) => {
-        const site = await sitesStore.find(request.params.id);
-        if (!site) {
-          throw new SiteNotFoundError(request.params.id);
-        }
-
-        const limit = parseHistoryLimit(request.query);
-        if (limit === null) {
-          reply.code(400);
-          return { error: '"limit" must be a positive integer' };
-        }
-
-        const result = await fetchSiteContentHistory(site, limit);
-        if (result.outcome === 'ok') {
-          return { commits: result.commits, hasMore: result.hasMore };
         }
 
         reply.code(502);

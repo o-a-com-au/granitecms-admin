@@ -1807,48 +1807,6 @@ describe('sites routes', () => {
     await app.close();
   });
 
-  it('GET /api/sites/:id/history (site-wide) scopes the agent call to path=content, not a page/theme path', async () => {
-    const { app, cookie } = await buildTestServer();
-    let receivedPath = '';
-    const commit = {
-      hash: 'abc123',
-      author: { name: 'Jane Editor', email: 'jane@example.com' },
-      date: '2026-01-01T00:00:00.000Z',
-      message: 'Update about page',
-      isCheckpoint: false,
-    };
-    fakeSite = createServer((req, res) => {
-      receivedPath = req.url ?? '';
-      sendJson(res, 200, { commits: [commit], hasMore: false });
-    });
-    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
-    const address = fakeSite.address();
-    if (address === null || typeof address === 'string') {
-      throw new Error('expected a real listening address');
-    }
-    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
-
-    const response = await app.inject({ method: 'GET', url: `/api/sites/${id}/history`, headers: { cookie } });
-
-    assert.equal(response.statusCode, 200);
-    assert.deepEqual(response.json(), { commits: [commit], hasMore: false });
-    assert.equal(receivedPath, '/v1/git/log?path=content&limit=100');
-
-    await app.close();
-  });
-
-  it('GET /api/sites/:id/history returns 502 for an unreachable site', async () => {
-    const { app, cookie } = await buildTestServer();
-    const id = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');
-
-    const response = await app.inject({ method: 'GET', url: `/api/sites/${id}/history`, headers: { cookie } });
-
-    assert.equal(response.statusCode, 502);
-    assert.equal(response.json().reason, 'unreachable');
-
-    await app.close();
-  });
-
   const REDIRECT_ENTRY = { from: '/old', to: '/new', note: 'moved page' };
 
   it('GET /api/sites/:id/redirects forwards the entries list', async () => {
