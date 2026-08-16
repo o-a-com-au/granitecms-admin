@@ -7,6 +7,11 @@ interface PreviewFrameProps {
   url: string | null;
   status: EditorStatus;
   device: DeviceTier;
+  // Set while browsing the page's History tab: renders a specific past
+  // git revision instead of the current draft/live content. null/unset
+  // is the normal current-version preview - the two never mix, this
+  // fully replaces the src rather than layering on top of it.
+  revisionRef?: string | null;
   // Exposed so PageEditorPage can reach into the previewed document's
   // own DOM directly (hover-to-highlight a section) - safe only
   // because the iframe's src is same-origin (see the F1/F3 note
@@ -103,6 +108,7 @@ export function PreviewFrame({
   url,
   status,
   device,
+  revisionRef,
   iframeRef,
   onFrameLoad,
   onFrameMouseLeave,
@@ -162,7 +168,14 @@ export function PreviewFrame({
     );
   }
 
-  const src = `/api/sites/${encodeURIComponent(siteId)}/preview${encodeUrlSegments(url)}?t=${refreshToken}`;
+  // A historical revision is its own distinct navigation (changing
+  // revisionRef alone reassigns src, no separate refresh token needed -
+  // status/refreshToken only ever move while browsing the current
+  // version, not while previewing history).
+  const src =
+    revisionRef != null
+      ? `/api/sites/${encodeURIComponent(siteId)}/preview-revision/${encodeURIComponent(revisionRef)}${encodeUrlSegments(url)}`
+      : `/api/sites/${encodeURIComponent(siteId)}/preview${encodeUrlSegments(url)}?t=${refreshToken}`;
 
   return (
     <div className="preview-pane">

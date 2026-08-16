@@ -18,6 +18,25 @@ describe('PreviewFrame', () => {
     expect(iframe.src).toContain('/api/sites/site-1/preview/?t=');
   });
 
+  it('builds the src from the preview-revision route when revisionRef is set', () => {
+    render(<PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" revisionRef="abc123" />);
+
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    expect(iframe.src).toContain('/api/sites/site-1/preview-revision/abc123/about');
+    expect(iframe.src).not.toContain('/preview/about');
+  });
+
+  it('reverts to the normal preview src once revisionRef is cleared', () => {
+    const { rerender } = render(
+      <PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" revisionRef="abc123" />,
+    );
+
+    rerender(<PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" revisionRef={null} />);
+
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    expect(iframe.src).toContain('/api/sites/site-1/preview/about?t=');
+  });
+
   it('shows a fallback message and no iframe when url is null', () => {
     render(<PreviewFrame siteId="site-1" url={null} status="ready" device="desktop" />);
 
