@@ -21,12 +21,20 @@ interface PageHistoryTabProps {
   onRestored: () => void;
 }
 
-function shortHash(hash: string): string {
-  return hash.slice(0, 7);
-}
-
-function formatCommitDate(date: string): string {
-  return new Date(date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+// Includes the time, not just the date - each row shows only this one
+// label now (no message/author line), and same-day commits are common
+// enough (e.g. several edits published in one sitting) that date alone
+// would make adjacent rows indistinguishable. Exported so tests can
+// build an expected string the same way, rather than hardcoding a
+// locale/timezone-dependent value.
+export function formatCommitTimestamp(date: string): string {
+  return new Date(date).toLocaleString('en-AU', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 // WordPress-style rollback-by-date, replacing the old standalone
@@ -133,7 +141,7 @@ export function PageHistoryTab({ siteId, path, previewRef, onSelectRevision, onR
                     className={`instance-row-main history-row-main${previewRef === commit.hash ? ' is-selected' : ''}`}
                     role="button"
                     tabIndex={0}
-                    aria-label={`Preview version from ${formatCommitDate(commit.date)}`}
+                    aria-label={`Preview version from ${formatCommitTimestamp(commit.date)}`}
                     onClick={() => onSelectRevision(commit.hash)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
@@ -142,16 +150,7 @@ export function PageHistoryTab({ siteId, path, previewRef, onSelectRevision, onR
                       }
                     }}
                   >
-                    <div className="history-row-text">
-                      <strong>{formatCommitDate(commit.date)}</strong>
-                      <span className="history-row-message">
-                        {commit.message}
-                        {commit.isCheckpoint && ' (checkpoint)'}
-                      </span>
-                      <span className="history-row-meta">
-                        {commit.author.name} · {shortHash(commit.hash)}
-                      </span>
-                    </div>
+                    <span className="history-row-text">{formatCommitTimestamp(commit.date)}</span>
                     <button
                       type="button"
                       className="history-row-restore"

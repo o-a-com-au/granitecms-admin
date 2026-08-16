@@ -12,7 +12,6 @@ import { PageMetadataPanel } from '../editor/PageMetadataPanel.tsx';
 import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
 import { UnsavedChangesPrompt } from '../editor/UnsavedChangesPrompt.tsx';
 import { PageHistoryTab } from '../history/PageHistoryTab.tsx';
-import { HistoryIcon, TabPageIcon, TabSectionsIcon } from '../icons/index.tsx';
 import { usePageActions, usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 
@@ -563,9 +562,6 @@ export function PageEditorPage() {
                   aria-selected={effectiveViewMode === 'metafields'}
                   onClick={() => setViewMode('metafields')}
                 >
-                  <span className="tab-icon">
-                    <TabPageIcon />
-                  </span>
                   Page Meta
                 </button>
                 <button
@@ -575,9 +571,6 @@ export function PageEditorPage() {
                   disabled={!sectionsAvailable}
                   onClick={() => setViewMode('sections')}
                 >
-                  <span className="tab-icon">
-                    <TabSectionsIcon />
-                  </span>
                   Sections
                 </button>
                 <button
@@ -586,9 +579,6 @@ export function PageEditorPage() {
                   aria-selected={effectiveViewMode === 'history'}
                   onClick={() => setViewMode('history')}
                 >
-                  <span className="tab-icon">
-                    <HistoryIcon />
-                  </span>
                   History
                 </button>
               </div>

@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { createMemoryRouter, Link, RouterProvider } from 'react-router';
 import { PageEditorPage } from '../../src/pages/PageEditorPage.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider } from '../../src/layout/PageActionsContext.tsx';
+import { formatCommitTimestamp } from '../../src/history/PageHistoryTab.tsx';
 
 // Stands in for AppShell's own top-bar slots - PageEditorPage pushes
 // Discard/Save Changes and the device-size toggle into them via
@@ -1019,9 +1020,9 @@ describe('PageEditorPage', () => {
     expect(iframe.src).toContain('/api/sites/site-1/preview/about?t=');
 
     fireEvent.click(screen.getByRole('tab', { name: 'History' }));
-    await waitFor(() => expect(screen.getByText('Update about page')).toBeDefined());
+    await waitFor(() => expect(screen.getByText(formatCommitTimestamp(HISTORY_COMMIT.date))).toBeDefined());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Preview version from 1 Jan 2026' }));
+    fireEvent.click(screen.getByRole('button', { name: `Preview version from ${formatCommitTimestamp(HISTORY_COMMIT.date)}` }));
 
     await waitFor(() => expect(iframe.src).toContain('/api/sites/site-1/preview-revision/abc123/about'));
   });
@@ -1038,8 +1039,8 @@ describe('PageEditorPage', () => {
     const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
 
     fireEvent.click(screen.getByRole('tab', { name: 'History' }));
-    await waitFor(() => expect(screen.getByText('Update about page')).toBeDefined());
-    fireEvent.click(screen.getByRole('button', { name: 'Preview version from 1 Jan 2026' }));
+    await waitFor(() => expect(screen.getByText(formatCommitTimestamp(HISTORY_COMMIT.date))).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: `Preview version from ${formatCommitTimestamp(HISTORY_COMMIT.date)}` }));
     await waitFor(() => expect(iframe.src).toContain('/preview-revision/abc123/about'));
 
     fireEvent.click(screen.getByRole('tab', { name: 'Page Meta' }));
@@ -1059,15 +1060,15 @@ describe('PageEditorPage', () => {
     const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
 
     fireEvent.click(screen.getByRole('tab', { name: 'History' }));
-    await waitFor(() => expect(screen.getByText('Update about page')).toBeDefined());
-    fireEvent.click(screen.getByRole('button', { name: 'Preview version from 1 Jan 2026' }));
+    await waitFor(() => expect(screen.getByText(formatCommitTimestamp(HISTORY_COMMIT.date))).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: `Preview version from ${formatCommitTimestamp(HISTORY_COMMIT.date)}` }));
     await waitFor(() => expect(iframe.src).toContain('/preview-revision/abc123/about'));
 
     fireEvent.click(screen.getByText('← Back to current version'));
 
     await waitFor(() => expect(iframe.src).toContain('/api/sites/site-1/preview/about?t='));
     // Still on the History tab - only the preview reverted.
-    expect(screen.getByText('Update about page')).toBeDefined();
+    expect(screen.getByText(formatCommitTimestamp(HISTORY_COMMIT.date))).toBeDefined();
   });
 
   it('Save/Discard actions are hidden while previewing a historical revision', async () => {
@@ -1081,8 +1082,8 @@ describe('PageEditorPage', () => {
     await waitForActions();
 
     fireEvent.click(screen.getByRole('tab', { name: 'History' }));
-    await waitFor(() => expect(screen.getByText('Update about page')).toBeDefined());
-    fireEvent.click(screen.getByRole('button', { name: 'Preview version from 1 Jan 2026' }));
+    await waitFor(() => expect(screen.getByText(formatCommitTimestamp(HISTORY_COMMIT.date))).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: `Preview version from ${formatCommitTimestamp(HISTORY_COMMIT.date)}` }));
 
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Discard Changes' })).toBeNull());
     expect(screen.queryByRole('button', { name: 'Save Changes' })).toBeNull();
@@ -1103,8 +1104,8 @@ describe('PageEditorPage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add Section' })).toBeDefined());
 
     fireEvent.click(screen.getByRole('tab', { name: 'History' }));
-    await waitFor(() => expect(screen.getByText('Update about page')).toBeDefined());
-    fireEvent.click(screen.getByRole('button', { name: 'Preview version from 1 Jan 2026' }));
+    await waitFor(() => expect(screen.getByText(formatCommitTimestamp(HISTORY_COMMIT.date))).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: `Preview version from ${formatCommitTimestamp(HISTORY_COMMIT.date)}` }));
 
     const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
     await waitFor(() => expect(iframe.src).toContain('/preview-revision/abc123/about'));

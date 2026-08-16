@@ -30,17 +30,6 @@
   font-weight: 600;
 }
 
-/* TabPageIcon/TabSectionsIcon/TabFieldsIcon (icons/index.tsx) render
-   their svg at width/height: 100% - this box does the actual sizing,
-   matching the icons' previous fixed 16px default (at the browser's
-   un-overridden 16px root). */
-.tab-icon {
-  display: flex;
-  flex: 0 0 auto;
-  width: 1rem;
-  height: 1rem;
-}
-
 .editor-tabs[role='tablist'] button[role='tab']:hover:not(:disabled) {
   color: var(--colour-text);
 }
