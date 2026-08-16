@@ -125,9 +125,7 @@ export function PageHistoryTab({ siteId, path, previewRef, hasDraft, onSelectRev
   return (
     <div className="history-panel">
       <h2 className="panel-heading">History</h2>
-      <p className="panel-note">
-        Restoring replaces the published version. If a draft is open on this page, it's discarded too.
-      </p>
+      <p className="panel-note">Restoring overwrites the published version and discards any open draft.</p>
 
       {loadError && <p role="alert">{loadError}</p>}
       {!loadError && commits === null && <p>Loading...</p>}
