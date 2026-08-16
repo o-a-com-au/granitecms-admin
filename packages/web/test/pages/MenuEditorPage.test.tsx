@@ -262,15 +262,6 @@ describe('MenuEditorPage', () => {
     expect(api.state.source).toBe('draft');
   });
 
-  it('links to the same git history route pages use, scoped to this menu\'s path', async () => {
-    installFakeMenuApi({ content: MENU_CONTENT, etag: '"etag-1"', source: 'draft' });
-    renderPage();
-
-    await waitFor(() => expect(screen.getAllByLabelText('Label')).toHaveLength(2));
-    const link = screen.getByRole('link', { name: 'History' });
-    expect(link.getAttribute('href')).toBe('/sites/site-1/history?path=menus%2Fmain.json');
-  });
-
   it('shows a clear message when nothing exists at this path', async () => {
     installFakeMenuApi({ content: null, etag: null, source: 'draft' });
     renderPage();

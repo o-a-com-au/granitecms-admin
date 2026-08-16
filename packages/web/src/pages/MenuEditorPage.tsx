@@ -1,4 +1,4 @@
-import { Link, useBlocker, useParams, useSearchParams } from 'react-router';
+import { useBlocker, useParams, useSearchParams } from 'react-router';
 import { useAutosaveDraft } from '../editor/useAutosaveDraft.ts';
 import { useDraftPublishActions } from '../editor/useDraftPublishActions.ts';
 import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
@@ -149,7 +149,6 @@ export function MenuEditorPage() {
   }
 
   const menu = parseMenu(content);
-  const historyHref = `/sites/${siteId}/history?path=${encodeURIComponent(path)}`;
 
   function updateItems(items: MenuItem[]): void {
     if (menu !== null) {
@@ -275,7 +274,6 @@ export function MenuEditorPage() {
             <button type="button" className="instance-add-button" onClick={handleAddItem}>
               + Add menu item
             </button>
-            <Link to={historyHref}>History</Link>
           </div>
 
           {showFooter && (
