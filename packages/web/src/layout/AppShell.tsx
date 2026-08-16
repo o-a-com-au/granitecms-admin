@@ -6,6 +6,8 @@ import { IconSprite } from '../icons/index.tsx';
 import { HamburgerIcon } from '../icons/HamburgerIcon.tsx';
 import { GraniteLogo } from './GraniteLogo.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider } from './PageActionsContext.tsx';
+import { useSites } from '../sites/useSites.ts';
+import { readLastSiteId, resolveEditorHref, writeLastSiteId } from '../sites/currentSite.ts';
 
 // Bumped by hand alongside any release worth surfacing in the brand
 // mark (docs/designs/Phone-Pages.png shows the same "GRANITE 2.3"
@@ -67,6 +69,7 @@ export function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [pageActions, setPageActions] = useState<ReactNode>(null);
   const [deviceToggle, setDeviceToggle] = useState<ReactNode>(null);
+  const { sites, error: sitesError, refresh: refreshSites } = useSites();
 
   // Dismiss on an outside click - the popover has no backdrop of its
   // own (docs/design/Account Logout.png shows it floating directly
@@ -105,6 +108,16 @@ export function AppShell() {
     setMobileNavOpen(false);
   }, [location.pathname]);
 
+  // The entire mechanism for "remember the current site" (currentSite.ts) -
+  // every site-scoped route this shell wraps re-records itself here, no
+  // per-page plumbing needed. "/" and the always-visible Editor nav item
+  // both read this back once siteId itself isn't in the URL.
+  useEffect(() => {
+    if (siteId) {
+      writeLastSiteId(siteId);
+    }
+  }, [siteId]);
+
   const initial = user?.username ? user.username[0]?.toUpperCase() : '?';
 
   const contentTo = siteId ? `/sites/${siteId}/content` : undefined;
@@ -113,10 +126,36 @@ export function AppShell() {
   const redirectsTo = siteId ? `/sites/${siteId}/redirects` : undefined;
   const editorTo = siteId ? `/sites/${siteId}/editor` : undefined;
   const isEditingPage = location.pathname === editorTo;
+  // Falls back to the last-visited site (e.g. while on /settings, where
+  // siteId itself isn't in the URL) so Editor stays a real link from
+  // anywhere, not just while a site is already selected. undefined only
+  // on a genuine first-ever visit, before any site has ever been known -
+  // TopNavItem already renders that as disabled, same as Pages/Menus/etc.
+  const effectiveSiteId = siteId ?? readLastSiteId();
+  const editorNavTo = isEditingPage
+    ? `${location.pathname}${location.search}`
+    : effectiveSiteId
+      ? resolveEditorHref(effectiveSiteId)
+      : undefined;
 
   async function handleLogout(): Promise<void> {
     setAccountOpen(false);
     await logout();
+  }
+
+  // Refreshes on every open, not just once on mount - AppShell is the
+  // persistent layout (it never remounts on in-app navigation), so its
+  // own copy of the site list would otherwise silently drift from
+  // SettingsPage's own after a register/rotate/remove there. Doubles as
+  // how a freshly-registered site shows up in "Switch site" without a
+  // manual reload.
+  function handleToggleAccount(): void {
+    setAccountOpen((current) => {
+      if (!current) {
+        void refreshSites();
+      }
+      return !current;
+    });
   }
 
   return (
@@ -149,16 +188,15 @@ export function AppShell() {
             <TopNavItem label="Menus" to={menusTo} active={location.pathname === menusTo} />
             <TopNavItem label="Media" to={mediaTo} active={location.pathname === mediaTo} />
             <TopNavItem label="Redirects" to={redirectsTo} active={location.pathname === redirectsTo} />
-            {/* Only appears while a page is actually open in the editor
-                - there's no standalone "Edit" destination to link to
-                from anywhere else, so unlike the other items above this
-                one is omitted rather than rendered disabled. Links to
-                the current location (path + search) rather than a
-                fixed target, so it stays a real, clickable link even
-                though it's already active. */}
-            {isEditingPage && (
-              <TopNavItem label="Editor" to={`${location.pathname}${location.search}`} active={true} />
-            )}
+            {/* Always present now, like Pages/Menus/Media/Redirects -
+                links to the current location while already there
+                (unchanged), otherwise to whichever site is known
+                (falling back to the last-visited one) and that site's
+                own last-visited editor location, falling back again to
+                its default homepage document. Disabled only on a
+                genuine first-ever visit, before any site has ever been
+                known. */}
+            <TopNavItem label="Editor" to={editorNavTo} active={isEditingPage} />
           </nav>
           <div className="app-topbar-end">
             <div className="app-topbar-device-toggle">{deviceToggle}</div>
@@ -176,6 +214,49 @@ export function AppShell() {
                       <p className="account-popover-email">{user?.email}</p>
                     </div>
                   </div>
+                  {sites !== null && sites.length > 0 && (
+                    <div className="account-popover-sites">
+                      {sites.map((site) => {
+                        let hostLabel: string;
+                        try {
+                          hostLabel = new URL(site.url).host;
+                        } catch {
+                          hostLabel = site.url;
+                        }
+                        if (site.id === siteId) {
+                          return (
+                            <span key={site.id} className="account-popover-item is-current" aria-current="page">
+                              {hostLabel}
+                            </span>
+                          );
+                        }
+                        return (
+                          <Link
+                            key={site.id}
+                            role="menuitem"
+                            className="account-popover-item"
+                            to={resolveEditorHref(site.id)}
+                            onClick={() => setAccountOpen(false)}
+                          >
+                            {hostLabel}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {sites === null && !sitesError && (
+                    <span className="account-popover-item account-popover-item-muted" aria-disabled="true">
+                      Loading sites...
+                    </span>
+                  )}
+                  {sitesError && (
+                    <span className="account-popover-item account-popover-item-muted" role="alert">
+                      Couldn&apos;t load sites
+                    </span>
+                  )}
+                  <Link to="/settings" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
+                    Site settings
+                  </Link>
                   <button type="button" role="menuitem" className="account-popover-item" onClick={toggleTheme}>
                     {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                   </button>
@@ -194,7 +275,7 @@ export function AppShell() {
                 className="app-avatar"
                 aria-haspopup="menu"
                 aria-expanded={accountOpen}
-                onClick={() => setAccountOpen((current) => !current)}
+                onClick={handleToggleAccount}
                 title={user ? user.username : 'Account'}
               >
                 {initial}

@@ -5,6 +5,8 @@ import { createMemoryRouter, Link, RouterProvider } from 'react-router';
 import { PageEditorPage } from '../../src/pages/PageEditorPage.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider } from '../../src/layout/PageActionsContext.tsx';
 import { formatCommitTimestamp } from '../../src/history/PageHistoryTab.tsx';
+import { readLastEditorLocation, writeLastEditorLocation } from '../../src/sites/currentSite.ts';
+import { createFakeStorage } from '../helpers/fakeStorage.ts';
 
 // Stands in for AppShell's own top-bar slots - PageEditorPage pushes
 // Discard/Save Changes and the device-size toggle into them via
@@ -1162,5 +1164,28 @@ describe('PageEditorPage', () => {
     // No Fields panel opened - suppressed rather than acting against
     // the current draft's own (possibly mismatched) section ids.
     expect(screen.queryByLabelText('Heading')).toBeNull();
+  });
+
+  it('a successful load remembers this as the site\'s own last-visited editor location', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
+
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    await waitFor(() =>
+      expect(readLastEditorLocation('site-1')).toBe('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout'),
+    );
+  });
+
+  it('a not-found load never clobbers a previously-good remembered location', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    writeLastEditorLocation('site-1', '/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+    installFakeEditorApi({ content: null, etag: null, source: 'draft' });
+
+    renderPage('/sites/site-1/editor?path=pages%2Fnever-existed.json&url=%2Fnever-existed');
+    await waitFor(() => expect(screen.getByRole('alert')).toBeDefined());
+
+    expect(readLastEditorLocation('site-1')).toBe('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
   });
 });

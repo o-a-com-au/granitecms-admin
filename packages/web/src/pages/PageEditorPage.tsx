@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useBlocker, useParams, useSearchParams } from 'react-router';
+import { useBlocker, useLocation, useParams, useSearchParams } from 'react-router';
 import { listSiteContent } from '../api/site-content.ts';
 import { useAutosaveDraft } from '../editor/useAutosaveDraft.ts';
 import { useDraftPublishActions } from '../editor/useDraftPublishActions.ts';
@@ -12,6 +12,7 @@ import { PageMetadataPanel } from '../editor/PageMetadataPanel.tsx';
 import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
 import { UnsavedChangesPrompt } from '../editor/UnsavedChangesPrompt.tsx';
 import { PageHistoryTab } from '../history/PageHistoryTab.tsx';
+import { writeLastEditorLocation } from '../sites/currentSite.ts';
 import { usePageActions, usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 
@@ -22,6 +23,7 @@ import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 // array) and for the envelope fields it doesn't give controls to.
 export function PageEditorPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const path = searchParams.get('path') ?? '';
   const previewUrl = searchParams.get('url');
@@ -431,6 +433,17 @@ export function PageEditorPage() {
   // permanently.
   const contentLoaded = status !== 'loading' && status !== 'not-found' && status !== 'load-error';
   const hasPendingChanges = source === 'draft' || status !== 'ready';
+
+  // Remembers this as the site's own "last visited editor page"
+  // (currentSite.ts) - only once content has actually loaded, so a
+  // broken or nonexistent URL never overwrites a previously-good
+  // remembered location. Feeds the always-visible Editor nav item and
+  // "/"'s own default-landing redirect (AppShell.tsx/HomeRedirect.tsx).
+  useEffect(() => {
+    if (siteId && contentLoaded) {
+      writeLastEditorLocation(siteId, `${location.pathname}${location.search}`);
+    }
+  }, [siteId, contentLoaded, location.pathname, location.search]);
 
   // Guards navigation away from this page while a draft is unpublished
   // - top nav clicks, the content browser's own page links, and this

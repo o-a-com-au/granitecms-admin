@@ -266,6 +266,29 @@
   background: var(--colour-surface-hover);
 }
 
+.account-popover-sites {
+  border-bottom: 1px solid var(--colour-border);
+  margin-bottom: 0.4rem;
+  padding-bottom: 0.4rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.account-popover-item.is-current {
+  font-weight: 600;
+  cursor: default;
+}
+
+.account-popover-item-muted {
+  color: var(--colour-muted);
+  cursor: default;
+}
+
+.account-popover-item.is-current:hover,
+.account-popover-item-muted:hover {
+  background: none;
+}
+
 .app-content {
   flex: 1;
   min-width: 0;
