@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
 import { moveSitePage } from '../api/site-publishing.ts';
 import { SiteEditorError } from '../api/site-editor.ts';
 
 export interface PageMetadataPanelProps {
   content: string;
   setContent: (value: string) => void;
-  historyHref: string;
   siteId: string;
   path: string;
   previewUrl: string | null;
@@ -122,7 +120,6 @@ function slugify(value: string): string {
 export function PageMetadataPanel({
   content,
   setContent,
-  historyHref,
   siteId,
   path,
   previewUrl,
@@ -264,7 +261,6 @@ export function PageMetadataPanel({
           <option value="published">Published</option>
         </select>
       </label>
-      <Link to={historyHref}>History</Link>
     </div>
   );
 }

@@ -8,15 +8,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// The History link (moved here from the editor's own top bar) needs a
-// Router context to resolve, same as every other react-router Link in
-// this codebase's own tests.
 type RenderPanelProps = Pick<PageMetadataPanelProps, 'content' | 'setContent'> &
   Partial<Omit<PageMetadataPanelProps, 'content' | 'setContent'>>;
 
 function renderPanel(props: RenderPanelProps) {
   const {
-    historyHref = '/sites/site-1/history?path=pages%2Fabout.json',
     siteId = 'site-1',
     path = 'pages/about.json',
     previewUrl = '/about',
@@ -28,7 +24,6 @@ function renderPanel(props: RenderPanelProps) {
     <MemoryRouter>
       <PageMetadataPanel
         {...rest}
-        historyHref={historyHref}
         siteId={siteId}
         path={path}
         previewUrl={previewUrl}
@@ -133,7 +128,6 @@ describe('PageMetadataPanel', () => {
           <PageMetadataPanel
             content={next}
             setContent={setContent}
-            historyHref="/sites/site-1/history?path=pages%2Fabout.json"
             siteId="site-1"
             path="pages/about.json"
             previewUrl="/about"
@@ -219,19 +213,5 @@ describe('PageMetadataPanel', () => {
     // same priority every error path in this app now shows.
     await screen.findByText('A page already exists at that path');
     expect(onRenamed).not.toHaveBeenCalled();
-  });
-
-  it('renders a History link at the bottom of the panel, pointed at the given historyHref', () => {
-    renderPanel({
-      content: '{"title":"Hi"}',
-      setContent: vi.fn(),
-      historyHref: '/sites/site-1/history?path=pages%2Fabout.json&url=%2Fabout',
-    });
-
-    const link = screen.getByRole('link', { name: 'History' });
-    expect(link.getAttribute('href')).toBe('/sites/site-1/history?path=pages%2Fabout.json&url=%2Fabout');
-
-    const panel = screen.getByText('Page attributes').closest('.metadata-panel') as HTMLElement;
-    expect(panel.lastElementChild).toBe(link);
   });
 });

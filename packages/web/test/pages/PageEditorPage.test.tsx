@@ -48,6 +48,15 @@ interface FakeState {
   // navigate feature. Left empty by default - most tests never click a
   // link inside the preview, so there is nothing to resolve.
   contentList?: Array<{ path: string; url: string | null }>;
+  // Backs the History tab's own commit list - left empty by default,
+  // same reasoning as contentList above (most tests never open it).
+  historyCommits?: Array<{
+    hash: string;
+    author: { name: string; email: string };
+    date: string;
+    message: string;
+    isCheckpoint: boolean;
+  }>;
 }
 
 function installFakeEditorApi(initial: FakeState) {
@@ -144,6 +153,14 @@ function installFakeEditorApi(initial: FakeState) {
       }
       state.source = 'live';
       return new Response(null, { status: 204 });
+    }
+
+    if (method === 'GET' && url.includes('/history/')) {
+      return new Response(JSON.stringify({ commits: state.historyCommits ?? [], hasMore: false }), { status: 200 });
+    }
+
+    if (method === 'POST' && url.endsWith('/revert')) {
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }
 
     throw new Error(`unhandled fetch in test: ${method} ${url}`);
@@ -978,5 +995,132 @@ describe('PageEditorPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
     expect(screen.queryByLabelText('heading')).toBeNull();
+  });
+
+  const HISTORY_COMMIT = {
+    hash: 'abc123',
+    author: { name: 'Jane Editor', email: 'jane@example.com' },
+    date: '2026-01-01T00:00:00.000Z',
+    message: 'Update about page',
+    isCheckpoint: false,
+  };
+
+  it('the History tab lists commits, and clicking one renders that revision in the preview viewport', async () => {
+    installFakeEditorApi({
+      content: JSON.stringify({ title: 'Hi', published: true, sections: [] }),
+      etag: '"etag-1"',
+      source: 'draft',
+      historyCommits: [HISTORY_COMMIT],
+    });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+
+    await waitFor(() => expect(screen.getByTitle('Live preview')).toBeDefined());
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    expect(iframe.src).toContain('/api/sites/site-1/preview/about?t=');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'History' }));
+    await waitFor(() => expect(screen.getByText('Update about page')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Preview version from 1 Jan 2026' }));
+
+    await waitFor(() => expect(iframe.src).toContain('/api/sites/site-1/preview-revision/abc123/about'));
+  });
+
+  it('leaving the History tab reverts the preview to the current version', async () => {
+    installFakeEditorApi({
+      content: JSON.stringify({ title: 'Hi', published: true, sections: [] }),
+      etag: '"etag-1"',
+      source: 'draft',
+      historyCommits: [HISTORY_COMMIT],
+    });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+    await waitFor(() => expect(screen.getByTitle('Live preview')).toBeDefined());
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+
+    fireEvent.click(screen.getByRole('tab', { name: 'History' }));
+    await waitFor(() => expect(screen.getByText('Update about page')).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Preview version from 1 Jan 2026' }));
+    await waitFor(() => expect(iframe.src).toContain('/preview-revision/abc123/about'));
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Page Meta' }));
+
+    await waitFor(() => expect(iframe.src).toContain('/api/sites/site-1/preview/about?t='));
+  });
+
+  it('the History tab\'s own "Back to current version" control also reverts the preview, without leaving the tab', async () => {
+    installFakeEditorApi({
+      content: JSON.stringify({ title: 'Hi', published: true, sections: [] }),
+      etag: '"etag-1"',
+      source: 'draft',
+      historyCommits: [HISTORY_COMMIT],
+    });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+    await waitFor(() => expect(screen.getByTitle('Live preview')).toBeDefined());
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+
+    fireEvent.click(screen.getByRole('tab', { name: 'History' }));
+    await waitFor(() => expect(screen.getByText('Update about page')).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Preview version from 1 Jan 2026' }));
+    await waitFor(() => expect(iframe.src).toContain('/preview-revision/abc123/about'));
+
+    fireEvent.click(screen.getByText('← Back to current version'));
+
+    await waitFor(() => expect(iframe.src).toContain('/api/sites/site-1/preview/about?t='));
+    // Still on the History tab - only the preview reverted.
+    expect(screen.getByText('Update about page')).toBeDefined();
+  });
+
+  it('Save/Discard actions are hidden while previewing a historical revision', async () => {
+    installFakeEditorApi({
+      content: JSON.stringify({ title: 'Hi', published: true, sections: [] }),
+      etag: '"etag-1"',
+      source: 'draft',
+      historyCommits: [HISTORY_COMMIT],
+    });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+    await waitForActions();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'History' }));
+    await waitFor(() => expect(screen.getByText('Update about page')).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Preview version from 1 Jan 2026' }));
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Discard Changes' })).toBeNull());
+    expect(screen.queryByRole('button', { name: 'Save Changes' })).toBeNull();
+  });
+
+  it('clicking a section in the preview is a no-op while previewing a historical revision', async () => {
+    installFakeEditorApi({
+      content: JSON.stringify({
+        title: 'Hi',
+        published: true,
+        sections: [{ id: 'a', type: 'hero', settings: {} }],
+      }),
+      etag: '"etag-1"',
+      source: 'draft',
+      historyCommits: [HISTORY_COMMIT],
+    });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Section' })).toBeDefined());
+
+    fireEvent.click(screen.getByRole('tab', { name: 'History' }));
+    await waitFor(() => expect(screen.getByText('Update about page')).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Preview version from 1 Jan 2026' }));
+
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    await waitFor(() => expect(iframe.src).toContain('/preview-revision/abc123/about'));
+    const doc = iframe.contentDocument as Document;
+    doc.open();
+    doc.write('<body></body>');
+    doc.close();
+    const sectionA = doc.createElement('div');
+    sectionA.dataset.sectionId = 'a';
+    doc.body.append(sectionA);
+    fireEvent.load(iframe);
+
+    fireEvent.click(sectionA);
+
+    // No Fields panel opened - suppressed rather than acting against
+    // the current draft's own (possibly mismatched) section ids.
+    expect(screen.queryByLabelText('Heading')).toBeNull();
   });
 });

@@ -11,7 +11,8 @@ import { SectionFieldsPanel } from '../sections/SectionFieldsPanel.tsx';
 import { PageMetadataPanel } from '../editor/PageMetadataPanel.tsx';
 import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
 import { UnsavedChangesPrompt } from '../editor/UnsavedChangesPrompt.tsx';
-import { TabPageIcon, TabSectionsIcon } from '../icons/index.tsx';
+import { PageHistoryTab } from '../history/PageHistoryTab.tsx';
+import { HistoryIcon, TabPageIcon, TabSectionsIcon } from '../icons/index.tsx';
 import { usePageActions, usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 
@@ -25,7 +26,18 @@ export function PageEditorPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const path = searchParams.get('path') ?? '';
   const previewUrl = searchParams.get('url');
-  const [viewMode, setViewMode] = useState<'metafields' | 'sections' | 'raw'>('sections');
+  const [viewMode, setViewMode] = useState<'metafields' | 'sections' | 'raw' | 'history'>('sections');
+  // The commit hash currently rendered in the main viewport while
+  // browsing the History tab, or null for the normal current-version
+  // preview - deliberately independent of status/source (draft/live
+  // editing state): entering/leaving History mode must never touch the
+  // actual draft being edited, only what PreviewFrame is asked to show.
+  const [historyPreviewRef, setHistoryPreviewRef] = useState<string | null>(null);
+  useEffect(() => {
+    if (viewMode !== 'history') {
+      setHistoryPreviewRef(null);
+    }
+  }, [viewMode]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   // A selected instance belongs to whatever page's content was loaded
   // when it was selected - once path itself changes (any navigation
@@ -171,6 +183,15 @@ export function PageEditorPage() {
   function handlePreviewFrameLoad(): void {
     const doc = previewIframeRef.current?.contentDocument;
     if (!doc) {
+      return;
+    }
+    // A historical revision's sections don't necessarily match the
+    // current draft's own instance ids (or exist in it at all) - a
+    // hover/click wired up against a page that no longer looks like
+    // what's being edited would highlight/open the wrong thing, or
+    // nothing at all. Simplest correct behaviour: no section
+    // interactivity while browsing history, full stop.
+    if (historyPreviewRef !== null) {
       return;
     }
     // Duck-typed, not `target instanceof Element` - the iframe's
@@ -331,8 +352,6 @@ export function PageEditorPage() {
     node.classList.add('tab-fade-in');
   }, [effectiveViewMode]);
 
-  const historyHref = `/sites/${siteId}/history?path=${encodeURIComponent(path)}${previewUrl ? `&url=${encodeURIComponent(previewUrl)}` : ''}`;
-
   // Selecting an instance no longer switches the left column to a
   // "Fields" mode in place - the revised layout (docs/designs/Revised-
   // Page-Edit--Section-Edit.png) shows the Sections list and the
@@ -442,7 +461,12 @@ export function PageEditorPage() {
   // button (found live: real overlapping hit-test regions, not just a
   // visual layering nit). docs/designs/Phone-Preview.png itself shows
   // no Save/Discard while previewing either - close the preview first.
-  const showActions = contentLoaded && hasPendingChanges && !mobilePreviewOpen;
+  // Also suppressed while browsing a historical revision - the viewport
+  // is showing something other than the draft these buttons would act
+  // on, and "Back to current version"/leaving the History tab is the
+  // only way out while it's up, same reasoning as the mobile-preview
+  // case above.
+  const showActions = contentLoaded && hasPendingChanges && !mobilePreviewOpen && historyPreviewRef === null;
 
   usePageActions(
     showActions ? (
@@ -556,6 +580,17 @@ export function PageEditorPage() {
                   </span>
                   Sections
                 </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={effectiveViewMode === 'history'}
+                  onClick={() => setViewMode('history')}
+                >
+                  <span className="tab-icon">
+                    <HistoryIcon />
+                  </span>
+                  History
+                </button>
               </div>
             </div>
   
@@ -566,7 +601,6 @@ export function PageEditorPage() {
                     key={path}
                     content={content}
                     setContent={setContent}
-                    historyHref={historyHref}
                     siteId={siteId}
                     path={path}
                     previewUrl={previewUrl}
@@ -592,6 +626,15 @@ export function PageEditorPage() {
                     <textarea value={content} onChange={(event) => setContent(event.target.value)} />
                   </label>
                 )}
+                {effectiveViewMode === 'history' && (
+                  <PageHistoryTab
+                    siteId={siteId}
+                    path={path}
+                    previewRef={historyPreviewRef}
+                    onSelectRevision={setHistoryPreviewRef}
+                    onRestored={reloadLatest}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -610,6 +653,7 @@ export function PageEditorPage() {
               url={previewUrl}
               status={status}
               device={device}
+              revisionRef={historyPreviewRef}
               iframeRef={previewIframeRef}
               onFrameLoad={handlePreviewFrameLoad}
               onFrameMouseLeave={() => setHighlightedSectionId(null)}
