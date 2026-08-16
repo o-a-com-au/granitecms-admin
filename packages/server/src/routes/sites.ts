@@ -11,6 +11,7 @@ import { fetchSiteContent, type ContentListFilters } from '../sites/site-content
 import { fetchSiteEditorContent } from '../sites/site-editor-content.ts';
 import { saveSiteDraft } from '../sites/site-draft-save.ts';
 import { fetchSitePreview } from '../sites/site-preview.ts';
+import { fetchSitePreviewRevision } from '../sites/site-preview-revision.ts';
 import { publishSite } from '../sites/site-publish.ts';
 import { discardSiteDraft } from '../sites/site-draft-discard.ts';
 import { unpublishSite } from '../sites/site-unpublish.ts';
@@ -420,6 +421,47 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
         if (result.outcome === 'ok') {
           reply.code(result.status).type(result.contentType).send(Buffer.from(result.body));
           return;
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
+
+    // A distinct top-level segment ("preview-revision", not nested
+    // under /:id/preview/*) for the same reason the agent's own
+    // GET /v1/preview-revision/:ref/* route isn't nested under
+    // GET /v1/preview/* - see that route's own comment. Outcome
+    // mapping mirrors /:id/revision/:ref/* below (invalid-ref/
+    // not-found-at-ref kept distinct), plus the new 'unrenderable'
+    // case for a revision whose content no longer matches the site's
+    // current theme.
+    app.get<{ Params: { id: string; ref: string; '*': string } }>(
+      '/:id/preview-revision/:ref/*',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const result = await fetchSitePreviewRevision(site, `/${request.params['*']}`, request.params.ref);
+
+        if (result.outcome === 'ok') {
+          reply.code(result.status).type(result.contentType).send(Buffer.from(result.body));
+          return;
+        }
+        if (result.outcome === 'invalid-ref') {
+          reply.code(400);
+          return { statusCode: 400, error: 'Bad Request', message: result.message };
+        }
+        if (result.outcome === 'not-found-at-ref') {
+          reply.code(404);
+          return { error: result.message, reason: 'not-found-at-ref' };
+        }
+        if (result.outcome === 'unrenderable') {
+          reply.code(422);
+          return { error: result.message, reason: 'unrenderable' };
         }
 
         reply.code(502);

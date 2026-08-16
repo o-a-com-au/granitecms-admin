@@ -337,6 +337,52 @@ async function startFakePreviewSite(options: FakePreviewSiteOptions): Promise<st
   return `http://127.0.0.1:${address.port}`;
 }
 
+interface FakePreviewRevisionSiteOptions {
+  acceptedToken: string;
+}
+
+// A minimal stand-in for the agent's own GET /v1/preview-revision/:ref/*,
+// distinguishing a handful of fixed refs by name rather than genuinely
+// parsing a ref the way the real agent does - enough surface to exercise
+// the admin's proxy route's own outcome mapping (ok/invalid-ref/
+// not-found-at-ref/unrenderable) end to end.
+async function startFakePreviewRevisionSite(options: FakePreviewRevisionSiteOptions): Promise<string> {
+  const handler = (req: IncomingMessage, res: ServerResponse) => {
+    if (req.headers.authorization !== `Bearer ${options.acceptedToken}`) {
+      sendJson(res, 401, { error: 'invalid-token' });
+      return;
+    }
+
+    if (req.url === '/v1/preview-revision/abc123/about') {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      res.end('<html><body>About, as it was</body></html>');
+      return;
+    }
+    if (req.url === '/v1/preview-revision/not-a-real-ref/about') {
+      sendJson(res, 400, { statusCode: 400, error: 'Bad Request', message: 'Invalid ref' });
+      return;
+    }
+    if (req.url === '/v1/preview-revision/abc123/never-existed') {
+      sendJson(res, 404, { statusCode: 404, error: 'Not Found', message: 'No page at "/never-existed"' });
+      return;
+    }
+    if (req.url === '/v1/preview-revision/abc123/extinct-section') {
+      sendJson(res, 422, { statusCode: 422, error: 'Unprocessable Entity', reason: 'missing-section-type' });
+      return;
+    }
+
+    sendJson(res, 404, { statusCode: 404, error: 'Not Found' });
+  };
+
+  fakeSite = createServer(handler);
+  await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+  const address = fakeSite.address();
+  if (address === null || typeof address === 'string') {
+    throw new Error('expected a real listening address');
+  }
+  return `http://127.0.0.1:${address.port}`;
+}
+
 // A minimal but real stand-in for the agent's own git/log, git/show,
 // git/revert routes, for H1-H4's own tests. Only understands a single
 // fixed commit at content/pages/about.json - not a real git repo, just
@@ -443,6 +489,12 @@ describe('sites routes', () => {
 
     const preview = await app.inject({ method: 'GET', url: '/api/sites/anything/preview/about' });
     assert.equal(preview.statusCode, 401);
+
+    const previewRevision = await app.inject({
+      method: 'GET',
+      url: '/api/sites/anything/preview-revision/abc123/about',
+    });
+    assert.equal(previewRevision.statusCode, 401);
 
     const discard = await app.inject({ method: 'DELETE', url: '/api/sites/anything/drafts/pages/about.json' });
     assert.equal(discard.statusCode, 401);
@@ -1013,6 +1065,78 @@ describe('sites routes', () => {
 
     assert.equal(response.statusCode, 502);
     assert.equal(response.json().reason, 'unauthorized');
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/preview-revision/:ref/* forwards the real rendered HTML for that revision', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakePreviewRevisionSite({ acceptedToken: 'the-token' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/preview-revision/abc123/about`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers['content-type'], 'text/html; charset=utf-8');
+    assert.equal(response.body, '<html><body>About, as it was</body></html>');
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/preview-revision/:ref/* keeps invalid-ref (400) and not-found-at-ref (404) distinct', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakePreviewRevisionSite({ acceptedToken: 'the-token' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const invalidRef = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/preview-revision/not-a-real-ref/about`,
+      headers: { cookie },
+    });
+    assert.equal(invalidRef.statusCode, 400);
+
+    const notFoundAtRef = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/preview-revision/abc123/never-existed`,
+      headers: { cookie },
+    });
+    assert.equal(notFoundAtRef.statusCode, 404);
+    assert.equal(notFoundAtRef.json().reason, 'not-found-at-ref');
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/preview-revision/:ref/* returns 422 with reason "unrenderable" when the theme no longer matches', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakePreviewRevisionSite({ acceptedToken: 'the-token' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/preview-revision/abc123/extinct-section`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 422);
+    assert.equal(response.json().reason, 'unrenderable');
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/preview-revision/:ref/* returns 404 for an unknown site', async () => {
+    const { app, cookie } = await buildTestServer();
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/sites/does-not-exist/preview-revision/abc123/about',
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 404);
 
     await app.close();
   });
