@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useSites } from '../sites/useSites.ts';
 import { SiteStatusBadge } from '../sites/SiteStatusBadge.tsx';
 import { deleteSite, registerSite, rotateSiteToken } from '../api/sites.ts';
+import { writeLastSiteId } from '../sites/currentSite.ts';
 
-export function HomePage() {
+export function SettingsPage() {
   const { sites, error, refresh } = useSites();
+  const navigate = useNavigate();
 
   const [url, setUrl] = useState('');
   const [token, setToken] = useState('');
@@ -21,10 +23,16 @@ export function HomePage() {
     setRegisterError(null);
     setRegistering(true);
     try {
-      await registerSite(url, token);
+      const created = await registerSite(url, token);
       setUrl('');
       setToken('');
       await refresh();
+      // Registering a site makes it "the" site to land in - the new
+      // default-landing redirect at "/" reads this, so this is what
+      // actually drops you into the editor right after registering,
+      // rather than leaving you stranded on this registry screen.
+      writeLastSiteId(created.id);
+      navigate('/');
     } catch (err) {
       setRegisterError(err instanceof Error ? err.message : 'Failed to register the site');
     } finally {

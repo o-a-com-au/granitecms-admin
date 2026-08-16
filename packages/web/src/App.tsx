@@ -1,6 +1,7 @@
 import { type RouteObject } from 'react-router';
 import { LoginPage } from './pages/LoginPage.tsx';
-import { HomePage } from './pages/HomePage.tsx';
+import { HomeRedirect } from './pages/HomeRedirect.tsx';
+import { SettingsPage } from './pages/SettingsPage.tsx';
 import { ContentBrowserPage } from './pages/ContentBrowserPage.tsx';
 import { MenusPage } from './pages/MenusPage.tsx';
 import { MediaLibraryPage } from './pages/MediaLibraryPage.tsx';
@@ -26,7 +27,8 @@ export const routes: RouteObject[] = [
       {
         element: <AppShell />,
         children: [
-          { path: '/', element: <HomePage /> },
+          { path: '/', element: <HomeRedirect /> },
+          { path: '/settings', element: <SettingsPage /> },
           { path: '/sites/:siteId/content', element: <ContentBrowserPage /> },
           { path: '/sites/:siteId/menus', element: <MenusPage /> },
           { path: '/sites/:siteId/media', element: <MediaLibraryPage /> },

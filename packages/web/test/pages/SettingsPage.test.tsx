@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
-import { HomePage } from '../../src/pages/HomePage.tsx';
+import { MemoryRouter, Route, Routes } from 'react-router';
+import { SettingsPage } from '../../src/pages/SettingsPage.tsx';
 
-function renderHomePage() {
+function renderSettingsPage() {
   return render(
     <MemoryRouter>
-      <HomePage />
+      <SettingsPage />
     </MemoryRouter>,
   );
 }
@@ -82,17 +82,17 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('HomePage', () => {
+describe('SettingsPage', () => {
   it('shows "Nothing registered yet." when the registry is empty', async () => {
     installFakeSitesApi();
-    renderHomePage();
+    renderSettingsPage();
 
     await waitFor(() => expect(screen.getByText('Nothing registered yet.')).toBeDefined());
   });
 
   it('C1: registering a site adds it to the list', async () => {
     installFakeSitesApi();
-    renderHomePage();
+    renderSettingsPage();
     await waitFor(() => expect(screen.getByText('Nothing registered yet.')).toBeDefined());
 
     fireEvent.change(screen.getByLabelText('Site URL'), { target: { value: 'https://client-one.example.com' } });
@@ -104,7 +104,7 @@ describe('HomePage', () => {
 
   it('C2: the newly registered site shows its live status', async () => {
     installFakeSitesApi();
-    renderHomePage();
+    renderSettingsPage();
     await waitFor(() => expect(screen.getByText('Nothing registered yet.')).toBeDefined());
 
     fireEvent.change(screen.getByLabelText('Site URL'), { target: { value: 'https://client-one.example.com' } });
@@ -124,7 +124,7 @@ describe('HomePage', () => {
       status: { state: 'ok', agentVersion: '1.0.0', contentSchemaVersion: 1, sqliteDriver: 'node:sqlite' },
     });
 
-    renderHomePage();
+    renderSettingsPage();
     await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
 
     fireEvent.click(screen.getByRole('button', { name: 'Rotate token' }));
@@ -149,7 +149,7 @@ describe('HomePage', () => {
     });
     vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-    renderHomePage();
+    renderSettingsPage();
     await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
@@ -168,12 +168,31 @@ describe('HomePage', () => {
     });
     vi.spyOn(window, 'confirm').mockReturnValue(false);
 
-    renderHomePage();
+    renderSettingsPage();
     await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
 
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(screen.getByText('https://client-one.example.com')).toBeDefined();
+  });
+
+  it('registering a site navigates back to "/" so it becomes the current site', async () => {
+    installFakeSitesApi();
+    render(
+      <MemoryRouter initialEntries={['/settings']}>
+        <Routes>
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/" element={<div>redirected home</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText('Nothing registered yet.')).toBeDefined());
+
+    fireEvent.change(screen.getByLabelText('Site URL'), { target: { value: 'https://client-one.example.com' } });
+    fireEvent.change(screen.getByLabelText('API token'), { target: { value: 'a-real-token' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+
+    await waitFor(() => expect(screen.getByText('redirected home')).toBeDefined());
   });
 });
