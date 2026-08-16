@@ -17,7 +17,6 @@
 }
 
 .history-back-to-current {
-  align-self: flex-start;
   padding: 0.4rem 0.75rem;
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
@@ -31,17 +30,17 @@
 }
 
 .history-list {
-  gap: var(--space-sm);
 }
 
 .history-row-main {
   align-items: center;
   gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-md);
 }
 
 .history-row-text {
   flex: 1;
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   min-width: 0;
 }
 
@@ -57,7 +56,7 @@ button.history-row-restore {
 }
 
 button.history-row-restore:hover:not(:disabled) {
-  background: var(--colour-surface-hover);
+  background: var(--colour-bg);
 }
 
 .instance-row-main.history-row-main.is-selected button.history-row-restore {
