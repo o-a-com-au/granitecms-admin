@@ -32,25 +32,6 @@ export async function fetchPageHistory(siteId: string, path: string, limit: numb
   return (await response.json()) as HistoryResult;
 }
 
-// H3: ref is passed through unmodified - the literal string "HEAD" is
-// what "compare against current" means, handled entirely server-side.
-export async function fetchPageRevision(siteId: string, ref: string, path: string): Promise<string> {
-  const response = await fetch(
-    `/api/sites/${encodeURIComponent(siteId)}/revision/${encodeURIComponent(ref)}/${encodePathSegments(path)}`,
-  );
-
-  if (response.status === 400) {
-    throw await reasonFromResponse(response, 'invalid');
-  }
-  if (response.status === 404) {
-    throw await reasonFromResponse(response, 'not-found');
-  }
-  if (!response.ok) {
-    throw await reasonFromResponse(response, 'error');
-  }
-  return response.text();
-}
-
 // H4: always creates a new commit on the agent side - history is
 // never rewritten.
 export async function revertPageToRevision(siteId: string, ref: string, path: string, message: string): Promise<void> {
