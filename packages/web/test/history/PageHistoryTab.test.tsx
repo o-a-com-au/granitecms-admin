@@ -34,6 +34,7 @@ interface FakeState {
 function installFakeHistoryApi(initial: FakeState) {
   const state: FakeState = { ...initial };
   let historyFetchCount = 0;
+  let discardDraftCallCount = 0;
 
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
@@ -57,11 +58,16 @@ function installFakeHistoryApi(initial: FakeState) {
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }
 
+    if (method === 'DELETE' && url.includes('/drafts/')) {
+      discardDraftCallCount += 1;
+      return new Response(null, { status: 204 });
+    }
+
     throw new Error(`unhandled fetch in test: ${method} ${url}`);
   });
 
   vi.stubGlobal('fetch', fetchMock);
-  return { state, getHistoryFetchCount: () => historyFetchCount };
+  return { state, getHistoryFetchCount: () => historyFetchCount, getDiscardDraftCallCount: () => discardDraftCallCount };
 }
 
 function renderTab(overrides: Partial<ComponentProps<typeof PageHistoryTab>> = {}) {
@@ -72,6 +78,7 @@ function renderTab(overrides: Partial<ComponentProps<typeof PageHistoryTab>> = {
       siteId="site-1"
       path="pages/about.json"
       previewRef={null}
+      hasDraft={false}
       onSelectRevision={onSelectRevision}
       onRestored={onRestored}
       {...overrides}
@@ -127,6 +134,7 @@ describe('PageHistoryTab', () => {
         siteId="site-1"
         path="pages/about.json"
         previewRef="newest111"
+        hasDraft={false}
         onSelectRevision={onSelectRevision}
         onRestored={vi.fn()}
       />,
@@ -148,6 +156,18 @@ describe('PageHistoryTab', () => {
     expect(promptSpy).not.toHaveBeenCalled();
   });
 
+  it('when a draft is open, the confirmation warns it will be discarded too', async () => {
+    installFakeHistoryApi({ commits: [COMMIT_OLDEST], hasMore: false });
+    renderTab({ hasDraft: true });
+    await waitFor(() => expect(screen.getByText(formatCommitTimestamp(COMMIT_OLDEST.date))).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+
+    expect(
+      screen.getByText('Restore page to version from 1 Jan 2026. This will also discard your unsaved draft.'),
+    ).toBeDefined();
+  });
+
   it('confirming Restore calls the revert plumbing, refetches history, clears the preview, and notifies the parent', async () => {
     const api = installFakeHistoryApi({ commits: [COMMIT_OLDEST], hasMore: false });
     const { onSelectRevision, onRestored } = renderTab({ previewRef: 'oldest999' });
@@ -161,6 +181,41 @@ describe('PageHistoryTab', () => {
     await waitFor(() => expect(onRestored).toHaveBeenCalled());
     expect(onSelectRevision).toHaveBeenCalledWith(null);
     expect(api.getHistoryFetchCount()).toBeGreaterThan(fetchCountBeforeRestore);
+  });
+
+  it('when hasDraft is true, confirming Restore also discards the open draft', async () => {
+    const api = installFakeHistoryApi({ commits: [COMMIT_OLDEST], hasMore: false });
+    renderTab({ hasDraft: true });
+    await waitFor(() => expect(screen.getByText(formatCommitTimestamp(COMMIT_OLDEST.date))).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Restore' }));
+
+    await waitFor(() => expect(api.getDiscardDraftCallCount()).toBe(1));
+  });
+
+  it('when hasDraft is false, confirming Restore never touches the draft endpoint', async () => {
+    const api = installFakeHistoryApi({ commits: [COMMIT_OLDEST], hasMore: false });
+    const { onRestored } = renderTab({ hasDraft: false });
+    await waitFor(() => expect(screen.getByText(formatCommitTimestamp(COMMIT_OLDEST.date))).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Restore' }));
+
+    await waitFor(() => expect(onRestored).toHaveBeenCalled());
+    expect(api.getDiscardDraftCallCount()).toBe(0);
+  });
+
+  it('a failed revert never discards the draft - a failed action must not destroy work for nothing', async () => {
+    const api = installFakeHistoryApi({ commits: [COMMIT_OLDEST], hasMore: false, forceRevertFailure: true });
+    renderTab({ hasDraft: true });
+    await waitFor(() => expect(screen.getByText(formatCommitTimestamp(COMMIT_OLDEST.date))).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Restore' }));
+
+    await waitFor(() => expect(screen.getByText('Could not reach the site')).toBeDefined());
+    expect(api.getDiscardDraftCallCount()).toBe(0);
   });
 
   it('cancelling the confirmation makes no revert call at all', async () => {

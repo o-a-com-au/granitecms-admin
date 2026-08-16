@@ -639,6 +639,7 @@ export function PageEditorPage() {
                     siteId={siteId}
                     path={path}
                     previewRef={historyPreviewRef}
+                    hasDraft={source === 'draft'}
                     onSelectRevision={setHistoryPreviewRef}
                     onRestored={reloadLatest}
                   />

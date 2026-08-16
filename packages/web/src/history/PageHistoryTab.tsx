@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { discardSiteDraft } from '../api/site-publishing.ts';
 import { fetchPageHistory, revertPageToRevision, type HistoryCommit } from '../api/site-history.ts';
 import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
 import { buildRestoreMessage } from './buildRestoreMessage.ts';
@@ -15,6 +16,12 @@ interface PageHistoryTabProps {
   // requests changes to it via onSelectRevision.
   previewRef: string | null;
   onSelectRevision: (hash: string | null) => void;
+  // Whether an open draft currently exists for this page - Restore
+  // discards it too when true (see handleConfirmRestore's own
+  // comment), and the confirmation copy says so up front. Owned by
+  // PageEditorPage's useAutosaveDraft (source === 'draft'), which this
+  // tab has no direct access to otherwise.
+  hasDraft: boolean;
   // Fired after a successful Restore, so PageEditorPage can reload the
   // page's own current draft/live content - a restore changes what
   // "current" means, and this tab has no direct access to that state.
@@ -46,7 +53,7 @@ export function formatCommitTimestamp(date: string): string {
 // vs current". Restoring reuses the same revertPageToRevision plumbing
 // PageHistoryPage used, with an auto-generated commit message (no
 // window.prompt) matching Publish/Redirects' own convention.
-export function PageHistoryTab({ siteId, path, previewRef, onSelectRevision, onRestored }: PageHistoryTabProps) {
+export function PageHistoryTab({ siteId, path, previewRef, hasDraft, onSelectRevision, onRestored }: PageHistoryTabProps) {
   const [commits, setCommits] = useState<HistoryCommit[] | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
@@ -80,6 +87,12 @@ export function PageHistoryTab({ siteId, path, previewRef, onSelectRevision, onR
     };
   }, [siteId, path, limit]);
 
+  // Restoring while a draft is open used to leave the draft in place,
+  // silently shadowing the just-restored live content until it was
+  // separately discarded - confusing enough (a restore that looks like
+  // it did nothing) that it's discarded here too, only once the revert
+  // itself has actually succeeded (a failed revert must not destroy a
+  // draft for nothing).
   async function handleConfirmRestore(): Promise<void> {
     if (!confirmingRestore) {
       return;
@@ -88,6 +101,9 @@ export function PageHistoryTab({ siteId, path, previewRef, onSelectRevision, onR
     setActionError(null);
     try {
       await revertPageToRevision(siteId, confirmingRestore.hash, path, buildRestoreMessage(confirmingRestore.date));
+      if (hasDraft) {
+        await discardSiteDraft(siteId, path);
+      }
       const result = await fetchPageHistory(siteId, path, limit);
       setCommits(result.commits);
       setHasMore(result.hasMore);
@@ -110,7 +126,7 @@ export function PageHistoryTab({ siteId, path, previewRef, onSelectRevision, onR
     <div className="history-panel">
       <h2 className="panel-heading">History</h2>
       <p className="history-note">
-        Reverting only affects the published version - an open draft on this page is unaffected.
+        Restoring replaces the published version. If a draft is open on this page, it's discarded too.
       </p>
 
       {loadError && <p role="alert">{loadError}</p>}
@@ -173,7 +189,11 @@ export function PageHistoryTab({ siteId, path, previewRef, onSelectRevision, onR
 
       {confirmingRestore && (
         <ConfirmDialog
-          message={buildRestoreMessage(confirmingRestore.date)}
+          message={
+            hasDraft
+              ? `${buildRestoreMessage(confirmingRestore.date)}. This will also discard your unsaved draft.`
+              : buildRestoreMessage(confirmingRestore.date)
+          }
           confirmLabel="Restore"
           busy={actionBusy}
           onConfirm={() => void handleConfirmRestore()}
