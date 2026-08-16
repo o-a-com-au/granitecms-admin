@@ -1,0 +1,98 @@
+/* The page editor's History tab (PageHistoryTab.tsx) - replaces the
+   old standalone history screen. Reuses .instance-list/.instance-row/
+   .instance-row-main's own flex/border/hover shell (instance-rows.css)
+   for the row list, with its own text layout and a Restore button
+   that's always visible (not hover-reveal like .instance-row-remove -
+   Restore is a deliberate destination here, not a hidden affordance). */
+.history-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.history-note {
+  margin: 0;
+  color: var(--colour-muted);
+  font-size: 0.85rem;
+}
+
+.history-back-to-current {
+  align-self: flex-start;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
+  color: var(--colour-text);
+  font-size: 0.85rem;
+}
+
+.history-back-to-current:hover {
+  background: var(--colour-surface-hover);
+}
+
+.history-checkpoint-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.85rem;
+  color: var(--colour-muted);
+}
+
+.history-list {
+  gap: var(--space-sm);
+}
+
+.history-row-main {
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.history-row-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.history-row-text strong {
+  font-size: 0.85rem;
+}
+
+.history-row-message {
+  font-size: 0.8rem;
+  color: var(--colour-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-row-meta {
+  font-size: 0.75rem;
+  color: var(--colour-muted);
+}
+
+button.history-row-restore {
+  flex: 0 0 auto;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
+  color: var(--colour-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+button.history-row-restore:hover:not(:disabled) {
+  background: var(--colour-surface-hover);
+}
+
+.instance-row-main.history-row-main.is-selected .history-row-message,
+.instance-row-main.history-row-main.is-selected .history-row-meta {
+  color: #fff;
+}
+
+.instance-row-main.history-row-main.is-selected button.history-row-restore {
+  border-color: transparent;
+  color: #fff;
+}
