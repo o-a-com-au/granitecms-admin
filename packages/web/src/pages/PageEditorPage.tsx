@@ -372,6 +372,17 @@ export function PageEditorPage() {
     setSelectedInstanceId(null);
   }
 
+  // Page Meta/History have nothing to do with a selected section - an
+  // open Fields panel left over from Sections would be showing
+  // settings for an instance the current tab has no relationship to,
+  // so switching to either one closes it. Sections itself never closes
+  // it, whether reached via this tab bar or via a preview section
+  // click (handleEditInstance).
+  function handleNonSectionsTabClick(mode: 'metafields' | 'history'): void {
+    setViewMode(mode);
+    setSelectedInstanceId(null);
+  }
+
   // After a successful slug rename the old path/url no longer exist -
   // this updates the query params in place (not a navigate to a new
   // route, just this same route with new params) so useAutosaveDraft
@@ -567,7 +578,7 @@ export function PageEditorPage() {
                   type="button"
                   role="tab"
                   aria-selected={effectiveViewMode === 'metafields'}
-                  onClick={() => setViewMode('metafields')}
+                  onClick={() => handleNonSectionsTabClick('metafields')}
                 >
                   Page Meta
                 </button>
@@ -584,7 +595,7 @@ export function PageEditorPage() {
                   type="button"
                   role="tab"
                   aria-selected={effectiveViewMode === 'history'}
-                  onClick={() => setViewMode('history')}
+                  onClick={() => handleNonSectionsTabClick('history')}
                 >
                   History
                 </button>

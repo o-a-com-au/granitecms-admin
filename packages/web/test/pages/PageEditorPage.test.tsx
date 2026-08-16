@@ -995,7 +995,7 @@ describe('PageEditorPage', () => {
     );
   });
 
-  it('switching between the Page Meta and Sections tabs on the left leaves the Fields panel on the right open - they are independent now', async () => {
+  it('switching to Page Meta or History closes an open Fields panel', async () => {
     installFakeEditorApi({
       content: JSON.stringify({ title: 'Hi', published: true, sections: [{ id: 'a', type: 'hero', settings: { heading: 'Hi there' } }] }),
       etag: '"etag-1"',
@@ -1008,10 +1008,16 @@ describe('PageEditorPage', () => {
     await waitFor(() => expect(screen.getByLabelText('Heading')).toBeDefined());
 
     fireEvent.click(screen.getByRole('tab', { name: 'Page Meta' }));
-    expect((screen.getByLabelText('Heading') as HTMLInputElement).value).toBe('Hi there');
+    expect(screen.queryByLabelText('Heading')).toBeNull();
 
+    // Reopen, then prove History closes it too.
     fireEvent.click(screen.getByRole('tab', { name: 'Sections' }));
-    expect((screen.getByLabelText('Heading') as HTMLInputElement).value).toBe('Hi there');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Edit hero' }));
+    await waitFor(() => expect(screen.getByLabelText('Heading')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('tab', { name: 'History' }));
+    expect(screen.queryByLabelText('Heading')).toBeNull();
   });
 
   it('closing the Fields panel via its own close button clears the selection', async () => {
