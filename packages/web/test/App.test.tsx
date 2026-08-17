@@ -38,7 +38,7 @@ describe('App', () => {
 
     renderApp(['/']);
 
-    await waitFor(() => expect(screen.getByText('cms-agent admin')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('Site settings')).toBeDefined());
     expect(screen.queryByRole('heading', { name: 'Log in' })).toBeNull();
   });
 
@@ -59,7 +59,7 @@ describe('App', () => {
     // API too (this test is about routing, not content-loading, which
     // is covered elsewhere).
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Editor' })).toBeDefined());
-    expect(screen.queryByText('cms-agent admin')).toBeNull();
+    expect(screen.queryByText('Site settings')).toBeNull();
   });
 
   it('B1: /login itself is reachable while unauthenticated - the one exempt route', async () => {

@@ -207,7 +207,7 @@ describe('ContentBrowserPage', () => {
     await waitFor(() => expect(screen.getByText('This site is unreachable right now.')).toBeDefined());
   });
 
-  it('shows an "unauthorized" message with a link back to the registry', async () => {
+  it('shows an "unauthorized" message with a link to Site settings', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'x', reason: 'unauthorized' }), { status: 502 })),
@@ -216,7 +216,8 @@ describe('ContentBrowserPage', () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText(/token was rejected/)).toBeDefined());
-    expect(screen.getByRole('link', { name: 'Rotate it from the registry' })).toBeDefined();
+    const link = screen.getByRole('link', { name: 'Rotate it from Site settings' });
+    expect(link.getAttribute('href')).toBe('/settings');
   });
 
   it('nests a page under its matching parent directory stem, collapsed by default, and expands/collapses via the chevron', async () => {

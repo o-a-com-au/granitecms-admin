@@ -74,84 +74,86 @@ export function SettingsPage() {
   }
 
   return (
-    <div>
-      <h1>cms-agent admin</h1>
+    <div className="list-page">
+      <div className="list-page-inner">
+        <h1>Site settings</h1>
 
-      <section>
-        <h2>Register a site</h2>
-        <form onSubmit={handleRegister}>
-          <label>
-            Site URL
-            <input
-              value={url}
-              onChange={(event) => setUrl(event.target.value)}
-              placeholder="https://example.com"
-              required
-            />
-          </label>
-          <label>
-            API token
-            <input value={token} onChange={(event) => setToken(event.target.value)} required />
-          </label>
-          {registerError && <p role="alert">{registerError}</p>}
-          <button type="submit" disabled={registering}>
-            Register
-          </button>
-        </form>
-      </section>
+        <section>
+          <h2>Register a site</h2>
+          <form onSubmit={handleRegister}>
+            <label>
+              Site URL
+              <input
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                placeholder="https://example.com"
+                required
+              />
+            </label>
+            <label>
+              API token
+              <input value={token} onChange={(event) => setToken(event.target.value)} required />
+            </label>
+            {registerError && <p role="alert">{registerError}</p>}
+            <button type="submit" disabled={registering}>
+              Register
+            </button>
+          </form>
+        </section>
 
-      <section>
-        <h2>Registered sites</h2>
-        {error && <p role="alert">{error}</p>}
-        {sites === null && !error && <p>Loading...</p>}
-        {sites !== null && sites.length === 0 && <p>Nothing registered yet.</p>}
-        {sites !== null && sites.length > 0 && (
-          <table>
-            <thead>
-              <tr>
-                <th>URL</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sites.map((site) => (
-                <tr key={site.id}>
-                  <td>{site.url}</td>
-                  <td>
-                    <SiteStatusBadge status={site.status} />
-                  </td>
-                  <td>
-                    <Link to={`/sites/${site.id}/content`}>Browse content</Link>{' '}
-                    {rotatingId === site.id ? (
-                      <form onSubmit={(event) => handleRotateSubmit(event, site.id)}>
-                        <label>
-                          {`New token for ${site.url}`}
-                          <input value={rotateToken} onChange={(event) => setRotateToken(event.target.value)} required />
-                        </label>
-                        <button type="submit">Save</button>
-                        <button type="button" onClick={cancelRotate}>
-                          Cancel
-                        </button>
-                        {rotateError && <span role="alert">{rotateError}</span>}
-                      </form>
-                    ) : (
-                      <>
-                        <button type="button" onClick={() => startRotate(site.id)}>
-                          Rotate token
-                        </button>
-                        <button type="button" onClick={() => handleDelete(site.id, site.url)}>
-                          Remove
-                        </button>
-                      </>
-                    )}
-                  </td>
+        <section>
+          <h2>Registered sites</h2>
+          {error && <p role="alert">{error}</p>}
+          {sites === null && !error && <p>Loading...</p>}
+          {sites !== null && sites.length === 0 && <p>Nothing registered yet.</p>}
+          {sites !== null && sites.length > 0 && (
+            <table className="list-table">
+              <thead>
+                <tr>
+                  <th>URL</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+              </thead>
+              <tbody>
+                {sites.map((site) => (
+                  <tr key={site.id}>
+                    <td>{site.url}</td>
+                    <td>
+                      <SiteStatusBadge status={site.status} />
+                    </td>
+                    <td>
+                      <Link to={`/sites/${site.id}/content`}>Browse content</Link>{' '}
+                      {rotatingId === site.id ? (
+                        <form onSubmit={(event) => handleRotateSubmit(event, site.id)}>
+                          <label>
+                            {`New token for ${site.url}`}
+                            <input value={rotateToken} onChange={(event) => setRotateToken(event.target.value)} required />
+                          </label>
+                          <button type="submit">Save</button>
+                          <button type="button" onClick={cancelRotate}>
+                            Cancel
+                          </button>
+                          {rotateError && <span role="alert">{rotateError}</span>}
+                        </form>
+                      ) : (
+                        <>
+                          <button type="button" onClick={() => startRotate(site.id)}>
+                            Rotate token
+                          </button>
+                          <button type="button" onClick={() => handleDelete(site.id, site.url)}>
+                            Remove
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
