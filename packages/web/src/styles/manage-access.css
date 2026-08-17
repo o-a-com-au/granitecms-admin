@@ -1,0 +1,22 @@
+/* SettingsPage's inline "Manage access" panel - a full-width row
+   spanning the site table via colSpan, given its own light fill so it
+   reads as an expanded detail rather than another plain row. */
+.manage-access-panel {
+  padding: 1rem 1.25rem;
+  background: var(--colour-surface-hover);
+  border-radius: var(--radius-sm);
+}
+
+.manage-access-panel h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+}
+
+.manage-access-panel ul {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}

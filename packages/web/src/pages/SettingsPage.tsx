@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { useSites } from '../sites/useSites.ts';
 import { SiteStatusBadge } from '../sites/SiteStatusBadge.tsx';
 import { deleteSite, registerSite, rotateSiteToken } from '../api/sites.ts';
+import { inviteSiteClient, listSiteClients, revokeSiteClient, type SiteClient } from '../api/site-users.ts';
 import { writeLastSiteId } from '../sites/currentSite.ts';
 
 export function SettingsPage() {
@@ -17,6 +18,23 @@ export function SettingsPage() {
   const [rotatingId, setRotatingId] = useState<string | null>(null);
   const [rotateToken, setRotateToken] = useState('');
   const [rotateError, setRotateError] = useState<string | null>(null);
+
+  // Only one site's access panel expands at a time, the same
+  // single-value convention rotatingId already establishes above -
+  // clients/inviteUsername/etc. are all scoped to whichever site is
+  // currently expanded, not keyed per-site.
+  const [manageAccessId, setManageAccessId] = useState<string | null>(null);
+  const [clients, setClients] = useState<SiteClient[] | null>(null);
+  const [clientsError, setClientsError] = useState<string | null>(null);
+  const [inviteUsername, setInviteUsername] = useState('');
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
+  // Shown once, right after a genuinely new client account is
+  // created - the server never returns this password again, so this
+  // is the only chance to hand it to the developer.
+  const [lastInvitedPassword, setLastInvitedPassword] = useState<string | null>(null);
 
   async function handleRegister(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -71,6 +89,60 @@ export function SettingsPage() {
     }
     await deleteSite(id);
     await refresh();
+  }
+
+  async function loadClients(id: string): Promise<void> {
+    setClientsError(null);
+    try {
+      setClients(await listSiteClients(id));
+    } catch (err) {
+      setClientsError(err instanceof Error ? err.message : 'Failed to load clients');
+    }
+  }
+
+  function startManageAccess(id: string): void {
+    setManageAccessId(id);
+    setClients(null);
+    setClientsError(null);
+    setInviteUsername('');
+    setInviteName('');
+    setInviteEmail('');
+    setInviteError(null);
+    setLastInvitedPassword(null);
+    void loadClients(id);
+  }
+
+  function cancelManageAccess(): void {
+    setManageAccessId(null);
+    setClients(null);
+    setClientsError(null);
+  }
+
+  async function handleInviteSubmit(event: FormEvent<HTMLFormElement>, id: string): Promise<void> {
+    event.preventDefault();
+    setInviteError(null);
+    setInviting(true);
+    try {
+      const result = await inviteSiteClient(id, { username: inviteUsername, name: inviteName, email: inviteEmail });
+      setInviteUsername('');
+      setInviteName('');
+      setInviteEmail('');
+      setLastInvitedPassword(result.password ?? null);
+      await loadClients(id);
+    } catch (err) {
+      setInviteError(err instanceof Error ? err.message : 'Failed to invite the client');
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  async function handleRevoke(id: string, client: SiteClient): Promise<void> {
+    if (!window.confirm(`Remove ${client.username}'s access to this site?`)) {
+      return;
+    }
+    await revokeSiteClient(id, client.id);
+    setLastInvitedPassword(null);
+    await loadClients(id);
   }
 
   return (
@@ -144,11 +216,85 @@ export function SettingsPage() {
                           <button type="button" onClick={() => handleDelete(site.id, site.url)}>
                             Remove
                           </button>
+                          {manageAccessId === site.id ? (
+                            <button type="button" onClick={cancelManageAccess}>
+                              Hide access
+                            </button>
+                          ) : (
+                            <button type="button" onClick={() => startManageAccess(site.id)}>
+                              Manage access
+                            </button>
+                          )}
                         </>
                       )}
                     </td>
                   </tr>
                 ))}
+                {manageAccessId &&
+                  (() => {
+                    const site = sites.find((candidate) => candidate.id === manageAccessId);
+                    if (!site) {
+                      return null;
+                    }
+                    return (
+                      <tr key={`${manageAccessId}-access`}>
+                        <td colSpan={3}>
+                          <div className="manage-access-panel">
+                            <h3>{`Clients with access to ${site.url}`}</h3>
+                            {clientsError && <p role="alert">{clientsError}</p>}
+                            {clients === null && !clientsError && <p>Loading clients...</p>}
+                            {clients !== null && clients.length === 0 && <p>No clients have access yet.</p>}
+                            {clients !== null && clients.length > 0 && (
+                              <ul>
+                                {clients.map((client) => (
+                                  <li key={client.id}>
+                                    {client.name} ({client.username}, {client.email}){' '}
+                                    <button type="button" onClick={() => void handleRevoke(manageAccessId, client)}>
+                                      Revoke
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+
+                            {lastInvitedPassword && (
+                              <p role="alert">
+                                {`One-time password for the new client: ${lastInvitedPassword}. This will not be shown again.`}
+                              </p>
+                            )}
+
+                            <form onSubmit={(event) => handleInviteSubmit(event, manageAccessId)}>
+                              <label>
+                                Username
+                                <input
+                                  value={inviteUsername}
+                                  onChange={(event) => setInviteUsername(event.target.value)}
+                                  required
+                                />
+                              </label>
+                              <label>
+                                Name
+                                <input value={inviteName} onChange={(event) => setInviteName(event.target.value)} required />
+                              </label>
+                              <label>
+                                Email
+                                <input
+                                  type="email"
+                                  value={inviteEmail}
+                                  onChange={(event) => setInviteEmail(event.target.value)}
+                                  required
+                                />
+                              </label>
+                              {inviteError && <p role="alert">{inviteError}</p>}
+                              <button type="submit" disabled={inviting}>
+                                Invite client
+                              </button>
+                            </form>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })()}
               </tbody>
             </table>
           )}
