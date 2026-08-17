@@ -33,7 +33,12 @@ describe('App', () => {
   it('an authenticated visitor at / with no site ever visited is redirected to /settings, not the login screen', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'admin', username: 'admin' }), { status: 200 })),
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ id: 'admin', username: 'admin', role: 'developer', status: 'active' }),
+          { status: 200 },
+        ),
+      ),
     );
 
     renderApp(['/']);

@@ -9,6 +9,7 @@ import { RedirectsPage } from './pages/RedirectsPage.tsx';
 import { MenuEditorPage } from './pages/MenuEditorPage.tsx';
 import { PageEditorPage } from './pages/PageEditorPage.tsx';
 import { RequireAuth } from './auth/RequireAuth.tsx';
+import { RequireDeveloper } from './auth/RequireDeveloper.tsx';
 import { AppShell } from './layout/AppShell.tsx';
 
 // A plain RouteObject[] (not <Routes>/<Route> JSX) - the data router
@@ -28,7 +29,10 @@ export const routes: RouteObject[] = [
         element: <AppShell />,
         children: [
           { path: '/', element: <HomeRedirect /> },
-          { path: '/settings', element: <SettingsPage /> },
+          {
+            element: <RequireDeveloper />,
+            children: [{ path: '/settings', element: <SettingsPage /> }],
+          },
           { path: '/sites/:siteId/content', element: <ContentBrowserPage /> },
           { path: '/sites/:siteId/menus', element: <MenusPage /> },
           { path: '/sites/:siteId/media', element: <MediaLibraryPage /> },

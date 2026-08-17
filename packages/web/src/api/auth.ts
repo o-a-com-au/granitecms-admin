@@ -3,6 +3,8 @@ export interface CurrentUser {
   username: string;
   name: string;
   email: string;
+  role: 'developer' | 'client';
+  status: 'active' | 'paused';
 }
 
 // Same-origin only (Vite proxies /api in dev, one Fastify process
@@ -39,4 +41,22 @@ export async function getMe(): Promise<CurrentUser | null> {
   }
 
   return (await response.json()) as CurrentUser;
+}
+
+// Both reachable while the account is already paused (the server
+// side uses requireSession, not requireAuth, for exactly this pair) -
+// pausing an already-paused account or resuming an already-active one
+// is a no-op, not an error.
+export async function pauseAccount(): Promise<void> {
+  const response = await fetch('/api/auth/pause', { method: 'POST' });
+  if (!response.ok) {
+    throw new Error('Failed to pause the account');
+  }
+}
+
+export async function resumeAccount(): Promise<void> {
+  const response = await fetch('/api/auth/resume', { method: 'POST' });
+  if (!response.ok) {
+    throw new Error('Failed to resume the account');
+  }
 }

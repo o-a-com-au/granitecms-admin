@@ -9,6 +9,12 @@ interface AuthContextValue {
   user: CurrentUser | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  // Re-fetches /me and updates user/status in place, without a full
+  // page navigation - what the pause popover item and the paused
+  // notice's Resume button both call after changing the account's
+  // status server-side, so RequireAuth immediately sees the new
+  // user.status on its very next render.
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -17,33 +23,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<CurrentUser | null>(null);
 
+  const refresh = useCallback(async () => {
+    try {
+      const currentUser = await getMe();
+      setUser(currentUser);
+      setStatus(currentUser ? 'authenticated' : 'unauthenticated');
+    } catch {
+      setUser(null);
+      setStatus('unauthenticated');
+    }
+  }, []);
+
   // This one call on mount is what makes B3's reload-persistence
   // visible client-side: the session cookie rides along
   // automatically, so a 200 here means the browser was already
   // logged in before this component ever rendered.
   useEffect(() => {
-    let cancelled = false;
-
-    getMe()
-      .then((currentUser) => {
-        if (cancelled) {
-          return;
-        }
-        setUser(currentUser);
-        setStatus(currentUser ? 'authenticated' : 'unauthenticated');
-      })
-      .catch(() => {
-        if (cancelled) {
-          return;
-        }
-        setUser(null);
-        setStatus('unauthenticated');
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void refresh();
+  }, [refresh]);
 
   const login = useCallback(async (username: string, password: string) => {
     const currentUser = await apiLogin(username, password);
@@ -57,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('unauthenticated');
   }, []);
 
-  return <AuthContext.Provider value={{ status, user, login, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ status, user, login, logout, refresh }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {

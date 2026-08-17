@@ -8,6 +8,8 @@ import { GraniteLogo } from './GraniteLogo.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider } from './PageActionsContext.tsx';
 import { useSites } from '../sites/useSites.ts';
 import { readLastSiteId, resolveEditorHref, writeLastSiteId } from '../sites/currentSite.ts';
+import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
+import { pauseAccount } from '../api/auth.ts';
 
 // Bumped by hand alongside any release worth surfacing in the brand
 // mark (docs/designs/Phone-Pages.png shows the same "GRANITE 2.3"
@@ -62,11 +64,13 @@ function TopNavItem({ label, to, active }: TopNavItemProps) {
 export function AppShell() {
   const { siteId } = useParams<{ siteId?: string }>();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, refresh } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [confirmingPause, setConfirmingPause] = useState(false);
+  const [pausing, setPausing] = useState(false);
   const [pageActions, setPageActions] = useState<ReactNode>(null);
   const [deviceToggle, setDeviceToggle] = useState<ReactNode>(null);
   const { sites, error: sitesError, refresh: refreshSites } = useSites();
@@ -141,6 +145,22 @@ export function AppShell() {
   async function handleLogout(): Promise<void> {
     setAccountOpen(false);
     await logout();
+  }
+
+  // Pausing takes effect immediately once refresh() picks up the new
+  // user.status - RequireAuth (wrapping this entire shell) swaps
+  // straight to the paused notice on the very next render, no page
+  // navigation involved.
+  async function handleConfirmPause(): Promise<void> {
+    setPausing(true);
+    try {
+      await pauseAccount();
+      await refresh();
+    } finally {
+      setPausing(false);
+      setConfirmingPause(false);
+      setAccountOpen(false);
+    }
   }
 
   // Refreshes on every open, not just once on mount - AppShell is the
@@ -255,9 +275,11 @@ export function AppShell() {
                       Couldn&apos;t load sites
                     </span>
                   )}
-                  <Link to="/settings" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
-                    Site settings
-                  </Link>
+                  {user?.role === 'developer' && (
+                    <Link to="/settings" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
+                      Site settings
+                    </Link>
+                  )}
                   <button type="button" role="menuitem" className="account-popover-item" onClick={toggleTheme}>
                     {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                   </button>
@@ -268,6 +290,14 @@ export function AppShell() {
                     onClick={() => void handleLogout()}
                   >
                     Logout
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="account-popover-item"
+                    onClick={() => setConfirmingPause(true)}
+                  >
+                    Pause my account
                   </button>
                 </div>
               )}
@@ -293,6 +323,15 @@ export function AppShell() {
           </PageActionsProvider>
         </div>
       </div>
+      {confirmingPause && (
+        <ConfirmDialog
+          message="Pause your account? You'll be signed out of the admin until you resume, but your site stays live and unaffected."
+          confirmLabel="Pause account"
+          busy={pausing}
+          onConfirm={() => void handleConfirmPause()}
+          onCancel={() => setConfirmingPause(false)}
+        />
+      )}
     </>
   );
 }

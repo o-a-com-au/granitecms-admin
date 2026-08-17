@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { AuthProvider } from '../../src/auth/AuthContext.tsx';
 import { RequireAuth } from '../../src/auth/RequireAuth.tsx';
@@ -50,5 +50,50 @@ describe('RequireAuth', () => {
 
     expect(screen.queryByText('login screen')).toBeNull();
     expect(screen.queryByText('protected home')).toBeNull();
+  });
+
+  it('a paused account sees the paused notice instead of the protected content or the login screen', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ id: 'client-1', username: 'client-1', role: 'client', status: 'paused' }),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    renderGuarded(['/']);
+
+    await waitFor(() => expect(screen.getByText('Your account is paused')).toBeDefined());
+    expect(screen.queryByText('protected home')).toBeNull();
+    expect(screen.queryByText('login screen')).toBeNull();
+  });
+
+  it('resuming from the paused notice calls /resume, re-fetches /me, and un-blocks the protected content', async () => {
+    let currentStatus: 'active' | 'paused' = 'paused';
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/auth/me') {
+        return new Response(
+          JSON.stringify({ id: 'client-1', username: 'client-1', role: 'client', status: currentStatus }),
+          { status: 200 },
+        );
+      }
+      if (url === '/api/auth/resume' && init?.method === 'POST') {
+        currentStatus = 'active';
+        return new Response(JSON.stringify({ status: 'active' }), { status: 200 });
+      }
+      throw new Error(`unhandled fetch in test: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderGuarded(['/']);
+    await waitFor(() => expect(screen.getByText('Your account is paused')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Resume account' }));
+
+    await waitFor(() => expect(screen.getByText('protected home')).toBeDefined());
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/resume', { method: 'POST' });
   });
 });

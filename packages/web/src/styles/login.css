@@ -37,3 +37,28 @@
 .login-card button {
   margin-top: 0.5rem;
 }
+
+/* Paused notice: same centred-card treatment as .login-page/.login-card,
+   shown by RequireAuth in place of the entire AppShell (top bar
+   included) while an account is paused. */
+.paused-notice {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.paused-notice h1 {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 1.2rem;
+}
+
+.paused-notice p {
+  max-width: 360px;
+  color: var(--colour-muted);
+}

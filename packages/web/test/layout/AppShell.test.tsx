@@ -70,7 +70,14 @@ function installFakeApiWithProfile() {
     const url = typeof input === 'string' ? input : input.toString();
     if (url === '/api/auth/me') {
       return new Response(
-        JSON.stringify({ id: 'admin', username: 'admin', name: 'Ada Admin', email: 'ada@example.com' }),
+        JSON.stringify({
+          id: 'admin',
+          username: 'admin',
+          name: 'Ada Admin',
+          email: 'ada@example.com',
+          role: 'developer',
+          status: 'active',
+        }),
         { status: 200 },
       );
     }
@@ -91,7 +98,14 @@ function installFakeApiWithTwoSites() {
     const url = typeof input === 'string' ? input : input.toString();
     if (url === '/api/auth/me') {
       return new Response(
-        JSON.stringify({ id: 'admin', username: 'admin', name: 'Ada Admin', email: 'ada@example.com' }),
+        JSON.stringify({
+          id: 'admin',
+          username: 'admin',
+          name: 'Ada Admin',
+          email: 'ada@example.com',
+          role: 'developer',
+          status: 'active',
+        }),
         { status: 200 },
       );
     }
@@ -117,7 +131,14 @@ function installFakeApiWithDelayedSites() {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === '/api/auth/me') {
         return new Response(
-          JSON.stringify({ id: 'admin', username: 'admin', name: 'Ada Admin', email: 'ada@example.com' }),
+          JSON.stringify({
+            id: 'admin',
+            username: 'admin',
+            name: 'Ada Admin',
+            email: 'ada@example.com',
+            role: 'developer',
+            status: 'active',
+          }),
           { status: 200 },
         );
       }
@@ -138,7 +159,14 @@ function installFakeApiWithSitesError() {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === '/api/auth/me') {
         return new Response(
-          JSON.stringify({ id: 'admin', username: 'admin', name: 'Ada Admin', email: 'ada@example.com' }),
+          JSON.stringify({
+            id: 'admin',
+            username: 'admin',
+            name: 'Ada Admin',
+            email: 'ada@example.com',
+            role: 'developer',
+            status: 'active',
+          }),
           { status: 200 },
         );
       }
@@ -148,6 +176,64 @@ function installFakeApiWithSitesError() {
       throw new Error(`unhandled fetch in test: ${url}`);
     }),
   );
+}
+
+function installFakeApiWithClientProfile() {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url === '/api/auth/me') {
+      return new Response(
+        JSON.stringify({
+          id: 'client-1',
+          username: 'client-1',
+          name: 'Casey Client',
+          email: 'casey@example.com',
+          role: 'client',
+          status: 'active',
+        }),
+        { status: 200 },
+      );
+    }
+    if (url === '/api/sites') {
+      return new Response(JSON.stringify([SITE]), { status: 200 });
+    }
+    throw new Error(`unhandled fetch in test: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
+// Same shape as installFakeApiWithProfile, but /pause and /resume are
+// wired to a mutable currentStatus so the pause tests can observe
+// AppShell's own refresh() call actually pick up the new value.
+function installFakeApiWithPauseSupport() {
+  let currentStatus: 'active' | 'paused' = 'active';
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url === '/api/auth/me') {
+      return new Response(
+        JSON.stringify({
+          id: 'admin',
+          username: 'admin',
+          name: 'Ada Admin',
+          email: 'ada@example.com',
+          role: 'developer',
+          status: currentStatus,
+        }),
+        { status: 200 },
+      );
+    }
+    if (url === '/api/sites') {
+      return new Response(JSON.stringify([SITE]), { status: 200 });
+    }
+    if (url === '/api/auth/pause' && init?.method === 'POST') {
+      currentStatus = 'paused';
+      return new Response(JSON.stringify({ status: 'paused' }), { status: 200 });
+    }
+    throw new Error(`unhandled fetch in test: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
 }
 
 afterEach(() => {
@@ -392,5 +478,75 @@ describe('AppShell', () => {
 
     await waitFor(() => expect(screen.getByText('menus content')).toBeDefined());
     expect(screen.getByRole('navigation', { name: 'Primary' }).className).not.toContain('is-open');
+  });
+
+  it('a developer sees the "Site settings" popover item', async () => {
+    installFakeApiWithProfile();
+
+    renderShell('/sites/site-1/content');
+    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
+
+    fireEvent.click(screen.getByTitle('admin'));
+
+    expect(screen.getByRole('menuitem', { name: 'Site settings' })).toBeDefined();
+  });
+
+  it('a client does not see the "Site settings" popover item', async () => {
+    installFakeApiWithClientProfile();
+
+    renderShell('/sites/site-1/content');
+    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
+
+    fireEvent.click(screen.getByTitle('client-1'));
+
+    expect(screen.queryByRole('menuitem', { name: 'Site settings' })).toBeNull();
+    // The popover itself, and other role-agnostic items, still render.
+    expect(screen.getByRole('menuitem', { name: 'Logout' })).toBeDefined();
+  });
+
+  it('"Pause my account" asks for confirmation before pausing', async () => {
+    installFakeApiWithPauseSupport();
+
+    renderShell('/sites/site-1/content');
+    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
+
+    fireEvent.click(screen.getByTitle('admin'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Pause my account' }));
+
+    expect(screen.getByRole('alertdialog')).toBeDefined();
+  });
+
+  it('cancelling the pause confirmation makes no API call and closes the dialog', async () => {
+    const fetchMock = installFakeApiWithPauseSupport();
+
+    renderShell('/sites/site-1/content');
+    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
+
+    fireEvent.click(screen.getByTitle('admin'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Pause my account' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/auth/pause', { method: 'POST' });
+  });
+
+  it('confirming the pause calls POST /api/auth/pause and re-fetches /me', async () => {
+    const fetchMock = installFakeApiWithPauseSupport();
+
+    renderShell('/sites/site-1/content');
+    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
+
+    fireEvent.click(screen.getByTitle('admin'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Pause my account' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pause account' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/auth/pause', { method: 'POST' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    // Two /me calls: the initial mount fetch, and the post-pause refresh().
+    const meCalls = fetchMock.mock.calls.filter(([input]) => {
+      const url = typeof input === 'string' ? input : (input as URL).toString();
+      return url === '/api/auth/me';
+    });
+    expect(meCalls.length).toBeGreaterThanOrEqual(2);
   });
 });
