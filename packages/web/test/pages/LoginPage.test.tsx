@@ -15,7 +15,7 @@ function renderLoginPage() {
 }
 
 async function submitLogin(username: string, password: string): Promise<void> {
-  fireEvent.change(screen.getByLabelText('Username'), { target: { value: username } });
+  fireEvent.change(screen.getByLabelText('Username or email'), { target: { value: username } });
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: password } });
   fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
 }
@@ -104,5 +104,15 @@ describe('LoginPage', () => {
 
     const githubLink = screen.getByRole('link', { name: 'Sign in with GitHub' });
     expect(githubLink.getAttribute('href')).toBe('/api/auth/github');
+  });
+
+  it('links to the signup page', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
+
+    renderLoginPage();
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Log in' })).toBeDefined());
+
+    const signupLink = screen.getByRole('link', { name: 'Sign up' });
+    expect(signupLink.getAttribute('href')).toBe('/signup');
   });
 });

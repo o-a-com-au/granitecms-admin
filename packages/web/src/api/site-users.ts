@@ -32,7 +32,7 @@ export async function listSiteClients(siteId: string): Promise<SiteClient[]> {
 
 export async function inviteSiteClient(
   siteId: string,
-  input: { username: string; name: string; email: string; password?: string },
+  input: { name: string; email: string; password?: string },
 ): Promise<SiteClientInviteResult> {
   const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/users`, {
     method: 'POST',

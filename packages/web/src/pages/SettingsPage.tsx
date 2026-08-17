@@ -28,12 +28,11 @@ export function SettingsPage() {
 
   // Only one site's access panel expands at a time, the same
   // single-value convention rotatingId already establishes above -
-  // clients/inviteUsername/etc. are all scoped to whichever site is
+  // clients/inviteName/etc. are all scoped to whichever site is
   // currently expanded, not keyed per-site.
   const [manageAccessId, setManageAccessId] = useState<string | null>(null);
   const [clients, setClients] = useState<SiteClient[] | null>(null);
   const [clientsError, setClientsError] = useState<string | null>(null);
-  const [inviteUsername, setInviteUsername] = useState('');
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -132,7 +131,6 @@ export function SettingsPage() {
     setManageAccessId(id);
     setClients(null);
     setClientsError(null);
-    setInviteUsername('');
     setInviteName('');
     setInviteEmail('');
     setInviteError(null);
@@ -183,8 +181,7 @@ export function SettingsPage() {
     setInviteError(null);
     setInviting(true);
     try {
-      const result = await inviteSiteClient(id, { username: inviteUsername, name: inviteName, email: inviteEmail });
-      setInviteUsername('');
+      const result = await inviteSiteClient(id, { name: inviteName, email: inviteEmail });
       setInviteName('');
       setInviteEmail('');
       setLastInvitedPassword(result.password ?? null);
@@ -197,7 +194,7 @@ export function SettingsPage() {
   }
 
   async function handleRevoke(id: string, client: SiteClient): Promise<void> {
-    if (!window.confirm(`Remove ${client.username}'s access to this site?`)) {
+    if (!window.confirm(`Remove ${client.name}'s access to this site?`)) {
       return;
     }
     await revokeSiteClient(id, client.id);
@@ -308,7 +305,7 @@ export function SettingsPage() {
                               <ul>
                                 {clients.map((client) => (
                                   <li key={client.id}>
-                                    {client.name} ({client.username}, {client.email}){' '}
+                                    {client.name} ({client.email}){' '}
                                     <button type="button" onClick={() => void handleRevoke(manageAccessId, client)}>
                                       Revoke
                                     </button>
@@ -361,7 +358,7 @@ export function SettingsPage() {
                               </>
                             )}
 
-                            <h4>Or invite with a chosen username and password</h4>
+                            <h4>Or invite with a chosen password</h4>
                             {lastInvitedPassword && (
                               // role="status", not "alert" - this is a success
                               // confirmation, not an error, and p[role='alert']
@@ -374,14 +371,6 @@ export function SettingsPage() {
                             )}
 
                             <form onSubmit={(event) => handleInviteSubmit(event, manageAccessId)}>
-                              <label>
-                                Username
-                                <input
-                                  value={inviteUsername}
-                                  onChange={(event) => setInviteUsername(event.target.value)}
-                                  required
-                                />
-                              </label>
                               <label>
                                 Name
                                 <input value={inviteName} onChange={(event) => setInviteName(event.target.value)} required />

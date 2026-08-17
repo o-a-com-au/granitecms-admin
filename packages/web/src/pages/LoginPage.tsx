@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { getOAuthProviders } from '../api/auth.ts';
 
@@ -65,7 +65,10 @@ export function LoginPage() {
         <h1>Log in</h1>
         <form onSubmit={handleSubmit}>
           <label>
-            Username
+            {/* "Username or email" - every account except the one
+                bootstrap admin now has username === email, since
+                nothing asks a human to pick a username any more. */}
+            Username or email
             <input
               value={username}
               onChange={(event) => setUsername(event.target.value)}
@@ -100,6 +103,9 @@ export function LoginPage() {
             ))}
           </div>
         )}
+        <p>
+          Don&apos;t have an account? <Link to="/signup">Sign up</Link>
+        </p>
       </div>
     </div>
   );

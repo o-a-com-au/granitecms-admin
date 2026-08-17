@@ -84,13 +84,6 @@ export function AccountPage() {
           <h2>Your details</h2>
           <form onSubmit={handleDetailsSubmit}>
             <label>
-              Username
-              {/* Not editable - it's the account's own id and a
-                  foreign key throughout (site access grants, site
-                  ownership, the session itself), so it stays fixed. */}
-              <input value={user?.username ?? ''} disabled readOnly />
-            </label>
-            <label>
               Name
               <input value={name} onChange={(event) => setName(event.target.value)} required />
             </label>

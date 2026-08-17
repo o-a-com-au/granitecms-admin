@@ -28,7 +28,7 @@ afterEach(() => {
 });
 
 describe('AccountPage', () => {
-  it('loads and displays the current username (read-only), name, and email', async () => {
+  it('loads and displays the current name and email - no username field at all', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
@@ -44,9 +44,7 @@ describe('AccountPage', () => {
 
     await waitFor(() => expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Jane Editor'));
     expect((screen.getByLabelText('Email') as HTMLInputElement).value).toBe('jane@example.com');
-    const usernameField = screen.getByLabelText('Username') as HTMLInputElement;
-    expect(usernameField.value).toBe('jane');
-    expect(usernameField.disabled).toBe(true);
+    expect(screen.queryByLabelText('Username')).toBeNull();
   });
 
   it('submitting details calls PATCH /me, refreshes the current user, and shows a confirmation', async () => {

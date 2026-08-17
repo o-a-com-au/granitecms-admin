@@ -5,10 +5,10 @@ import { SettingsPage } from '../../src/pages/SettingsPage.tsx';
 
 // The manage-access panel now has two "Email" fields (the new
 // "Invite by email" form and the direct-entry form's own) - this
-// scopes to the direct-entry form specifically, via its Username
-// field (unique to it) and closest <form>.
+// scopes to the direct-entry form specifically, via its "Invite
+// client" submit button (unique to it) and closest <form>.
 function directEntryEmailField(): HTMLElement {
-  const form = screen.getByLabelText('Username').closest('form');
+  const form = screen.getByRole('button', { name: 'Invite client' }).closest('form');
   if (!form) {
     throw new Error('expected the direct-entry form to exist');
   }
@@ -124,10 +124,12 @@ function installFakeSitesApi(options: { emailConfigured?: boolean } = {}): {
 
       if (usersListMatch && method === 'POST') {
         const siteId = usersListMatch[1]!;
-        const body = JSON.parse(init?.body as string) as { username: string; name: string; email: string };
-        const existing = state.clients.find((client) => client.username === body.username);
+        const body = JSON.parse(init?.body as string) as { name: string; email: string };
+        // Identity is derived from email, no username input any more -
+        // matches routes/site-users.ts's own current behaviour.
+        const existing = state.clients.find((client) => client.email === body.email);
         if (existing) {
-          return new Response(JSON.stringify({ error: 'That username already belongs to a developer account' }), {
+          return new Response(JSON.stringify({ error: 'That email already belongs to a developer account' }), {
             status: 409,
           });
         }
@@ -135,7 +137,7 @@ function installFakeSitesApi(options: { emailConfigured?: boolean } = {}): {
         const entry: FakeClient = {
           id: `client-${nextId++}`,
           siteId,
-          username: body.username,
+          username: body.email,
           name: body.name,
           email: body.email,
           grantedAt: now,
@@ -360,12 +362,11 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Manage access' }));
     await waitFor(() => expect(screen.getByText('No clients have access yet.')).toBeDefined());
 
-    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'new-client' } });
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New Client' } });
     fireEvent.change(directEntryEmailField(), { target: { value: 'new-client@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: 'Invite client' }));
 
-    await waitFor(() => expect(screen.getByText(/New Client \(new-client, new-client@example.com\)/)).toBeDefined());
+    await waitFor(() => expect(screen.getByText(/New Client \(new-client@example\.com\)/)).toBeDefined());
     expect(screen.getByText(/One-time password for the new client: generated-one-time-password/)).toBeDefined();
     expect(state.clients.length).toBe(1);
   });
@@ -431,7 +432,7 @@ describe('SettingsPage', () => {
     expect(screen.getByText(/Existing Client/)).toBeDefined();
   });
 
-  it('inviting a username that conflicts with an existing developer shows the server error, without adding a client', async () => {
+  it('inviting an email that conflicts with an existing developer shows the server error, without adding a client', async () => {
     const state = installFakeSitesApi();
     state.sites.push({
       id: 'site-1',
@@ -441,16 +442,16 @@ describe('SettingsPage', () => {
       status: { state: 'ok', agentVersion: '1.0.0', contentSchemaVersion: 1, sqliteDriver: 'node:sqlite' },
     });
     // installFakeSitesApi's own conflict check keys off an existing
-    // client username, close enough to the real developer-conflict
-    // case (both are "this username already exists") to exercise the
+    // client's email, close enough to the real developer-conflict
+    // case (both are "this email already exists") to exercise the
     // same UI error-handling path without duplicating the fake's
     // account-type bookkeeping.
     state.clients.push({
       id: 'client-1',
       siteId: 'site-1',
-      username: 'taken-username',
+      username: 'taken@example.com',
       name: 'Someone Else',
-      email: 'someone@example.com',
+      email: 'taken@example.com',
       grantedAt: '2026-01-01T00:00:00.000Z',
     });
 
@@ -460,12 +461,11 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Manage access' }));
     await waitFor(() => expect(screen.getByText(/Someone Else/)).toBeDefined());
 
-    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'taken-username' } });
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New Client' } });
-    fireEvent.change(directEntryEmailField(), { target: { value: 'new-client@example.com' } });
+    fireEvent.change(directEntryEmailField(), { target: { value: 'taken@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: 'Invite client' }));
 
-    await waitFor(() => expect(screen.getByText('That username already belongs to a developer account')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('That email already belongs to a developer account')).toBeDefined());
     expect(state.clients.length).toBe(1);
   });
 

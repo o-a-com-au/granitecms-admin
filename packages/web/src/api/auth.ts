@@ -26,6 +26,34 @@ export async function login(username: string, password: string): Promise<Current
   return (await response.json()) as CurrentUser;
 }
 
+async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const body = (await response.json()) as { error?: string; message?: string };
+    return body.error ?? body.message ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+// Unlike login()'s deliberate fixed generic message (avoiding a
+// username-enumeration leak on a wrong-password attempt), a signup
+// failure's real server message is genuinely useful to show - an
+// already-taken email or a too-short password aren't the same kind of
+// thing to hide.
+export async function signup(input: { name: string; email: string; password: string }): Promise<CurrentUser> {
+  const response = await fetch('/api/auth/signup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, 'Failed to create your account'));
+  }
+
+  return (await response.json()) as CurrentUser;
+}
+
 export async function logout(): Promise<void> {
   await fetch('/api/auth/logout', { method: 'POST' });
 }

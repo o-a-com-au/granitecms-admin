@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { getMe, login as apiLogin, logout as apiLogout } from '../api/auth.ts';
+import { getMe, login as apiLogin, logout as apiLogout, signup as apiSignup } from '../api/auth.ts';
 import type { CurrentUser } from '../api/auth.ts';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
@@ -8,6 +8,7 @@ interface AuthContextValue {
   status: AuthStatus;
   user: CurrentUser | null;
   login: (username: string, password: string) => Promise<void>;
+  signup: (input: { name: string; email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
   // Re-fetches /me and updates user/status in place, without a full
   // page navigation - what the pause popover item and the paused
@@ -48,13 +49,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('authenticated');
   }, []);
 
+  const signup = useCallback(async (input: { name: string; email: string; password: string }) => {
+    const currentUser = await apiSignup(input);
+    setUser(currentUser);
+    setStatus('authenticated');
+  }, []);
+
   const logout = useCallback(async () => {
     await apiLogout();
     setUser(null);
     setStatus('unauthenticated');
   }, []);
 
-  return <AuthContext.Provider value={{ status, user, login, logout, refresh }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ status, user, login, signup, logout, refresh }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {
