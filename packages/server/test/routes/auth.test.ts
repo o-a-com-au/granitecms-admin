@@ -193,4 +193,112 @@ describe('auth routes', () => {
 
     await app.close();
   });
+
+  describe('pause / resume', () => {
+    it('pausing blocks an ordinary requireAuth route but /me and /resume stay reachable and report status: paused', async () => {
+      const { app } = await buildTestServer();
+
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      const pauseResponse = await app.inject({ method: 'POST', url: '/api/auth/pause', headers: { cookie } });
+      assert.equal(pauseResponse.statusCode, 200);
+      assert.deepEqual(pauseResponse.json(), { status: 'paused' });
+
+      const meResponse = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie } });
+      assert.equal(meResponse.statusCode, 200);
+      assert.equal(meResponse.json().status, 'paused');
+
+      const gatedResponse = await app.inject({ method: 'GET', url: '/api/__whoami-gated', headers: { cookie } });
+      assert.equal(gatedResponse.statusCode, 401);
+
+      await app.close();
+    });
+
+    it('re-derives status on every request: a session established before pausing is blocked on its very next request, not just at login', async () => {
+      const { app } = await buildTestServer();
+
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      const beforePause = await app.inject({ method: 'GET', url: '/api/__whoami-gated', headers: { cookie } });
+      assert.equal(beforePause.statusCode, 200, 'sanity check: the session works before pausing');
+
+      await app.inject({ method: 'POST', url: '/api/auth/pause', headers: { cookie } });
+
+      const afterPause = await app.inject({ method: 'GET', url: '/api/__whoami-gated', headers: { cookie } });
+      assert.equal(afterPause.statusCode, 401, 'the same already-established session must be blocked, no re-login involved');
+
+      await app.close();
+    });
+
+    it('resuming restores full access with no new login required', async () => {
+      const { app } = await buildTestServer();
+
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      await app.inject({ method: 'POST', url: '/api/auth/pause', headers: { cookie } });
+      const blockedResponse = await app.inject({ method: 'GET', url: '/api/__whoami-gated', headers: { cookie } });
+      assert.equal(blockedResponse.statusCode, 401);
+
+      const resumeResponse = await app.inject({ method: 'POST', url: '/api/auth/resume', headers: { cookie } });
+      assert.equal(resumeResponse.statusCode, 200);
+      assert.deepEqual(resumeResponse.json(), { status: 'active' });
+
+      const restoredResponse = await app.inject({ method: 'GET', url: '/api/__whoami-gated', headers: { cookie } });
+      assert.equal(restoredResponse.statusCode, 200);
+      assert.equal(restoredResponse.json().status, 'active');
+
+      await app.close();
+    });
+
+    it('pausing an already-paused account is a no-op, not an error', async () => {
+      const { app } = await buildTestServer();
+
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      const first = await app.inject({ method: 'POST', url: '/api/auth/pause', headers: { cookie } });
+      const second = await app.inject({ method: 'POST', url: '/api/auth/pause', headers: { cookie } });
+      assert.equal(first.statusCode, 200);
+      assert.equal(second.statusCode, 200);
+      assert.deepEqual(second.json(), { status: 'paused' });
+
+      await app.close();
+    });
+
+    it('resuming an already-active account is a no-op, not an error', async () => {
+      const { app } = await buildTestServer();
+
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      const response = await app.inject({ method: 'POST', url: '/api/auth/resume', headers: { cookie } });
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(response.json(), { status: 'active' });
+
+      await app.close();
+    });
+  });
 });
