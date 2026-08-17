@@ -60,3 +60,21 @@ export async function resumeAccount(): Promise<void> {
     throw new Error('Failed to resume the account');
   }
 }
+
+// Which OAuth sign-in buttons LoginPage should show - a provider with
+// no client id/secret configured server-side isn't in this list at
+// all (not a disabled button). Fails soft to an empty list: a load
+// error here should never block password login, which always works
+// regardless.
+export async function getOAuthProviders(): Promise<string[]> {
+  try {
+    const response = await fetch('/api/auth/providers');
+    if (!response.ok) {
+      return [];
+    }
+    const body = (await response.json()) as { providers?: string[] };
+    return body.providers ?? [];
+  } catch {
+    return [];
+  }
+}

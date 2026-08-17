@@ -1,12 +1,18 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
+import { getOAuthProviders } from '../api/auth.ts';
 
 // One fixed message regardless of failure cause, mirroring the
 // backend's own indistinguishable wrong-username/wrong-password
 // response - B2's "no information leak about which field was wrong"
 // applies here too, not just server-side.
 const GENERIC_ERROR = 'Invalid username or password';
+
+const PROVIDER_LABELS: Record<string, string> = {
+  google: 'Sign in with Google',
+  github: 'Sign in with GitHub',
+};
 
 interface LocationState {
   from?: { pathname: string };
@@ -20,6 +26,19 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [oauthProviders, setOauthProviders] = useState<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getOAuthProviders().then((providers) => {
+      if (!cancelled) {
+        setOauthProviders(providers);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const from = (location.state as LocationState | null)?.from?.pathname ?? '/';
 
@@ -69,6 +88,18 @@ export function LoginPage() {
             Log in
           </button>
         </form>
+        {oauthProviders.length > 0 && (
+          <div className="login-oauth">
+            {oauthProviders.map((provider) => (
+              // A real full-page link, not a fetch-triggering button -
+              // this starts a genuine browser redirect into the OAuth
+              // authorization flow, not an XHR.
+              <a key={provider} className="login-oauth-button" href={`/api/auth/${provider}`}>
+                {PROVIDER_LABELS[provider] ?? `Sign in with ${provider}`}
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

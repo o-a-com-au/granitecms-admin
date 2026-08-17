@@ -38,6 +38,30 @@
   margin-top: 0.5rem;
 }
 
+.login-oauth {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--colour-border);
+}
+
+.login-oauth-button {
+  display: block;
+  text-align: center;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  color: var(--colour-text);
+  text-decoration: none;
+}
+
+.login-oauth-button:hover {
+  background: var(--colour-surface-hover);
+  color: var(--colour-text);
+}
+
 /* Paused notice: same centred-card treatment as .login-page/.login-card,
    shown by RequireAuth in place of the entire AppShell (top bar
    included) while an account is paused. */

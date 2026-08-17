@@ -61,4 +61,48 @@ describe('LoginPage', () => {
 
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
   });
+
+  it('shows no OAuth buttons when no provider is configured', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve(new Response(null, { status: 401 }));
+        }
+        if (url === '/api/auth/providers') {
+          return Promise.resolve(new Response(JSON.stringify({ providers: [] }), { status: 200 }));
+        }
+        throw new Error(`unhandled fetch in test: ${url}`);
+      }),
+    );
+
+    renderLoginPage();
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Log in' })).toBeDefined());
+    expect(screen.queryByRole('link', { name: 'Sign in with Google' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Sign in with GitHub' })).toBeNull();
+  });
+
+  it('shows a real link (not a fetch-triggering button) for each configured OAuth provider', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve(new Response(null, { status: 401 }));
+        }
+        if (url === '/api/auth/providers') {
+          return Promise.resolve(new Response(JSON.stringify({ providers: ['google', 'github'] }), { status: 200 }));
+        }
+        throw new Error(`unhandled fetch in test: ${url}`);
+      }),
+    );
+
+    renderLoginPage();
+
+    const googleLink = await screen.findByRole('link', { name: 'Sign in with Google' });
+    expect(googleLink.getAttribute('href')).toBe('/api/auth/google');
+
+    const githubLink = screen.getByRole('link', { name: 'Sign in with GitHub' });
+    expect(githubLink.getAttribute('href')).toBe('/api/auth/github');
+  });
 });
