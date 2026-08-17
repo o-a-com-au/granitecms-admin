@@ -84,6 +84,14 @@ const AUTH_GUARD_MARKER = /requireAuth\b/;
 const ROUTE_AUTH_EXEMPTIONS = new Set<string>([
   'routes/health.ts::GET /health', // pre-existing Group A liveness probe, needed before any account exists
   'routes/auth.ts::POST /login', // must be reachable while unauthenticated - this is how a session is established
+  // Public, self-serve account creation - same reasoning as POST
+  // /login above. Without this explicit entry, the scan would pass
+  // by accident anyway: /signup's own window runs up to the next
+  // route match, which includes POST /logout's explanatory comment
+  // immediately below it (that comment happens to say "requireAuth"
+  // twice) - an unrelated coincidence, not a real guard, so it's
+  // listed here rather than relied on.
+  'routes/auth.ts::POST /signup',
   'routes/auth.ts::POST /logout', // must succeed even against an already-expired/invalid session - requireAuth would 401 exactly the state logout exists to clean up
   'routes/auth.ts::GET /me', // real auth (requireSession), deliberately not requireAuth - must stay reachable for a paused account too, so the frontend can show a paused notice instead of a raw 401
   'routes/auth.ts::POST /pause', // real auth (requireSession), same reason as /me - pausing yourself obviously can't require not already being paused

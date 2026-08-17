@@ -78,37 +78,45 @@ async function buildTestServer(): Promise<TestServer> {
   return { app, deps, cookie, siteId };
 }
 
-async function inviteBody(username: string, extra: Record<string, unknown> = {}) {
-  return { username, name: `${username} name`, email: `${username}@example.com`, ...extra };
+// label doubles as both the display name and the local part of the
+// generated email - no username input any more, identity is purely
+// email-derived (matching routes/site-users.ts's own current
+// behaviour).
+function inviteBody(label: string, extra: Record<string, unknown> = {}) {
+  return { name: `${label} name`, email: `${label}@example.com`, ...extra };
+}
+
+function emailId(label: string): string {
+  return normaliseUsername(`${label}@example.com`);
 }
 
 describe('site-users routes', () => {
-  it('POST /:siteId/users creates a fresh client account, grants access, and returns a one-time password', async () => {
+  it('POST /:siteId/users creates a fresh client account (username derived from email), grants access, and returns a one-time password', async () => {
     const { app, deps, cookie, siteId } = await buildTestServer();
 
     const response = await app.inject({
       method: 'POST',
       url: `/api/sites/${siteId}/users`,
       headers: { cookie },
-      payload: await inviteBody('new-client'),
+      payload: inviteBody('new-client'),
     });
 
     assert.equal(response.statusCode, 201);
     const body = response.json();
-    assert.equal(body.username, 'new-client');
     assert.equal(body.name, 'new-client name');
     assert.equal(body.email, 'new-client@example.com');
+    assert.equal(body.username, 'new-client@example.com', 'username is derived from email, not a separate input');
     assert.equal(typeof body.password, 'string');
     assert.ok(body.password.length > 0);
     assert.equal(body.passwordHash, undefined);
     assert.equal(body.passwordSalt, undefined);
 
-    const savedUser = await deps.usersStore.find(normaliseUsername('new-client'));
+    const savedUser = await deps.usersStore.find(emailId('new-client'));
     assert.ok(savedUser);
     assert.equal(savedUser!.role, 'client');
     assert.equal(savedUser!.status, 'active');
 
-    const access = await deps.siteAccessStore.find(siteAccessId(normaliseUsername('new-client'), siteId));
+    const access = await deps.siteAccessStore.find(siteAccessId(emailId('new-client'), siteId));
     assert.ok(access, 'expected a SiteAccess grant to have been created');
 
     await app.close();
@@ -121,7 +129,7 @@ describe('site-users routes', () => {
       method: 'POST',
       url: `/api/sites/${siteId}/users`,
       headers: { cookie },
-      payload: await inviteBody('picks-own-password', { password: 'a chosen password' }),
+      payload: inviteBody('picks-own-password', { password: 'a chosen password' }),
     });
 
     assert.equal(response.statusCode, 201);
@@ -137,9 +145,9 @@ describe('site-users routes', () => {
       method: 'POST',
       url: `/api/sites/${siteId}/users`,
       headers: { cookie },
-      payload: await inviteBody('repeat-client'),
+      payload: inviteBody('repeat-client'),
     });
-    const originalPasswordHash = (await deps.usersStore.find(normaliseUsername('repeat-client')))!.passwordHash;
+    const originalPasswordHash = (await deps.usersStore.find(emailId('repeat-client')))!.passwordHash;
     assert.equal(firstInvite.statusCode, 201);
 
     const secondSiteId = randomUUID();
@@ -156,16 +164,16 @@ describe('site-users routes', () => {
       method: 'POST',
       url: `/api/sites/${secondSiteId}/users`,
       headers: { cookie },
-      payload: await inviteBody('repeat-client'),
+      payload: inviteBody('repeat-client'),
     });
 
     assert.equal(secondInvite.statusCode, 200);
     assert.equal(secondInvite.json().password, undefined, 'granting an existing client access must not return a password');
 
-    const userAfter = await deps.usersStore.find(normaliseUsername('repeat-client'));
+    const userAfter = await deps.usersStore.find(emailId('repeat-client'));
     assert.equal(userAfter!.passwordHash, originalPasswordHash, 'an existing client account must be left untouched');
 
-    const secondAccess = await deps.siteAccessStore.find(siteAccessId(normaliseUsername('repeat-client'), secondSiteId));
+    const secondAccess = await deps.siteAccessStore.find(siteAccessId(emailId('repeat-client'), secondSiteId));
     assert.ok(secondAccess, 'expected a new grant for the second site');
 
     await app.close();
@@ -178,52 +186,52 @@ describe('site-users routes', () => {
       method: 'POST',
       url: `/api/sites/${siteId}/users`,
       headers: { cookie },
-      payload: await inviteBody('already-granted'),
+      payload: inviteBody('already-granted'),
     });
     assert.equal(first.statusCode, 201);
-    const originalGrant = await deps.siteAccessStore.find(siteAccessId(normaliseUsername('already-granted'), siteId));
+    const originalGrant = await deps.siteAccessStore.find(siteAccessId(emailId('already-granted'), siteId));
     assert.ok(originalGrant);
 
     const second = await app.inject({
       method: 'POST',
       url: `/api/sites/${siteId}/users`,
       headers: { cookie },
-      payload: await inviteBody('already-granted'),
+      payload: inviteBody('already-granted'),
     });
     assert.equal(second.statusCode, 200);
 
-    const grantAfter = await deps.siteAccessStore.find(siteAccessId(normaliseUsername('already-granted'), siteId));
+    const grantAfter = await deps.siteAccessStore.find(siteAccessId(emailId('already-granted'), siteId));
     assert.equal(grantAfter!.grantedAt, originalGrant!.grantedAt, 'grantedAt must not change on a re-invite to the same site');
 
     await app.close();
   });
 
-  it('POST /:siteId/users conflicting with an existing developer username is rejected with 409 and no mutation', async () => {
+  it('POST /:siteId/users conflicting with an existing developer email is rejected with 409 and no mutation', async () => {
     const { app, deps, cookie, siteId } = await buildTestServer();
 
     const response = await app.inject({
       method: 'POST',
       url: `/api/sites/${siteId}/users`,
       headers: { cookie },
-      payload: await inviteBody(DEVELOPER_USERNAME),
+      payload: { name: 'Someone', email: DEVELOPER_EMAIL },
     });
 
     assert.equal(response.statusCode, 409);
 
-    const access = await deps.siteAccessStore.find(siteAccessId(normaliseUsername(DEVELOPER_USERNAME), siteId));
+    const access = await deps.siteAccessStore.find(siteAccessId(normaliseUsername(DEVELOPER_EMAIL), siteId));
     assert.equal(access, undefined, 'no access grant should have been created for a rejected invite');
 
     await app.close();
   });
 
-  it('POST /:siteId/users rejects a malformed username with 400', async () => {
+  it('POST /:siteId/users rejects an empty name or email with 400', async () => {
     const { app, cookie, siteId } = await buildTestServer();
 
     const response = await app.inject({
       method: 'POST',
       url: `/api/sites/${siteId}/users`,
       headers: { cookie },
-      payload: await inviteBody('not a valid username!'),
+      payload: { name: '', email: 'someone@example.com' },
     });
 
     assert.equal(response.statusCode, 400);
@@ -238,14 +246,14 @@ describe('site-users routes', () => {
       method: 'POST',
       url: `/api/sites/${siteId}/users`,
       headers: { cookie },
-      payload: await inviteBody('listed-client'),
+      payload: inviteBody('listed-client'),
     });
 
     const response = await app.inject({ method: 'GET', url: `/api/sites/${siteId}/users`, headers: { cookie } });
     assert.equal(response.statusCode, 200);
     const { clients } = response.json();
     assert.equal(clients.length, 1);
-    assert.equal(clients[0].username, 'listed-client');
+    assert.equal(clients[0].email, 'listed-client@example.com');
     assert.equal(clients[0].passwordHash, undefined);
     assert.equal(clients[0].passwordSalt, undefined);
     assert.equal(typeof clients[0].grantedAt, 'string');
@@ -260,7 +268,7 @@ describe('site-users routes', () => {
       method: 'POST',
       url: `/api/sites/${siteId}/users`,
       headers: { cookie },
-      payload: await inviteBody('two-site-client'),
+      payload: inviteBody('two-site-client'),
     });
 
     const secondSiteId = randomUUID();
@@ -276,10 +284,10 @@ describe('site-users routes', () => {
       method: 'POST',
       url: `/api/sites/${secondSiteId}/users`,
       headers: { cookie },
-      payload: await inviteBody('two-site-client'),
+      payload: inviteBody('two-site-client'),
     });
 
-    const clientId = normaliseUsername('two-site-client');
+    const clientId = emailId('two-site-client');
     const response = await app.inject({
       method: 'DELETE',
       url: `/api/sites/${siteId}/users/${clientId}`,
@@ -303,10 +311,10 @@ describe('site-users routes', () => {
       method: 'POST',
       url: `/api/sites/${siteId}/users`,
       headers: { cookie },
-      payload: await inviteBody('one-site-client'),
+      payload: inviteBody('one-site-client'),
     });
 
-    const clientId = normaliseUsername('one-site-client');
+    const clientId = emailId('one-site-client');
     const response = await app.inject({
       method: 'DELETE',
       url: `/api/sites/${siteId}/users/${clientId}`,
@@ -363,7 +371,7 @@ describe('site-users routes', () => {
       method: 'POST',
       url: `/api/sites/${siteId}/users`,
       headers: { cookie: clientCookie },
-      payload: await inviteBody('someone-else'),
+      payload: inviteBody('someone-else'),
     });
     assert.equal(invite.statusCode, 403);
 
@@ -403,7 +411,7 @@ describe('site-users routes', () => {
       method: 'POST',
       url: `/api/sites/${otherSiteId}/users`,
       headers: { cookie },
-      payload: await inviteBody('irrelevant'),
+      payload: inviteBody('irrelevant'),
     });
 
     assert.equal(response.statusCode, 404);
@@ -412,7 +420,7 @@ describe('site-users routes', () => {
       method: 'POST',
       url: `/api/sites/${randomUUID()}/users`,
       headers: { cookie },
-      payload: await inviteBody('irrelevant'),
+      payload: inviteBody('irrelevant'),
     });
     assert.equal(nonexistentResponse.statusCode, 404);
     // Both bodies come from the identical SiteNotFoundError shape (the

@@ -504,4 +504,99 @@ describe('auth routes', () => {
       await app.close();
     });
   });
+
+  describe('POST /api/auth/signup', () => {
+    it('creates a role: developer account (username derived from email) and logs them in', async () => {
+      const { app, deps } = await buildTestServer();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/auth/signup',
+        payload: { name: 'New Dev', email: 'new-dev@example.com', password: 'a real password' },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(response.json(), {
+        id: normaliseUsername('new-dev@example.com'),
+        username: 'new-dev@example.com',
+        name: 'New Dev',
+        email: 'new-dev@example.com',
+        role: 'developer',
+        status: 'active',
+      });
+      assert.ok(response.headers['set-cookie'], 'expected signup to establish a session');
+
+      const saved = await deps.usersStore.find(normaliseUsername('new-dev@example.com'));
+      assert.ok(saved);
+      assert.equal(saved!.role, 'developer');
+      assert.equal(saved!.status, 'active');
+
+      await app.close();
+    });
+
+    it('an email that already has an account is rejected with 409 and no mutation', async () => {
+      const { app } = await buildTestServer();
+
+      const first = await app.inject({
+        method: 'POST',
+        url: '/api/auth/signup',
+        payload: { name: 'First', email: 'taken@example.com', password: 'a real password' },
+      });
+      assert.equal(first.statusCode, 200);
+
+      const second = await app.inject({
+        method: 'POST',
+        url: '/api/auth/signup',
+        payload: { name: 'Second', email: 'taken@example.com', password: 'another real password' },
+      });
+      assert.equal(second.statusCode, 409);
+
+      // The original account's name must survive - the conflicting
+      // signup must not have overwritten anything.
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: 'taken@example.com', password: 'a real password' },
+      });
+      assert.equal(loginResponse.statusCode, 200);
+      assert.equal(loginResponse.json().name, 'First');
+
+      await app.close();
+    });
+
+    it('a password under 8 characters is rejected with 400', async () => {
+      const { app } = await buildTestServer();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/auth/signup',
+        payload: { name: 'Short', email: 'short@example.com', password: 'short1' },
+      });
+
+      assert.equal(response.statusCode, 400);
+
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: 'short@example.com', password: 'short1' },
+      });
+      assert.equal(loginResponse.statusCode, 401, 'no account should have been created');
+
+      await app.close();
+    });
+
+    it('an empty name or email is rejected with 400', async () => {
+      const { app } = await buildTestServer();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/auth/signup',
+        payload: { name: '', email: 'someone@example.com', password: 'a real password' },
+      });
+
+      assert.equal(response.statusCode, 400);
+
+      await app.close();
+    });
+  });
 });

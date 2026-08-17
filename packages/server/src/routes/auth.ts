@@ -6,6 +6,8 @@ import { DUMMY_HASH, DUMMY_SALT, hashPassword, verifyPassword } from '../auth/pa
 import { createRequireAuth, createRequireSession } from '../auth/require-auth.ts';
 import type { SessionRecord } from '../auth/session-store-adapter.ts';
 
+const MIN_SIGNUP_PASSWORD_LENGTH = 8;
+
 interface LoginBody {
   username: string;
   password: string;
@@ -23,6 +25,29 @@ function parseLoginBody(body: unknown): LoginBody | null {
 }
 
 const INVALID_CREDENTIALS_MESSAGE = 'Invalid username or password';
+
+interface SignupBody {
+  name: string;
+  email: string;
+  password: string;
+}
+
+function parseSignupBody(body: unknown): SignupBody | null {
+  if (typeof body !== 'object' || body === null) {
+    return null;
+  }
+  const record = body as Record<string, unknown>;
+  if (typeof record.name !== 'string' || record.name.trim() === '') {
+    return null;
+  }
+  if (typeof record.email !== 'string' || record.email.trim() === '') {
+    return null;
+  }
+  if (typeof record.password !== 'string' || record.password.length < MIN_SIGNUP_PASSWORD_LENGTH) {
+    return null;
+  }
+  return { name: record.name, email: record.email, password: record.password };
+}
 
 interface UpdateAccountBody {
   name?: string;
@@ -94,6 +119,53 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
       // Same shape GET /me already returns via request.currentUser -
       // login was the one place still trimming it down to id/username,
       // an oversight now that the account popover needs name/email too.
+      return { id: user.id, username: user.username, name: user.name, email: user.email, role: user.role, status: user.status };
+    });
+
+    // Public, unauthenticated by design - self-serve account creation,
+    // the same reasoning as /login's own exemption. Always role:
+    // 'developer' (a client account can only ever be created via a
+    // developer's invite, routes/site-users.ts, never an unsolicited
+    // signup) - the exact same shape routes/oauth.ts's own
+    // findOrCreateUser already builds for an OAuth-created developer,
+    // just reached by password instead. username is never asked for -
+    // it's derived from email, matching every other account-creation
+    // path in this codebase now.
+    app.post('/signup', async (request, reply) => {
+      const body = parseSignupBody(request.body);
+      if (!body) {
+        reply.code(400);
+        return {
+          statusCode: 400,
+          error: 'Bad Request',
+          message: `name, email, and a password of at least ${MIN_SIGNUP_PASSWORD_LENGTH} characters are required`,
+        };
+      }
+
+      const normalisedEmail = normaliseUsername(body.email);
+      const existing = (await usersStore.list()).find((user) => normaliseUsername(user.email) === normalisedEmail);
+      if (existing) {
+        reply.code(409);
+        return { statusCode: 409, error: 'Conflict', message: 'An account with this email already exists - log in instead' };
+      }
+
+      const { hash, salt } = hashPassword(body.password);
+      const user: AdminUser = {
+        id: normalisedEmail,
+        username: body.email,
+        passwordHash: hash,
+        passwordSalt: salt,
+        name: body.name,
+        email: body.email,
+        role: 'developer',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      };
+      await usersStore.save(user);
+
+      await request.session.regenerate();
+      request.session.set('userId', user.id);
+
       return { id: user.id, username: user.username, name: user.name, email: user.email, role: user.role, status: user.status };
     });
 

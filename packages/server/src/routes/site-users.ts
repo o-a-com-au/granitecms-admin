@@ -10,15 +10,7 @@ import type { Site } from '../sites/site.ts';
 import { SiteNotFoundError } from '../sites/site-not-found-error.ts';
 import { siteAccessId, type SiteAccess } from '../sites/site-access.ts';
 
-// letters/digits/./_/- , non-empty, a reasonable ceiling - the first
-// time a human picks a username *for someone else* rather than for
-// themselves at bootstrap, and usernames are about to be used as a
-// literal path segment (DELETE /:siteId/users/:userId) - an
-// unrestricted value is a real risk here, not a style nit.
-const USERNAME_PATTERN = /^[a-zA-Z0-9._-]{1,64}$/;
-
 interface CreateSiteUserBody {
-  username: string;
   name: string;
   email: string;
   password?: string;
@@ -29,9 +21,6 @@ function parseCreateSiteUserBody(body: unknown): CreateSiteUserBody | null {
     return null;
   }
   const record = body as Record<string, unknown>;
-  if (typeof record.username !== 'string' || !USERNAME_PATTERN.test(record.username)) {
-    return null;
-  }
   if (typeof record.name !== 'string' || record.name.trim() === '') {
     return null;
   }
@@ -41,7 +30,7 @@ function parseCreateSiteUserBody(body: unknown): CreateSiteUserBody | null {
   if (record.password !== undefined && (typeof record.password !== 'string' || record.password.trim() === '')) {
     return null;
   }
-  return { username: record.username, name: record.name, email: record.email, password: record.password as string | undefined };
+  return { name: record.name, email: record.email, password: record.password as string | undefined };
 }
 
 interface ClientSummary {
@@ -79,7 +68,7 @@ export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: 
       const body = parseCreateSiteUserBody(request.body);
       if (!body) {
         reply.code(400);
-        return { statusCode: 400, error: 'Bad Request', message: 'username, name, and email are required' };
+        return { statusCode: 400, error: 'Bad Request', message: 'name and email are required' };
       }
 
       const site = await sitesStore.find(request.params.siteId);
@@ -87,8 +76,13 @@ export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: 
         throw new SiteNotFoundError(request.params.siteId);
       }
 
-      const userId = normaliseUsername(body.username);
-      const existing = await usersStore.find(userId);
+      // Identity is derived from email, never a client-supplied
+      // username - matching every other account-creation path in this
+      // codebase (routes/oauth.ts's findOrCreateUser, the email-invite
+      // claim route). A list+filter lookup, not Store.find(id): there's
+      // no username input to derive the id from up front any more.
+      const normalisedEmail = normaliseUsername(body.email);
+      const existing = (await usersStore.list()).find((user) => normaliseUsername(user.email) === normalisedEmail);
 
       if (!existing) {
         // Not found - create a fresh client account with a generated
@@ -97,8 +91,8 @@ export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: 
         const { hash, salt } = hashPassword(password);
         const now = new Date().toISOString();
         const user: AdminUser = {
-          id: userId,
-          username: body.username,
+          id: normalisedEmail,
+          username: body.email,
           passwordHash: hash,
           passwordSalt: salt,
           name: body.name,
@@ -108,7 +102,7 @@ export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: 
           createdAt: now,
         };
         await usersStore.save(user);
-        const access: SiteAccess = { id: siteAccessId(userId, site.id), userId, siteId: site.id, grantedAt: now };
+        const access: SiteAccess = { id: siteAccessId(user.id, site.id), userId: user.id, siteId: site.id, grantedAt: now };
         await siteAccessStore.save(access);
 
         reply.code(201);
@@ -117,7 +111,7 @@ export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: 
 
       if (existing.role === 'developer') {
         reply.code(409);
-        return { statusCode: 409, error: 'Conflict', message: 'That username already belongs to a developer account' };
+        return { statusCode: 409, error: 'Conflict', message: 'That email already belongs to a developer account' };
       }
 
       // Found, already a client - never touch their existing
