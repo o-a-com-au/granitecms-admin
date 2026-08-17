@@ -258,7 +258,12 @@ export function SettingsPage() {
                             )}
 
                             {lastInvitedPassword && (
-                              <p role="alert">
+                              // role="status", not "alert" - this is a success
+                              // confirmation, not an error, and p[role='alert']
+                              // carries this app's red/danger styling everywhere
+                              // else (base.css), which would misread this as a
+                              // failure.
+                              <p role="status" className="one-time-password-notice">
                                 {`One-time password for the new client: ${lastInvitedPassword}. This will not be shown again.`}
                               </p>
                             )}
