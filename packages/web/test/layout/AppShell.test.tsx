@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { AuthProvider } from '../../src/auth/AuthContext.tsx';
 import { ThemeProvider } from '../../src/theme/ThemeContext.tsx';
@@ -197,7 +197,7 @@ describe('AppShell', () => {
     expect(editorLink.getAttribute('aria-current')).toBeNull();
   });
 
-  it('shows "Editor" as the active, last item when a page is open in the editor', async () => {
+  it('shows "Editor" as the active, first item when a page is open in the editor', async () => {
     installFakeApi();
     renderShell('/sites/site-1/editor?path=pages%2Findex.json&url=%2F');
 
@@ -206,8 +206,12 @@ describe('AppShell', () => {
     expect(editLink.getAttribute('aria-current')).toBe('page');
     expect(editLink.getAttribute('href')).toBe('/sites/site-1/editor?path=pages%2Findex.json&url=%2F');
 
-    const items = screen.getAllByRole('link').map((el) => el.textContent);
-    expect(items.at(-1)).toBe('Editor');
+    // Scoped to the primary nav, not screen.getAllByRole('link') - the
+    // logo is also a link and precedes it in the DOM, which would
+    // otherwise make this assertion pass or fail for the wrong reason.
+    const nav = screen.getByRole('navigation', { name: 'Primary' });
+    const items = within(nav).getAllByRole('link').map((el) => el.textContent);
+    expect(items.at(0)).toBe('Editor');
   });
 
   it('disables Pages, Menus, and Editor too when no site is known at all (a genuine first-ever visit)', async () => {

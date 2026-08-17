@@ -184,19 +184,19 @@ export function AppShell() {
             </Link>
           </div>
           <nav className={`app-topbar-nav${mobileNavOpen ? ' is-open' : ''}`} aria-label="Primary">
+            {/* First item, as the default/primary destination - always
+                present, like Pages/Menus/Media/Redirects. Links to the
+                current location while already there (unchanged),
+                otherwise to whichever site is known (falling back to
+                the last-visited one) and that site's own last-visited
+                editor location, falling back again to its default
+                homepage document. Disabled only on a genuine first-ever
+                visit, before any site has ever been known. */}
+            <TopNavItem label="Editor" to={editorNavTo} active={isEditingPage} />
             <TopNavItem label="Pages" to={contentTo} active={location.pathname === contentTo} />
             <TopNavItem label="Menus" to={menusTo} active={location.pathname === menusTo} />
             <TopNavItem label="Media" to={mediaTo} active={location.pathname === mediaTo} />
             <TopNavItem label="Redirects" to={redirectsTo} active={location.pathname === redirectsTo} />
-            {/* Always present now, like Pages/Menus/Media/Redirects -
-                links to the current location while already there
-                (unchanged), otherwise to whichever site is known
-                (falling back to the last-visited one) and that site's
-                own last-visited editor location, falling back again to
-                its default homepage document. Disabled only on a
-                genuine first-ever visit, before any site has ever been
-                known. */}
-            <TopNavItem label="Editor" to={editorNavTo} active={isEditingPage} />
           </nav>
           <div className="app-topbar-end">
             <div className="app-topbar-device-toggle">{deviceToggle}</div>
