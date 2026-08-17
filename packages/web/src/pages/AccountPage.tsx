@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { updateAccount, changePassword } from '../api/account.ts';
+import { PasswordInput } from '../components/PasswordInput.tsx';
+import { isStrongPassword, MIN_PASSWORD_LENGTH, PASSWORD_REQUIREMENTS_MESSAGE } from '../auth/passwordStrength.ts';
 
 // Reachable by both roles (unlike /settings) - a client manages their
 // own name/email/password here too, not just developers.
@@ -61,6 +63,10 @@ export function AccountPage() {
       setPasswordError('New password and confirmation do not match');
       return;
     }
+    if (!isStrongPassword(newPassword)) {
+      setPasswordError(PASSWORD_REQUIREMENTS_MESSAGE);
+      return;
+    }
     setChangingPassword(true);
     try {
       await changePassword({ currentPassword, newPassword });
@@ -106,36 +112,29 @@ export function AccountPage() {
         <section>
           <h2>Change password</h2>
           <form onSubmit={handlePasswordSubmit}>
-            <label>
-              Current password
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(event) => setCurrentPassword(event.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </label>
-            <label>
-              New password
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-                autoComplete="new-password"
-                required
-              />
-            </label>
-            <label>
-              Confirm new password
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                autoComplete="new-password"
-                required
-              />
-            </label>
+            <PasswordInput
+              label="Current password"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              autoComplete="current-password"
+              required
+            />
+            <PasswordInput
+              label="New password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              autoComplete="new-password"
+              minLength={MIN_PASSWORD_LENGTH}
+              required
+              hint={PASSWORD_REQUIREMENTS_MESSAGE}
+            />
+            <PasswordInput
+              label="Confirm new password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              autoComplete="new-password"
+              required
+            />
             {passwordError && <p role="alert">{passwordError}</p>}
             {passwordChanged && (
               <p role="status" className="success-notice">

@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
-
-const MIN_PASSWORD_LENGTH = 8;
+import { PasswordInput } from '../components/PasswordInput.tsx';
+import { isStrongPassword, MIN_PASSWORD_LENGTH, PASSWORD_REQUIREMENTS_MESSAGE } from '../auth/passwordStrength.ts';
 
 // Public, a sibling of /login in App.tsx - self-serve developer
 // signup. No username field anywhere - it's derived from email
@@ -20,6 +20,10 @@ export function SignupPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setError(null);
+    if (!isStrongPassword(password)) {
+      setError(PASSWORD_REQUIREMENTS_MESSAGE);
+      return;
+    }
     setSubmitting(true);
     try {
       await signup({ name, email, password });
@@ -53,17 +57,15 @@ export function SignupPage() {
               required
             />
           </label>
-          <label>
-            Password
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="new-password"
-              minLength={MIN_PASSWORD_LENGTH}
-              required
-            />
-          </label>
+          <PasswordInput
+            label="Password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="new-password"
+            minLength={MIN_PASSWORD_LENGTH}
+            required
+            hint={PASSWORD_REQUIREMENTS_MESSAGE}
+          />
           {error && <p role="alert">{error}</p>}
           <button type="submit" disabled={submitting}>
             Create account

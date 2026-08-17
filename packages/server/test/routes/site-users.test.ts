@@ -4,6 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { buildServer, type ServerDeps } from '../../src/server.ts';
 import { openInMemoryStore } from '../../src/store/in-memory-store.ts';
 import { hashPassword } from '../../src/auth/password.ts';
+import { PASSWORD_REQUIREMENTS_MESSAGE } from '../../src/auth/password-strength.ts';
 import { normaliseUsername, type AdminUser } from '../../src/auth/users.ts';
 import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
 import type { Site } from '../../src/sites/site.ts';
@@ -12,6 +13,11 @@ import type { SiteInvite } from '../../src/sites/site-invite.ts';
 
 const DEVELOPER_USERNAME = 'dev-one';
 const DEVELOPER_PASSWORD = 'correct horse battery staple';
+// An explicitly-chosen client password goes through the same strength
+// check as signup/change-password/invite-claim - unlike
+// DEVELOPER_PASSWORD above, which only ever gets hashed directly into
+// a pre-seeded test user.
+const STRONG_PASSWORD = 'Str0ng Passw0rd!';
 const DEVELOPER_NAME = 'Dev One';
 const DEVELOPER_EMAIL = 'dev-one@example.com';
 
@@ -129,11 +135,30 @@ describe('site-users routes', () => {
       method: 'POST',
       url: `/api/sites/${siteId}/users`,
       headers: { cookie },
-      payload: inviteBody('picks-own-password', { password: 'a chosen password' }),
+      payload: inviteBody('picks-own-password', { password: STRONG_PASSWORD }),
     });
 
     assert.equal(response.statusCode, 201);
-    assert.equal(response.json().password, 'a chosen password');
+    assert.equal(response.json().password, STRONG_PASSWORD);
+
+    await app.close();
+  });
+
+  it('POST /:siteId/users with a weak explicit password is rejected with 400 and creates no account', async () => {
+    const { app, deps, cookie, siteId } = await buildTestServer();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${siteId}/users`,
+      headers: { cookie },
+      payload: inviteBody('weak-password-client', { password: 'all lowercase' }),
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(response.json().message, PASSWORD_REQUIREMENTS_MESSAGE);
+
+    const created = await deps.usersStore.find(emailId('weak-password-client'));
+    assert.equal(created, undefined, 'no account should have been created');
 
     await app.close();
   });

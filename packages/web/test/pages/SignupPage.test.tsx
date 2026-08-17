@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { AuthProvider } from '../../src/auth/AuthContext.tsx';
 import { SignupPage } from '../../src/pages/SignupPage.tsx';
+import { PASSWORD_REQUIREMENTS_MESSAGE } from '../../src/auth/passwordStrength.ts';
 
 function renderSignupPage() {
   return render(
@@ -40,7 +41,7 @@ describe('SignupPage', () => {
         }
         if (url === '/api/auth/signup' && init?.method === 'POST') {
           const body = JSON.parse(init.body as string) as { name: string; email: string; password: string };
-          expect(body).toEqual({ name: 'New Dev', email: 'new-dev@example.com', password: 'a real password' });
+          expect(body).toEqual({ name: 'New Dev', email: 'new-dev@example.com', password: 'Str0ng Passw0rd!' });
           return new Response(
             JSON.stringify({
               id: 'new-dev@example.com',
@@ -60,7 +61,7 @@ describe('SignupPage', () => {
     renderSignupPage();
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up' })).toBeDefined());
 
-    fillAndSubmit('New Dev', 'new-dev@example.com', 'a real password');
+    fillAndSubmit('New Dev', 'new-dev@example.com', 'Str0ng Passw0rd!');
 
     await waitFor(() => expect(screen.getByText('home page')).toBeDefined());
   });
@@ -92,50 +93,32 @@ describe('SignupPage', () => {
     renderSignupPage();
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up' })).toBeDefined());
 
-    fillAndSubmit('Someone', 'taken@example.com', 'a real password');
+    fillAndSubmit('Someone', 'taken@example.com', 'Str0ng Passw0rd!');
 
     await waitFor(() =>
       expect(screen.getByText('An account with this email already exists - log in instead')).toBeDefined(),
     );
   });
 
-  it('a too-short password surfaces the real server error inline', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = typeof input === 'string' ? input : input.toString();
-        if (url === '/api/auth/me') {
-          return new Response(null, { status: 401 });
-        }
-        if (url === '/api/auth/signup' && init?.method === 'POST') {
-          return new Response(
-            JSON.stringify({
-              statusCode: 400,
-              error: 'Bad Request',
-              message: 'name, email, and a password of at least 8 characters are required',
-            }),
-            { status: 400 },
-          );
-        }
-        throw new Error(`unhandled fetch in test: ${url}`);
-      }),
-    );
+  it('a weak password is rejected client-side, with no network call', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/auth/me') {
+        return new Response(null, { status: 401 });
+      }
+      throw new Error(`unhandled fetch in test: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
     renderSignupPage();
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up' })).toBeDefined());
 
-    // The native minLength constraint would normally block this
-    // client-side, but jsdom's form submission still fires onSubmit
-    // in this test setup, so the server-error path is what's under
-    // test here regardless.
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Short' } });
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'short@example.com' } });
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'short1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    fillAndSubmit('Short', 'short@example.com', 'short1');
 
-    await waitFor(() =>
-      expect(screen.getByText('name, email, and a password of at least 8 characters are required')).toBeDefined(),
-    );
+    // getByRole('alert'), not getByText - the always-visible hint under
+    // the field says the same thing, so a text query alone is ambiguous.
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(PASSWORD_REQUIREMENTS_MESSAGE));
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/auth/signup', expect.anything());
   });
 
   it('links back to the login page', async () => {

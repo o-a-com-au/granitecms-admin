@@ -4,6 +4,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { buildServer, type ServerDeps } from '../../src/server.ts';
 import { openInMemoryStore } from '../../src/store/in-memory-store.ts';
 import { hashPassword } from '../../src/auth/password.ts';
+import { PASSWORD_REQUIREMENTS_MESSAGE } from '../../src/auth/password-strength.ts';
 import { normaliseUsername, type AdminUser } from '../../src/auth/users.ts';
 import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
 import type { Site } from '../../src/sites/site.ts';
@@ -13,6 +14,11 @@ import type { Mailer } from '../../src/email/mailer.ts';
 
 const DEVELOPER_USERNAME = 'dev-one';
 const DEVELOPER_PASSWORD = 'correct horse battery staple';
+// Claiming an invite creates a real password, which the route now
+// strength-checks - unlike DEVELOPER_PASSWORD above, which only ever
+// gets hashed directly into a pre-seeded test user and never touches
+// that validation.
+const STRONG_PASSWORD = 'Str0ng Passw0rd!';
 
 interface TestServer {
   app: Awaited<ReturnType<typeof buildServer>>;
@@ -287,6 +293,30 @@ describe('site-invites routes', () => {
     await app.close();
   });
 
+  it('claiming with a weak password is rejected with 400 and makes no mutation', async () => {
+    const { app, deps, cookie, siteId } = await buildTestServer();
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${siteId}/invites`,
+      headers: { cookie },
+      payload: { email: 'weak-password@example.com' },
+    });
+    const code = extractCode(createResponse.json().url);
+
+    const claimResponse = await app.inject({
+      method: 'POST',
+      url: `/api/invites/${code}/claim`,
+      payload: { name: 'Weak Password', password: 'all lowercase' },
+    });
+    assert.equal(claimResponse.statusCode, 400);
+    assert.equal(claimResponse.json().message, PASSWORD_REQUIREMENTS_MESSAGE);
+
+    const newUser = await deps.usersStore.find(normaliseUsername('weak-password@example.com'));
+    assert.equal(newUser, undefined, 'no account should have been created');
+
+    await app.close();
+  });
+
   it('claiming while unauthenticated with a genuinely new email creates a client account, grants access, and logs them in', async () => {
     const { app, deps, cookie, siteId } = await buildTestServer();
     const createResponse = await app.inject({
@@ -300,7 +330,7 @@ describe('site-invites routes', () => {
     const claimResponse = await app.inject({
       method: 'POST',
       url: `/api/invites/${code}/claim`,
-      payload: { name: 'New Client', password: 'a real password' },
+      payload: { name: 'New Client', password: STRONG_PASSWORD },
     });
     assert.equal(claimResponse.statusCode, 200);
     assert.deepEqual(claimResponse.json(), { ok: true, siteId });
@@ -393,7 +423,7 @@ describe('site-invites routes', () => {
     const claimResponse = await app.inject({
       method: 'POST',
       url: `/api/invites/${code}/claim`,
-      payload: { name: 'Impersonator', password: 'whatever' },
+      payload: { name: 'Impersonator', password: STRONG_PASSWORD },
     });
     assert.equal(claimResponse.statusCode, 409);
 
@@ -416,10 +446,10 @@ describe('site-invites routes', () => {
     });
     const code = extractCode(createResponse.json().url);
 
-    const first = await app.inject({ method: 'POST', url: `/api/invites/${code}/claim`, payload: { name: 'Once', password: 'password one' } });
+    const first = await app.inject({ method: 'POST', url: `/api/invites/${code}/claim`, payload: { name: 'Once', password: STRONG_PASSWORD } });
     assert.equal(first.statusCode, 200);
 
-    const second = await app.inject({ method: 'POST', url: `/api/invites/${code}/claim`, payload: { name: 'Twice', password: 'password two' } });
+    const second = await app.inject({ method: 'POST', url: `/api/invites/${code}/claim`, payload: { name: 'Twice', password: STRONG_PASSWORD } });
     assert.equal(second.statusCode, 400);
 
     await app.close();
@@ -440,7 +470,7 @@ describe('site-invites routes', () => {
     const claimResponse = await app.inject({
       method: 'POST',
       url: `/api/invites/${code}/claim`,
-      payload: { name: 'Too Late', password: 'a real password' },
+      payload: { name: 'Too Late', password: STRONG_PASSWORD },
     });
     assert.equal(claimResponse.statusCode, 400);
 

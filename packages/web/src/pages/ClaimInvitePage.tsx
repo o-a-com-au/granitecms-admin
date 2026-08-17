@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { getInvite, claimInvite, type InviteInfo } from '../api/site-invites.ts';
 import { writeLastSiteId, resolveEditorHref } from '../sites/currentSite.ts';
+import { PasswordInput } from '../components/PasswordInput.tsx';
+import { isStrongPassword, MIN_PASSWORD_LENGTH, PASSWORD_REQUIREMENTS_MESSAGE } from '../auth/passwordStrength.ts';
 
 const INVALID_REASON_MESSAGES: Record<'expired' | 'claimed' | 'not-found', string> = {
   expired: 'This invite has expired. Ask whoever sent it to send a new one.',
@@ -73,6 +75,10 @@ export function ClaimInvitePage() {
       return;
     }
     setClaimError(null);
+    if (!isStrongPassword(password)) {
+      setClaimError(PASSWORD_REQUIREMENTS_MESSAGE);
+      return;
+    }
     setClaiming(true);
     try {
       const { siteId } = await claimInvite(code, { name, password });
@@ -141,16 +147,15 @@ export function ClaimInvitePage() {
               Name
               <input value={name} onChange={(event) => setName(event.target.value)} required />
             </label>
-            <label>
-              Password
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="new-password"
-                required
-              />
-            </label>
+            <PasswordInput
+              label="Password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="new-password"
+              minLength={MIN_PASSWORD_LENGTH}
+              required
+              hint={PASSWORD_REQUIREMENTS_MESSAGE}
+            />
             {claimError && <p role="alert">{claimError}</p>}
             <button type="submit" disabled={claiming}>
               Create account

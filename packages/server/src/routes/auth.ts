@@ -3,10 +3,9 @@ import type { Store } from '../store/store.ts';
 import type { AdminUser } from '../auth/users.ts';
 import { normaliseUsername } from '../auth/users.ts';
 import { DUMMY_HASH, DUMMY_SALT, hashPassword, verifyPassword } from '../auth/password.ts';
+import { isStrongPassword, PASSWORD_REQUIREMENTS_MESSAGE } from '../auth/password-strength.ts';
 import { createRequireAuth, createRequireSession } from '../auth/require-auth.ts';
 import type { SessionRecord } from '../auth/session-store-adapter.ts';
-
-const MIN_SIGNUP_PASSWORD_LENGTH = 8;
 
 interface LoginBody {
   username: string;
@@ -43,7 +42,7 @@ function parseSignupBody(body: unknown): SignupBody | null {
   if (typeof record.email !== 'string' || record.email.trim() === '') {
     return null;
   }
-  if (typeof record.password !== 'string' || record.password.length < MIN_SIGNUP_PASSWORD_LENGTH) {
+  if (typeof record.password !== 'string' || record.password === '') {
     return null;
   }
   return { name: record.name, email: record.email, password: record.password };
@@ -138,8 +137,12 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
         return {
           statusCode: 400,
           error: 'Bad Request',
-          message: `name, email, and a password of at least ${MIN_SIGNUP_PASSWORD_LENGTH} characters are required`,
+          message: 'name, email, and password are required',
         };
+      }
+      if (!isStrongPassword(body.password)) {
+        reply.code(400);
+        return { statusCode: 400, error: 'Bad Request', message: PASSWORD_REQUIREMENTS_MESSAGE };
       }
 
       const normalisedEmail = normaliseUsername(body.email);
@@ -255,6 +258,10 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
       if (!body) {
         reply.code(400);
         return { statusCode: 400, error: 'Bad Request', message: 'currentPassword and newPassword are required' };
+      }
+      if (!isStrongPassword(body.newPassword)) {
+        reply.code(400);
+        return { statusCode: 400, error: 'Bad Request', message: PASSWORD_REQUIREMENTS_MESSAGE };
       }
 
       const user = request.currentUser!;

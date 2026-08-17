@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { buildServer, type ServerDeps } from '../../src/server.ts';
 import { openInMemoryStore } from '../../src/store/in-memory-store.ts';
 import { hashPassword } from '../../src/auth/password.ts';
+import { PASSWORD_REQUIREMENTS_MESSAGE } from '../../src/auth/password-strength.ts';
 import { normaliseUsername, type AdminUser } from '../../src/auth/users.ts';
 import { createRequireAuth } from '../../src/auth/require-auth.ts';
 import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
@@ -13,6 +14,11 @@ import type { SiteInvite } from '../../src/sites/site-invite.ts';
 
 const TEST_USERNAME = 'editor';
 const TEST_PASSWORD = 'correct horse battery staple';
+// Login itself has no strength rule (TEST_PASSWORD above proves that -
+// it deliberately doesn't meet isStrongPassword), but every route that
+// creates or changes a password does, so those tests need a payload
+// that actually passes: 3+ of upper/lower/number/symbol.
+const STRONG_PASSWORD = 'Str0ng Passw0rd!';
 const TEST_NAME = 'Jane Editor';
 const TEST_EMAIL = 'jane@example.com';
 
@@ -420,7 +426,7 @@ describe('auth routes', () => {
         method: 'POST',
         url: '/api/auth/change-password',
         headers: { cookie },
-        payload: { currentPassword: TEST_PASSWORD, newPassword: 'a brand new password' },
+        payload: { currentPassword: TEST_PASSWORD, newPassword: STRONG_PASSWORD },
       });
       assert.equal(changeResponse.statusCode, 200);
       assert.deepEqual(changeResponse.json(), { ok: true });
@@ -435,7 +441,7 @@ describe('auth routes', () => {
       const newPasswordLogin = await app.inject({
         method: 'POST',
         url: '/api/auth/login',
-        payload: { username: TEST_USERNAME, password: 'a brand new password' },
+        payload: { username: TEST_USERNAME, password: STRONG_PASSWORD },
       });
       assert.equal(newPasswordLogin.statusCode, 200);
 
@@ -455,9 +461,37 @@ describe('auth routes', () => {
         method: 'POST',
         url: '/api/auth/change-password',
         headers: { cookie },
-        payload: { currentPassword: 'totally wrong', newPassword: 'a brand new password' },
+        payload: { currentPassword: 'totally wrong', newPassword: STRONG_PASSWORD },
       });
       assert.equal(response.statusCode, 401);
+
+      const stillWorksLogin = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      assert.equal(stillWorksLogin.statusCode, 200, 'the original password must still work - nothing was changed');
+
+      await app.close();
+    });
+
+    it('rejects a weak new password with 400 and makes no change', async () => {
+      const { app } = await buildTestServer();
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/auth/change-password',
+        headers: { cookie },
+        payload: { currentPassword: TEST_PASSWORD, newPassword: 'all lowercase' },
+      });
+      assert.equal(response.statusCode, 400);
+      assert.equal(response.json().message, PASSWORD_REQUIREMENTS_MESSAGE);
 
       const stillWorksLogin = await app.inject({
         method: 'POST',
@@ -491,7 +525,7 @@ describe('auth routes', () => {
         method: 'POST',
         url: '/api/auth/change-password',
         headers: { cookie: secondCookie },
-        payload: { currentPassword: TEST_PASSWORD, newPassword: 'a brand new password' },
+        payload: { currentPassword: TEST_PASSWORD, newPassword: STRONG_PASSWORD },
       });
       assert.equal(changeResponse.statusCode, 200);
 
@@ -512,7 +546,7 @@ describe('auth routes', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/auth/signup',
-        payload: { name: 'New Dev', email: 'new-dev@example.com', password: 'a real password' },
+        payload: { name: 'New Dev', email: 'new-dev@example.com', password: STRONG_PASSWORD },
       });
 
       assert.equal(response.statusCode, 200);
@@ -540,14 +574,14 @@ describe('auth routes', () => {
       const first = await app.inject({
         method: 'POST',
         url: '/api/auth/signup',
-        payload: { name: 'First', email: 'taken@example.com', password: 'a real password' },
+        payload: { name: 'First', email: 'taken@example.com', password: STRONG_PASSWORD },
       });
       assert.equal(first.statusCode, 200);
 
       const second = await app.inject({
         method: 'POST',
         url: '/api/auth/signup',
-        payload: { name: 'Second', email: 'taken@example.com', password: 'another real password' },
+        payload: { name: 'Second', email: 'taken@example.com', password: 'An0ther Str0ng Pass!' },
       });
       assert.equal(second.statusCode, 409);
 
@@ -556,7 +590,7 @@ describe('auth routes', () => {
       const loginResponse = await app.inject({
         method: 'POST',
         url: '/api/auth/login',
-        payload: { username: 'taken@example.com', password: 'a real password' },
+        payload: { username: 'taken@example.com', password: STRONG_PASSWORD },
       });
       assert.equal(loginResponse.statusCode, 200);
       assert.equal(loginResponse.json().name, 'First');
@@ -564,7 +598,7 @@ describe('auth routes', () => {
       await app.close();
     });
 
-    it('a password under 8 characters is rejected with 400', async () => {
+    it('a password under 8 characters is rejected with 400 and the requirements message', async () => {
       const { app } = await buildTestServer();
 
       const response = await app.inject({
@@ -574,6 +608,7 @@ describe('auth routes', () => {
       });
 
       assert.equal(response.statusCode, 400);
+      assert.equal(response.json().message, PASSWORD_REQUIREMENTS_MESSAGE);
 
       const loginResponse = await app.inject({
         method: 'POST',
@@ -585,13 +620,28 @@ describe('auth routes', () => {
       await app.close();
     });
 
+    it('a password of sufficient length using only one character class is rejected with 400', async () => {
+      const { app } = await buildTestServer();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/auth/signup',
+        payload: { name: 'All Lowercase', email: 'lowercase@example.com', password: 'aaaaaaaaaa' },
+      });
+
+      assert.equal(response.statusCode, 400);
+      assert.equal(response.json().message, PASSWORD_REQUIREMENTS_MESSAGE);
+
+      await app.close();
+    });
+
     it('an empty name or email is rejected with 400', async () => {
       const { app } = await buildTestServer();
 
       const response = await app.inject({
         method: 'POST',
         url: '/api/auth/signup',
-        payload: { name: '', email: 'someone@example.com', password: 'a real password' },
+        payload: { name: '', email: 'someone@example.com', password: STRONG_PASSWORD },
       });
 
       assert.equal(response.statusCode, 400);

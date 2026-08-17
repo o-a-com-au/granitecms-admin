@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { getOAuthProviders } from '../api/auth.ts';
+import { PasswordInput } from '../components/PasswordInput.tsx';
 
 // One fixed message regardless of failure cause, mirroring the
 // backend's own indistinguishable wrong-username/wrong-password
@@ -76,16 +77,13 @@ export function LoginPage() {
               required
             />
           </label>
-          <label>
-            Password
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
-              required
-            />
-          </label>
+          <PasswordInput
+            label="Password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="current-password"
+            required
+          />
           {error && <p role="alert">{error}</p>}
           <button type="submit" disabled={submitting}>
             Log in

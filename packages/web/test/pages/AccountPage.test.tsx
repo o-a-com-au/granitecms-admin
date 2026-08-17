@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { AuthProvider } from '../../src/auth/AuthContext.tsx';
 import { AccountPage } from '../../src/pages/AccountPage.tsx';
+import { PASSWORD_REQUIREMENTS_MESSAGE } from '../../src/auth/passwordStrength.ts';
 
 const CURRENT_USER = {
   id: 'jane',
@@ -133,6 +134,30 @@ describe('AccountPage', () => {
     expect(fetchMock).not.toHaveBeenCalledWith('/api/auth/change-password', expect.anything());
   });
 
+  it('blocks submission client-side when the new password is weak, without calling the server', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/auth/me') {
+        return new Response(JSON.stringify(CURRENT_USER), { status: 200 });
+      }
+      throw new Error(`unhandled fetch in test: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderAccountPage();
+    await waitFor(() => expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Jane Editor'));
+
+    fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'old password' } });
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'all lowercase' } });
+    fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'all lowercase' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
+
+    // getByRole('alert'), not getByText - the always-visible hint under
+    // the field says the same thing, so a text query alone is ambiguous.
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(PASSWORD_REQUIREMENTS_MESSAGE));
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/auth/change-password', expect.anything());
+  });
+
   it('a successful password change clears the fields and shows a confirmation', async () => {
     vi.stubGlobal(
       'fetch',
@@ -152,8 +177,8 @@ describe('AccountPage', () => {
     await waitFor(() => expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Jane Editor'));
 
     fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'old password' } });
-    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'a new password' } });
-    fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'a new password' } });
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'Str0ng Passw0rd!' } });
+    fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'Str0ng Passw0rd!' } });
     fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
 
     await waitFor(() => expect(screen.getByText(/Password changed/)).toBeDefined());
@@ -185,8 +210,8 @@ describe('AccountPage', () => {
     await waitFor(() => expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Jane Editor'));
 
     fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'wrong password' } });
-    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'a new password' } });
-    fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'a new password' } });
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'Str0ng Passw0rd!' } });
+    fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'Str0ng Passw0rd!' } });
     fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
 
     await waitFor(() => expect(screen.getByText('Current password is incorrect')).toBeDefined());

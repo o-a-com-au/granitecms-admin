@@ -5,6 +5,7 @@ import { createRequireAuth } from '../auth/require-auth.ts';
 import { createRequireDeveloper } from '../auth/require-developer.ts';
 import { createRequireSiteAccess } from '../auth/require-site-access.ts';
 import { generatePassword, hashPassword } from '../auth/password.ts';
+import { isStrongPassword, PASSWORD_REQUIREMENTS_MESSAGE } from '../auth/password-strength.ts';
 import type { Site } from '../sites/site.ts';
 import { SiteNotFoundError } from '../sites/site-not-found-error.ts';
 import { siteAccessId, type SiteAccess } from '../sites/site-access.ts';
@@ -265,6 +266,10 @@ export function createInviteClaimRoutes(
         if (!body) {
           reply.code(400);
           return { statusCode: 400, error: 'Bad Request', message: 'name and password are required' };
+        }
+        if (!isStrongPassword(body.password)) {
+          reply.code(400);
+          return { statusCode: 400, error: 'Bad Request', message: PASSWORD_REQUIREMENTS_MESSAGE };
         }
 
         const normalisedEmail = normaliseUsername(invite.email);

@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { AuthProvider } from '../../src/auth/AuthContext.tsx';
 import { ClaimInvitePage } from '../../src/pages/ClaimInvitePage.tsx';
 import { createFakeStorage } from '../helpers/fakeStorage.ts';
+import { PASSWORD_REQUIREMENTS_MESSAGE } from '../../src/auth/passwordStrength.ts';
 
 const CODE = 'abc123';
 
@@ -137,7 +138,7 @@ describe('ClaimInvitePage', () => {
       }
       if (url === `/api/invites/${CODE}/claim` && init?.method === 'POST') {
         const body = JSON.parse(init.body as string) as { name: string; password: string };
-        expect(body).toEqual({ name: 'New Client', password: 'a real password' });
+        expect(body).toEqual({ name: 'New Client', password: 'Str0ng Passw0rd!' });
         loggedIn = true;
         return new Response(JSON.stringify({ siteId: 'site-1' }), { status: 200 });
       }
@@ -149,10 +150,40 @@ describe('ClaimInvitePage', () => {
     await waitFor(() => expect(screen.getByLabelText('Name')).toBeDefined());
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New Client' } });
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'a real password' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'Str0ng Passw0rd!' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
     await waitFor(() => expect(screen.getByText('editor page')).toBeDefined());
+  });
+
+  it('a weak password is rejected client-side, with no network call to claim', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/auth/me') {
+        return new Response(null, { status: 401 });
+      }
+      if (url === `/api/invites/${CODE}`) {
+        return new Response(
+          JSON.stringify({ valid: true, siteUrl: 'https://client-one.example.com', email: 'client@example.com' }),
+          { status: 200 },
+        );
+      }
+      throw new Error(`unhandled fetch in test: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderClaimPage();
+    await waitFor(() => expect(screen.getByLabelText('Name')).toBeDefined());
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New Client' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'all lowercase' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    // getByRole('alert'), not getByText - the always-visible hint under
+    // the field says the same thing, so a text query alone is ambiguous.
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(PASSWORD_REQUIREMENTS_MESSAGE));
+    expect(fetchMock).not.toHaveBeenCalledWith(`/api/invites/${CODE}/claim`, expect.anything());
   });
 
   it('claiming with an email that already has an account surfaces the server error inline', async () => {
@@ -190,7 +221,7 @@ describe('ClaimInvitePage', () => {
     await waitFor(() => expect(screen.getByLabelText('Name')).toBeDefined());
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New Client' } });
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'a real password' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'Str0ng Passw0rd!' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
     await waitFor(() =>
