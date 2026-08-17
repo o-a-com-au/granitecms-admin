@@ -275,6 +275,9 @@ export function AppShell() {
                       Couldn&apos;t load sites
                     </span>
                   )}
+                  <Link to="/account" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
+                    Account details
+                  </Link>
                   {user?.role === 'developer' && (
                     <Link to="/settings" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
                       Site settings

@@ -504,6 +504,32 @@ describe('AppShell', () => {
     expect(screen.getByRole('menuitem', { name: 'Logout' })).toBeDefined();
   });
 
+  it('a developer sees the "Account details" popover item, pointing at /account', async () => {
+    installFakeApiWithProfile();
+
+    renderShell('/sites/site-1/content');
+    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
+
+    fireEvent.click(screen.getByTitle('admin'));
+
+    const link = screen.getByRole('menuitem', { name: 'Account details' });
+    expect(link).toBeDefined();
+    expect(link.getAttribute('href')).toBe('/account');
+  });
+
+  it('a client also sees the "Account details" popover item - unlike "Site settings", it is not developer-only', async () => {
+    installFakeApiWithClientProfile();
+
+    renderShell('/sites/site-1/content');
+    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
+
+    fireEvent.click(screen.getByTitle('client-1'));
+
+    const link = screen.getByRole('menuitem', { name: 'Account details' });
+    expect(link).toBeDefined();
+    expect(link.getAttribute('href')).toBe('/account');
+  });
+
   it('"Pause my account" asks for confirmation before pausing', async () => {
     installFakeApiWithPauseSupport();
 

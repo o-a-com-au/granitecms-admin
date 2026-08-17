@@ -335,7 +335,7 @@ export function SettingsPage() {
                             </form>
 
                             {lastInviteResult && (
-                              <p role="status" className="one-time-password-notice">
+                              <p role="status" className="success-notice">
                                 {lastInviteResult.emailSent
                                   ? 'Invite sent. They can follow the link in their email to get started.'
                                   : `Email isn't configured on this server - share this link with your client yourself: ${lastInviteResult.url}`}
@@ -368,7 +368,7 @@ export function SettingsPage() {
                               // carries this app's red/danger styling everywhere
                               // else (base.css), which would misread this as a
                               // failure.
-                              <p role="status" className="one-time-password-notice">
+                              <p role="status" className="success-notice">
                                 {`One-time password for the new client: ${lastInvitedPassword}. This will not be shown again.`}
                               </p>
                             )}

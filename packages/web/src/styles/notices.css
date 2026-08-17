@@ -1,0 +1,14 @@
+/* A success confirmation, not p[role='alert']'s red/danger styling
+   (base.css) - used anywhere a message is good news (an invite sent,
+   a password changed) and must not read as an error. role="status"
+   on the element itself, not role="alert" - see SettingsPage.tsx's
+   own comment for why. */
+.success-notice {
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background: rgba(62, 207, 110, 0.12);
+  color: var(--colour-ok);
+  border: 1px solid rgba(62, 207, 110, 0.35);
+  max-width: 640px;
+  margin: 0 0 1rem;
+}

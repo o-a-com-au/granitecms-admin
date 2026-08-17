@@ -12,6 +12,7 @@
    rules. */
 @import './theme.css';
 @import './base.css';
+@import './notices.css';
 @import './editor-layout.css';
 @import './app-shell.css';
 @import './login.css';

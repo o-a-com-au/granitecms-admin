@@ -2,6 +2,7 @@ import { type RouteObject } from 'react-router';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { ClaimInvitePage } from './pages/ClaimInvitePage.tsx';
 import { HomeRedirect } from './pages/HomeRedirect.tsx';
+import { AccountPage } from './pages/AccountPage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
 import { ContentBrowserPage } from './pages/ContentBrowserPage.tsx';
 import { MenusPage } from './pages/MenusPage.tsx';
@@ -31,6 +32,7 @@ export const routes: RouteObject[] = [
         element: <AppShell />,
         children: [
           { path: '/', element: <HomeRedirect /> },
+          { path: '/account', element: <AccountPage /> },
           {
             element: <RequireDeveloper />,
             children: [{ path: '/settings', element: <SettingsPage /> }],
