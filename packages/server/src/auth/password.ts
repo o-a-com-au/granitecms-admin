@@ -7,6 +7,13 @@ export interface PasswordHash {
   salt: string;
 }
 
+// Shared by bootstrap.ts (the very first admin account) and
+// routes/site-users.ts (a developer inviting a client) - a real random
+// password shown/returned exactly once, never persisted in plain text.
+export function generatePassword(): string {
+  return randomBytes(18).toString('base64url');
+}
+
 export function hashPassword(password: string): PasswordHash {
   const salt = randomBytes(16).toString('hex');
   const hash = scryptSync(password, salt, KEY_LENGTH).toString('hex');

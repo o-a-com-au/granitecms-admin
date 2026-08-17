@@ -36,6 +36,8 @@ describe('bootstrap', () => {
     const user = await usersStore.find(normaliseUsername('admin'));
     assert.ok(user, 'expected an admin user to be created');
     assert.equal(user?.username, 'admin');
+    assert.equal(user?.role, 'developer');
+    assert.equal(user?.status, 'active');
 
     const loggedOutput = logSpy.mock.calls.map((call) => String(call.arguments[0])).join('\n');
     assert.match(loggedOutput, /admin/);
@@ -55,7 +57,7 @@ describe('bootstrap', () => {
     assert.equal(verifyPassword('a-real-chosen-password', user!.passwordHash, user!.passwordSalt), true);
   });
 
-  it('is a no-op when the users store is already non-empty and already has a name/email', async (t) => {
+  it('is a no-op when the users store is already non-empty and already has a name/email/role/status', async (t) => {
     const logSpy = t.mock.method(console, 'log', () => {});
     const usersStore = openInMemoryStore<AdminUser>();
     await usersStore.save({
@@ -65,6 +67,8 @@ describe('bootstrap', () => {
       passwordSalt: 'y',
       name: 'Existing Person',
       email: 'existing@example.com',
+      role: 'developer',
+      status: 'active',
       createdAt: new Date().toISOString(),
     });
 
@@ -78,13 +82,15 @@ describe('bootstrap', () => {
         passwordSalt: 'y',
         name: 'Existing Person',
         email: 'existing@example.com',
+        role: 'developer',
+        status: 'active',
         createdAt: (await usersStore.find('existing'))!.createdAt,
       },
     ]);
     assert.equal(logSpy.mock.calls.length, 0, 'must not log or create a second account');
   });
 
-  it('quietly backfills name/email on an existing user missing them, without creating a second account or logging', async (t) => {
+  it('quietly backfills name/email/role/status on an existing user missing them, without creating a second account or logging', async (t) => {
     const logSpy = t.mock.method(console, 'log', () => {});
     const usersStore = openInMemoryStore<AdminUser>();
     await usersStore.save({
@@ -103,6 +109,11 @@ describe('bootstrap', () => {
     assert.equal(users.length, 1, 'must not create a second account');
     assert.equal(users[0]?.name, 'existing');
     assert.equal(users[0]?.email, 'existing@admin.local');
+    // Every pre-existing account type had full capability, which is
+    // what today's developer role represents - and could never have
+    // been paused, since pausing didn't exist yet either.
+    assert.equal(users[0]?.role, 'developer');
+    assert.equal(users[0]?.status, 'active');
     assert.equal(logSpy.mock.calls.length, 0, 'a quiet migration, not a fresh-account event');
   });
 });

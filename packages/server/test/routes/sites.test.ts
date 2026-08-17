@@ -8,6 +8,7 @@ import { hashPassword } from '../../src/auth/password.ts';
 import { normaliseUsername, type AdminUser } from '../../src/auth/users.ts';
 import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
 import type { Site } from '../../src/sites/site.ts';
+import type { SiteAccess } from '../../src/sites/site-access.ts';
 
 const TEST_USERNAME = 'editor';
 const TEST_PASSWORD = 'correct horse battery staple';
@@ -27,6 +28,8 @@ async function buildTestServer(): Promise<{
     passwordSalt: salt,
     name: TEST_NAME,
     email: TEST_EMAIL,
+    role: 'developer',
+    status: 'active',
     createdAt: new Date().toISOString(),
   });
 
@@ -35,6 +38,7 @@ async function buildTestServer(): Promise<{
     sessionRecordStore: openInMemoryStore<SessionRecord>(),
     sessionSecret: randomBytes(48).toString('hex'),
     sitesStore: openInMemoryStore<Site>(),
+    siteAccessStore: openInMemoryStore<SiteAccess>(),
   };
 
   const app = await buildServer(undefined, deps);

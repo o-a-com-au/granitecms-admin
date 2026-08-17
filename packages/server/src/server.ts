@@ -7,12 +7,14 @@ import fastifySession from '@fastify/session';
 import { healthRoutes } from './routes/health.ts';
 import { createAuthRoutes } from './routes/auth.ts';
 import { createSitesRoutes } from './routes/sites.ts';
+import { createSiteUsersRoutes } from './routes/site-users.ts';
 import { loadConfig, type AdminConfig } from './config.ts';
 import type { Store } from './store/store.ts';
 import type { AdminUser } from './auth/users.ts';
 import { toSessionStore, type SessionRecord } from './auth/session-store-adapter.ts';
 import { openInMemoryStore } from './store/in-memory-store.ts';
 import type { Site } from './sites/site.ts';
+import type { SiteAccess } from './sites/site-access.ts';
 import './auth/session-types.ts';
 
 export interface ServerDeps {
@@ -20,6 +22,7 @@ export interface ServerDeps {
   sessionRecordStore: Store<SessionRecord>;
   sessionSecret: string;
   sitesStore: Store<Site>;
+  siteAccessStore: Store<SiteAccess>;
 }
 
 // Ephemeral, tests/dev-only default (fresh in-memory stores, a random
@@ -33,6 +36,7 @@ function defaultDeps(): ServerDeps {
     sessionRecordStore: openInMemoryStore<SessionRecord>(),
     sessionSecret: randomBytes(48).toString('hex'),
     sitesStore: openInMemoryStore<Site>(),
+    siteAccessStore: openInMemoryStore<SiteAccess>(),
   };
 }
 
@@ -75,7 +79,10 @@ export async function buildServer(
 
   await app.register(healthRoutes, { prefix: '/api' });
   await app.register(createAuthRoutes(deps.usersStore), { prefix: '/api/auth' });
-  await app.register(createSitesRoutes(deps.usersStore, deps.sitesStore), { prefix: '/api/sites' });
+  await app.register(createSitesRoutes(deps.usersStore, deps.sitesStore, deps.siteAccessStore), { prefix: '/api/sites' });
+  await app.register(createSiteUsersRoutes(deps.usersStore, deps.sitesStore, deps.siteAccessStore), {
+    prefix: '/api/sites',
+  });
 
   // Skipped when the web package hasn't been built yet (e.g. running
   // the backend's own tests, or `npm run dev`, where Vite serves the

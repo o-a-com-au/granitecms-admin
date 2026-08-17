@@ -4,7 +4,10 @@ import type { FastifyInstance } from 'fastify';
 import type { Store } from '../store/store.ts';
 import type { AdminUser } from '../auth/users.ts';
 import { createRequireAuth, AuthError } from '../auth/require-auth.ts';
+import { createRequireDeveloper } from '../auth/require-developer.ts';
+import { createRequireSiteAccess } from '../auth/require-site-access.ts';
 import type { Site } from '../sites/site.ts';
+import type { SiteAccess } from '../sites/site-access.ts';
 import { SiteNotFoundError } from '../sites/site-not-found-error.ts';
 import { checkSiteStatus, type SiteStatus } from '../sites/site-status.ts';
 import { fetchSiteContent, type ContentListFilters } from '../sites/site-content.ts';
@@ -281,14 +284,35 @@ function requireCommitAuthor(currentUser: Pick<AdminUser, 'name' | 'email'> | nu
   return { name: currentUser.name, email: currentUser.email };
 }
 
-export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Store<Site>) {
+// GET / client branch: no first-class "sites this user can access"
+// query exists (Store<T> has no secondary index), so this resolves via
+// the SiteAccess rows granted to this user, then fetches each
+// referenced site - tolerating a since-deleted site by filtering out
+// misses rather than throwing.
+async function resolveClientSites(
+  sitesStore: Store<Site>,
+  siteAccessStore: Store<SiteAccess>,
+  userId: string,
+): Promise<Site[]> {
+  const grants = (await siteAccessStore.list()).filter((access) => access.userId === userId);
+  const sites = await Promise.all(grants.map((grant) => sitesStore.find(grant.siteId)));
+  return sites.filter((site): site is Site => site !== undefined);
+}
+
+export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Store<Site>, siteAccessStore: Store<SiteAccess>) {
   const requireAuth = createRequireAuth(usersStore);
+  const requireDeveloper = createRequireDeveloper();
+  const requireSiteAccess = createRequireSiteAccess(sitesStore, siteAccessStore, (request) => (request.params as { id: string }).id);
 
   return async function sitesRoutes(app: FastifyInstance): Promise<void> {
     // C1, C2, C5: the list itself performs a fresh, parallel status
     // check on every request - no cached status field anywhere.
-    app.get('/', { preHandler: requireAuth }, async () => {
-      const sites = await sitesStore.list();
+    app.get('/', { preHandler: requireAuth }, async (request) => {
+      const user = request.currentUser!;
+      const sites =
+        user.role === 'developer'
+          ? (await sitesStore.list()).filter((site) => site.ownerId === user.id)
+          : await resolveClientSites(sitesStore, siteAccessStore, user.id);
       return Promise.all(sites.map(async (site) => toSiteListEntry(site, await checkSiteStatus(site))));
     });
 
@@ -302,7 +326,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // frontend branches on.
     app.get<{ Params: { id: string }; Querystring: ContentQuery }>(
       '/:id/content',
-      { preHandler: requireAuth },
+      { preHandler: [requireAuth, requireSiteAccess] },
       async (request, reply) => {
         const site = await sitesStore.find(request.params.id);
         if (!site) {
@@ -331,7 +355,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // the document itself.
     app.get<{ Params: { id: string; '*': string } }>(
       '/:id/content/*',
-      { preHandler: requireAuth },
+      { preHandler: [requireAuth, requireSiteAccess] },
       async (request, reply) => {
         const site = await sitesStore.find(request.params.id);
         if (!site) {
@@ -363,7 +387,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // saveSiteDraft/interpretSiteResponse, never reinterpreted here.
     app.put<{ Params: { id: string; '*': string } }>(
       '/:id/drafts/*',
-      { preHandler: requireAuth },
+      { preHandler: [requireAuth, requireSiteAccess] },
       async (request, reply) => {
         const site = await sitesStore.find(request.params.id);
         if (!site) {
@@ -409,7 +433,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // decide here.
     app.get<{ Params: { id: string; '*': string } }>(
       '/:id/preview/*',
-      { preHandler: requireAuth },
+      { preHandler: [requireAuth, requireSiteAccess] },
       async (request, reply) => {
         const site = await sitesStore.find(request.params.id);
         if (!site) {
@@ -438,7 +462,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // current theme.
     app.get<{ Params: { id: string; ref: string; '*': string } }>(
       '/:id/preview-revision/:ref/*',
-      { preHandler: requireAuth },
+      { preHandler: [requireAuth, requireSiteAccess] },
       async (request, reply) => {
         const site = await sitesStore.find(request.params.id);
         if (!site) {
@@ -474,7 +498,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // before calling, unlike the PUT above's If-Match precondition.
     app.delete<{ Params: { id: string; '*': string } }>(
       '/:id/drafts/*',
-      { preHandler: requireAuth },
+      { preHandler: [requireAuth, requireSiteAccess] },
       async (request, reply) => {
         const site = await sitesStore.find(request.params.id);
         if (!site) {
@@ -495,7 +519,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // path/message are wrapped into the agent's real batch shape here,
     // and the commit author always comes from the logged-in admin's
     // own identity, never the request body.
-    app.post<{ Params: { id: string } }>('/:id/publish', { preHandler: requireAuth }, async (request, reply) => {
+    app.post<{ Params: { id: string } }>('/:id/publish', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
       const site = await sitesStore.find(request.params.id);
       if (!site) {
         throw new SiteNotFoundError(request.params.id);
@@ -531,7 +555,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // shape as publish.
     app.post<{ Params: { id: string; '*': string } }>(
       '/:id/unpublish/*',
-      { preHandler: requireAuth },
+      { preHandler: [requireAuth, requireSiteAccess] },
       async (request, reply) => {
         const site = await sitesStore.find(request.params.id);
         if (!site) {
@@ -571,7 +595,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // match over a wildcard sibling at the same prefix.
     app.get<{ Params: { id: string; '*': string }; Querystring: HistoryQuery }>(
       '/:id/history/*',
-      { preHandler: requireAuth },
+      { preHandler: [requireAuth, requireSiteAccess] },
       async (request, reply) => {
         const site = await sitesStore.find(request.params.id);
         if (!site) {
@@ -604,7 +628,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // statuses, matching the agent's own deliberate non-collapse.
     app.get<{ Params: { id: string; ref: string; '*': string } }>(
       '/:id/revision/:ref/*',
-      { preHandler: requireAuth },
+      { preHandler: [requireAuth, requireSiteAccess] },
       async (request, reply) => {
         const site = await sitesStore.find(request.params.id);
         if (!site) {
@@ -634,7 +658,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // H4: always a new commit on the agent side - history is never
     // rewritten. Same author-from-session, not-from-body rule as
     // publish/unpublish.
-    app.post<{ Params: { id: string } }>('/:id/revert', { preHandler: requireAuth }, async (request, reply) => {
+    app.post<{ Params: { id: string } }>('/:id/revert', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
       const site = await sitesStore.find(request.params.id);
       if (!site) {
         throw new SiteNotFoundError(request.params.id);
@@ -670,7 +694,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // No createRedirect field accepted from the client at all: it is
     // always false, decided once here rather than trusted from the
     // browser (see site-move.ts's own comment for why).
-    app.post<{ Params: { id: string } }>('/:id/move', { preHandler: requireAuth }, async (request, reply) => {
+    app.post<{ Params: { id: string } }>('/:id/move', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
       const site = await sitesStore.find(request.params.id);
       if (!site) {
         throw new SiteNotFoundError(request.params.id);
@@ -705,7 +729,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // URL path segment - they're arbitrary public URLs that may
     // contain slashes, matching /:id/move's own precedent above and
     // the agent's own POST /v1/content/move route.
-    app.get<{ Params: { id: string } }>('/:id/redirects', { preHandler: requireAuth }, async (request, reply) => {
+    app.get<{ Params: { id: string } }>('/:id/redirects', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
       const site = await sitesStore.find(request.params.id);
       if (!site) {
         throw new SiteNotFoundError(request.params.id);
@@ -720,7 +744,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
       return { error: result.message, reason: result.outcome };
     });
 
-    app.post<{ Params: { id: string } }>('/:id/redirects', { preHandler: requireAuth }, async (request, reply) => {
+    app.post<{ Params: { id: string } }>('/:id/redirects', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
       const site = await sitesStore.find(request.params.id);
       if (!site) {
         throw new SiteNotFoundError(request.params.id);
@@ -753,7 +777,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
 
     // PUT matches the existing entry by from - there is no rename-from
     // operation, from is the entry's own key (see site-redirects.ts).
-    app.put<{ Params: { id: string } }>('/:id/redirects', { preHandler: requireAuth }, async (request, reply) => {
+    app.put<{ Params: { id: string } }>('/:id/redirects', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
       const site = await sitesStore.find(request.params.id);
       if (!site) {
         throw new SiteNotFoundError(request.params.id);
@@ -788,7 +812,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
       return { error: result.message, reason: result.outcome };
     });
 
-    app.delete<{ Params: { id: string } }>('/:id/redirects', { preHandler: requireAuth }, async (request, reply) => {
+    app.delete<{ Params: { id: string } }>('/:id/redirects', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
       const site = await sitesStore.find(request.params.id);
       if (!site) {
         throw new SiteNotFoundError(request.params.id);
@@ -817,7 +841,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
 
     // I2, I3, I4: what the schema-driven section/block editor is
     // built from - a single read-only pass-through, no query params.
-    app.get<{ Params: { id: string } }>('/:id/theme/schemas', { preHandler: requireAuth }, async (request, reply) => {
+    app.get<{ Params: { id: string } }>('/:id/theme/schemas', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
       const site = await sitesStore.find(request.params.id);
       if (!site) {
         throw new SiteNotFoundError(request.params.id);
@@ -853,7 +877,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
       // realistic web image.
       await mediaRoutes.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } });
 
-      mediaRoutes.get<{ Params: { id: string } }>('/:id/media', { preHandler: requireAuth }, async (request, reply) => {
+      mediaRoutes.get<{ Params: { id: string } }>('/:id/media', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
         const site = await sitesStore.find(request.params.id);
         if (!site) {
           throw new SiteNotFoundError(request.params.id);
@@ -870,7 +894,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
 
       mediaRoutes.post<{ Params: { id: string } }>(
         '/:id/media',
-        { preHandler: requireAuth },
+        { preHandler: [requireAuth, requireSiteAccess] },
         async (request, reply) => {
           const site = await sitesStore.find(request.params.id);
           if (!site) {
@@ -914,7 +938,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
       // /v1/media/* route.
       mediaRoutes.delete<{ Params: { id: string; '*': string } }>(
         '/:id/media/*',
-        { preHandler: requireAuth },
+        { preHandler: [requireAuth, requireSiteAccess] },
         async (request, reply) => {
           const site = await sitesStore.find(request.params.id);
           if (!site) {
@@ -939,7 +963,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // C1: never gated on reachability - the registry is metadata
     // only (C4), so a site with a bad URL/token is still registered
     // and just shows an unreachable/unauthorized status from then on.
-    app.post('/', { preHandler: requireAuth }, async (request, reply) => {
+    app.post('/', { preHandler: [requireAuth, requireDeveloper] }, async (request, reply) => {
       const body = parseRegisterSiteBody(request.body);
       if (!body) {
         reply.code(400);
@@ -957,6 +981,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
         id: randomUUID(),
         url: parsedUrl.origin,
         token: body.token,
+        ownerId: request.currentUser!.id,
         createdAt: now,
         updatedAt: now,
       };
@@ -970,7 +995,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // C3: a pure overwrite. The old token never reached the browser
     // to begin with, so there is nothing to look up or echo back -
     // only the new value, entered fresh by the operator.
-    app.put<{ Params: { id: string } }>('/:id/token', { preHandler: requireAuth }, async (request, reply) => {
+    app.put<{ Params: { id: string } }>('/:id/token', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
       const site = await sitesStore.find(request.params.id);
       if (!site) {
         throw new SiteNotFoundError(request.params.id);
@@ -992,7 +1017,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     // C4: no outbound fetch anywhere in this handler - "removal never
     // touches the site" is structurally true by construction, not
     // just by convention.
-    app.delete<{ Params: { id: string } }>('/:id', { preHandler: requireAuth }, async (request, reply) => {
+    app.delete<{ Params: { id: string } }>('/:id', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
       const site = await sitesStore.find(request.params.id);
       if (!site) {
         throw new SiteNotFoundError(request.params.id);

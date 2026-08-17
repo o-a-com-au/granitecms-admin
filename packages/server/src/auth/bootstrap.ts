@@ -1,29 +1,30 @@
-import { randomBytes } from 'node:crypto';
 import type { Store } from '../store/store.ts';
 import type { AdminUser } from './users.ts';
 import { normaliseUsername } from './users.ts';
-import { hashPassword } from './password.ts';
+import { generatePassword, hashPassword } from './password.ts';
 
-function generatePassword(): string {
-  return randomBytes(18).toString('base64url');
-}
-
-// A user record from before name/email existed (Groups A-F) would
+// A user record from before name/email/role/status existed would
 // otherwise carry undefined at keys the type now claims are always
-// string - backfilled quietly (no log, no new account) so upgrading
-// an existing deployment never leaves an invalid record on disk.
+// set - backfilled quietly (no log, no new account) so upgrading an
+// existing deployment never leaves an invalid record on disk.
 // ADMIN_BOOTSTRAP_NAME/EMAIL are deliberately not consulted here -
 // those are for the one account actually being freshly created below,
-// not for patching a different, already-named account.
+// not for patching a different, already-named account. Every
+// pre-existing account defaults to role: 'developer' - historically
+// the only account type had full capability, which is what today's
+// developer role represents; status defaults to 'active' since pausing
+// is a new, deliberate action no existing account could have taken yet.
 async function backfillMissingIdentity(usersStore: Store<AdminUser>, users: AdminUser[]): Promise<void> {
   for (const user of users) {
-    if (user.name && user.email) {
+    if (user.name && user.email && user.role && user.status) {
       continue;
     }
     await usersStore.save({
       ...user,
       name: user.name || user.username,
       email: user.email || `${user.id}@admin.local`,
+      role: user.role ?? 'developer',
+      status: user.status ?? 'active',
     });
   }
 }
@@ -58,6 +59,8 @@ export async function ensureBootstrapAdmin(usersStore: Store<AdminUser>): Promis
     passwordSalt: salt,
     name,
     email,
+    role: 'developer',
+    status: 'active',
     createdAt: new Date().toISOString(),
   });
 

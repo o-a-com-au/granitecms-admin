@@ -8,6 +8,7 @@ import { normaliseUsername, type AdminUser } from '../../src/auth/users.ts';
 import { createRequireAuth } from '../../src/auth/require-auth.ts';
 import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
 import type { Site } from '../../src/sites/site.ts';
+import type { SiteAccess } from '../../src/sites/site-access.ts';
 
 const TEST_USERNAME = 'editor';
 const TEST_PASSWORD = 'correct horse battery staple';
@@ -24,6 +25,8 @@ async function buildTestServer(): Promise<{ deps: ServerDeps; app: Awaited<Retur
     passwordSalt: salt,
     name: TEST_NAME,
     email: TEST_EMAIL,
+    role: 'developer',
+    status: 'active',
     createdAt: new Date().toISOString(),
   });
 
@@ -32,6 +35,7 @@ async function buildTestServer(): Promise<{ deps: ServerDeps; app: Awaited<Retur
     sessionRecordStore: openInMemoryStore<SessionRecord>(),
     sessionSecret: randomBytes(48).toString('hex'),
     sitesStore: openInMemoryStore<Site>(),
+    siteAccessStore: openInMemoryStore<SiteAccess>(),
   };
 
   const app = await buildServer(undefined, deps);
@@ -66,6 +70,8 @@ describe('auth routes', () => {
       username: TEST_USERNAME,
       name: TEST_NAME,
       email: TEST_EMAIL,
+      role: 'developer',
+      status: 'active',
     });
     assert.ok(response.headers['set-cookie'], 'expected a session cookie to be set');
 
@@ -119,6 +125,8 @@ describe('auth routes', () => {
       username: TEST_USERNAME,
       name: TEST_NAME,
       email: TEST_EMAIL,
+      role: 'developer',
+      status: 'active',
     });
 
     await app.close();
@@ -179,6 +187,8 @@ describe('auth routes', () => {
       username: TEST_USERNAME,
       name: TEST_NAME,
       email: TEST_EMAIL,
+      role: 'developer',
+      status: 'active',
     });
 
     await app.close();
