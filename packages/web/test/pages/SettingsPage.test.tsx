@@ -1,7 +1,29 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { SettingsPage } from '../../src/pages/SettingsPage.tsx';
+
+// The manage-access panel now has two "Email" fields (the new
+// "Invite by email" form and the direct-entry form's own) - this
+// scopes to the direct-entry form specifically, via its Username
+// field (unique to it) and closest <form>.
+function directEntryEmailField(): HTMLElement {
+  const form = screen.getByLabelText('Username').closest('form');
+  if (!form) {
+    throw new Error('expected the direct-entry form to exist');
+  }
+  return within(form).getByLabelText('Email');
+}
+
+// Scoped via the "Send invite" button's own form, the same approach
+// as directEntryEmailField above - both forms have an "Email" field.
+function inviteByEmailField(): HTMLElement {
+  const form = screen.getByRole('button', { name: 'Send invite' }).closest('form');
+  if (!form) {
+    throw new Error('expected the invite-by-email form to exist');
+  }
+  return within(form).getByLabelText('Email');
+}
 
 function renderSettingsPage() {
   return render(
@@ -28,13 +50,29 @@ interface FakeClient {
   grantedAt: string;
 }
 
-// A real small in-memory fake of the /api/sites (+ /api/sites/:id/users)
-// surface, not a single canned response - lets these tests exercise a
-// genuine register -> list -> rotate -> delete -> invite -> revoke
-// sequence the same way a real session would, mirroring this
-// project's "empirical over mocked" bias even on the frontend.
-function installFakeSitesApi(): { sites: FakeSite[]; clients: FakeClient[] } {
-  const state = { sites: [] as FakeSite[], clients: [] as FakeClient[] };
+interface FakeInvite {
+  id: string;
+  siteId: string;
+  email: string;
+  createdAt: string;
+  expiresAt: string;
+  claimedAt: string | null;
+}
+
+// A real small in-memory fake of the /api/sites (+ /api/sites/:id/users,
+// /api/sites/:id/invites) surface, not a single canned response - lets
+// these tests exercise a genuine register -> list -> rotate -> delete
+// -> invite -> revoke sequence the same way a real session would,
+// mirroring this project's "empirical over mocked" bias even on the
+// frontend. emailConfigured controls whether POST .../invites reports
+// emailSent: true or false, matching the server's own unconfigured-SMTP
+// fallback behaviour.
+function installFakeSitesApi(options: { emailConfigured?: boolean } = {}): {
+  sites: FakeSite[];
+  clients: FakeClient[];
+  invites: FakeInvite[];
+} {
+  const state = { sites: [] as FakeSite[], clients: [] as FakeClient[], invites: [] as FakeInvite[] };
   let nextId = 1;
 
   vi.stubGlobal(
@@ -118,6 +156,40 @@ function installFakeSitesApi(): { sites: FakeSite[]; clients: FakeClient[] } {
           return new Response(JSON.stringify({ error: 'No access grant for this user on this site' }), { status: 404 });
         }
         return new Response(JSON.stringify({ ok: true, accountDeleted: true }), { status: 200 });
+      }
+
+      const invitesListMatch = /^\/api\/sites\/([^/]+)\/invites$/.exec(url);
+      if (invitesListMatch && method === 'GET') {
+        const siteId = invitesListMatch[1];
+        const invites = state.invites.filter((invite) => invite.siteId === siteId);
+        return new Response(JSON.stringify({ invites }), { status: 200 });
+      }
+
+      if (invitesListMatch && method === 'POST') {
+        const siteId = invitesListMatch[1]!;
+        const body = JSON.parse(init?.body as string) as { email: string };
+        const now = new Date().toISOString();
+        const invite: FakeInvite = {
+          id: `invite-${nextId++}`,
+          siteId,
+          email: body.email,
+          createdAt: now,
+          expiresAt: '2026-12-31T00:00:00.000Z',
+          claimedAt: null,
+        };
+        state.invites.push(invite);
+        const emailSent = options.emailConfigured ?? false;
+        return new Response(
+          JSON.stringify({ emailSent, url: `http://localhost/invite/fake-code-${invite.id}`, expiresAt: invite.expiresAt }),
+          { status: 201 },
+        );
+      }
+
+      const inviteDeleteMatch = /^\/api\/sites\/([^/]+)\/invites\/([^/]+)$/.exec(url);
+      if (inviteDeleteMatch && method === 'DELETE') {
+        const [, siteId, inviteId] = inviteDeleteMatch;
+        state.invites = state.invites.filter((invite) => !(invite.siteId === siteId && invite.id === inviteId));
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
       }
 
       const deleteMatch = /^\/api\/sites\/([^/]+)$/.exec(url);
@@ -290,7 +362,7 @@ describe('SettingsPage', () => {
 
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'new-client' } });
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New Client' } });
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new-client@example.com' } });
+    fireEvent.change(directEntryEmailField(), { target: { value: 'new-client@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: 'Invite client' }));
 
     await waitFor(() => expect(screen.getByText(/New Client \(new-client, new-client@example.com\)/)).toBeDefined());
@@ -390,7 +462,7 @@ describe('SettingsPage', () => {
 
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'taken-username' } });
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New Client' } });
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new-client@example.com' } });
+    fireEvent.change(directEntryEmailField(), { target: { value: 'new-client@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: 'Invite client' }));
 
     await waitFor(() => expect(screen.getByText('That username already belongs to a developer account')).toBeDefined());
@@ -417,5 +489,80 @@ describe('SettingsPage', () => {
 
     expect(screen.queryByText('No clients have access yet.')).toBeNull();
     expect(screen.getByRole('button', { name: 'Manage access' })).toBeDefined();
+  });
+
+  it('"Invite by email" with SMTP configured shows the emailed confirmation', async () => {
+    const state = installFakeSitesApi({ emailConfigured: true });
+    state.sites.push({
+      id: 'site-1',
+      url: 'https://client-one.example.com',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      status: { state: 'ok', agentVersion: '1.0.0', contentSchemaVersion: 1, sqliteDriver: 'node:sqlite' },
+    });
+
+    renderSettingsPage();
+    await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Manage access' }));
+    await waitFor(() => expect(screen.getByText('No clients have access yet.')).toBeDefined());
+
+    fireEvent.change(inviteByEmailField(), { target: { value: 'client@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send invite' }));
+
+    await waitFor(() =>
+      expect(screen.getByText('Invite sent. They can follow the link in their email to get started.')).toBeDefined(),
+    );
+    expect(state.invites.length).toBe(1);
+    expect(state.invites[0]?.email).toBe('client@example.com');
+  });
+
+  it('"Invite by email" with no SMTP configured falls back to showing the raw link', async () => {
+    const state = installFakeSitesApi({ emailConfigured: false });
+    state.sites.push({
+      id: 'site-1',
+      url: 'https://client-one.example.com',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      status: { state: 'ok', agentVersion: '1.0.0', contentSchemaVersion: 1, sqliteDriver: 'node:sqlite' },
+    });
+
+    renderSettingsPage();
+    await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Manage access' }));
+    await waitFor(() => expect(screen.getByText('No clients have access yet.')).toBeDefined());
+
+    fireEvent.change(inviteByEmailField(), { target: { value: 'client@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send invite' }));
+
+    await waitFor(() => expect(screen.getByText(/Email isn't configured on this server/)).toBeDefined());
+    expect(screen.getByText(/http:\/\/localhost\/invite\/fake-code-/)).toBeDefined();
+  });
+
+  it('a pending invite appears in the list and can be cancelled', async () => {
+    const state = installFakeSitesApi();
+    state.sites.push({
+      id: 'site-1',
+      url: 'https://client-one.example.com',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      status: { state: 'ok', agentVersion: '1.0.0', contentSchemaVersion: 1, sqliteDriver: 'node:sqlite' },
+    });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    renderSettingsPage();
+    await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Manage access' }));
+    await waitFor(() => expect(screen.getByText('No clients have access yet.')).toBeDefined());
+
+    fireEvent.change(inviteByEmailField(), { target: { value: 'pending-client@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send invite' }));
+
+    await waitFor(() => expect(screen.getByText('pending-client@example.com')).toBeDefined());
+    expect(state.invites.length).toBe(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel invite' }));
+
+    await waitFor(() => expect(screen.queryByText('pending-client@example.com')).toBeNull());
+    expect(state.invites.length).toBe(0);
   });
 });

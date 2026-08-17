@@ -4,6 +4,13 @@ import { useSites } from '../sites/useSites.ts';
 import { SiteStatusBadge } from '../sites/SiteStatusBadge.tsx';
 import { deleteSite, registerSite, rotateSiteToken } from '../api/sites.ts';
 import { inviteSiteClient, listSiteClients, revokeSiteClient, type SiteClient } from '../api/site-users.ts';
+import {
+  createSiteInvite,
+  listSiteInvites,
+  revokeSiteInvite,
+  type CreateSiteInviteResult,
+  type SiteInviteSummary,
+} from '../api/site-invites.ts';
 import { writeLastSiteId } from '../sites/currentSite.ts';
 
 export function SettingsPage() {
@@ -35,6 +42,18 @@ export function SettingsPage() {
   // created - the server never returns this password again, so this
   // is the only chance to hand it to the developer.
   const [lastInvitedPassword, setLastInvitedPassword] = useState<string | null>(null);
+
+  // The easier "invite by email" path, alongside the direct-entry form
+  // above - the developer only ever types an email; the server emails
+  // the client a claim link (or, if this server has no SMTP
+  // configured, returns the link directly for the developer to share
+  // themselves).
+  const [pendingInvites, setPendingInvites] = useState<SiteInviteSummary[] | null>(null);
+  const [pendingInvitesError, setPendingInvitesError] = useState<string | null>(null);
+  const [inviteEmailAddress, setInviteEmailAddress] = useState('');
+  const [inviteByEmailError, setInviteByEmailError] = useState<string | null>(null);
+  const [invitingByEmail, setInvitingByEmail] = useState(false);
+  const [lastInviteResult, setLastInviteResult] = useState<CreateSiteInviteResult | null>(null);
 
   async function handleRegister(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -100,6 +119,15 @@ export function SettingsPage() {
     }
   }
 
+  async function loadPendingInvites(id: string): Promise<void> {
+    setPendingInvitesError(null);
+    try {
+      setPendingInvites(await listSiteInvites(id));
+    } catch (err) {
+      setPendingInvitesError(err instanceof Error ? err.message : 'Failed to load invites');
+    }
+  }
+
   function startManageAccess(id: string): void {
     setManageAccessId(id);
     setClients(null);
@@ -109,13 +137,45 @@ export function SettingsPage() {
     setInviteEmail('');
     setInviteError(null);
     setLastInvitedPassword(null);
+    setPendingInvites(null);
+    setPendingInvitesError(null);
+    setInviteEmailAddress('');
+    setInviteByEmailError(null);
+    setLastInviteResult(null);
     void loadClients(id);
+    void loadPendingInvites(id);
   }
 
   function cancelManageAccess(): void {
     setManageAccessId(null);
     setClients(null);
     setClientsError(null);
+    setPendingInvites(null);
+    setPendingInvitesError(null);
+  }
+
+  async function handleInviteByEmailSubmit(event: FormEvent<HTMLFormElement>, id: string): Promise<void> {
+    event.preventDefault();
+    setInviteByEmailError(null);
+    setInvitingByEmail(true);
+    try {
+      const result = await createSiteInvite(id, inviteEmailAddress);
+      setInviteEmailAddress('');
+      setLastInviteResult(result);
+      await loadPendingInvites(id);
+    } catch (err) {
+      setInviteByEmailError(err instanceof Error ? err.message : 'Failed to create the invite');
+    } finally {
+      setInvitingByEmail(false);
+    }
+  }
+
+  async function handleRevokeInvite(id: string, invite: SiteInviteSummary): Promise<void> {
+    if (!window.confirm(`Cancel the pending invite for ${invite.email}?`)) {
+      return;
+    }
+    await revokeSiteInvite(id, invite.id);
+    await loadPendingInvites(id);
   }
 
   async function handleInviteSubmit(event: FormEvent<HTMLFormElement>, id: string): Promise<void> {
@@ -257,6 +317,51 @@ export function SettingsPage() {
                               </ul>
                             )}
 
+                            <h4>Invite by email</h4>
+                            <form onSubmit={(event) => handleInviteByEmailSubmit(event, manageAccessId)}>
+                              <label>
+                                Email
+                                <input
+                                  type="email"
+                                  value={inviteEmailAddress}
+                                  onChange={(event) => setInviteEmailAddress(event.target.value)}
+                                  required
+                                />
+                              </label>
+                              {inviteByEmailError && <p role="alert">{inviteByEmailError}</p>}
+                              <button type="submit" disabled={invitingByEmail}>
+                                Send invite
+                              </button>
+                            </form>
+
+                            {lastInviteResult && (
+                              <p role="status" className="one-time-password-notice">
+                                {lastInviteResult.emailSent
+                                  ? 'Invite sent. They can follow the link in their email to get started.'
+                                  : `Email isn't configured on this server - share this link with your client yourself: ${lastInviteResult.url}`}
+                              </p>
+                            )}
+
+                            {pendingInvitesError && <p role="alert">{pendingInvitesError}</p>}
+                            {pendingInvites !== null && pendingInvites.filter((invite) => !invite.claimedAt).length > 0 && (
+                              <>
+                                <h4>Pending invites</h4>
+                                <ul>
+                                  {pendingInvites
+                                    .filter((invite) => !invite.claimedAt)
+                                    .map((invite) => (
+                                      <li key={invite.id}>
+                                        {invite.email}{' '}
+                                        <button type="button" onClick={() => void handleRevokeInvite(manageAccessId, invite)}>
+                                          Cancel invite
+                                        </button>
+                                      </li>
+                                    ))}
+                                </ul>
+                              </>
+                            )}
+
+                            <h4>Or invite with a chosen username and password</h4>
                             {lastInvitedPassword && (
                               // role="status", not "alert" - this is a success
                               // confirmation, not an error, and p[role='alert']

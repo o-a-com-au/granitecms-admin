@@ -1,5 +1,6 @@
 import { type RouteObject } from 'react-router';
 import { LoginPage } from './pages/LoginPage.tsx';
+import { ClaimInvitePage } from './pages/ClaimInvitePage.tsx';
 import { HomeRedirect } from './pages/HomeRedirect.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
 import { ContentBrowserPage } from './pages/ContentBrowserPage.tsx';
@@ -22,6 +23,7 @@ import { AppShell } from './layout/AppShell.tsx';
 // an adoption of data-router data fetching.
 export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage /> },
+  { path: '/invite/:code', element: <ClaimInvitePage /> },
   {
     element: <RequireAuth />,
     children: [
