@@ -6,6 +6,7 @@ import { createRequireDeveloper } from '../auth/require-developer.ts';
 import { createRequireSiteAccess } from '../auth/require-site-access.ts';
 import { generatePassword, hashPassword } from '../auth/password.ts';
 import { isStrongPassword, PASSWORD_REQUIREMENTS_MESSAGE } from '../auth/password-strength.ts';
+import { DEFAULT_TIMEZONE, isValidTimezone } from '../auth/timezone.ts';
 import type { Site } from '../sites/site.ts';
 import { SiteNotFoundError } from '../sites/site-not-found-error.ts';
 import { siteAccessId, type SiteAccess } from '../sites/site-access.ts';
@@ -146,6 +147,10 @@ export function createSiteInvitesRoutes(
 interface ClaimInviteBody {
   name: string;
   password: string;
+  // Captured client-side by ClaimInvitePage.tsx's own browser (a real
+  // in-page form, unlike routes/oauth.ts's server-side redirect) -
+  // absent falls back to DEFAULT_TIMEZONE in the route itself.
+  timezone?: string;
 }
 
 function parseClaimInviteBody(body: unknown): ClaimInviteBody | null {
@@ -159,7 +164,10 @@ function parseClaimInviteBody(body: unknown): ClaimInviteBody | null {
   if (typeof record.password !== 'string' || record.password.trim() === '') {
     return null;
   }
-  return { name: record.name, password: record.password };
+  if (record.timezone !== undefined && typeof record.timezone !== 'string') {
+    return null;
+  }
+  return { name: record.name, password: record.password, timezone: record.timezone as string | undefined };
 }
 
 type ResolvedInvite = { invite: SiteInvite; site: Site } | { reason: 'expired' | 'claimed' | 'not-found' };
@@ -271,6 +279,10 @@ export function createInviteClaimRoutes(
           reply.code(400);
           return { statusCode: 400, error: 'Bad Request', message: PASSWORD_REQUIREMENTS_MESSAGE };
         }
+        if (body.timezone !== undefined && !isValidTimezone(body.timezone)) {
+          reply.code(400);
+          return { statusCode: 400, error: 'Bad Request', message: 'timezone, if provided, must be a real IANA zone name' };
+        }
 
         const normalisedEmail = normaliseUsername(invite.email);
         const existing = (await usersStore.list()).find((user) => normaliseUsername(user.email) === normalisedEmail);
@@ -300,6 +312,7 @@ export function createInviteClaimRoutes(
           email: invite.email,
           role: 'client',
           status: 'active',
+          timezone: body.timezone ?? DEFAULT_TIMEZONE,
           createdAt: now,
         };
         await usersStore.save(newUser);

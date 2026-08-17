@@ -16,8 +16,8 @@ async function parseErrorMessage(response: Response, fallback: string): Promise<
 }
 
 // Username is never sent - it isn't editable (see AccountPage.tsx),
-// only name and email.
-export async function updateAccount(input: { name: string; email: string }): Promise<CurrentUser> {
+// only name, email, and timezone.
+export async function updateAccount(input: { name: string; email: string; timezone: string }): Promise<CurrentUser> {
   const response = await fetch('/api/auth/me', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },

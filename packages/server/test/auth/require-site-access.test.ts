@@ -59,6 +59,7 @@ async function createUser(deps: Deps, id: string, role: AdminUser['role']): Prom
     email: `${id}@example.com`,
     role,
     status: 'active',
+    timezone: 'UTC',
     createdAt: new Date().toISOString(),
   });
 }

@@ -40,8 +40,16 @@ describe('SignupPage', () => {
           return new Response(null, { status: 401 });
         }
         if (url === '/api/auth/signup' && init?.method === 'POST') {
-          const body = JSON.parse(init.body as string) as { name: string; email: string; password: string };
-          expect(body).toEqual({ name: 'New Dev', email: 'new-dev@example.com', password: 'Str0ng Passw0rd!' });
+          const body = JSON.parse(init.body as string) as { name: string; email: string; password: string; timezone: string };
+          // timezone: expect.any(String), not a fixed value - it's the
+          // real browser's own Intl.DateTimeFormat().resolvedOptions()
+          // .timeZone, which depends on whatever system this test runs on.
+          expect(body).toEqual({
+            name: 'New Dev',
+            email: 'new-dev@example.com',
+            password: 'Str0ng Passw0rd!',
+            timezone: expect.any(String),
+          });
           return new Response(
             JSON.stringify({
               id: 'new-dev@example.com',
@@ -50,6 +58,7 @@ describe('SignupPage', () => {
               email: 'new-dev@example.com',
               role: 'developer',
               status: 'active',
+              timezone: 'UTC',
             }),
             { status: 200 },
           );

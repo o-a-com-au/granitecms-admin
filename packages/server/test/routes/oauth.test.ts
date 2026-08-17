@@ -141,6 +141,7 @@ describe('oauth routes', () => {
       email: '  Existing@Example.com ',
       role: 'developer',
       status: 'active',
+      timezone: 'UTC',
       createdAt: '2026-01-01T00:00:00.000Z',
     };
     const { app, deps } = await buildTestServer([
@@ -194,6 +195,9 @@ describe('oauth routes', () => {
     assert.equal(allUsers[0]!.email, 'brand-new@example.com');
     assert.equal(allUsers[0]!.role, 'developer');
     assert.equal(allUsers[0]!.status, 'active');
+    // No browser signal available on a server-side redirect callback -
+    // defaults, editable afterward via Account Details.
+    assert.equal(allUsers[0]!.timezone, 'UTC');
 
     await app.close();
   });

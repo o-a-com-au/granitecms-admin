@@ -31,6 +31,7 @@ async function buildTestServer(): Promise<{
     email: TEST_EMAIL,
     role: 'developer',
     status: 'active',
+    timezone: 'UTC',
     createdAt: new Date().toISOString(),
   });
 

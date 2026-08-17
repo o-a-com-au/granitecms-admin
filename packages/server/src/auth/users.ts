@@ -25,6 +25,10 @@ export interface AdminUser {
   email: string;
   role: AdminUserRole;
   status: AdminUserStatus;
+  // A real IANA zone name, always set (never null/optional) - defaults
+  // to DEFAULT_TIMEZONE ('UTC') wherever no real browser signal exists
+  // at account-creation time. See auth/timezone.ts.
+  timezone: string;
   createdAt: string;
 }
 

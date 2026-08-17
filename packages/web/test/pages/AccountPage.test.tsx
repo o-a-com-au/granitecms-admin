@@ -12,6 +12,7 @@ const CURRENT_USER = {
   email: 'jane@example.com',
   role: 'developer',
   status: 'active',
+  timezone: 'Australia/Sydney',
 };
 
 function renderAccountPage() {
@@ -45,6 +46,7 @@ describe('AccountPage', () => {
 
     await waitFor(() => expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Jane Editor'));
     expect((screen.getByLabelText('Email') as HTMLInputElement).value).toBe('jane@example.com');
+    expect((screen.getByLabelText('Timezone') as HTMLSelectElement).value).toBe('Australia/Sydney');
     expect(screen.queryByLabelText('Username')).toBeNull();
   });
 
@@ -82,6 +84,35 @@ describe('AccountPage', () => {
       return url === '/api/auth/me' && (init?.method ?? 'GET') === 'GET';
     });
     expect(getCalls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('changing the Timezone select and saving calls updateAccount with the new value', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/auth/me' && (init?.method ?? 'GET') === 'GET') {
+        return new Response(JSON.stringify(CURRENT_USER), { status: 200 });
+      }
+      if (url === '/api/auth/me' && init?.method === 'PATCH') {
+        const body = JSON.parse(init.body as string) as { name: string; email: string; timezone: string };
+        return new Response(JSON.stringify({ ...CURRENT_USER, timezone: body.timezone }), { status: 200 });
+      }
+      throw new Error(`unhandled fetch in test: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderAccountPage();
+    await waitFor(() => expect((screen.getByLabelText('Timezone') as HTMLSelectElement).value).toBe('Australia/Sydney'));
+
+    fireEvent.change(screen.getByLabelText('Timezone'), { target: { value: 'America/New_York' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(screen.getByText('Account details updated.')).toBeDefined());
+    const patchCall = fetchMock.mock.calls.find(([input, init]) => {
+      const url = typeof input === 'string' ? input : (input as URL).toString();
+      return url === '/api/auth/me' && init?.method === 'PATCH';
+    });
+    const body = JSON.parse(patchCall![1]!.body as string) as { timezone: string };
+    expect(body.timezone).toBe('America/New_York');
   });
 
   it('a server error updating details is shown inline', async () => {

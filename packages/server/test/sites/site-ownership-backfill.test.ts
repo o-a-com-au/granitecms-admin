@@ -16,6 +16,7 @@ function makeUser(id: string, role: AdminUser['role'], createdAt: string): Admin
     email: `${id}@example.com`,
     role,
     status: 'active',
+    timezone: 'UTC',
     createdAt,
   };
 }

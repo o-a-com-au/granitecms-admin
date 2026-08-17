@@ -81,7 +81,11 @@ export function ClaimInvitePage() {
     }
     setClaiming(true);
     try {
-      const { siteId } = await claimInvite(code, { name, password });
+      // Invisible - no visible Timezone field on this form. The one
+      // real browser signal available at account-creation time,
+      // editable afterward via Account Details.
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const { siteId } = await claimInvite(code, { name, password, timezone });
       // The claim response set a fresh session cookie - refresh()
       // picks it up so the rest of the app (AppShell, RequireAuth)
       // treats this visitor as logged in from here on, with no

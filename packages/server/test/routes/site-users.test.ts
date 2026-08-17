@@ -52,6 +52,7 @@ async function buildTestServer(): Promise<TestServer> {
     email: DEVELOPER_EMAIL,
     role: 'developer',
     status: 'active',
+    timezone: 'UTC',
     createdAt: new Date().toISOString(),
   });
 
@@ -121,6 +122,9 @@ describe('site-users routes', () => {
     assert.ok(savedUser);
     assert.equal(savedUser!.role, 'client');
     assert.equal(savedUser!.status, 'active');
+    // A developer creating this on someone else's behalf - no
+    // reliable signal, so it always defaults.
+    assert.equal(savedUser!.timezone, 'UTC');
 
     const access = await deps.siteAccessStore.find(siteAccessId(emailId('new-client'), siteId));
     assert.ok(access, 'expected a SiteAccess grant to have been created');
@@ -383,6 +387,7 @@ describe('site-users routes', () => {
       email: 'genuine-client@example.com',
       role: 'client',
       status: 'active',
+      timezone: 'UTC',
       createdAt: new Date().toISOString(),
     });
     await deps.siteAccessStore.save({ id: siteAccessId(clientId, siteId), userId: clientId, siteId, grantedAt: new Date().toISOString() });
@@ -420,6 +425,7 @@ describe('site-users routes', () => {
       email: 'other-dev@example.com',
       role: 'developer',
       status: 'active',
+      timezone: 'UTC',
       createdAt: new Date().toISOString(),
     });
     const otherSiteId = randomUUID();

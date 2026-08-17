@@ -4,6 +4,7 @@ import type { AdminUser } from '../auth/users.ts';
 import { normaliseUsername } from '../auth/users.ts';
 import { DUMMY_HASH, DUMMY_SALT, hashPassword, verifyPassword } from '../auth/password.ts';
 import { isStrongPassword, PASSWORD_REQUIREMENTS_MESSAGE } from '../auth/password-strength.ts';
+import { DEFAULT_TIMEZONE, isValidTimezone } from '../auth/timezone.ts';
 import { createRequireAuth, createRequireSession } from '../auth/require-auth.ts';
 import type { SessionRecord } from '../auth/session-store-adapter.ts';
 
@@ -29,6 +30,10 @@ interface SignupBody {
   name: string;
   email: string;
   password: string;
+  // Absent for any caller that isn't a real browser capturing its own
+  // Intl.DateTimeFormat().resolvedOptions().timeZone (SignupPage.tsx) -
+  // defaults to DEFAULT_TIMEZONE in the route itself, not here.
+  timezone?: string;
 }
 
 function parseSignupBody(body: unknown): SignupBody | null {
@@ -45,12 +50,16 @@ function parseSignupBody(body: unknown): SignupBody | null {
   if (typeof record.password !== 'string' || record.password === '') {
     return null;
   }
-  return { name: record.name, email: record.email, password: record.password };
+  if (record.timezone !== undefined && typeof record.timezone !== 'string') {
+    return null;
+  }
+  return { name: record.name, email: record.email, password: record.password, timezone: record.timezone as string | undefined };
 }
 
 interface UpdateAccountBody {
   name?: string;
   email?: string;
+  timezone?: string;
 }
 
 function parseUpdateAccountBody(body: unknown): UpdateAccountBody | null {
@@ -64,7 +73,14 @@ function parseUpdateAccountBody(body: unknown): UpdateAccountBody | null {
   if (record.email !== undefined && (typeof record.email !== 'string' || record.email.trim() === '')) {
     return null;
   }
-  return { name: record.name as string | undefined, email: record.email as string | undefined };
+  if (record.timezone !== undefined && (typeof record.timezone !== 'string' || record.timezone.trim() === '')) {
+    return null;
+  }
+  return {
+    name: record.name as string | undefined,
+    email: record.email as string | undefined,
+    timezone: record.timezone as string | undefined,
+  };
 }
 
 interface ChangePasswordBody {
@@ -118,7 +134,15 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
       // Same shape GET /me already returns via request.currentUser -
       // login was the one place still trimming it down to id/username,
       // an oversight now that the account popover needs name/email too.
-      return { id: user.id, username: user.username, name: user.name, email: user.email, role: user.role, status: user.status };
+      return {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        timezone: user.timezone,
+      };
     });
 
     // Public, unauthenticated by design - self-serve account creation,
@@ -144,6 +168,10 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
         reply.code(400);
         return { statusCode: 400, error: 'Bad Request', message: PASSWORD_REQUIREMENTS_MESSAGE };
       }
+      if (body.timezone !== undefined && !isValidTimezone(body.timezone)) {
+        reply.code(400);
+        return { statusCode: 400, error: 'Bad Request', message: 'timezone, if provided, must be a real IANA zone name' };
+      }
 
       const normalisedEmail = normaliseUsername(body.email);
       const existing = (await usersStore.list()).find((user) => normaliseUsername(user.email) === normalisedEmail);
@@ -162,6 +190,7 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
         email: body.email,
         role: 'developer',
         status: 'active',
+        timezone: body.timezone ?? DEFAULT_TIMEZONE,
         createdAt: new Date().toISOString(),
       };
       await usersStore.save(user);
@@ -169,7 +198,15 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
       await request.session.regenerate();
       request.session.set('userId', user.id);
 
-      return { id: user.id, username: user.username, name: user.name, email: user.email, role: user.role, status: user.status };
+      return {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        timezone: user.timezone,
+      };
     });
 
     // Exempt from requireAuth, not guarded by it: logout must succeed
@@ -228,6 +265,10 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
         reply.code(400);
         return { statusCode: 400, error: 'Bad Request', message: 'name and email, if provided, must be non-empty' };
       }
+      if (body.timezone !== undefined && !isValidTimezone(body.timezone)) {
+        reply.code(400);
+        return { statusCode: 400, error: 'Bad Request', message: 'timezone, if provided, must be a real IANA zone name' };
+      }
 
       const user = request.currentUser!;
       const record = await usersStore.find(user.id);
@@ -240,6 +281,7 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
         ...record,
         name: body.name ?? record.name,
         email: body.email ?? record.email,
+        timezone: body.timezone ?? record.timezone,
       };
       await usersStore.save(updated);
 
@@ -250,6 +292,7 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
         email: updated.email,
         role: updated.role,
         status: updated.status,
+        timezone: updated.timezone,
       };
     });
 

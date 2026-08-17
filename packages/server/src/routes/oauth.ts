@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Store } from '../store/store.ts';
 import { normaliseUsername, type AdminUser } from '../auth/users.ts';
 import { generatePassword, hashPassword } from '../auth/password.ts';
+import { DEFAULT_TIMEZONE } from '../auth/timezone.ts';
 import type { OAuthProvider } from '../auth/oauth-provider.ts';
 
 // A named constant, not a literal at each call site - keeps the two
@@ -73,6 +74,10 @@ async function findOrCreateUser(usersStore: Store<AdminUser>, identity: { email:
     email: identity.email,
     role: 'developer',
     status: 'active',
+    // No browser signal available here - this is a server-side redirect
+    // callback, not the account's own in-page JS. Editable afterward
+    // via Account Details.
+    timezone: DEFAULT_TIMEZONE,
     createdAt: new Date().toISOString(),
   };
   await usersStore.save(user);

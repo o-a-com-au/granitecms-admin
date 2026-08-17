@@ -69,7 +69,10 @@ export async function getInvite(code: string): Promise<InviteInfo> {
 
 // No body when the caller is already authenticated - the server reads
 // that from their session, not from anything the browser sends here.
-export async function claimInvite(code: string, body?: { name: string; password: string }): Promise<{ siteId: string }> {
+export async function claimInvite(
+  code: string,
+  body?: { name: string; password: string; timezone?: string },
+): Promise<{ siteId: string }> {
   const response = await fetch(`/api/invites/${encodeURIComponent(code)}/claim`, {
     method: 'POST',
     headers: body ? { 'Content-Type': 'application/json' } : undefined,

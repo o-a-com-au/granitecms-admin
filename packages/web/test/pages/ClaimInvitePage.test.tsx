@@ -137,8 +137,11 @@ describe('ClaimInvitePage', () => {
         );
       }
       if (url === `/api/invites/${CODE}/claim` && init?.method === 'POST') {
-        const body = JSON.parse(init.body as string) as { name: string; password: string };
-        expect(body).toEqual({ name: 'New Client', password: 'Str0ng Passw0rd!' });
+        const body = JSON.parse(init.body as string) as { name: string; password: string; timezone: string };
+        // timezone: expect.any(String), not a fixed value - it's the
+        // real browser's own Intl.DateTimeFormat().resolvedOptions()
+        // .timeZone, which depends on whatever system this test runs on.
+        expect(body).toEqual({ name: 'New Client', password: 'Str0ng Passw0rd!', timezone: expect.any(String) });
         loggedIn = true;
         return new Response(JSON.stringify({ siteId: 'site-1' }), { status: 200 });
       }

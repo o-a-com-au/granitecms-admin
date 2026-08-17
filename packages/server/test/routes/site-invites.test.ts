@@ -65,6 +65,7 @@ async function buildTestServer(options: { mailer?: Mailer } = {}): Promise<TestS
     email: 'dev-one@example.com',
     role: 'developer',
     status: 'active',
+    timezone: 'UTC',
     createdAt: new Date().toISOString(),
   });
 
@@ -211,6 +212,7 @@ describe('site-invites routes', () => {
       email: 'some-client@example.com',
       role: 'client',
       status: 'active',
+      timezone: 'UTC',
       createdAt: new Date().toISOString(),
     });
     await deps.siteAccessStore.save({ id: siteAccessId(clientId, siteId), userId: clientId, siteId, grantedAt: new Date().toISOString() });
@@ -240,6 +242,7 @@ describe('site-invites routes', () => {
       email: 'other-dev@example.com',
       role: 'developer',
       status: 'active',
+      timezone: 'UTC',
       createdAt: new Date().toISOString(),
     });
     const otherSiteId = randomUUID();
@@ -350,6 +353,7 @@ describe('site-invites routes', () => {
     const newUser = await deps.usersStore.find(normaliseUsername('new-client@example.com'));
     assert.ok(newUser);
     assert.equal(newUser!.name, 'New Client');
+    assert.equal(newUser!.timezone, 'UTC', 'no timezone was sent, so it defaults');
 
     const access = await deps.siteAccessStore.find(siteAccessId(newUser!.id, siteId));
     assert.ok(access, 'expected a SiteAccess grant to have been created');
@@ -357,6 +361,52 @@ describe('site-invites routes', () => {
     const invite = await deps.siteInviteStore.find(hashCodeForTest(code));
     assert.ok(invite!.claimedAt);
     assert.equal(invite!.claimedByUserId, newUser!.id);
+
+    await app.close();
+  });
+
+  it('claiming with a supplied timezone (ClaimInvitePage.tsx captures the browser\'s own) uses it instead of the default', async () => {
+    const { app, deps, cookie, siteId } = await buildTestServer();
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${siteId}/invites`,
+      headers: { cookie },
+      payload: { email: 'sydney-client@example.com' },
+    });
+    const code = extractCode(createResponse.json().url);
+
+    const claimResponse = await app.inject({
+      method: 'POST',
+      url: `/api/invites/${code}/claim`,
+      payload: { name: 'Sydney Client', password: STRONG_PASSWORD, timezone: 'Australia/Sydney' },
+    });
+    assert.equal(claimResponse.statusCode, 200);
+
+    const newUser = await deps.usersStore.find(normaliseUsername('sydney-client@example.com'));
+    assert.equal(newUser?.timezone, 'Australia/Sydney');
+
+    await app.close();
+  });
+
+  it('claiming with an invalid timezone is rejected with 400 and no account is created', async () => {
+    const { app, deps, cookie, siteId } = await buildTestServer();
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${siteId}/invites`,
+      headers: { cookie },
+      payload: { email: 'bad-zone-client@example.com' },
+    });
+    const code = extractCode(createResponse.json().url);
+
+    const claimResponse = await app.inject({
+      method: 'POST',
+      url: `/api/invites/${code}/claim`,
+      payload: { name: 'Bad Zone Client', password: STRONG_PASSWORD, timezone: 'Not/A_Real_Zone' },
+    });
+    assert.equal(claimResponse.statusCode, 400);
+
+    const newUser = await deps.usersStore.find(normaliseUsername('bad-zone-client@example.com'));
+    assert.equal(newUser, undefined, 'no account should have been created');
 
     await app.close();
   });
@@ -374,6 +424,7 @@ describe('site-invites routes', () => {
       email: 'existing-client@example.com',
       role: 'client',
       status: 'active',
+      timezone: 'UTC',
       createdAt: new Date().toISOString(),
     });
     const clientCookie = await loginCookie(app, 'existing-client', 'existing client password');
@@ -409,6 +460,7 @@ describe('site-invites routes', () => {
       email: 'taken@example.com',
       role: 'client',
       status: 'active',
+      timezone: 'UTC',
       createdAt: new Date().toISOString(),
     });
 

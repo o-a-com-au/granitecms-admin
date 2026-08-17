@@ -7,6 +7,7 @@ import { createRequireDeveloper } from '../auth/require-developer.ts';
 import { createRequireSiteAccess } from '../auth/require-site-access.ts';
 import { generatePassword, hashPassword } from '../auth/password.ts';
 import { isStrongPassword, PASSWORD_REQUIREMENTS_MESSAGE } from '../auth/password-strength.ts';
+import { DEFAULT_TIMEZONE } from '../auth/timezone.ts';
 import type { Site } from '../sites/site.ts';
 import { SiteNotFoundError } from '../sites/site-not-found-error.ts';
 import { siteAccessId, type SiteAccess } from '../sites/site-access.ts';
@@ -108,6 +109,11 @@ export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: 
           email: body.email,
           role: 'client',
           status: 'active',
+          // A developer creating this on someone else's behalf - the
+          // developer's own browser timezone has no relationship to
+          // the invitee's, so this always defaults, editable by the
+          // invitee afterward via Account Details.
+          timezone: DEFAULT_TIMEZONE,
           createdAt: now,
         };
         await usersStore.save(user);

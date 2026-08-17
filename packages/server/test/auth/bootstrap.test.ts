@@ -4,6 +4,7 @@ import { ensureBootstrapAdmin } from '../../src/auth/bootstrap.ts';
 import { openInMemoryStore } from '../../src/store/in-memory-store.ts';
 import { normaliseUsername, type AdminUser } from '../../src/auth/users.ts';
 import { verifyPassword } from '../../src/auth/password.ts';
+import { DEFAULT_TIMEZONE } from '../../src/auth/timezone.ts';
 
 describe('bootstrap', () => {
   const originalUsername = process.env.ADMIN_BOOTSTRAP_USERNAME;
@@ -38,6 +39,7 @@ describe('bootstrap', () => {
     assert.equal(user?.username, 'admin');
     assert.equal(user?.role, 'developer');
     assert.equal(user?.status, 'active');
+    assert.equal(user?.timezone, DEFAULT_TIMEZONE);
 
     const loggedOutput = logSpy.mock.calls.map((call) => String(call.arguments[0])).join('\n');
     assert.match(loggedOutput, /admin/);
@@ -57,7 +59,7 @@ describe('bootstrap', () => {
     assert.equal(verifyPassword('a-real-chosen-password', user!.passwordHash, user!.passwordSalt), true);
   });
 
-  it('is a no-op when the users store is already non-empty and already has a name/email/role/status', async (t) => {
+  it('is a no-op when the users store is already non-empty and already has a name/email/role/status/timezone', async (t) => {
     const logSpy = t.mock.method(console, 'log', () => {});
     const usersStore = openInMemoryStore<AdminUser>();
     await usersStore.save({
@@ -69,6 +71,7 @@ describe('bootstrap', () => {
       email: 'existing@example.com',
       role: 'developer',
       status: 'active',
+      timezone: 'Australia/Sydney',
       createdAt: new Date().toISOString(),
     });
 
@@ -84,13 +87,14 @@ describe('bootstrap', () => {
         email: 'existing@example.com',
         role: 'developer',
         status: 'active',
+        timezone: 'Australia/Sydney',
         createdAt: (await usersStore.find('existing'))!.createdAt,
       },
     ]);
     assert.equal(logSpy.mock.calls.length, 0, 'must not log or create a second account');
   });
 
-  it('quietly backfills name/email/role/status on an existing user missing them, without creating a second account or logging', async (t) => {
+  it('quietly backfills name/email/role/status/timezone on an existing user missing them, without creating a second account or logging', async (t) => {
     const logSpy = t.mock.method(console, 'log', () => {});
     const usersStore = openInMemoryStore<AdminUser>();
     await usersStore.save({
@@ -114,6 +118,9 @@ describe('bootstrap', () => {
     // been paused, since pausing didn't exist yet either.
     assert.equal(users[0]?.role, 'developer');
     assert.equal(users[0]?.status, 'active');
+    // Nor had any notion of timezone - no browser signal exists for an
+    // account created before this field did.
+    assert.equal(users[0]?.timezone, DEFAULT_TIMEZONE);
     assert.equal(logSpy.mock.calls.length, 0, 'a quiet migration, not a fresh-account event');
   });
 });

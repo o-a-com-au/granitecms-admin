@@ -34,6 +34,7 @@ async function buildTestServer(): Promise<{ deps: ServerDeps; app: Awaited<Retur
     email: TEST_EMAIL,
     role: 'developer',
     status: 'active',
+    timezone: 'UTC',
     createdAt: new Date().toISOString(),
   });
 
@@ -83,6 +84,7 @@ describe('auth routes', () => {
       email: TEST_EMAIL,
       role: 'developer',
       status: 'active',
+      timezone: 'UTC',
     });
     assert.ok(response.headers['set-cookie'], 'expected a session cookie to be set');
 
@@ -138,6 +140,7 @@ describe('auth routes', () => {
       email: TEST_EMAIL,
       role: 'developer',
       status: 'active',
+      timezone: 'UTC',
     });
 
     await app.close();
@@ -200,6 +203,7 @@ describe('auth routes', () => {
       email: TEST_EMAIL,
       role: 'developer',
       status: 'active',
+      timezone: 'UTC',
     });
 
     await app.close();
@@ -338,6 +342,7 @@ describe('auth routes', () => {
         email: 'new-email@example.com',
         role: 'developer',
         status: 'active',
+        timezone: 'UTC',
       });
 
       await app.close();
@@ -407,6 +412,54 @@ describe('auth routes', () => {
       assert.equal(response.statusCode, 200);
       assert.equal(response.json().username, TEST_USERNAME);
       assert.equal(response.json().id, normaliseUsername(TEST_USERNAME));
+
+      await app.close();
+    });
+
+    it('updates timezone to a real IANA zone name', async () => {
+      const { app } = await buildTestServer();
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/auth/me',
+        headers: { cookie },
+        payload: { timezone: 'Australia/Sydney' },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.json().timezone, 'Australia/Sydney');
+
+      const meResponse = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie } });
+      assert.equal(meResponse.json().timezone, 'Australia/Sydney');
+
+      await app.close();
+    });
+
+    it('rejects an invalid timezone with 400 and no mutation', async () => {
+      const { app } = await buildTestServer();
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/auth/me',
+        headers: { cookie },
+        payload: { timezone: 'Not/A_Real_Zone' },
+      });
+      assert.equal(response.statusCode, 400);
+
+      const meResponse = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie } });
+      assert.equal(meResponse.json().timezone, 'UTC', 'must not have been mutated');
 
       await app.close();
     });
@@ -557,6 +610,7 @@ describe('auth routes', () => {
         email: 'new-dev@example.com',
         role: 'developer',
         status: 'active',
+        timezone: 'UTC',
       });
       assert.ok(response.headers['set-cookie'], 'expected signup to establish a session');
 
@@ -645,6 +699,41 @@ describe('auth routes', () => {
       });
 
       assert.equal(response.statusCode, 400);
+
+      await app.close();
+    });
+
+    it('uses a supplied timezone (SignupPage.tsx captures the browser\'s own via Intl.DateTimeFormat) instead of the default', async () => {
+      const { app, deps } = await buildTestServer();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/auth/signup',
+        payload: { name: 'Sydney Dev', email: 'sydney-dev@example.com', password: STRONG_PASSWORD, timezone: 'Australia/Sydney' },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.json().timezone, 'Australia/Sydney');
+
+      const saved = await deps.usersStore.find(normaliseUsername('sydney-dev@example.com'));
+      assert.equal(saved?.timezone, 'Australia/Sydney');
+
+      await app.close();
+    });
+
+    it('an invalid timezone is rejected with 400 and no account is created', async () => {
+      const { app, deps } = await buildTestServer();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/auth/signup',
+        payload: { name: 'Bad Zone', email: 'bad-zone@example.com', password: STRONG_PASSWORD, timezone: 'Not/A_Real_Zone' },
+      });
+
+      assert.equal(response.statusCode, 400);
+
+      const saved = await deps.usersStore.find(normaliseUsername('bad-zone@example.com'));
+      assert.equal(saved, undefined, 'no account should have been created');
 
       await app.close();
     });

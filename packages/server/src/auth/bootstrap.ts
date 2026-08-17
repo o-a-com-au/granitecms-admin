@@ -2,21 +2,24 @@ import type { Store } from '../store/store.ts';
 import type { AdminUser } from './users.ts';
 import { normaliseUsername } from './users.ts';
 import { generatePassword, hashPassword } from './password.ts';
+import { DEFAULT_TIMEZONE } from './timezone.ts';
 
-// A user record from before name/email/role/status existed would
-// otherwise carry undefined at keys the type now claims are always
-// set - backfilled quietly (no log, no new account) so upgrading an
-// existing deployment never leaves an invalid record on disk.
-// ADMIN_BOOTSTRAP_NAME/EMAIL are deliberately not consulted here -
+// A user record from before name/email/role/status/timezone existed
+// would otherwise carry undefined at keys the type now claims are
+// always set - backfilled quietly (no log, no new account) so
+// upgrading an existing deployment never leaves an invalid record on
+// disk. ADMIN_BOOTSTRAP_NAME/EMAIL are deliberately not consulted here -
 // those are for the one account actually being freshly created below,
 // not for patching a different, already-named account. Every
 // pre-existing account defaults to role: 'developer' - historically
 // the only account type had full capability, which is what today's
 // developer role represents; status defaults to 'active' since pausing
 // is a new, deliberate action no existing account could have taken yet.
+// timezone defaults to DEFAULT_TIMEZONE - no browser signal exists for
+// an account that already existed before this field did.
 async function backfillMissingIdentity(usersStore: Store<AdminUser>, users: AdminUser[]): Promise<void> {
   for (const user of users) {
-    if (user.name && user.email && user.role && user.status) {
+    if (user.name && user.email && user.role && user.status && user.timezone) {
       continue;
     }
     await usersStore.save({
@@ -25,6 +28,7 @@ async function backfillMissingIdentity(usersStore: Store<AdminUser>, users: Admi
       email: user.email || `${user.id}@admin.local`,
       role: user.role ?? 'developer',
       status: user.status ?? 'active',
+      timezone: user.timezone || DEFAULT_TIMEZONE,
     });
   }
 }
@@ -61,6 +65,7 @@ export async function ensureBootstrapAdmin(usersStore: Store<AdminUser>): Promis
     email,
     role: 'developer',
     status: 'active',
+    timezone: DEFAULT_TIMEZONE,
     createdAt: new Date().toISOString(),
   });
 

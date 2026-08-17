@@ -26,7 +26,11 @@ export function SignupPage() {
     }
     setSubmitting(true);
     try {
-      await signup({ name, email, password });
+      // Invisible - no visible Timezone field on this form. The one
+      // real browser signal available at account-creation time,
+      // editable afterward via Account Details.
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      await signup({ name, email, password, timezone });
       navigate('/', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create your account');

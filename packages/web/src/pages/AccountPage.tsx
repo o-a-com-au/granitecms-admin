@@ -4,6 +4,16 @@ import { updateAccount, changePassword } from '../api/account.ts';
 import { PasswordInput } from '../components/PasswordInput.tsx';
 import { isStrongPassword, MIN_PASSWORD_LENGTH, PASSWORD_REQUIREMENTS_MESSAGE } from '../auth/passwordStrength.ts';
 
+// 'UTC' explicitly included, not just Intl.supportedValuesOf('timeZone')
+// alone - at least on some ICU builds that list omits 'UTC' entirely
+// despite it being the real, valid default new/backfilled accounts
+// actually carry (see packages/server/src/auth/timezone.ts's own
+// comment on the same gap). Without it, an account whose timezone
+// really is 'UTC' would render this <select> with no matching option
+// selected. Computed once at module load, not per render - static and
+// the same list every time.
+const TIMEZONE_OPTIONS = Array.from(new Set(['UTC', ...Intl.supportedValuesOf('timeZone')])).sort();
+
 // Reachable by both roles (unlike /settings) - a client manages their
 // own name/email/password here too, not just developers.
 export function AccountPage() {
@@ -11,6 +21,7 @@ export function AccountPage() {
 
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
+  const [timezone, setTimezone] = useState(user?.timezone ?? 'UTC');
 
   // In practice this page only ever mounts once RequireAuth has
   // already resolved status to 'authenticated', by which point user
@@ -24,6 +35,7 @@ export function AccountPage() {
     if (user) {
       setName(user.name);
       setEmail(user.email);
+      setTimezone(user.timezone);
     }
   }, [user]);
   const [detailsError, setDetailsError] = useState<string | null>(null);
@@ -43,7 +55,7 @@ export function AccountPage() {
     setDetailsSaved(false);
     setSavingDetails(true);
     try {
-      await updateAccount({ name, email });
+      await updateAccount({ name, email, timezone });
       // Updates the popover's own display immediately, no reload -
       // the same refresh() the pause/resume flow already uses.
       await refresh();
@@ -96,6 +108,16 @@ export function AccountPage() {
             <label>
               Email
               <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            </label>
+            <label>
+              Timezone
+              <select value={timezone} onChange={(event) => setTimezone(event.target.value)} required>
+                {TIMEZONE_OPTIONS.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz}
+                  </option>
+                ))}
+              </select>
             </label>
             {detailsError && <p role="alert">{detailsError}</p>}
             {detailsSaved && (
