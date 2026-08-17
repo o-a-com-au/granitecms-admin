@@ -306,6 +306,7 @@ describe('AppShell', () => {
     fireEvent.click(screen.getByTitle('admin'));
 
     await waitFor(() => expect(screen.getByText('other.example.com')).toBeDefined());
+    expect(screen.getByText('Switch site')).toBeDefined();
     const current = screen.getByText('localhost:3891');
     expect(current.tagName).toBe('SPAN');
     expect(current.getAttribute('aria-current')).toBe('page');

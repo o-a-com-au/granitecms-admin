@@ -216,6 +216,7 @@ export function AppShell() {
                   </div>
                   {sites !== null && sites.length > 0 && (
                     <div className="account-popover-sites">
+                      <p className="account-popover-sites-label">Switch site</p>
                       {sites.map((site) => {
                         let hostLabel: string;
                         try {

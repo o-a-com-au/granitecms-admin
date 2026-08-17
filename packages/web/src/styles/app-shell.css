@@ -274,6 +274,15 @@
   overflow-y: auto;
 }
 
+.account-popover-sites-label {
+  margin: 0.2rem 0.25rem 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--colour-muted);
+}
+
 .account-popover-item.is-current {
   font-weight: 600;
   cursor: default;
