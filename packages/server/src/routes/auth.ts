@@ -2,8 +2,9 @@ import type { FastifyInstance } from 'fastify';
 import type { Store } from '../store/store.ts';
 import type { AdminUser } from '../auth/users.ts';
 import { normaliseUsername } from '../auth/users.ts';
-import { DUMMY_HASH, DUMMY_SALT, verifyPassword } from '../auth/password.ts';
-import { createRequireSession } from '../auth/require-auth.ts';
+import { DUMMY_HASH, DUMMY_SALT, hashPassword, verifyPassword } from '../auth/password.ts';
+import { createRequireAuth, createRequireSession } from '../auth/require-auth.ts';
+import type { SessionRecord } from '../auth/session-store-adapter.ts';
 
 interface LoginBody {
   username: string;
@@ -23,8 +24,47 @@ function parseLoginBody(body: unknown): LoginBody | null {
 
 const INVALID_CREDENTIALS_MESSAGE = 'Invalid username or password';
 
-export function createAuthRoutes(usersStore: Store<AdminUser>) {
+interface UpdateAccountBody {
+  name?: string;
+  email?: string;
+}
+
+function parseUpdateAccountBody(body: unknown): UpdateAccountBody | null {
+  if (typeof body !== 'object' || body === null) {
+    return null;
+  }
+  const record = body as Record<string, unknown>;
+  if (record.name !== undefined && (typeof record.name !== 'string' || record.name.trim() === '')) {
+    return null;
+  }
+  if (record.email !== undefined && (typeof record.email !== 'string' || record.email.trim() === '')) {
+    return null;
+  }
+  return { name: record.name as string | undefined, email: record.email as string | undefined };
+}
+
+interface ChangePasswordBody {
+  currentPassword: string;
+  newPassword: string;
+}
+
+function parseChangePasswordBody(body: unknown): ChangePasswordBody | null {
+  if (typeof body !== 'object' || body === null) {
+    return null;
+  }
+  const record = body as Record<string, unknown>;
+  if (typeof record.currentPassword !== 'string' || typeof record.newPassword !== 'string') {
+    return null;
+  }
+  if (record.newPassword.trim() === '') {
+    return null;
+  }
+  return { currentPassword: record.currentPassword, newPassword: record.newPassword };
+}
+
+export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStore: Store<SessionRecord>) {
   const requireSession = createRequireSession(usersStore);
+  const requireAuth = createRequireAuth(usersStore);
 
   return async function authRoutes(app: FastifyInstance): Promise<void> {
     app.post('/login', async (request, reply) => {
@@ -99,6 +139,85 @@ export function createAuthRoutes(usersStore: Store<AdminUser>) {
         await usersStore.save({ ...record, status: 'active' });
       }
       return { status: 'active' };
+    });
+
+    // Ordinary requireAuth, not requireSession - editing your profile
+    // isn't part of the "get yourself unblocked while paused" escape
+    // hatch /me, /pause, and /resume exist for. Username is never
+    // accepted here - it's the record's own id and a foreign key
+    // throughout (SiteAccess, Site.ownerId, the session's own userId),
+    // so it stays fixed; only name/email are editable.
+    app.patch('/me', { preHandler: requireAuth }, async (request, reply) => {
+      const body = parseUpdateAccountBody(request.body);
+      if (!body) {
+        reply.code(400);
+        return { statusCode: 400, error: 'Bad Request', message: 'name and email, if provided, must be non-empty' };
+      }
+
+      const user = request.currentUser!;
+      const record = await usersStore.find(user.id);
+      if (!record) {
+        reply.code(404);
+        return { statusCode: 404, error: 'Not Found', message: 'Account no longer exists' };
+      }
+
+      const updated: AdminUser = {
+        ...record,
+        name: body.name ?? record.name,
+        email: body.email ?? record.email,
+      };
+      await usersStore.save(updated);
+
+      return {
+        id: updated.id,
+        username: updated.username,
+        name: updated.name,
+        email: updated.email,
+        role: updated.role,
+        status: updated.status,
+      };
+    });
+
+    app.post('/change-password', { preHandler: requireAuth }, async (request, reply) => {
+      const body = parseChangePasswordBody(request.body);
+      if (!body) {
+        reply.code(400);
+        return { statusCode: 400, error: 'Bad Request', message: 'currentPassword and newPassword are required' };
+      }
+
+      const user = request.currentUser!;
+      const record = await usersStore.find(user.id);
+      if (!record) {
+        reply.code(404);
+        return { statusCode: 404, error: 'Not Found', message: 'Account no longer exists' };
+      }
+
+      if (!verifyPassword(body.currentPassword, record.passwordHash, record.passwordSalt)) {
+        // A specific message, unlike /login's deliberately generic one -
+        // the caller is already authenticated as this exact account, so
+        // there's no username to enumerate here.
+        reply.code(401);
+        return { statusCode: 401, error: 'Unauthorized', message: 'Current password is incorrect' };
+      }
+
+      const { hash, salt } = hashPassword(body.newPassword);
+      await usersStore.save({ ...record, passwordHash: hash, passwordSalt: salt });
+
+      // Logs out every other session belonging to this account - a
+      // password change is exactly the moment that should invalidate
+      // any session someone else might be holding. The caller's own
+      // current session is left alone (excluded by sessionId), so
+      // changing your own password never logs you out of the tab you
+      // did it from.
+      const allSessions = await sessionRecordStore.list();
+      const currentSessionId = request.session.sessionId;
+      await Promise.all(
+        allSessions
+          .filter((sessionRecord) => sessionRecord.session.userId === user.id && sessionRecord.id !== currentSessionId)
+          .map((sessionRecord) => sessionRecordStore.delete(sessionRecord.id)),
+      );
+
+      return { ok: true };
     });
   };
 }

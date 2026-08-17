@@ -93,7 +93,7 @@ export async function buildServer(
   });
 
   await app.register(healthRoutes, { prefix: '/api' });
-  await app.register(createAuthRoutes(deps.usersStore), { prefix: '/api/auth' });
+  await app.register(createAuthRoutes(deps.usersStore, deps.sessionRecordStore), { prefix: '/api/auth' });
   await app.register(createOAuthRoutes(deps.oauthProviders, deps.usersStore, deps.baseUrl), { prefix: '/api/auth' });
   await app.register(createSitesRoutes(deps.usersStore, deps.sitesStore, deps.siteAccessStore), { prefix: '/api/sites' });
   await app.register(createSiteUsersRoutes(deps.usersStore, deps.sitesStore, deps.siteAccessStore), {

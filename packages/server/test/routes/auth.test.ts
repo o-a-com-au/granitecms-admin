@@ -306,4 +306,202 @@ describe('auth routes', () => {
       await app.close();
     });
   });
+
+  describe('PATCH /api/auth/me', () => {
+    it('updates name and email, returning the full current-user shape', async () => {
+      const { app } = await buildTestServer();
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/auth/me',
+        headers: { cookie },
+        payload: { name: 'New Name', email: 'new-email@example.com' },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(response.json(), {
+        id: normaliseUsername(TEST_USERNAME),
+        username: TEST_USERNAME,
+        name: 'New Name',
+        email: 'new-email@example.com',
+        role: 'developer',
+        status: 'active',
+      });
+
+      await app.close();
+    });
+
+    it('a partial update (name only) leaves email untouched, and vice versa', async () => {
+      const { app } = await buildTestServer();
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      const nameOnly = await app.inject({ method: 'PATCH', url: '/api/auth/me', headers: { cookie }, payload: { name: 'Only Name Changed' } });
+      assert.equal(nameOnly.statusCode, 200);
+      assert.equal(nameOnly.json().name, 'Only Name Changed');
+      assert.equal(nameOnly.json().email, TEST_EMAIL);
+
+      const emailOnly = await app.inject({
+        method: 'PATCH',
+        url: '/api/auth/me',
+        headers: { cookie },
+        payload: { email: 'only-email-changed@example.com' },
+      });
+      assert.equal(emailOnly.statusCode, 200);
+      assert.equal(emailOnly.json().name, 'Only Name Changed', 'the name set by the previous request must survive');
+      assert.equal(emailOnly.json().email, 'only-email-changed@example.com');
+
+      await app.close();
+    });
+
+    it('rejects an empty/whitespace-only name or email with 400 and no mutation', async () => {
+      const { app } = await buildTestServer();
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      const response = await app.inject({ method: 'PATCH', url: '/api/auth/me', headers: { cookie }, payload: { name: '   ' } });
+      assert.equal(response.statusCode, 400);
+
+      const meResponse = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie } });
+      assert.equal(meResponse.json().name, TEST_NAME, 'must not have been mutated');
+
+      await app.close();
+    });
+
+    it('username is never accepted or changed, even if supplied in the body', async () => {
+      const { app } = await buildTestServer();
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/auth/me',
+        headers: { cookie },
+        payload: { name: 'Still Jane', username: 'attempted-rename' },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.json().username, TEST_USERNAME);
+      assert.equal(response.json().id, normaliseUsername(TEST_USERNAME));
+
+      await app.close();
+    });
+  });
+
+  describe('POST /api/auth/change-password', () => {
+    it('changes the password: the new one works on a fresh login, the old one no longer does', async () => {
+      const { app } = await buildTestServer();
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      const changeResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/change-password',
+        headers: { cookie },
+        payload: { currentPassword: TEST_PASSWORD, newPassword: 'a brand new password' },
+      });
+      assert.equal(changeResponse.statusCode, 200);
+      assert.deepEqual(changeResponse.json(), { ok: true });
+
+      const oldPasswordLogin = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      assert.equal(oldPasswordLogin.statusCode, 401);
+
+      const newPasswordLogin = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: 'a brand new password' },
+      });
+      assert.equal(newPasswordLogin.statusCode, 200);
+
+      await app.close();
+    });
+
+    it('rejects the wrong current password with 401 and makes no change', async () => {
+      const { app } = await buildTestServer();
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/auth/change-password',
+        headers: { cookie },
+        payload: { currentPassword: 'totally wrong', newPassword: 'a brand new password' },
+      });
+      assert.equal(response.statusCode, 401);
+
+      const stillWorksLogin = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      assert.equal(stillWorksLogin.statusCode, 200, 'the original password must still work - nothing was changed');
+
+      await app.close();
+    });
+
+    it('invalidates every other session belonging to the account, but leaves the session that made the change alone', async () => {
+      const { app } = await buildTestServer();
+
+      const firstLogin = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const firstCookie = extractCookie(firstLogin.headers['set-cookie']);
+
+      const secondLogin = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const secondCookie = extractCookie(secondLogin.headers['set-cookie']);
+
+      // The change is made from the *second* session.
+      const changeResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/change-password',
+        headers: { cookie: secondCookie },
+        payload: { currentPassword: TEST_PASSWORD, newPassword: 'a brand new password' },
+      });
+      assert.equal(changeResponse.statusCode, 200);
+
+      const firstAfter = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: firstCookie } });
+      assert.equal(firstAfter.statusCode, 401, 'the other, untouched session must be logged out');
+
+      const secondAfter = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: secondCookie } });
+      assert.equal(secondAfter.statusCode, 200, 'the session that made the change must stay logged in');
+
+      await app.close();
+    });
+  });
 });
