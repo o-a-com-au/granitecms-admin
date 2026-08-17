@@ -203,39 +203,6 @@ function installFakeApiWithClientProfile() {
   return fetchMock;
 }
 
-// Same shape as installFakeApiWithProfile, but /pause and /resume are
-// wired to a mutable currentStatus so the pause tests can observe
-// AppShell's own refresh() call actually pick up the new value.
-function installFakeApiWithPauseSupport() {
-  let currentStatus: 'active' | 'paused' = 'active';
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === 'string' ? input : input.toString();
-    if (url === '/api/auth/me') {
-      return new Response(
-        JSON.stringify({
-          id: 'admin',
-          username: 'admin',
-          name: 'Ada Admin',
-          email: 'ada@example.com',
-          role: 'developer',
-          status: currentStatus,
-        }),
-        { status: 200 },
-      );
-    }
-    if (url === '/api/sites') {
-      return new Response(JSON.stringify([SITE]), { status: 200 });
-    }
-    if (url === '/api/auth/pause' && init?.method === 'POST') {
-      currentStatus = 'paused';
-      return new Response(JSON.stringify({ status: 'paused' }), { status: 200 });
-    }
-    throw new Error(`unhandled fetch in test: ${url}`);
-  });
-  vi.stubGlobal('fetch', fetchMock);
-  return fetchMock;
-}
-
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -530,49 +497,29 @@ describe('AppShell', () => {
     expect(link.getAttribute('href')).toBe('/account');
   });
 
-  it('"Pause my account" asks for confirmation before pausing', async () => {
-    installFakeApiWithPauseSupport();
+  it('a developer sees the "Manage subscription" popover item, pointing at /subscription', async () => {
+    installFakeApiWithProfile();
 
     renderShell('/sites/site-1/content');
     await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
 
     fireEvent.click(screen.getByTitle('admin'));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Pause my account' }));
 
-    expect(screen.getByRole('alertdialog')).toBeDefined();
+    const link = screen.getByRole('menuitem', { name: 'Manage subscription' });
+    expect(link).toBeDefined();
+    expect(link.getAttribute('href')).toBe('/subscription');
   });
 
-  it('cancelling the pause confirmation makes no API call and closes the dialog', async () => {
-    const fetchMock = installFakeApiWithPauseSupport();
+  it('a client also sees the "Manage subscription" popover item - it is not developer-only either', async () => {
+    installFakeApiWithClientProfile();
 
     renderShell('/sites/site-1/content');
     await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
 
-    fireEvent.click(screen.getByTitle('admin'));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Pause my account' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByTitle('client-1'));
 
-    expect(screen.queryByRole('alertdialog')).toBeNull();
-    expect(fetchMock).not.toHaveBeenCalledWith('/api/auth/pause', { method: 'POST' });
-  });
-
-  it('confirming the pause calls POST /api/auth/pause and re-fetches /me', async () => {
-    const fetchMock = installFakeApiWithPauseSupport();
-
-    renderShell('/sites/site-1/content');
-    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
-
-    fireEvent.click(screen.getByTitle('admin'));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Pause my account' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Pause account' }));
-
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/auth/pause', { method: 'POST' }));
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-    // Two /me calls: the initial mount fetch, and the post-pause refresh().
-    const meCalls = fetchMock.mock.calls.filter(([input]) => {
-      const url = typeof input === 'string' ? input : (input as URL).toString();
-      return url === '/api/auth/me';
-    });
-    expect(meCalls.length).toBeGreaterThanOrEqual(2);
+    const link = screen.getByRole('menuitem', { name: 'Manage subscription' });
+    expect(link).toBeDefined();
+    expect(link.getAttribute('href')).toBe('/subscription');
   });
 });

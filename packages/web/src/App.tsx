@@ -4,6 +4,7 @@ import { SignupPage } from './pages/SignupPage.tsx';
 import { ClaimInvitePage } from './pages/ClaimInvitePage.tsx';
 import { HomeRedirect } from './pages/HomeRedirect.tsx';
 import { AccountPage } from './pages/AccountPage.tsx';
+import { ManageSubscriptionPage } from './pages/ManageSubscriptionPage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
 import { ContentBrowserPage } from './pages/ContentBrowserPage.tsx';
 import { MenusPage } from './pages/MenusPage.tsx';
@@ -35,6 +36,7 @@ export const routes: RouteObject[] = [
         children: [
           { path: '/', element: <HomeRedirect /> },
           { path: '/account', element: <AccountPage /> },
+          { path: '/subscription', element: <ManageSubscriptionPage /> },
           {
             element: <RequireDeveloper />,
             children: [{ path: '/settings', element: <SettingsPage /> }],
