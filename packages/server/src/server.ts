@@ -8,6 +8,7 @@ import { healthRoutes } from './routes/health.ts';
 import { createAuthRoutes } from './routes/auth.ts';
 import { createSitesRoutes } from './routes/sites.ts';
 import { createSiteUsersRoutes } from './routes/site-users.ts';
+import { createOAuthRoutes } from './routes/oauth.ts';
 import { loadConfig, type AdminConfig } from './config.ts';
 import type { Store } from './store/store.ts';
 import type { AdminUser } from './auth/users.ts';
@@ -15,6 +16,7 @@ import { toSessionStore, type SessionRecord } from './auth/session-store-adapter
 import { openInMemoryStore } from './store/in-memory-store.ts';
 import type { Site } from './sites/site.ts';
 import type { SiteAccess } from './sites/site-access.ts';
+import type { OAuthProvider } from './auth/oauth-provider.ts';
 import './auth/session-types.ts';
 
 export interface ServerDeps {
@@ -23,13 +25,17 @@ export interface ServerDeps {
   sessionSecret: string;
   sitesStore: Store<Site>;
   siteAccessStore: Store<SiteAccess>;
+  oauthProviders: OAuthProvider[];
+  baseUrl: string;
 }
 
 // Ephemeral, tests/dev-only default (fresh in-memory stores, a random
 // per-process secret) - mirrors the config parameter's default-via-
 // loadConfig() pattern, but real production boot (index.ts) always
 // constructs and passes real JSON-file-backed deps explicitly, never
-// relying on this.
+// relying on this. No providers by default, so baseUrl being empty
+// never matters - a test that actually exercises the OAuth routes
+// passes its own deps with a real one.
 function defaultDeps(): ServerDeps {
   return {
     usersStore: openInMemoryStore<AdminUser>(),
@@ -37,6 +43,8 @@ function defaultDeps(): ServerDeps {
     sessionSecret: randomBytes(48).toString('hex'),
     sitesStore: openInMemoryStore<Site>(),
     siteAccessStore: openInMemoryStore<SiteAccess>(),
+    oauthProviders: [],
+    baseUrl: '',
   };
 }
 
@@ -79,6 +87,7 @@ export async function buildServer(
 
   await app.register(healthRoutes, { prefix: '/api' });
   await app.register(createAuthRoutes(deps.usersStore), { prefix: '/api/auth' });
+  await app.register(createOAuthRoutes(deps.oauthProviders, deps.usersStore, deps.baseUrl), { prefix: '/api/auth' });
   await app.register(createSitesRoutes(deps.usersStore, deps.sitesStore, deps.siteAccessStore), { prefix: '/api/sites' });
   await app.register(createSiteUsersRoutes(deps.usersStore, deps.sitesStore, deps.siteAccessStore), {
     prefix: '/api/sites',

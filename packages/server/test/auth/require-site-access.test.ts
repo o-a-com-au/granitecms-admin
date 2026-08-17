@@ -37,6 +37,8 @@ async function buildTestServer(): Promise<{ app: Awaited<ReturnType<typeof build
     sessionSecret: randomBytes(48).toString('hex'),
     sitesStore,
     siteAccessStore,
+    oauthProviders: [],
+    baseUrl: '',
   };
   const app = await buildServer(undefined, serverDeps);
 

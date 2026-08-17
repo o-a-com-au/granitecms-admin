@@ -65,6 +65,8 @@ async function buildTestServer(): Promise<TestServer> {
     sessionSecret: randomBytes(48).toString('hex'),
     sitesStore,
     siteAccessStore: openInMemoryStore<SiteAccess>(),
+    oauthProviders: [],
+    baseUrl: '',
   };
 
   const app = await buildServer(undefined, deps);

@@ -10,6 +10,9 @@ import type { SessionRecord } from './auth/session-store-adapter.ts';
 import type { Site } from './sites/site.ts';
 import type { SiteAccess } from './sites/site-access.ts';
 import { backfillSiteOwnership } from './sites/site-ownership-backfill.ts';
+import { createGoogleProvider } from './auth/oauth-google.ts';
+import { createGithubProvider } from './auth/oauth-github.ts';
+import type { OAuthProvider } from './auth/oauth-provider.ts';
 
 const config = loadConfig();
 
@@ -26,7 +29,27 @@ const sessionSecret = await ensureSessionSecret(sessionSecretStore);
 await ensureBootstrapAdmin(usersStore);
 await backfillSiteOwnership(usersStore, sitesStore);
 
-const app = await buildServer(config, { usersStore, sessionRecordStore, sessionSecret, sitesStore, siteAccessStore });
+// Only the providers with both env vars set are constructed at all -
+// an unconfigured provider never gets so much as a route registered
+// (server.ts loops over exactly this array), not just a disabled
+// button.
+const oauthProviders: OAuthProvider[] = [];
+if (config.googleOAuth) {
+  oauthProviders.push(createGoogleProvider(config.googleOAuth.clientId, config.googleOAuth.clientSecret));
+}
+if (config.githubOAuth) {
+  oauthProviders.push(createGithubProvider(config.githubOAuth.clientId, config.githubOAuth.clientSecret));
+}
+
+const app = await buildServer(config, {
+  usersStore,
+  sessionRecordStore,
+  sessionSecret,
+  sitesStore,
+  siteAccessStore,
+  oauthProviders,
+  baseUrl: config.baseUrl,
+});
 
 await app.listen({ port: config.port, host: '0.0.0.0' });
 app.log.info(`admin server listening on port ${config.port}`);

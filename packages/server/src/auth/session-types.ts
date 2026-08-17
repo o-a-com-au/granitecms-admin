@@ -8,5 +8,9 @@ import '@fastify/session';
 declare module 'fastify' {
   interface Session {
     userId?: string;
+    // CSRF protection for the OAuth authorization-code flow
+    // (routes/oauth.ts): set right before redirecting to the
+    // provider, checked back on callback.
+    oauthState?: string;
   }
 }

@@ -28,7 +28,11 @@ const HARDCODED_URL_PATTERN = /https?:\/\/[^'"`\s]+/;
 
 // Each entry names why a literal URL there is legitimate, not a
 // hardcoded site.
-const HARDCODED_URL_ALLOWLIST = new Set<string>([]);
+const HARDCODED_URL_ALLOWLIST = new Set<string>([
+  'config.ts', // ADMIN_BASE_URL's own local-dev fallback (http://localhost:${port}) - a real deployment behind a domain must set the env var explicitly
+  'auth/oauth-google.ts', // Google's own fixed, well-known OAuth endpoints - not a registered site's URL, which is what this guard exists to catch
+  'auth/oauth-github.ts', // GitHub's own fixed, well-known OAuth/API endpoints - same reasoning as oauth-google.ts
+]);
 
 function containsHardcodedUrl(contents: string): boolean {
   return HARDCODED_URL_PATTERN.test(contents);
@@ -84,6 +88,15 @@ const ROUTE_AUTH_EXEMPTIONS = new Set<string>([
   'routes/auth.ts::GET /me', // real auth (requireSession), deliberately not requireAuth - must stay reachable for a paused account too, so the frontend can show a paused notice instead of a raw 401
   'routes/auth.ts::POST /pause', // real auth (requireSession), same reason as /me - pausing yourself obviously can't require not already being paused
   'routes/auth.ts::POST /resume', // real auth (requireSession), same reason - must stay reachable *while paused*, or a paused account could never get back in
+  'routes/oauth.ts::GET /providers', // reports only which provider ids are configured (no secrets, no per-user data) - the login page calls this before anyone is authenticated, to decide which buttons to show
+  // The OAuth login-redirect and callback routes (routes/oauth.ts,
+  // GET /:provider and GET /:provider/callback) are registered with
+  // template-literal paths (`/${provider.id}`), not string literals,
+  // so ROUTE_REGISTRATION_PATTERN's quote-only match never sees them
+  // at all - no entry needed here, but noted: both are deliberately
+  // unauthenticated by design (a visitor has no session yet when
+  // starting the OAuth flow), matching POST /login's own exemption
+  // above for the same underlying reason.
 ]);
 
 interface RouteWindow {

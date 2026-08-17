@@ -26,7 +26,14 @@ describe('server - production static/SPA serving', () => {
     webDistDir = await mkdtemp(join(tmpdir(), 'admin-web-dist-'));
     await writeFile(join(webDistDir, 'index.html'), '<html><body>admin shell</body></html>');
     await writeFile(join(webDistDir, 'app.js'), 'console.log("asset");');
-    config = { port: 0, dataDir: join(webDistDir, 'data'), webDistDir };
+    config = {
+      port: 0,
+      dataDir: join(webDistDir, 'data'),
+      webDistDir,
+      baseUrl: 'http://localhost:0',
+      googleOAuth: undefined,
+      githubOAuth: undefined,
+    };
   });
 
   afterEach(async () => {
