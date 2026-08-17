@@ -92,7 +92,12 @@ describe('AccountPage', () => {
           return new Response(JSON.stringify(CURRENT_USER), { status: 200 });
         }
         if (url === '/api/auth/me' && init?.method === 'PATCH') {
-          return new Response(JSON.stringify({ error: 'name and email, if provided, must be non-empty' }), { status: 400 });
+          // Mirrors the real shape routes/auth.ts returns - error alone
+          // is just "Bad Request", message is the text that must show.
+          return new Response(
+            JSON.stringify({ statusCode: 400, error: 'Bad Request', message: 'name and email, if provided, must be non-empty' }),
+            { status: 400 },
+          );
         }
         throw new Error(`unhandled fetch in test: ${url}`);
       }),
@@ -165,7 +170,12 @@ describe('AccountPage', () => {
           return new Response(JSON.stringify(CURRENT_USER), { status: 200 });
         }
         if (url === '/api/auth/change-password' && init?.method === 'POST') {
-          return new Response(JSON.stringify({ error: 'Current password is incorrect' }), { status: 401 });
+          // Mirrors the real shape routes/auth.ts returns - error alone
+          // is just "Unauthorized", message is the text that must show.
+          return new Response(
+            JSON.stringify({ statusCode: 401, error: 'Unauthorized', message: 'Current password is incorrect' }),
+            { status: 401 },
+          );
         }
         throw new Error(`unhandled fetch in test: ${url}`);
       }),

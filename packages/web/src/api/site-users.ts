@@ -15,7 +15,11 @@ export type SiteClientInviteResult = SiteClient & { password?: string };
 async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
     const body = (await response.json()) as { error?: string; message?: string };
-    return body.error ?? body.message ?? fallback;
+    // message first: routes/site-users.ts's error responses are
+    // shaped { statusCode, error: '<generic HTTP reason phrase>',
+    // message: '<the actual text>' } - error alone is just
+    // "Conflict"/"Bad Request", not useful to show.
+    return body.message ?? body.error ?? fallback;
   } catch {
     return fallback;
   }

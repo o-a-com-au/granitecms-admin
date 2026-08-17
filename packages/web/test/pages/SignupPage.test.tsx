@@ -74,8 +74,14 @@ describe('SignupPage', () => {
           return new Response(null, { status: 401 });
         }
         if (url === '/api/auth/signup' && init?.method === 'POST') {
+          // Mirrors the real shape routes/auth.ts returns - error alone
+          // is just "Conflict", message is the text that must show.
           return new Response(
-            JSON.stringify({ error: 'An account with this email already exists - log in instead' }),
+            JSON.stringify({
+              statusCode: 409,
+              error: 'Conflict',
+              message: 'An account with this email already exists - log in instead',
+            }),
             { status: 409 },
           );
         }
@@ -103,7 +109,11 @@ describe('SignupPage', () => {
         }
         if (url === '/api/auth/signup' && init?.method === 'POST') {
           return new Response(
-            JSON.stringify({ message: 'name, email, and a password of at least 8 characters are required' }),
+            JSON.stringify({
+              statusCode: 400,
+              error: 'Bad Request',
+              message: 'name, email, and a password of at least 8 characters are required',
+            }),
             { status: 400 },
           );
         }

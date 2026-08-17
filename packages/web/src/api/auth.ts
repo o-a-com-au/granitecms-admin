@@ -29,7 +29,14 @@ export async function login(username: string, password: string): Promise<Current
 async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
     const body = (await response.json()) as { error?: string; message?: string };
-    return body.error ?? body.message ?? fallback;
+    // message first: routes/auth.ts's error responses (signup,
+    // change-password, PATCH /me) are shaped { statusCode, error:
+    // '<generic HTTP reason phrase>', message: '<the actual text>' } -
+    // error alone is just "Conflict"/"Bad Request", not useful to
+    // show. /login itself is the one exception (a bare
+    // { error: '<message>' }, no separate message field), which
+    // falling back to error still handles correctly.
+    return body.message ?? body.error ?? fallback;
   } catch {
     return fallback;
   }

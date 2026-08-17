@@ -171,8 +171,14 @@ describe('ClaimInvitePage', () => {
           );
         }
         if (url === `/api/invites/${CODE}/claim` && init?.method === 'POST') {
+          // Mirrors the real shape routes/site-invites.ts returns - error
+          // alone is just "Conflict", message is the text that must show.
           return new Response(
-            JSON.stringify({ error: 'An account with this email already exists - log in and open the invite link again' }),
+            JSON.stringify({
+              statusCode: 409,
+              error: 'Conflict',
+              message: 'An account with this email already exists - log in and open the invite link again',
+            }),
             { status: 409 },
           );
         }

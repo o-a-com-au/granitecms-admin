@@ -129,9 +129,12 @@ function installFakeSitesApi(options: { emailConfigured?: boolean } = {}): {
         // matches routes/site-users.ts's own current behaviour.
         const existing = state.clients.find((client) => client.email === body.email);
         if (existing) {
-          return new Response(JSON.stringify({ error: 'That email already belongs to a developer account' }), {
-            status: 409,
-          });
+          // Mirrors the real shape routes/site-users.ts returns - error
+          // alone is just "Conflict", message is the text that must show.
+          return new Response(
+            JSON.stringify({ statusCode: 409, error: 'Conflict', message: 'That email already belongs to a developer account' }),
+            { status: 409 },
+          );
         }
         const now = new Date().toISOString();
         const entry: FakeClient = {
@@ -155,7 +158,12 @@ function installFakeSitesApi(options: { emailConfigured?: boolean } = {}): {
         const before = state.clients.length;
         state.clients = state.clients.filter((client) => !(client.siteId === siteId && client.id === clientId));
         if (state.clients.length === before) {
-          return new Response(JSON.stringify({ error: 'No access grant for this user on this site' }), { status: 404 });
+          // Mirrors the real shape routes/site-users.ts returns - error
+          // alone is just "Not Found", message is the text that must show.
+          return new Response(
+            JSON.stringify({ statusCode: 404, error: 'Not Found', message: 'No access grant for this user on this site' }),
+            { status: 404 },
+          );
         }
         return new Response(JSON.stringify({ ok: true, accountDeleted: true }), { status: 200 });
       }
