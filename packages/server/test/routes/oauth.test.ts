@@ -10,6 +10,7 @@ import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
 import type { Site } from '../../src/sites/site.ts';
 import type { SiteAccess } from '../../src/sites/site-access.ts';
 import type { OAuthProvider } from '../../src/auth/oauth-provider.ts';
+import type { SiteInvite } from '../../src/sites/site-invite.ts';
 
 let fakeTokenServer: Server | undefined;
 
@@ -72,8 +73,10 @@ async function buildTestServer(oauthProviders: OAuthProvider[]): Promise<{ app: 
     sessionSecret: randomBytes(48).toString('hex'),
     sitesStore: openInMemoryStore<Site>(),
     siteAccessStore: openInMemoryStore<SiteAccess>(),
+    siteInviteStore: openInMemoryStore<SiteInvite>(),
     oauthProviders,
     baseUrl: 'http://localhost:0',
+    mailer: undefined,
   };
   const app = await buildServer(undefined, deps);
   return { app, deps };

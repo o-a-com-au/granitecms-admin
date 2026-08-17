@@ -8,6 +8,7 @@ import type { AdminUser } from '../../src/auth/users.ts';
 import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
 import type { Site } from '../../src/sites/site.ts';
 import { siteAccessId, type SiteAccess } from '../../src/sites/site-access.ts';
+import type { SiteInvite } from '../../src/sites/site-invite.ts';
 
 // requireSiteAccess is already exercised indirectly by
 // test/routes/sites.test.ts's ~2100 lines (every registerSite() call
@@ -37,8 +38,10 @@ async function buildTestServer(): Promise<{ app: Awaited<ReturnType<typeof build
     sessionSecret: randomBytes(48).toString('hex'),
     sitesStore,
     siteAccessStore,
+    siteInviteStore: openInMemoryStore<SiteInvite>(),
     oauthProviders: [],
     baseUrl: '',
+    mailer: undefined,
   };
   const app = await buildServer(undefined, serverDeps);
 

@@ -8,6 +8,7 @@ import { normaliseUsername, type AdminUser } from '../../src/auth/users.ts';
 import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
 import type { Site } from '../../src/sites/site.ts';
 import { siteAccessId, type SiteAccess } from '../../src/sites/site-access.ts';
+import type { SiteInvite } from '../../src/sites/site-invite.ts';
 
 const DEVELOPER_USERNAME = 'dev-one';
 const DEVELOPER_PASSWORD = 'correct horse battery staple';
@@ -65,8 +66,10 @@ async function buildTestServer(): Promise<TestServer> {
     sessionSecret: randomBytes(48).toString('hex'),
     sitesStore,
     siteAccessStore: openInMemoryStore<SiteAccess>(),
+    siteInviteStore: openInMemoryStore<SiteInvite>(),
     oauthProviders: [],
     baseUrl: '',
+    mailer: undefined,
   };
 
   const app = await buildServer(undefined, deps);

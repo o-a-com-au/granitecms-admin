@@ -16,6 +16,10 @@
     "@fastify/session": "^11.1.2",
     "@fastify/static": "^10.1.2",
     "fastify": "^5.10.0",
-    "google-auth-library": "^11.0.2"
+    "google-auth-library": "^11.0.2",
+    "nodemailer": "^9.0.5"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^8.0.1"
   }
 }

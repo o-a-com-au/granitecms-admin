@@ -33,6 +33,7 @@ describe('server - production static/SPA serving', () => {
       baseUrl: 'http://localhost:0',
       googleOAuth: undefined,
       githubOAuth: undefined,
+      smtp: undefined,
     };
   });
 

@@ -9,10 +9,12 @@ import type { AdminUser } from './auth/users.ts';
 import type { SessionRecord } from './auth/session-store-adapter.ts';
 import type { Site } from './sites/site.ts';
 import type { SiteAccess } from './sites/site-access.ts';
+import type { SiteInvite } from './sites/site-invite.ts';
 import { backfillSiteOwnership } from './sites/site-ownership-backfill.ts';
 import { createGoogleProvider } from './auth/oauth-google.ts';
 import { createGithubProvider } from './auth/oauth-github.ts';
 import type { OAuthProvider } from './auth/oauth-provider.ts';
+import { createMailer } from './email/mailer.ts';
 
 const config = loadConfig();
 
@@ -21,6 +23,7 @@ const sessionSecretStore = openJsonFileStore<SessionSecretRecord>(join(config.da
 const sessionRecordStore = openJsonFileStore<SessionRecord>(join(config.dataDir, 'sessions.json'));
 const sitesStore = openJsonFileStore<Site>(join(config.dataDir, 'sites.json'));
 const siteAccessStore = openJsonFileStore<SiteAccess>(join(config.dataDir, 'site-access.json'));
+const siteInviteStore = openJsonFileStore<SiteInvite>(join(config.dataDir, 'site-invites.json'));
 
 const sessionSecret = await ensureSessionSecret(sessionSecretStore);
 // Sequenced deliberately: role must be backfilled onto pre-existing
@@ -41,14 +44,18 @@ if (config.githubOAuth) {
   oauthProviders.push(createGithubProvider(config.githubOAuth.clientId, config.githubOAuth.clientSecret));
 }
 
+const mailer = createMailer(config.smtp);
+
 const app = await buildServer(config, {
   usersStore,
   sessionRecordStore,
   sessionSecret,
   sitesStore,
   siteAccessStore,
+  siteInviteStore,
   oauthProviders,
   baseUrl: config.baseUrl,
+  mailer,
 });
 
 await app.listen({ port: config.port, host: '0.0.0.0' });

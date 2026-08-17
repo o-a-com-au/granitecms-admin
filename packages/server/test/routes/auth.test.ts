@@ -9,6 +9,7 @@ import { createRequireAuth } from '../../src/auth/require-auth.ts';
 import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
 import type { Site } from '../../src/sites/site.ts';
 import type { SiteAccess } from '../../src/sites/site-access.ts';
+import type { SiteInvite } from '../../src/sites/site-invite.ts';
 
 const TEST_USERNAME = 'editor';
 const TEST_PASSWORD = 'correct horse battery staple';
@@ -36,8 +37,10 @@ async function buildTestServer(): Promise<{ deps: ServerDeps; app: Awaited<Retur
     sessionSecret: randomBytes(48).toString('hex'),
     sitesStore: openInMemoryStore<Site>(),
     siteAccessStore: openInMemoryStore<SiteAccess>(),
+    siteInviteStore: openInMemoryStore<SiteInvite>(),
     oauthProviders: [],
     baseUrl: '',
+    mailer: undefined,
   };
 
   const app = await buildServer(undefined, deps);

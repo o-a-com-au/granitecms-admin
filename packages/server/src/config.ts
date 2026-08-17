@@ -5,17 +5,26 @@ export interface OAuthProviderConfig {
   clientSecret: string;
 }
 
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  from: string;
+}
+
 export interface AdminConfig {
   port: number;
   dataDir: string;
   webDistDir: string;
   // The externally-reachable origin this server is deployed at, used
-  // only to build OAuth callback URLs (routes/oauth.ts) - never
-  // derived from a request's own Host header, which an attacker
-  // controls.
+  // only to build OAuth callback URLs (routes/oauth.ts) and invite
+  // claim links (routes/site-invites.ts) - never derived from a
+  // request's own Host header, which an attacker controls.
   baseUrl: string;
   googleOAuth: OAuthProviderConfig | undefined;
   githubOAuth: OAuthProviderConfig | undefined;
+  smtp: SmtpConfig | undefined;
 }
 
 function loadProviderConfig(clientIdVar: string, clientSecretVar: string): OAuthProviderConfig | undefined {
@@ -25,6 +34,22 @@ function loadProviderConfig(clientIdVar: string, clientSecretVar: string): OAuth
     return undefined;
   }
   return { clientId, clientSecret };
+}
+
+// All-or-nothing, same pattern as loadProviderConfig - unconfigured is
+// a first-class, fully supported state (email/mailer.ts's
+// createMailer degrades to undefined, never a hard failure), not
+// something that needs partial-config validation.
+function loadSmtpConfig(): SmtpConfig | undefined {
+  const host = process.env.SMTP_HOST;
+  const port = process.env.SMTP_PORT;
+  const user = process.env.SMTP_USER;
+  const password = process.env.SMTP_PASSWORD;
+  const from = process.env.SMTP_FROM;
+  if (!host || !port || !user || !password || !from) {
+    return undefined;
+  }
+  return { host, port: Number(port), user, password, from };
 }
 
 // packages/server/src/config.ts (dev, run directly) and
@@ -47,5 +72,6 @@ export function loadConfig(): AdminConfig {
   const baseUrl = process.env.ADMIN_BASE_URL ?? `http://localhost:${port}`;
   const googleOAuth = loadProviderConfig('GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET');
   const githubOAuth = loadProviderConfig('GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET');
-  return { port, dataDir, webDistDir, baseUrl, googleOAuth, githubOAuth };
+  const smtp = loadSmtpConfig();
+  return { port, dataDir, webDistDir, baseUrl, googleOAuth, githubOAuth, smtp };
 }
