@@ -50,7 +50,7 @@
      in the standard box model those two properties need. */
   border-collapse: separate;
   border-spacing: 0;
-  background: var(--colour-surface);
+  background: var(--colour-table-background);
   border-radius: var(--radius-sm);
   box-sizing: border-box;
   border: 1px solid var(--colour-border);
@@ -68,6 +68,7 @@
 
 .list-table td {
   padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid var(--colour-table-row-divider);
 }
 
 .list-table td a {
