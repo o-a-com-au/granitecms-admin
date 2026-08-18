@@ -13,6 +13,11 @@ import type { SiteInvite } from '../../src/sites/site-invite.ts';
 
 const TEST_USERNAME = 'editor';
 const TEST_PASSWORD = 'correct horse battery staple';
+const TEST_FIRST_NAME = 'Jane';
+const TEST_LAST_NAME = 'Editor';
+// The expected commit-author name - formatFullName(TEST_FIRST_NAME,
+// TEST_LAST_NAME), computed by requireCommitAuthor (routes/sites.ts)
+// from the stored firstName/lastName below, not a stored field itself.
 const TEST_NAME = 'Jane Editor';
 const TEST_EMAIL = 'jane@example.com';
 
@@ -27,7 +32,8 @@ async function buildTestServer(): Promise<{
     username: TEST_USERNAME,
     passwordHash: hash,
     passwordSalt: salt,
-    name: TEST_NAME,
+    firstName: TEST_FIRST_NAME,
+    lastName: TEST_LAST_NAME,
     email: TEST_EMAIL,
     role: 'developer',
     status: 'active',

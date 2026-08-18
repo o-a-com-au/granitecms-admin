@@ -15,11 +15,12 @@ import { isStrongPassword, MIN_PASSWORD_LENGTH, PASSWORD_REQUIREMENTS_MESSAGE } 
 const TIMEZONE_OPTIONS = Array.from(new Set(['UTC', ...Intl.supportedValuesOf('timeZone')])).sort();
 
 // Reachable by both roles (unlike /settings) - a client manages their
-// own name/email/password here too, not just developers.
+// own name(s)/email/password here too, not just developers.
 export function AccountPage() {
   const { user, refresh } = useAuth();
 
-  const [name, setName] = useState(user?.name ?? '');
+  const [firstName, setFirstName] = useState(user?.firstName ?? '');
+  const [lastName, setLastName] = useState(user?.lastName ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
   const [timezone, setTimezone] = useState(user?.timezone ?? 'UTC');
 
@@ -33,7 +34,8 @@ export function AccountPage() {
   // harmless, since local state already matches what was just saved).
   useEffect(() => {
     if (user) {
-      setName(user.name);
+      setFirstName(user.firstName);
+      setLastName(user.lastName);
       setEmail(user.email);
       setTimezone(user.timezone);
     }
@@ -55,7 +57,7 @@ export function AccountPage() {
     setDetailsSaved(false);
     setSavingDetails(true);
     try {
-      await updateAccount({ name, email, timezone });
+      await updateAccount({ firstName, lastName, email, timezone });
       // Updates the popover's own display immediately, no reload -
       // the same refresh() the pause/resume flow already uses.
       await refresh();
@@ -102,8 +104,12 @@ export function AccountPage() {
           <h2>Your details</h2>
           <form onSubmit={handleDetailsSubmit}>
             <label>
-              Name
-              <input value={name} onChange={(event) => setName(event.target.value)} required />
+              First Name
+              <input value={firstName} onChange={(event) => setFirstName(event.target.value)} required />
+            </label>
+            <label>
+              Last Name
+              <input value={lastName} onChange={(event) => setLastName(event.target.value)} />
             </label>
             <label>
               Email

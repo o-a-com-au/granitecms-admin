@@ -11,7 +11,8 @@ import { isStrongPassword, MIN_PASSWORD_LENGTH, PASSWORD_REQUIREMENTS_MESSAGE } 
 export function SignupPage() {
   const { signup } = useAuth();
   const navigate = useNavigate();
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +31,7 @@ export function SignupPage() {
       // real browser signal available at account-creation time,
       // editable afterward via Account Details.
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      await signup({ name, email, password, timezone });
+      await signup({ firstName, lastName, email, password, timezone });
       navigate('/', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create your account');
@@ -48,8 +49,12 @@ export function SignupPage() {
         <h1>Sign up</h1>
         <form onSubmit={handleSubmit}>
           <label>
-            Name
-            <input value={name} onChange={(event) => setName(event.target.value)} required />
+            First Name
+            <input value={firstName} onChange={(event) => setFirstName(event.target.value)} required />
+          </label>
+          <label>
+            Last Name
+            <input value={lastName} onChange={(event) => setLastName(event.target.value)} />
           </label>
           <label>
             Email

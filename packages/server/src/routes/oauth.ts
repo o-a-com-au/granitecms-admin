@@ -47,7 +47,10 @@ async function exchangeCodeForToken(provider: OAuthProvider, code: string, redir
 // case/whitespace-normalised the same way normaliseUsername already
 // treats a typed username - so the same person can use a password
 // today and Google tomorrow and land on the identical account.
-async function findOrCreateUser(usersStore: Store<AdminUser>, identity: { email: string; name: string }): Promise<AdminUser> {
+async function findOrCreateUser(
+  usersStore: Store<AdminUser>,
+  identity: { email: string; firstName: string; lastName: string },
+): Promise<AdminUser> {
   const normalisedEmail = normaliseUsername(identity.email);
   const existing = (await usersStore.list()).find((user) => normaliseUsername(user.email) === normalisedEmail);
   if (existing) {
@@ -70,7 +73,8 @@ async function findOrCreateUser(usersStore: Store<AdminUser>, identity: { email:
     username: identity.email,
     passwordHash: hash,
     passwordSalt: salt,
-    name: identity.name,
+    firstName: identity.firstName,
+    lastName: identity.lastName,
     email: identity.email,
     role: 'developer',
     status: 'active',

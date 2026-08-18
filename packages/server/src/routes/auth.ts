@@ -27,7 +27,11 @@ function parseLoginBody(body: unknown): LoginBody | null {
 const INVALID_CREDENTIALS_MESSAGE = 'Invalid username or password';
 
 interface SignupBody {
-  name: string;
+  firstName: string;
+  // Always a real string, never undefined - '' is a legitimate value
+  // (single-name individuals), unlike firstName/email which must be
+  // genuinely present.
+  lastName: string;
   email: string;
   password: string;
   // Absent for any caller that isn't a real browser capturing its own
@@ -41,7 +45,10 @@ function parseSignupBody(body: unknown): SignupBody | null {
     return null;
   }
   const record = body as Record<string, unknown>;
-  if (typeof record.name !== 'string' || record.name.trim() === '') {
+  if (typeof record.firstName !== 'string' || record.firstName.trim() === '') {
+    return null;
+  }
+  if (record.lastName !== undefined && typeof record.lastName !== 'string') {
     return null;
   }
   if (typeof record.email !== 'string' || record.email.trim() === '') {
@@ -53,11 +60,21 @@ function parseSignupBody(body: unknown): SignupBody | null {
   if (record.timezone !== undefined && typeof record.timezone !== 'string') {
     return null;
   }
-  return { name: record.name, email: record.email, password: record.password, timezone: record.timezone as string | undefined };
+  return {
+    firstName: record.firstName,
+    lastName: (record.lastName as string | undefined) ?? '',
+    email: record.email,
+    password: record.password,
+    timezone: record.timezone as string | undefined,
+  };
 }
 
 interface UpdateAccountBody {
-  name?: string;
+  firstName?: string;
+  // Unlike firstName, undefined (not provided at all) and '' (provided,
+  // deliberately cleared) are both valid - only distinguished from a
+  // genuine type error, not required to be non-empty.
+  lastName?: string;
   email?: string;
   timezone?: string;
 }
@@ -67,7 +84,10 @@ function parseUpdateAccountBody(body: unknown): UpdateAccountBody | null {
     return null;
   }
   const record = body as Record<string, unknown>;
-  if (record.name !== undefined && (typeof record.name !== 'string' || record.name.trim() === '')) {
+  if (record.firstName !== undefined && (typeof record.firstName !== 'string' || record.firstName.trim() === '')) {
+    return null;
+  }
+  if (record.lastName !== undefined && typeof record.lastName !== 'string') {
     return null;
   }
   if (record.email !== undefined && (typeof record.email !== 'string' || record.email.trim() === '')) {
@@ -77,7 +97,8 @@ function parseUpdateAccountBody(body: unknown): UpdateAccountBody | null {
     return null;
   }
   return {
-    name: record.name as string | undefined,
+    firstName: record.firstName as string | undefined,
+    lastName: record.lastName as string | undefined,
     email: record.email as string | undefined,
     timezone: record.timezone as string | undefined,
   };
@@ -137,7 +158,8 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
       return {
         id: user.id,
         username: user.username,
-        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         role: user.role,
         status: user.status,
@@ -161,7 +183,7 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
         return {
           statusCode: 400,
           error: 'Bad Request',
-          message: 'name, email, and password are required',
+          message: 'first name, email, and password are required',
         };
       }
       if (!isStrongPassword(body.password)) {
@@ -186,7 +208,8 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
         username: body.email,
         passwordHash: hash,
         passwordSalt: salt,
-        name: body.name,
+        firstName: body.firstName,
+        lastName: body.lastName,
         email: body.email,
         role: 'developer',
         status: 'active',
@@ -201,7 +224,8 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
       return {
         id: user.id,
         username: user.username,
-        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         role: user.role,
         status: user.status,
@@ -263,7 +287,11 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
       const body = parseUpdateAccountBody(request.body);
       if (!body) {
         reply.code(400);
-        return { statusCode: 400, error: 'Bad Request', message: 'name and email, if provided, must be non-empty' };
+        return {
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'firstName and email, if provided, must be non-empty; lastName, if provided, must be a string',
+        };
       }
       if (body.timezone !== undefined && !isValidTimezone(body.timezone)) {
         reply.code(400);
@@ -279,7 +307,8 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
 
       const updated: AdminUser = {
         ...record,
-        name: body.name ?? record.name,
+        firstName: body.firstName ?? record.firstName,
+        lastName: body.lastName ?? record.lastName,
         email: body.email ?? record.email,
         timezone: body.timezone ?? record.timezone,
       };
@@ -288,7 +317,8 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
       return {
         id: updated.id,
         username: updated.username,
-        name: updated.name,
+        firstName: updated.firstName,
+        lastName: updated.lastName,
         email: updated.email,
         role: updated.role,
         status: updated.status,

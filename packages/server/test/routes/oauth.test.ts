@@ -48,7 +48,7 @@ async function startFakeTokenEndpoint(tokenResponse: unknown): Promise<{ url: st
 // depending on real Google/GitHub credentials or google-auth-library's
 // own ID-token verification (that's oauth-google.test.ts's concern,
 // not this file's).
-function fakeProvider(tokenUrl: string, identity: { email: string; name: string }): OAuthProvider {
+function fakeProvider(tokenUrl: string, identity: { email: string; firstName: string; lastName: string }): OAuthProvider {
   return {
     id: 'google',
     authorizeUrl: 'https://fake-provider.example.test/authorize',
@@ -85,7 +85,7 @@ async function buildTestServer(oauthProviders: OAuthProvider[]): Promise<{ app: 
 describe('oauth routes', () => {
   it('GET /api/auth/providers reports only the providers actually configured', async () => {
     const { url } = await startFakeTokenEndpoint({});
-    const { app } = await buildTestServer([fakeProvider(url, { email: 'irrelevant@example.com', name: 'Irrelevant' })]);
+    const { app } = await buildTestServer([fakeProvider(url, { email: 'irrelevant@example.com', firstName: 'Irrelevant', lastName: '' })]);
 
     const response = await app.inject({ method: 'GET', url: '/api/auth/providers' });
     assert.equal(response.statusCode, 200);
@@ -114,7 +114,7 @@ describe('oauth routes', () => {
 
   it('GET /api/auth/google redirects to the provider with a state parameter, and stores it in the session', async () => {
     const { url } = await startFakeTokenEndpoint({});
-    const { app } = await buildTestServer([fakeProvider(url, { email: 'irrelevant@example.com', name: 'Irrelevant' })]);
+    const { app } = await buildTestServer([fakeProvider(url, { email: 'irrelevant@example.com', firstName: 'Irrelevant', lastName: '' })]);
 
     const response = await app.inject({ method: 'GET', url: '/api/auth/google' });
     assert.equal(response.statusCode, 302);
@@ -134,7 +134,8 @@ describe('oauth routes', () => {
       username: 'existing-dev',
       passwordHash: hash,
       passwordSalt: salt,
-      name: 'Existing Dev',
+      firstName: 'Existing',
+      lastName: 'Dev',
       // Deliberately different case/whitespace than the identity the
       // fake provider resolves to below - proves the match is
       // case/whitespace-normalised, not a raw string comparison.
@@ -145,7 +146,7 @@ describe('oauth routes', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
     };
     const { app, deps } = await buildTestServer([
-      fakeProvider(url, { email: 'existing@example.com', name: 'Should Not Overwrite' }),
+      fakeProvider(url, { email: 'existing@example.com', firstName: 'Should', lastName: 'Not Overwrite' }),
     ]);
     await deps.usersStore.save(existingUser);
 
@@ -167,7 +168,8 @@ describe('oauth routes', () => {
     assert.equal(meResponse.json().id, existingUser.id);
     // The existing account's own name is untouched - OAuth sign-in
     // matches an account, it never overwrites one.
-    assert.equal(meResponse.json().name, 'Existing Dev');
+    assert.equal(meResponse.json().firstName, 'Existing');
+    assert.equal(meResponse.json().lastName, 'Dev');
 
     const allUsers = await deps.usersStore.list();
     assert.equal(allUsers.length, 1, 'must not have created a second account');
@@ -177,7 +179,7 @@ describe('oauth routes', () => {
 
   it('callback with a valid code and no matching email creates a new role: developer account', async () => {
     const { url } = await startFakeTokenEndpoint({ access_token: 'fake-token' });
-    const { app, deps } = await buildTestServer([fakeProvider(url, { email: 'brand-new@example.com', name: 'Brand New' })]);
+    const { app, deps } = await buildTestServer([fakeProvider(url, { email: 'brand-new@example.com', firstName: 'Brand', lastName: 'New' })]);
 
     const startResponse = await app.inject({ method: 'GET', url: '/api/auth/google' });
     const cookie = extractCookie(startResponse.headers['set-cookie']);
@@ -193,6 +195,8 @@ describe('oauth routes', () => {
     const allUsers = await deps.usersStore.list();
     assert.equal(allUsers.length, 1);
     assert.equal(allUsers[0]!.email, 'brand-new@example.com');
+    assert.equal(allUsers[0]!.firstName, 'Brand');
+    assert.equal(allUsers[0]!.lastName, 'New');
     assert.equal(allUsers[0]!.role, 'developer');
     assert.equal(allUsers[0]!.status, 'active');
     // No browser signal available on a server-side redirect callback -
@@ -204,7 +208,7 @@ describe('oauth routes', () => {
 
   it('a missing state on the callback is rejected with 400 before any token exchange is attempted', async () => {
     const { url, callCount } = await startFakeTokenEndpoint({ access_token: 'fake-token' });
-    const { app } = await buildTestServer([fakeProvider(url, { email: 'irrelevant@example.com', name: 'Irrelevant' })]);
+    const { app } = await buildTestServer([fakeProvider(url, { email: 'irrelevant@example.com', firstName: 'Irrelevant', lastName: '' })]);
 
     const startResponse = await app.inject({ method: 'GET', url: '/api/auth/google' });
     const cookie = extractCookie(startResponse.headers['set-cookie']);
@@ -222,7 +226,7 @@ describe('oauth routes', () => {
 
   it('a mismatched state on the callback is rejected with 400 before any token exchange is attempted', async () => {
     const { url, callCount } = await startFakeTokenEndpoint({ access_token: 'fake-token' });
-    const { app } = await buildTestServer([fakeProvider(url, { email: 'irrelevant@example.com', name: 'Irrelevant' })]);
+    const { app } = await buildTestServer([fakeProvider(url, { email: 'irrelevant@example.com', firstName: 'Irrelevant', lastName: '' })]);
 
     const startResponse = await app.inject({ method: 'GET', url: '/api/auth/google' });
     const cookie = extractCookie(startResponse.headers['set-cookie']);

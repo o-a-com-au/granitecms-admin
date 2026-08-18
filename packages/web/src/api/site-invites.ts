@@ -71,7 +71,7 @@ export async function getInvite(code: string): Promise<InviteInfo> {
 // that from their session, not from anything the browser sends here.
 export async function claimInvite(
   code: string,
-  body?: { name: string; password: string; timezone?: string },
+  body?: { firstName: string; lastName: string; password: string; timezone?: string },
 ): Promise<{ siteId: string }> {
   const response = await fetch(`/api/invites/${encodeURIComponent(code)}/claim`, {
     method: 'POST',

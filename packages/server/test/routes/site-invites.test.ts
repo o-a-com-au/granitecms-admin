@@ -61,7 +61,8 @@ async function buildTestServer(options: { mailer?: Mailer } = {}): Promise<TestS
     username: DEVELOPER_USERNAME,
     passwordHash: hash,
     passwordSalt: salt,
-    name: 'Dev One',
+    firstName: 'Dev',
+    lastName: 'One',
     email: 'dev-one@example.com',
     role: 'developer',
     status: 'active',
@@ -208,7 +209,8 @@ describe('site-invites routes', () => {
       username: 'some-client',
       passwordHash: hash,
       passwordSalt: salt,
-      name: 'Some Client',
+      firstName: 'Some',
+      lastName: 'Client',
       email: 'some-client@example.com',
       role: 'client',
       status: 'active',
@@ -238,7 +240,8 @@ describe('site-invites routes', () => {
       username: 'other-dev',
       passwordHash: hash,
       passwordSalt: salt,
-      name: 'Other Dev',
+      firstName: 'Other',
+      lastName: 'Dev',
       email: 'other-dev@example.com',
       role: 'developer',
       status: 'active',
@@ -309,7 +312,7 @@ describe('site-invites routes', () => {
     const claimResponse = await app.inject({
       method: 'POST',
       url: `/api/invites/${code}/claim`,
-      payload: { name: 'Weak Password', password: 'all lowercase' },
+      payload: { firstName: 'Weak', lastName: 'Password', password: 'all lowercase' },
     });
     assert.equal(claimResponse.statusCode, 400);
     assert.equal(claimResponse.json().message, PASSWORD_REQUIREMENTS_MESSAGE);
@@ -333,7 +336,7 @@ describe('site-invites routes', () => {
     const claimResponse = await app.inject({
       method: 'POST',
       url: `/api/invites/${code}/claim`,
-      payload: { name: 'New Client', password: STRONG_PASSWORD },
+      payload: { firstName: 'New', lastName: 'Client', password: STRONG_PASSWORD },
     });
     assert.equal(claimResponse.statusCode, 200);
     assert.deepEqual(claimResponse.json(), { ok: true, siteId });
@@ -352,7 +355,8 @@ describe('site-invites routes', () => {
 
     const newUser = await deps.usersStore.find(normaliseUsername('new-client@example.com'));
     assert.ok(newUser);
-    assert.equal(newUser!.name, 'New Client');
+    assert.equal(newUser!.firstName, 'New');
+    assert.equal(newUser!.lastName, 'Client');
     assert.equal(newUser!.timezone, 'UTC', 'no timezone was sent, so it defaults');
 
     const access = await deps.siteAccessStore.find(siteAccessId(newUser!.id, siteId));
@@ -378,7 +382,7 @@ describe('site-invites routes', () => {
     const claimResponse = await app.inject({
       method: 'POST',
       url: `/api/invites/${code}/claim`,
-      payload: { name: 'Sydney Client', password: STRONG_PASSWORD, timezone: 'Australia/Sydney' },
+      payload: { firstName: 'Sydney', lastName: 'Client', password: STRONG_PASSWORD, timezone: 'Australia/Sydney' },
     });
     assert.equal(claimResponse.statusCode, 200);
 
@@ -401,7 +405,7 @@ describe('site-invites routes', () => {
     const claimResponse = await app.inject({
       method: 'POST',
       url: `/api/invites/${code}/claim`,
-      payload: { name: 'Bad Zone Client', password: STRONG_PASSWORD, timezone: 'Not/A_Real_Zone' },
+      payload: { firstName: 'Bad', lastName: 'Zone Client', password: STRONG_PASSWORD, timezone: 'Not/A_Real_Zone' },
     });
     assert.equal(claimResponse.statusCode, 400);
 
@@ -420,7 +424,8 @@ describe('site-invites routes', () => {
       username: 'existing-client',
       passwordHash: hash,
       passwordSalt: salt,
-      name: 'Existing Client',
+      firstName: 'Existing',
+      lastName: 'Client',
       email: 'existing-client@example.com',
       role: 'client',
       status: 'active',
@@ -456,7 +461,8 @@ describe('site-invites routes', () => {
       username: 'taken-client',
       passwordHash: hash,
       passwordSalt: salt,
-      name: 'Taken Client',
+      firstName: 'Taken',
+      lastName: 'Client',
       email: 'taken@example.com',
       role: 'client',
       status: 'active',
@@ -475,7 +481,7 @@ describe('site-invites routes', () => {
     const claimResponse = await app.inject({
       method: 'POST',
       url: `/api/invites/${code}/claim`,
-      payload: { name: 'Impersonator', password: STRONG_PASSWORD },
+      payload: { firstName: 'Impersonator', password: STRONG_PASSWORD },
     });
     assert.equal(claimResponse.statusCode, 409);
 
@@ -498,10 +504,10 @@ describe('site-invites routes', () => {
     });
     const code = extractCode(createResponse.json().url);
 
-    const first = await app.inject({ method: 'POST', url: `/api/invites/${code}/claim`, payload: { name: 'Once', password: STRONG_PASSWORD } });
+    const first = await app.inject({ method: 'POST', url: `/api/invites/${code}/claim`, payload: { firstName: 'Once', password: STRONG_PASSWORD } });
     assert.equal(first.statusCode, 200);
 
-    const second = await app.inject({ method: 'POST', url: `/api/invites/${code}/claim`, payload: { name: 'Twice', password: STRONG_PASSWORD } });
+    const second = await app.inject({ method: 'POST', url: `/api/invites/${code}/claim`, payload: { firstName: 'Twice', password: STRONG_PASSWORD } });
     assert.equal(second.statusCode, 400);
 
     await app.close();
@@ -522,7 +528,7 @@ describe('site-invites routes', () => {
     const claimResponse = await app.inject({
       method: 'POST',
       url: `/api/invites/${code}/claim`,
-      payload: { name: 'Too Late', password: STRONG_PASSWORD },
+      payload: { firstName: 'Too', lastName: 'Late', password: STRONG_PASSWORD },
     });
     assert.equal(claimResponse.statusCode, 400);
 

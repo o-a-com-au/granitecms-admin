@@ -18,7 +18,8 @@ const DEVELOPER_PASSWORD = 'correct horse battery staple';
 // DEVELOPER_PASSWORD above, which only ever gets hashed directly into
 // a pre-seeded test user.
 const STRONG_PASSWORD = 'Str0ng Passw0rd!';
-const DEVELOPER_NAME = 'Dev One';
+const DEVELOPER_FIRST_NAME = 'Dev';
+const DEVELOPER_LAST_NAME = 'One';
 const DEVELOPER_EMAIL = 'dev-one@example.com';
 
 interface TestServer {
@@ -48,7 +49,8 @@ async function buildTestServer(): Promise<TestServer> {
     username: DEVELOPER_USERNAME,
     passwordHash: hash,
     passwordSalt: salt,
-    name: DEVELOPER_NAME,
+    firstName: DEVELOPER_FIRST_NAME,
+    lastName: DEVELOPER_LAST_NAME,
     email: DEVELOPER_EMAIL,
     role: 'developer',
     status: 'active',
@@ -90,7 +92,7 @@ async function buildTestServer(): Promise<TestServer> {
 // email-derived (matching routes/site-users.ts's own current
 // behaviour).
 function inviteBody(label: string, extra: Record<string, unknown> = {}) {
-  return { name: `${label} name`, email: `${label}@example.com`, ...extra };
+  return { firstName: label, lastName: 'Name', email: `${label}@example.com`, ...extra };
 }
 
 function emailId(label: string): string {
@@ -110,7 +112,8 @@ describe('site-users routes', () => {
 
     assert.equal(response.statusCode, 201);
     const body = response.json();
-    assert.equal(body.name, 'new-client name');
+    assert.equal(body.firstName, 'new-client');
+    assert.equal(body.lastName, 'Name');
     assert.equal(body.email, 'new-client@example.com');
     assert.equal(body.username, 'new-client@example.com', 'username is derived from email, not a separate input');
     assert.equal(typeof body.password, 'string');
@@ -242,7 +245,7 @@ describe('site-users routes', () => {
       method: 'POST',
       url: `/api/sites/${siteId}/users`,
       headers: { cookie },
-      payload: { name: 'Someone', email: DEVELOPER_EMAIL },
+      payload: { firstName: 'Someone', email: DEVELOPER_EMAIL },
     });
 
     assert.equal(response.statusCode, 409);
@@ -260,7 +263,7 @@ describe('site-users routes', () => {
       method: 'POST',
       url: `/api/sites/${siteId}/users`,
       headers: { cookie },
-      payload: { name: '', email: 'someone@example.com' },
+      payload: { firstName: '', email: 'someone@example.com' },
     });
 
     assert.equal(response.statusCode, 400);
@@ -383,7 +386,8 @@ describe('site-users routes', () => {
       username: 'genuine-client',
       passwordHash: hash,
       passwordSalt: salt,
-      name: 'Genuine Client',
+      firstName: 'Genuine',
+      lastName: 'Client',
       email: 'genuine-client@example.com',
       role: 'client',
       status: 'active',
@@ -421,7 +425,8 @@ describe('site-users routes', () => {
       username: 'other-dev',
       passwordHash: hash,
       passwordSalt: salt,
-      name: 'Other Dev',
+      firstName: 'Other',
+      lastName: 'Dev',
       email: 'other-dev@example.com',
       role: 'developer',
       status: 'active',

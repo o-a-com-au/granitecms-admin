@@ -1,4 +1,5 @@
 import type { OAuthProvider } from './oauth-provider.ts';
+import { splitFullName } from './full-name.ts';
 
 interface GithubTokenResponse {
   access_token: string;
@@ -62,7 +63,11 @@ export function createGithubProvider(clientId: string, clientSecret: string): OA
         throw new Error('GitHub account has no verified email available');
       }
 
-      return { email, name: profile.name ?? profile.login };
+      // No given/family name equivalent in GitHub's own REST response -
+      // heuristically split whatever combined name (or login, as a
+      // last resort) is available.
+      const { firstName, lastName } = splitFullName(profile.name ?? profile.login);
+      return { email, firstName, lastName };
     },
   };
 }

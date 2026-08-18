@@ -13,7 +13,8 @@ import { SiteNotFoundError } from '../sites/site-not-found-error.ts';
 import { siteAccessId, type SiteAccess } from '../sites/site-access.ts';
 
 interface CreateSiteUserBody {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password?: string;
 }
@@ -23,7 +24,10 @@ function parseCreateSiteUserBody(body: unknown): CreateSiteUserBody | null {
     return null;
   }
   const record = body as Record<string, unknown>;
-  if (typeof record.name !== 'string' || record.name.trim() === '') {
+  if (typeof record.firstName !== 'string' || record.firstName.trim() === '') {
+    return null;
+  }
+  if (record.lastName !== undefined && typeof record.lastName !== 'string') {
     return null;
   }
   if (typeof record.email !== 'string' || record.email.trim() === '') {
@@ -32,13 +36,19 @@ function parseCreateSiteUserBody(body: unknown): CreateSiteUserBody | null {
   if (record.password !== undefined && (typeof record.password !== 'string' || record.password.trim() === '')) {
     return null;
   }
-  return { name: record.name, email: record.email, password: record.password as string | undefined };
+  return {
+    firstName: record.firstName,
+    lastName: (record.lastName as string | undefined) ?? '',
+    email: record.email,
+    password: record.password as string | undefined,
+  };
 }
 
 interface ClientSummary {
   id: string;
   username: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   grantedAt: string;
 }
@@ -47,7 +57,14 @@ interface ClientSummary {
 // toSiteListEntry precedent ("raw token never included, built by
 // explicit mapping"), just for passwordHash/passwordSalt here instead.
 function toClientSummary(user: AdminUser, access: SiteAccess): ClientSummary {
-  return { id: user.id, username: user.username, name: user.name, email: user.email, grantedAt: access.grantedAt };
+  return {
+    id: user.id,
+    username: user.username,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    grantedAt: access.grantedAt,
+  };
 }
 
 export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: Store<Site>, siteAccessStore: Store<SiteAccess>) {
@@ -70,7 +87,7 @@ export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: 
       const body = parseCreateSiteUserBody(request.body);
       if (!body) {
         reply.code(400);
-        return { statusCode: 400, error: 'Bad Request', message: 'name and email are required' };
+        return { statusCode: 400, error: 'Bad Request', message: 'first name and email are required' };
       }
       // Only a caller-supplied password is strength-checked - the
       // generated fallback below is a machine-random one-time
@@ -105,7 +122,8 @@ export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: 
           username: body.email,
           passwordHash: hash,
           passwordSalt: salt,
-          name: body.name,
+          firstName: body.firstName,
+          lastName: body.lastName,
           email: body.email,
           role: 'client',
           status: 'active',
@@ -130,7 +148,7 @@ export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: 
       }
 
       // Found, already a client - never touch their existing
-      // credentials/name/email. Only grant access to this site, and
+      // credentials/name(s)/email. Only grant access to this site, and
       // only if they don't already have it (re-inviting to a site
       // they're already on is a no-op, not a bumped grantedAt).
       const accessId = siteAccessId(existing.id, site.id);

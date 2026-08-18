@@ -8,7 +8,8 @@ import { PASSWORD_REQUIREMENTS_MESSAGE } from '../../src/auth/passwordStrength.t
 const CURRENT_USER = {
   id: 'jane',
   username: 'jane',
-  name: 'Jane Editor',
+  firstName: 'Jane',
+  lastName: 'Editor',
   email: 'jane@example.com',
   role: 'developer',
   status: 'active',
@@ -30,7 +31,7 @@ afterEach(() => {
 });
 
 describe('AccountPage', () => {
-  it('loads and displays the current name and email - no username field at all', async () => {
+  it('loads and displays the current first/last name and email - no username field at all', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
@@ -44,32 +45,35 @@ describe('AccountPage', () => {
 
     renderAccountPage();
 
-    await waitFor(() => expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Jane Editor'));
+    await waitFor(() => expect((screen.getByLabelText('First Name') as HTMLInputElement).value).toBe('Jane'));
+    expect((screen.getByLabelText('Last Name') as HTMLInputElement).value).toBe('Editor');
     expect((screen.getByLabelText('Email') as HTMLInputElement).value).toBe('jane@example.com');
     expect((screen.getByLabelText('Timezone') as HTMLSelectElement).value).toBe('Australia/Sydney');
     expect(screen.queryByLabelText('Username')).toBeNull();
   });
 
   it('submitting details calls PATCH /me, refreshes the current user, and shows a confirmation', async () => {
-    let currentName = CURRENT_USER.name;
+    let currentFirstName = CURRENT_USER.firstName;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === '/api/auth/me' && (init?.method ?? 'GET') === 'GET') {
-        return new Response(JSON.stringify({ ...CURRENT_USER, name: currentName }), { status: 200 });
+        return new Response(JSON.stringify({ ...CURRENT_USER, firstName: currentFirstName }), { status: 200 });
       }
       if (url === '/api/auth/me' && init?.method === 'PATCH') {
-        const body = JSON.parse(init.body as string) as { name: string; email: string };
-        currentName = body.name;
-        return new Response(JSON.stringify({ ...CURRENT_USER, name: body.name, email: body.email }), { status: 200 });
+        const body = JSON.parse(init.body as string) as { firstName: string; lastName: string; email: string };
+        currentFirstName = body.firstName;
+        return new Response(JSON.stringify({ ...CURRENT_USER, firstName: body.firstName, lastName: body.lastName, email: body.email }), {
+          status: 200,
+        });
       }
       throw new Error(`unhandled fetch in test: ${url}`);
     });
     vi.stubGlobal('fetch', fetchMock);
 
     renderAccountPage();
-    await waitFor(() => expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Jane Editor'));
+    await waitFor(() => expect((screen.getByLabelText('First Name') as HTMLInputElement).value).toBe('Jane'));
 
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Jane Updated' } });
+    fireEvent.change(screen.getByLabelText('First Name'), { target: { value: 'Janet' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(screen.getByText('Account details updated.')).toBeDefined());
@@ -93,7 +97,7 @@ describe('AccountPage', () => {
         return new Response(JSON.stringify(CURRENT_USER), { status: 200 });
       }
       if (url === '/api/auth/me' && init?.method === 'PATCH') {
-        const body = JSON.parse(init.body as string) as { name: string; email: string; timezone: string };
+        const body = JSON.parse(init.body as string) as { firstName: string; lastName: string; email: string; timezone: string };
         return new Response(JSON.stringify({ ...CURRENT_USER, timezone: body.timezone }), { status: 200 });
       }
       throw new Error(`unhandled fetch in test: ${url}`);
@@ -127,7 +131,11 @@ describe('AccountPage', () => {
           // Mirrors the real shape routes/auth.ts returns - error alone
           // is just "Bad Request", message is the text that must show.
           return new Response(
-            JSON.stringify({ statusCode: 400, error: 'Bad Request', message: 'name and email, if provided, must be non-empty' }),
+            JSON.stringify({
+              statusCode: 400,
+              error: 'Bad Request',
+              message: 'firstName and email, if provided, must be non-empty; lastName, if provided, must be a string',
+            }),
             { status: 400 },
           );
         }
@@ -136,11 +144,15 @@ describe('AccountPage', () => {
     );
 
     renderAccountPage();
-    await waitFor(() => expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Jane Editor'));
+    await waitFor(() => expect((screen.getByLabelText('First Name') as HTMLInputElement).value).toBe('Jane'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    await waitFor(() => expect(screen.getByText('name and email, if provided, must be non-empty')).toBeDefined());
+    await waitFor(() =>
+      expect(
+        screen.getByText('firstName and email, if provided, must be non-empty; lastName, if provided, must be a string'),
+      ).toBeDefined(),
+    );
   });
 
   it('blocks submission client-side when the new password and confirmation do not match, without calling the server', async () => {
@@ -154,7 +166,7 @@ describe('AccountPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderAccountPage();
-    await waitFor(() => expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Jane Editor'));
+    await waitFor(() => expect((screen.getByLabelText('First Name') as HTMLInputElement).value).toBe('Jane'));
 
     fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'old password' } });
     fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'new password one' } });
@@ -176,7 +188,7 @@ describe('AccountPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderAccountPage();
-    await waitFor(() => expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Jane Editor'));
+    await waitFor(() => expect((screen.getByLabelText('First Name') as HTMLInputElement).value).toBe('Jane'));
 
     fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'old password' } });
     fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'all lowercase' } });
@@ -205,7 +217,7 @@ describe('AccountPage', () => {
     );
 
     renderAccountPage();
-    await waitFor(() => expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Jane Editor'));
+    await waitFor(() => expect((screen.getByLabelText('First Name') as HTMLInputElement).value).toBe('Jane'));
 
     fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'old password' } });
     fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'Str0ng Passw0rd!' } });
@@ -238,7 +250,7 @@ describe('AccountPage', () => {
     );
 
     renderAccountPage();
-    await waitFor(() => expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Jane Editor'));
+    await waitFor(() => expect((screen.getByLabelText('First Name') as HTMLInputElement).value).toBe('Jane'));
 
     fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'wrong password' } });
     fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'Str0ng Passw0rd!' } });

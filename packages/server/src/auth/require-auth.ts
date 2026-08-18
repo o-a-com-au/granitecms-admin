@@ -18,7 +18,7 @@ export class AuthError extends Error {
 
 declare module 'fastify' {
   interface FastifyRequest {
-    currentUser: Pick<AdminUser, 'id' | 'username' | 'name' | 'email' | 'role' | 'status' | 'timezone'> | null;
+    currentUser: Pick<AdminUser, 'id' | 'username' | 'firstName' | 'lastName' | 'email' | 'role' | 'status' | 'timezone'> | null;
   }
 }
 
@@ -47,7 +47,8 @@ export function createRequireSession(usersStore: Store<AdminUser>) {
     request.currentUser = {
       id: user.id,
       username: user.username,
-      name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       role: user.role,
       status: user.status,

@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Store } from '../store/store.ts';
 import type { AdminUser } from '../auth/users.ts';
 import { createRequireAuth, AuthError } from '../auth/require-auth.ts';
+import { formatFullName } from '../auth/full-name.ts';
 import { createRequireDeveloper } from '../auth/require-developer.ts';
 import { createRequireSiteAccess } from '../auth/require-site-access.ts';
 import type { Site } from '../sites/site.ts';
@@ -277,11 +278,11 @@ function parseDeleteRedirectBody(body: unknown): DeleteRedirectBody | null {
 // null case is unreachable in practice (requireAuth always sets this
 // first) but narrowed explicitly rather than asserted, matching this
 // codebase's existing defensive style elsewhere.
-function requireCommitAuthor(currentUser: Pick<AdminUser, 'name' | 'email'> | null): CommitAuthor {
+function requireCommitAuthor(currentUser: Pick<AdminUser, 'firstName' | 'lastName' | 'email'> | null): CommitAuthor {
   if (!currentUser) {
     throw new AuthError('Login required');
   }
-  return { name: currentUser.name, email: currentUser.email };
+  return { name: formatFullName(currentUser.firstName, currentUser.lastName), email: currentUser.email };
 }
 
 // GET / client branch: no first-class "sites this user can access"

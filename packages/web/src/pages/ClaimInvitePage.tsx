@@ -22,7 +22,8 @@ export function ClaimInvitePage() {
 
   const [info, setInfo] = useState<InviteInfo | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
@@ -85,7 +86,7 @@ export function ClaimInvitePage() {
       // real browser signal available at account-creation time,
       // editable afterward via Account Details.
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const { siteId } = await claimInvite(code, { name, password, timezone });
+      const { siteId } = await claimInvite(code, { firstName, lastName, password, timezone });
       // The claim response set a fresh session cookie - refresh()
       // picks it up so the rest of the app (AppShell, RequireAuth)
       // treats this visitor as logged in from here on, with no
@@ -148,8 +149,12 @@ export function ClaimInvitePage() {
               <input value={info.email} disabled readOnly />
             </label>
             <label>
-              Name
-              <input value={name} onChange={(event) => setName(event.target.value)} required />
+              First Name
+              <input value={firstName} onChange={(event) => setFirstName(event.target.value)} required />
+            </label>
+            <label>
+              Last Name
+              <input value={lastName} onChange={(event) => setLastName(event.target.value)} />
             </label>
             <PasswordInput
               label="Password"

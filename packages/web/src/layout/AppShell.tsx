@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Outlet, useLocation, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
+import { formatFullName } from '../auth/fullName.ts';
 import { useTheme } from '../theme/ThemeContext.tsx';
 import { IconSprite } from '../icons/index.tsx';
 import { HamburgerIcon } from '../icons/HamburgerIcon.tsx';
@@ -210,7 +211,7 @@ export function AppShell() {
                       <span className="app-avatar-status" />
                     </span>
                     <div className="account-popover-identity">
-                      <p className="account-popover-name">{user?.name ?? user?.username}</p>
+                      <p className="account-popover-name">{(user && formatFullName(user.firstName, user.lastName)) || user?.username}</p>
                       <p className="account-popover-email">{user?.email}</p>
                     </div>
                   </div>

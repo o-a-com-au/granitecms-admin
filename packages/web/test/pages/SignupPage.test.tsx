@@ -19,8 +19,9 @@ function renderSignupPage() {
   );
 }
 
-function fillAndSubmit(name: string, email: string, password: string): void {
-  fireEvent.change(screen.getByLabelText('Name'), { target: { value: name } });
+function fillAndSubmit(firstName: string, lastName: string, email: string, password: string): void {
+  fireEvent.change(screen.getByLabelText('First Name'), { target: { value: firstName } });
+  fireEvent.change(screen.getByLabelText('Last Name'), { target: { value: lastName } });
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: email } });
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: password } });
   fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
@@ -40,12 +41,19 @@ describe('SignupPage', () => {
           return new Response(null, { status: 401 });
         }
         if (url === '/api/auth/signup' && init?.method === 'POST') {
-          const body = JSON.parse(init.body as string) as { name: string; email: string; password: string; timezone: string };
+          const body = JSON.parse(init.body as string) as {
+            firstName: string;
+            lastName: string;
+            email: string;
+            password: string;
+            timezone: string;
+          };
           // timezone: expect.any(String), not a fixed value - it's the
           // real browser's own Intl.DateTimeFormat().resolvedOptions()
           // .timeZone, which depends on whatever system this test runs on.
           expect(body).toEqual({
-            name: 'New Dev',
+            firstName: 'New',
+            lastName: 'Dev',
             email: 'new-dev@example.com',
             password: 'Str0ng Passw0rd!',
             timezone: expect.any(String),
@@ -54,7 +62,8 @@ describe('SignupPage', () => {
             JSON.stringify({
               id: 'new-dev@example.com',
               username: 'new-dev@example.com',
-              name: 'New Dev',
+              firstName: 'New',
+              lastName: 'Dev',
               email: 'new-dev@example.com',
               role: 'developer',
               status: 'active',
@@ -70,7 +79,7 @@ describe('SignupPage', () => {
     renderSignupPage();
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up' })).toBeDefined());
 
-    fillAndSubmit('New Dev', 'new-dev@example.com', 'Str0ng Passw0rd!');
+    fillAndSubmit('New', 'Dev', 'new-dev@example.com', 'Str0ng Passw0rd!');
 
     await waitFor(() => expect(screen.getByText('home page')).toBeDefined());
   });
@@ -102,7 +111,7 @@ describe('SignupPage', () => {
     renderSignupPage();
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up' })).toBeDefined());
 
-    fillAndSubmit('Someone', 'taken@example.com', 'Str0ng Passw0rd!');
+    fillAndSubmit('Someone', '', 'taken@example.com', 'Str0ng Passw0rd!');
 
     await waitFor(() =>
       expect(screen.getByText('An account with this email already exists - log in instead')).toBeDefined(),
@@ -122,7 +131,7 @@ describe('SignupPage', () => {
     renderSignupPage();
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up' })).toBeDefined());
 
-    fillAndSubmit('Short', 'short@example.com', 'short1');
+    fillAndSubmit('Short', '', 'short@example.com', 'short1');
 
     // getByRole('alert'), not getByText - the always-visible hint under
     // the field says the same thing, so a text query alone is ambiguous.

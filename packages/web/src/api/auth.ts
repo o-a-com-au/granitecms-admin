@@ -1,7 +1,10 @@
 export interface CurrentUser {
   id: string;
   username: string;
-  name: string;
+  firstName: string;
+  // Always a real string, never undefined - '' is a legitimate value
+  // (single-name individuals).
+  lastName: string;
   email: string;
   role: 'developer' | 'client';
   status: 'active' | 'paused';
@@ -50,7 +53,13 @@ async function parseErrorMessage(response: Response, fallback: string): Promise<
 // failure's real server message is genuinely useful to show - an
 // already-taken email or a too-short password aren't the same kind of
 // thing to hide.
-export async function signup(input: { name: string; email: string; password: string; timezone: string }): Promise<CurrentUser> {
+export async function signup(input: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  timezone: string;
+}): Promise<CurrentUser> {
   const response = await fetch('/api/auth/signup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

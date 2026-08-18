@@ -8,7 +8,7 @@ interface AuthContextValue {
   status: AuthStatus;
   user: CurrentUser | null;
   login: (username: string, password: string) => Promise<void>;
-  signup: (input: { name: string; email: string; password: string; timezone: string }) => Promise<void>;
+  signup: (input: { firstName: string; lastName: string; email: string; password: string; timezone: string }) => Promise<void>;
   logout: () => Promise<void>;
   // Re-fetches /me and updates user/status in place, without a full
   // page navigation - what the pause popover item and the paused
@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('authenticated');
   }, []);
 
-  const signup = useCallback(async (input: { name: string; email: string; password: string; timezone: string }) => {
+  const signup = useCallback(async (input: { firstName: string; lastName: string; email: string; password: string; timezone: string }) => {
     const currentUser = await apiSignup(input);
     setUser(currentUser);
     setStatus('authenticated');

@@ -10,5 +10,5 @@ export interface OAuthProvider {
   clientId: string;
   clientSecret: string;
   scope: string;
-  resolveIdentity: (tokenResponse: unknown) => Promise<{ email: string; name: string }>;
+  resolveIdentity: (tokenResponse: unknown) => Promise<{ email: string; firstName: string; lastName: string }>;
 }

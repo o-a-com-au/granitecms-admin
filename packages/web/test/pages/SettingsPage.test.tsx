@@ -45,7 +45,8 @@ interface FakeClient {
   id: string;
   siteId: string;
   username: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   grantedAt: string;
 }
@@ -116,7 +117,14 @@ function installFakeSitesApi(options: { emailConfigured?: boolean } = {}): {
         const clients = state.clients.filter((client) => client.siteId === siteId);
         return new Response(
           JSON.stringify({
-            clients: clients.map(({ id, username, name, email, grantedAt }) => ({ id, username, name, email, grantedAt })),
+            clients: clients.map(({ id, username, firstName, lastName, email, grantedAt }) => ({
+              id,
+              username,
+              firstName,
+              lastName,
+              email,
+              grantedAt,
+            })),
           }),
           { status: 200 },
         );
@@ -124,7 +132,7 @@ function installFakeSitesApi(options: { emailConfigured?: boolean } = {}): {
 
       if (usersListMatch && method === 'POST') {
         const siteId = usersListMatch[1]!;
-        const body = JSON.parse(init?.body as string) as { name: string; email: string };
+        const body = JSON.parse(init?.body as string) as { firstName: string; lastName: string; email: string };
         // Identity is derived from email, no username input any more -
         // matches routes/site-users.ts's own current behaviour.
         const existing = state.clients.find((client) => client.email === body.email);
@@ -141,13 +149,22 @@ function installFakeSitesApi(options: { emailConfigured?: boolean } = {}): {
           id: `client-${nextId++}`,
           siteId,
           username: body.email,
-          name: body.name,
+          firstName: body.firstName,
+          lastName: body.lastName,
           email: body.email,
           grantedAt: now,
         };
         state.clients.push(entry);
         return new Response(
-          JSON.stringify({ id: entry.id, username: entry.username, name: entry.name, email: entry.email, grantedAt: entry.grantedAt, password: 'generated-one-time-password' }),
+          JSON.stringify({
+            id: entry.id,
+            username: entry.username,
+            firstName: entry.firstName,
+            lastName: entry.lastName,
+            email: entry.email,
+            grantedAt: entry.grantedAt,
+            password: 'generated-one-time-password',
+          }),
           { status: 201 },
         );
       }
@@ -370,7 +387,8 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Manage access' }));
     await waitFor(() => expect(screen.getByText('No clients have access yet.')).toBeDefined());
 
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New Client' } });
+    fireEvent.change(screen.getByLabelText('First Name'), { target: { value: 'New' } });
+    fireEvent.change(screen.getByLabelText('Last Name'), { target: { value: 'Client' } });
     fireEvent.change(directEntryEmailField(), { target: { value: 'new-client@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: 'Invite client' }));
 
@@ -392,7 +410,8 @@ describe('SettingsPage', () => {
       id: 'client-1',
       siteId: 'site-1',
       username: 'existing-client',
-      name: 'Existing Client',
+      firstName: 'Existing',
+      lastName: 'Client',
       email: 'existing-client@example.com',
       grantedAt: '2026-01-01T00:00:00.000Z',
     });
@@ -422,7 +441,8 @@ describe('SettingsPage', () => {
       id: 'client-1',
       siteId: 'site-1',
       username: 'existing-client',
-      name: 'Existing Client',
+      firstName: 'Existing',
+      lastName: 'Client',
       email: 'existing-client@example.com',
       grantedAt: '2026-01-01T00:00:00.000Z',
     });
@@ -458,7 +478,8 @@ describe('SettingsPage', () => {
       id: 'client-1',
       siteId: 'site-1',
       username: 'taken@example.com',
-      name: 'Someone Else',
+      firstName: 'Someone',
+      lastName: 'Else',
       email: 'taken@example.com',
       grantedAt: '2026-01-01T00:00:00.000Z',
     });
@@ -469,7 +490,8 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Manage access' }));
     await waitFor(() => expect(screen.getByText(/Someone Else/)).toBeDefined());
 
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New Client' } });
+    fireEvent.change(screen.getByLabelText('First Name'), { target: { value: 'New' } });
+    fireEvent.change(screen.getByLabelText('Last Name'), { target: { value: 'Client' } });
     fireEvent.change(directEntryEmailField(), { target: { value: 'taken@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: 'Invite client' }));
 

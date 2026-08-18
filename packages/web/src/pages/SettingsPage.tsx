@@ -12,6 +12,7 @@ import {
   type SiteInviteSummary,
 } from '../api/site-invites.ts';
 import { writeLastSiteId } from '../sites/currentSite.ts';
+import { formatFullName } from '../auth/fullName.ts';
 
 export function SettingsPage() {
   const { sites, error, refresh } = useSites();
@@ -28,12 +29,13 @@ export function SettingsPage() {
 
   // Only one site's access panel expands at a time, the same
   // single-value convention rotatingId already establishes above -
-  // clients/inviteName/etc. are all scoped to whichever site is
+  // clients/inviteFirstName/etc. are all scoped to whichever site is
   // currently expanded, not keyed per-site.
   const [manageAccessId, setManageAccessId] = useState<string | null>(null);
   const [clients, setClients] = useState<SiteClient[] | null>(null);
   const [clientsError, setClientsError] = useState<string | null>(null);
-  const [inviteName, setInviteName] = useState('');
+  const [inviteFirstName, setInviteFirstName] = useState('');
+  const [inviteLastName, setInviteLastName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
@@ -131,7 +133,8 @@ export function SettingsPage() {
     setManageAccessId(id);
     setClients(null);
     setClientsError(null);
-    setInviteName('');
+    setInviteFirstName('');
+    setInviteLastName('');
     setInviteEmail('');
     setInviteError(null);
     setLastInvitedPassword(null);
@@ -181,8 +184,9 @@ export function SettingsPage() {
     setInviteError(null);
     setInviting(true);
     try {
-      const result = await inviteSiteClient(id, { name: inviteName, email: inviteEmail });
-      setInviteName('');
+      const result = await inviteSiteClient(id, { firstName: inviteFirstName, lastName: inviteLastName, email: inviteEmail });
+      setInviteFirstName('');
+      setInviteLastName('');
       setInviteEmail('');
       setLastInvitedPassword(result.password ?? null);
       await loadClients(id);
@@ -194,7 +198,7 @@ export function SettingsPage() {
   }
 
   async function handleRevoke(id: string, client: SiteClient): Promise<void> {
-    if (!window.confirm(`Remove ${client.name}'s access to this site?`)) {
+    if (!window.confirm(`Remove ${formatFullName(client.firstName, client.lastName)}'s access to this site?`)) {
       return;
     }
     await revokeSiteClient(id, client.id);
@@ -305,7 +309,7 @@ export function SettingsPage() {
                               <ul>
                                 {clients.map((client) => (
                                   <li key={client.id}>
-                                    {client.name} ({client.email}){' '}
+                                    {formatFullName(client.firstName, client.lastName)} ({client.email}){' '}
                                     <button type="button" onClick={() => void handleRevoke(manageAccessId, client)}>
                                       Revoke
                                     </button>
@@ -372,8 +376,16 @@ export function SettingsPage() {
 
                             <form onSubmit={(event) => handleInviteSubmit(event, manageAccessId)}>
                               <label>
-                                Name
-                                <input value={inviteName} onChange={(event) => setInviteName(event.target.value)} required />
+                                First Name
+                                <input
+                                  value={inviteFirstName}
+                                  onChange={(event) => setInviteFirstName(event.target.value)}
+                                  required
+                                />
+                              </label>
+                              <label>
+                                Last Name
+                                <input value={inviteLastName} onChange={(event) => setInviteLastName(event.target.value)} />
                               </label>
                               <label>
                                 Email

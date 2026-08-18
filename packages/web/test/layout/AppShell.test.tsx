@@ -73,7 +73,8 @@ function installFakeApiWithProfile() {
         JSON.stringify({
           id: 'admin',
           username: 'admin',
-          name: 'Ada Admin',
+          firstName: 'Ada',
+          lastName: 'Admin',
           email: 'ada@example.com',
           role: 'developer',
           status: 'active',
@@ -101,7 +102,8 @@ function installFakeApiWithTwoSites() {
         JSON.stringify({
           id: 'admin',
           username: 'admin',
-          name: 'Ada Admin',
+          firstName: 'Ada',
+          lastName: 'Admin',
           email: 'ada@example.com',
           role: 'developer',
           status: 'active',
@@ -134,7 +136,8 @@ function installFakeApiWithDelayedSites() {
           JSON.stringify({
             id: 'admin',
             username: 'admin',
-            name: 'Ada Admin',
+            firstName: 'Ada',
+          lastName: 'Admin',
             email: 'ada@example.com',
             role: 'developer',
             status: 'active',
@@ -162,7 +165,8 @@ function installFakeApiWithSitesError() {
           JSON.stringify({
             id: 'admin',
             username: 'admin',
-            name: 'Ada Admin',
+            firstName: 'Ada',
+          lastName: 'Admin',
             email: 'ada@example.com',
             role: 'developer',
             status: 'active',
@@ -186,7 +190,8 @@ function installFakeApiWithClientProfile() {
         JSON.stringify({
           id: 'client-1',
           username: 'client-1',
-          name: 'Casey Client',
+          firstName: 'Casey',
+          lastName: 'Client',
           email: 'casey@example.com',
           role: 'client',
           status: 'active',

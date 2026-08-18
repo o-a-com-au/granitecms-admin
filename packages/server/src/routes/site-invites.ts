@@ -145,7 +145,8 @@ export function createSiteInvitesRoutes(
 }
 
 interface ClaimInviteBody {
-  name: string;
+  firstName: string;
+  lastName: string;
   password: string;
   // Captured client-side by ClaimInvitePage.tsx's own browser (a real
   // in-page form, unlike routes/oauth.ts's server-side redirect) -
@@ -158,7 +159,10 @@ function parseClaimInviteBody(body: unknown): ClaimInviteBody | null {
     return null;
   }
   const record = body as Record<string, unknown>;
-  if (typeof record.name !== 'string' || record.name.trim() === '') {
+  if (typeof record.firstName !== 'string' || record.firstName.trim() === '') {
+    return null;
+  }
+  if (record.lastName !== undefined && typeof record.lastName !== 'string') {
     return null;
   }
   if (typeof record.password !== 'string' || record.password.trim() === '') {
@@ -167,7 +171,12 @@ function parseClaimInviteBody(body: unknown): ClaimInviteBody | null {
   if (record.timezone !== undefined && typeof record.timezone !== 'string') {
     return null;
   }
-  return { name: record.name, password: record.password, timezone: record.timezone as string | undefined };
+  return {
+    firstName: record.firstName,
+    lastName: (record.lastName as string | undefined) ?? '',
+    password: record.password,
+    timezone: record.timezone as string | undefined,
+  };
 }
 
 type ResolvedInvite = { invite: SiteInvite; site: Site } | { reason: 'expired' | 'claimed' | 'not-found' };
@@ -273,7 +282,7 @@ export function createInviteClaimRoutes(
         const body = parseClaimInviteBody(request.body);
         if (!body) {
           reply.code(400);
-          return { statusCode: 400, error: 'Bad Request', message: 'name and password are required' };
+          return { statusCode: 400, error: 'Bad Request', message: 'first name and password are required' };
         }
         if (!isStrongPassword(body.password)) {
           reply.code(400);
@@ -308,7 +317,8 @@ export function createInviteClaimRoutes(
           username: invite.email,
           passwordHash: hash,
           passwordSalt: salt,
-          name: body.name,
+          firstName: body.firstName,
+          lastName: body.lastName,
           email: invite.email,
           role: 'client',
           status: 'active',

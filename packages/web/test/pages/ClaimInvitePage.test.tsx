@@ -51,7 +51,8 @@ describe('ClaimInvitePage', () => {
     const emailField = screen.getByLabelText('Email') as HTMLInputElement;
     expect(emailField.value).toBe('client@example.com');
     expect(emailField.disabled).toBe(true);
-    expect(screen.getByLabelText('Name')).toBeDefined();
+    expect(screen.getByLabelText('First Name')).toBeDefined();
+    expect(screen.getByLabelText('Last Name')).toBeDefined();
     expect(screen.getByLabelText('Password')).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Accept invite' })).toBeNull();
   });
@@ -64,7 +65,15 @@ describe('ClaimInvitePage', () => {
         const url = typeof input === 'string' ? input : input.toString();
         if (url === '/api/auth/me') {
           return new Response(
-            JSON.stringify({ id: 'dev-1', username: 'dev-1', name: 'Dev One', email: 'dev@example.com', role: 'developer', status: 'active' }),
+            JSON.stringify({
+              id: 'dev-1',
+              username: 'dev-1',
+              firstName: 'Dev',
+              lastName: 'One',
+              email: 'dev@example.com',
+              role: 'developer',
+              status: 'active',
+            }),
             { status: 200 },
           );
         }
@@ -90,7 +99,15 @@ describe('ClaimInvitePage', () => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === '/api/auth/me') {
         return new Response(
-          JSON.stringify({ id: 'dev-1', username: 'dev-1', name: 'Dev One', email: 'dev@example.com', role: 'developer', status: 'active' }),
+          JSON.stringify({
+            id: 'dev-1',
+            username: 'dev-1',
+            firstName: 'Dev',
+            lastName: 'One',
+            email: 'dev@example.com',
+            role: 'developer',
+            status: 'active',
+          }),
           { status: 200 },
         );
       }
@@ -116,7 +133,7 @@ describe('ClaimInvitePage', () => {
     await waitFor(() => expect(screen.getByText('editor page')).toBeDefined());
   });
 
-  it('signing up while unauthenticated submits name/password and lands in the site editor already logged in', async () => {
+  it('signing up while unauthenticated submits firstName/lastName/password and lands in the site editor already logged in', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     let loggedIn = false;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -124,7 +141,15 @@ describe('ClaimInvitePage', () => {
       if (url === '/api/auth/me') {
         if (loggedIn) {
           return new Response(
-            JSON.stringify({ id: 'client@example.com', username: 'client@example.com', name: 'New Client', email: 'client@example.com', role: 'client', status: 'active' }),
+            JSON.stringify({
+              id: 'client@example.com',
+              username: 'client@example.com',
+              firstName: 'New',
+              lastName: 'Client',
+              email: 'client@example.com',
+              role: 'client',
+              status: 'active',
+            }),
             { status: 200 },
           );
         }
@@ -137,11 +162,11 @@ describe('ClaimInvitePage', () => {
         );
       }
       if (url === `/api/invites/${CODE}/claim` && init?.method === 'POST') {
-        const body = JSON.parse(init.body as string) as { name: string; password: string; timezone: string };
+        const body = JSON.parse(init.body as string) as { firstName: string; lastName: string; password: string; timezone: string };
         // timezone: expect.any(String), not a fixed value - it's the
         // real browser's own Intl.DateTimeFormat().resolvedOptions()
         // .timeZone, which depends on whatever system this test runs on.
-        expect(body).toEqual({ name: 'New Client', password: 'Str0ng Passw0rd!', timezone: expect.any(String) });
+        expect(body).toEqual({ firstName: 'New', lastName: 'Client', password: 'Str0ng Passw0rd!', timezone: expect.any(String) });
         loggedIn = true;
         return new Response(JSON.stringify({ siteId: 'site-1' }), { status: 200 });
       }
@@ -150,9 +175,10 @@ describe('ClaimInvitePage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderClaimPage();
-    await waitFor(() => expect(screen.getByLabelText('Name')).toBeDefined());
+    await waitFor(() => expect(screen.getByLabelText('First Name')).toBeDefined());
 
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New Client' } });
+    fireEvent.change(screen.getByLabelText('First Name'), { target: { value: 'New' } });
+    fireEvent.change(screen.getByLabelText('Last Name'), { target: { value: 'Client' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'Str0ng Passw0rd!' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
@@ -177,9 +203,9 @@ describe('ClaimInvitePage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderClaimPage();
-    await waitFor(() => expect(screen.getByLabelText('Name')).toBeDefined());
+    await waitFor(() => expect(screen.getByLabelText('First Name')).toBeDefined());
 
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New Client' } });
+    fireEvent.change(screen.getByLabelText('First Name'), { target: { value: 'New' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'all lowercase' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
@@ -221,9 +247,9 @@ describe('ClaimInvitePage', () => {
     );
 
     renderClaimPage();
-    await waitFor(() => expect(screen.getByLabelText('Name')).toBeDefined());
+    await waitFor(() => expect(screen.getByLabelText('First Name')).toBeDefined());
 
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New Client' } });
+    fireEvent.change(screen.getByLabelText('First Name'), { target: { value: 'New' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'Str0ng Passw0rd!' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
@@ -251,7 +277,7 @@ describe('ClaimInvitePage', () => {
     renderClaimPage();
 
     await waitFor(() => expect(screen.getByText(/This invite has expired/)).toBeDefined());
-    expect(screen.queryByLabelText('Name')).toBeNull();
+    expect(screen.queryByLabelText('First Name')).toBeNull();
   });
 
   it('shows a clear message for an already-claimed invite', async () => {

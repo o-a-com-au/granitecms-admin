@@ -19,7 +19,8 @@ const TEST_PASSWORD = 'correct horse battery staple';
 // creates or changes a password does, so those tests need a payload
 // that actually passes: 3+ of upper/lower/number/symbol.
 const STRONG_PASSWORD = 'Str0ng Passw0rd!';
-const TEST_NAME = 'Jane Editor';
+const TEST_FIRST_NAME = 'Jane';
+const TEST_LAST_NAME = 'Editor';
 const TEST_EMAIL = 'jane@example.com';
 
 async function buildTestServer(): Promise<{ deps: ServerDeps; app: Awaited<ReturnType<typeof buildServer>> }> {
@@ -30,7 +31,8 @@ async function buildTestServer(): Promise<{ deps: ServerDeps; app: Awaited<Retur
     username: TEST_USERNAME,
     passwordHash: hash,
     passwordSalt: salt,
-    name: TEST_NAME,
+    firstName: TEST_FIRST_NAME,
+    lastName: TEST_LAST_NAME,
     email: TEST_EMAIL,
     role: 'developer',
     status: 'active',
@@ -80,7 +82,8 @@ describe('auth routes', () => {
     assert.deepEqual(response.json(), {
       id: normaliseUsername(TEST_USERNAME),
       username: TEST_USERNAME,
-      name: TEST_NAME,
+      firstName: TEST_FIRST_NAME,
+      lastName: TEST_LAST_NAME,
       email: TEST_EMAIL,
       role: 'developer',
       status: 'active',
@@ -136,7 +139,8 @@ describe('auth routes', () => {
     assert.deepEqual(meResponse.json(), {
       id: normaliseUsername(TEST_USERNAME),
       username: TEST_USERNAME,
-      name: TEST_NAME,
+      firstName: TEST_FIRST_NAME,
+      lastName: TEST_LAST_NAME,
       email: TEST_EMAIL,
       role: 'developer',
       status: 'active',
@@ -199,7 +203,8 @@ describe('auth routes', () => {
     assert.deepEqual(whoamiResponse.json(), {
       id: normaliseUsername(TEST_USERNAME),
       username: TEST_USERNAME,
-      name: TEST_NAME,
+      firstName: TEST_FIRST_NAME,
+      lastName: TEST_LAST_NAME,
       email: TEST_EMAIL,
       role: 'developer',
       status: 'active',
@@ -318,7 +323,7 @@ describe('auth routes', () => {
   });
 
   describe('PATCH /api/auth/me', () => {
-    it('updates name and email, returning the full current-user shape', async () => {
+    it('updates firstName, lastName, and email, returning the full current-user shape', async () => {
       const { app } = await buildTestServer();
       const loginResponse = await app.inject({
         method: 'POST',
@@ -331,14 +336,15 @@ describe('auth routes', () => {
         method: 'PATCH',
         url: '/api/auth/me',
         headers: { cookie },
-        payload: { name: 'New Name', email: 'new-email@example.com' },
+        payload: { firstName: 'Updated', lastName: 'Person', email: 'new-email@example.com' },
       });
 
       assert.equal(response.statusCode, 200);
       assert.deepEqual(response.json(), {
         id: normaliseUsername(TEST_USERNAME),
         username: TEST_USERNAME,
-        name: 'New Name',
+        firstName: 'Updated',
+        lastName: 'Person',
         email: 'new-email@example.com',
         role: 'developer',
         status: 'active',
@@ -348,7 +354,7 @@ describe('auth routes', () => {
       await app.close();
     });
 
-    it('a partial update (name only) leaves email untouched, and vice versa', async () => {
+    it('a partial update (firstName only, or lastName only) leaves the others untouched', async () => {
       const { app } = await buildTestServer();
       const loginResponse = await app.inject({
         method: 'POST',
@@ -357,10 +363,26 @@ describe('auth routes', () => {
       });
       const cookie = extractCookie(loginResponse.headers['set-cookie']);
 
-      const nameOnly = await app.inject({ method: 'PATCH', url: '/api/auth/me', headers: { cookie }, payload: { name: 'Only Name Changed' } });
-      assert.equal(nameOnly.statusCode, 200);
-      assert.equal(nameOnly.json().name, 'Only Name Changed');
-      assert.equal(nameOnly.json().email, TEST_EMAIL);
+      const firstNameOnly = await app.inject({
+        method: 'PATCH',
+        url: '/api/auth/me',
+        headers: { cookie },
+        payload: { firstName: 'Updated' },
+      });
+      assert.equal(firstNameOnly.statusCode, 200);
+      assert.equal(firstNameOnly.json().firstName, 'Updated');
+      assert.equal(firstNameOnly.json().lastName, TEST_LAST_NAME);
+      assert.equal(firstNameOnly.json().email, TEST_EMAIL);
+
+      const lastNameOnly = await app.inject({
+        method: 'PATCH',
+        url: '/api/auth/me',
+        headers: { cookie },
+        payload: { lastName: 'Surname' },
+      });
+      assert.equal(lastNameOnly.statusCode, 200);
+      assert.equal(lastNameOnly.json().firstName, 'Updated', 'the firstName set by the previous request must survive');
+      assert.equal(lastNameOnly.json().lastName, 'Surname');
 
       const emailOnly = await app.inject({
         method: 'PATCH',
@@ -369,13 +391,14 @@ describe('auth routes', () => {
         payload: { email: 'only-email-changed@example.com' },
       });
       assert.equal(emailOnly.statusCode, 200);
-      assert.equal(emailOnly.json().name, 'Only Name Changed', 'the name set by the previous request must survive');
+      assert.equal(emailOnly.json().firstName, 'Updated', 'still survives');
+      assert.equal(emailOnly.json().lastName, 'Surname', 'still survives');
       assert.equal(emailOnly.json().email, 'only-email-changed@example.com');
 
       await app.close();
     });
 
-    it('rejects an empty/whitespace-only name or email with 400 and no mutation', async () => {
+    it('rejects an empty/whitespace-only firstName or email with 400 and no mutation', async () => {
       const { app } = await buildTestServer();
       const loginResponse = await app.inject({
         method: 'POST',
@@ -384,11 +407,27 @@ describe('auth routes', () => {
       });
       const cookie = extractCookie(loginResponse.headers['set-cookie']);
 
-      const response = await app.inject({ method: 'PATCH', url: '/api/auth/me', headers: { cookie }, payload: { name: '   ' } });
+      const response = await app.inject({ method: 'PATCH', url: '/api/auth/me', headers: { cookie }, payload: { firstName: '   ' } });
       assert.equal(response.statusCode, 400);
 
       const meResponse = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie } });
-      assert.equal(meResponse.json().name, TEST_NAME, 'must not have been mutated');
+      assert.equal(meResponse.json().firstName, TEST_FIRST_NAME, 'must not have been mutated');
+
+      await app.close();
+    });
+
+    it('an empty lastName is accepted - single-name individuals are not required to supply one', async () => {
+      const { app } = await buildTestServer();
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: TEST_USERNAME, password: TEST_PASSWORD },
+      });
+      const cookie = extractCookie(loginResponse.headers['set-cookie']);
+
+      const response = await app.inject({ method: 'PATCH', url: '/api/auth/me', headers: { cookie }, payload: { lastName: '' } });
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.json().lastName, '');
 
       await app.close();
     });
@@ -406,7 +445,7 @@ describe('auth routes', () => {
         method: 'PATCH',
         url: '/api/auth/me',
         headers: { cookie },
-        payload: { name: 'Still Jane', username: 'attempted-rename' },
+        payload: { firstName: 'Still', lastName: 'Jane', username: 'attempted-rename' },
       });
 
       assert.equal(response.statusCode, 200);
@@ -599,14 +638,15 @@ describe('auth routes', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/auth/signup',
-        payload: { name: 'New Dev', email: 'new-dev@example.com', password: STRONG_PASSWORD },
+        payload: { firstName: 'New', lastName: 'Dev', email: 'new-dev@example.com', password: STRONG_PASSWORD },
       });
 
       assert.equal(response.statusCode, 200);
       assert.deepEqual(response.json(), {
         id: normaliseUsername('new-dev@example.com'),
         username: 'new-dev@example.com',
-        name: 'New Dev',
+        firstName: 'New',
+        lastName: 'Dev',
         email: 'new-dev@example.com',
         role: 'developer',
         status: 'active',
@@ -622,20 +662,36 @@ describe('auth routes', () => {
       await app.close();
     });
 
+    it('a signup with no lastName supplied defaults it to an empty string', async () => {
+      const { app } = await buildTestServer();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/auth/signup',
+        payload: { firstName: 'Cher', email: 'cher@example.com', password: STRONG_PASSWORD },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.json().firstName, 'Cher');
+      assert.equal(response.json().lastName, '');
+
+      await app.close();
+    });
+
     it('an email that already has an account is rejected with 409 and no mutation', async () => {
       const { app } = await buildTestServer();
 
       const first = await app.inject({
         method: 'POST',
         url: '/api/auth/signup',
-        payload: { name: 'First', email: 'taken@example.com', password: STRONG_PASSWORD },
+        payload: { firstName: 'First', email: 'taken@example.com', password: STRONG_PASSWORD },
       });
       assert.equal(first.statusCode, 200);
 
       const second = await app.inject({
         method: 'POST',
         url: '/api/auth/signup',
-        payload: { name: 'Second', email: 'taken@example.com', password: 'An0ther Str0ng Pass!' },
+        payload: { firstName: 'Second', email: 'taken@example.com', password: 'An0ther Str0ng Pass!' },
       });
       assert.equal(second.statusCode, 409);
 
@@ -647,7 +703,7 @@ describe('auth routes', () => {
         payload: { username: 'taken@example.com', password: STRONG_PASSWORD },
       });
       assert.equal(loginResponse.statusCode, 200);
-      assert.equal(loginResponse.json().name, 'First');
+      assert.equal(loginResponse.json().firstName, 'First');
 
       await app.close();
     });
@@ -658,7 +714,7 @@ describe('auth routes', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/auth/signup',
-        payload: { name: 'Short', email: 'short@example.com', password: 'short1' },
+        payload: { firstName: 'Short', email: 'short@example.com', password: 'short1' },
       });
 
       assert.equal(response.statusCode, 400);
@@ -680,7 +736,7 @@ describe('auth routes', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/auth/signup',
-        payload: { name: 'All Lowercase', email: 'lowercase@example.com', password: 'aaaaaaaaaa' },
+        payload: { firstName: 'Weak', email: 'lowercase@example.com', password: 'aaaaaaaaaa' },
       });
 
       assert.equal(response.statusCode, 400);
@@ -689,13 +745,13 @@ describe('auth routes', () => {
       await app.close();
     });
 
-    it('an empty name or email is rejected with 400', async () => {
+    it('an empty firstName or email is rejected with 400', async () => {
       const { app } = await buildTestServer();
 
       const response = await app.inject({
         method: 'POST',
         url: '/api/auth/signup',
-        payload: { name: '', email: 'someone@example.com', password: STRONG_PASSWORD },
+        payload: { firstName: '', email: 'someone@example.com', password: STRONG_PASSWORD },
       });
 
       assert.equal(response.statusCode, 400);
@@ -709,7 +765,7 @@ describe('auth routes', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/auth/signup',
-        payload: { name: 'Sydney Dev', email: 'sydney-dev@example.com', password: STRONG_PASSWORD, timezone: 'Australia/Sydney' },
+        payload: { firstName: 'Sydney', lastName: 'Dev', email: 'sydney-dev@example.com', password: STRONG_PASSWORD, timezone: 'Australia/Sydney' },
       });
 
       assert.equal(response.statusCode, 200);
@@ -727,7 +783,7 @@ describe('auth routes', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/auth/signup',
-        payload: { name: 'Bad Zone', email: 'bad-zone@example.com', password: STRONG_PASSWORD, timezone: 'Not/A_Real_Zone' },
+        payload: { firstName: 'Bad', lastName: 'Zone', email: 'bad-zone@example.com', password: STRONG_PASSWORD, timezone: 'Not/A_Real_Zone' },
       });
 
       assert.equal(response.statusCode, 400);

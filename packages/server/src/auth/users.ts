@@ -17,11 +17,16 @@ export interface AdminUser {
   username: string;
   passwordHash: string;
   passwordSalt: string;
-  // The commit author identity used for every publish/unpublish this
-  // account performs (Phase 3 Group G) - set once at bootstrap, never
-  // typed fresh per publish, so a real git history gets a stable,
-  // real-looking identity rather than something re-entered each time.
-  name: string;
+  // Together, the commit author identity used for every publish/
+  // unpublish this account performs (Phase 3 Group G) - set once at
+  // bootstrap, never typed fresh per publish, so a real git history
+  // gets a stable, real-looking identity rather than something
+  // re-entered each time. See auth/full-name.ts's formatFullName.
+  // lastName is always a real string, never undefined - just possibly
+  // '' (GitHub OAuth has no separate given/family name to read, and a
+  // single-word legacy name splits with nothing left over).
+  firstName: string;
+  lastName: string;
   email: string;
   role: AdminUserRole;
   status: AdminUserStatus;

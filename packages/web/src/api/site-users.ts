@@ -1,7 +1,8 @@
 export interface SiteClient {
   id: string;
   username: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   grantedAt: string;
 }
@@ -36,7 +37,7 @@ export async function listSiteClients(siteId: string): Promise<SiteClient[]> {
 
 export async function inviteSiteClient(
   siteId: string,
-  input: { name: string; email: string; password?: string },
+  input: { firstName: string; lastName: string; email: string; password?: string },
 ): Promise<SiteClientInviteResult> {
   const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/users`, {
     method: 'POST',
