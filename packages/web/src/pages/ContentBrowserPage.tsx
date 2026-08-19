@@ -259,7 +259,8 @@ export function ContentBrowserPage() {
             {error.reason === 'unreachable' && 'This site is unreachable right now.'}
             {error.reason === 'unauthorized' && (
               <>
-                This site&apos;s token was rejected. <Link to="/settings">Rotate it from Site settings</Link>.
+                This site&apos;s token was rejected.{' '}
+                <Link to={`/settings/sites/${siteId}`}>Rotate it from Manage Site</Link>.
               </>
             )}
             {error.reason === 'error' && error.message}
