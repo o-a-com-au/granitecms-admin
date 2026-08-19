@@ -1,7 +1,11 @@
 /* docs/design/Settings - *.png - the unified Settings shell
-   (SettingsLayout.tsx) sitting inside the default centred
-   .app-content column (app-shell.css), not the full-bleed
-   .list-page treatment the old three separate pages used. */
+   (SettingsLayout.tsx) reuses the same full-bleed .list-page/
+   .list-page-inner panel Pages and Media sit in (pages-list.css),
+   applied here via app-shell.css's .app-content:has(.list-page)
+   override, rather than the default centred .app-content column.
+   .settings-page itself just adds the sidebar/content flex row on
+   top of .list-page-inner's own box model - the two combine on the
+   same element. */
 .settings-page {
   display: flex;
   gap: 3rem;

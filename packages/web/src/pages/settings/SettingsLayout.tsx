@@ -33,18 +33,20 @@ export function SettingsLayout() {
   }
 
   return (
-    <div className="settings-page">
-      <nav className="settings-sidebar" aria-label="Settings">
-        <h1>Settings</h1>
-        <SettingsNavItem label="Personal Details" to="/settings/personal" active={isActive('/settings/personal')} />
-        <SettingsNavItem label="Password and Security" to="/settings/password" active={isActive('/settings/password')} />
-        <SettingsNavItem label="Manage Subscription" to="/settings/subscription" active={isActive('/settings/subscription')} />
-        {user?.role === 'developer' && (
-          <SettingsNavItem label="Manage Sites" to="/settings/sites" active={isActive('/settings/sites')} />
-        )}
-      </nav>
-      <div className="settings-content">
-        <Outlet />
+    <div className="list-page">
+      <div className="list-page-inner settings-page">
+        <nav className="settings-sidebar" aria-label="Settings">
+          <h1>Settings</h1>
+          <SettingsNavItem label="Personal Details" to="/settings/personal" active={isActive('/settings/personal')} />
+          <SettingsNavItem label="Password and Security" to="/settings/password" active={isActive('/settings/password')} />
+          <SettingsNavItem label="Manage Subscription" to="/settings/subscription" active={isActive('/settings/subscription')} />
+          {user?.role === 'developer' && (
+            <SettingsNavItem label="Manage Sites" to="/settings/sites" active={isActive('/settings/sites')} />
+          )}
+        </nav>
+        <div className="settings-content">
+          <Outlet />
+        </div>
       </div>
     </div>
   );
