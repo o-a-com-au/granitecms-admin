@@ -282,15 +282,18 @@ describe('AppShell', () => {
     expect(screen.getByTitle('Editor (unavailable)')).toBeDefined();
   });
 
-  it('Editor falls back to a locally-remembered site when siteId itself is unset (e.g. on /settings)', async () => {
+  it('Editor, Pages, Menus, Media, and Redirects all fall back to a locally-remembered site when siteId itself is unset (e.g. on /settings)', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     localStorage.setItem('cms-admin-last-site', 'site-1');
     installFakeApi();
     renderShell('/settings');
 
     await waitFor(() => expect(screen.getByText('settings content')).toBeDefined());
-    const editorLink = screen.getByRole('link', { name: 'Editor' });
-    expect(editorLink.getAttribute('href')).toBe(defaultEditorHref('site-1'));
+    expect(screen.getByRole('link', { name: 'Editor' }).getAttribute('href')).toBe(defaultEditorHref('site-1'));
+    expect(screen.getByRole('link', { name: 'Pages' }).getAttribute('href')).toBe('/sites/site-1/content');
+    expect(screen.getByRole('link', { name: 'Menus' }).getAttribute('href')).toBe('/sites/site-1/menus');
+    expect(screen.getByRole('link', { name: 'Media' }).getAttribute('href')).toBe('/sites/site-1/media');
+    expect(screen.getByRole('link', { name: 'Redirects' }).getAttribute('href')).toBe('/sites/site-1/redirects');
   });
 
   it('visiting a site-scoped route remembers that site as the current one', async () => {

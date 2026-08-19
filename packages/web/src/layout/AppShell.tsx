@@ -134,18 +134,18 @@ export function AppShell() {
 
   const initial = user?.username ? user.username[0]?.toUpperCase() : '?';
 
-  const contentTo = siteId ? `/sites/${siteId}/content` : undefined;
-  const menusTo = siteId ? `/sites/${siteId}/menus` : undefined;
-  const mediaTo = siteId ? `/sites/${siteId}/media` : undefined;
-  const redirectsTo = siteId ? `/sites/${siteId}/redirects` : undefined;
   const editorTo = siteId ? `/sites/${siteId}/editor` : undefined;
   const isEditingPage = location.pathname === editorTo;
   // Falls back to the last-visited site (e.g. while on /settings, where
-  // siteId itself isn't in the URL) so Editor stays a real link from
-  // anywhere, not just while a site is already selected. undefined only
-  // on a genuine first-ever visit, before any site has ever been known -
-  // TopNavItem already renders that as disabled, same as Pages/Menus/etc.
+  // siteId itself isn't in the URL) so every nav item stays a real link
+  // from anywhere, not just while a site is already selected in the
+  // URL. undefined only on a genuine first-ever visit, before any site
+  // has ever been known - TopNavItem renders that as disabled.
   const effectiveSiteId = siteId ?? readLastSiteId();
+  const contentTo = effectiveSiteId ? `/sites/${effectiveSiteId}/content` : undefined;
+  const menusTo = effectiveSiteId ? `/sites/${effectiveSiteId}/menus` : undefined;
+  const mediaTo = effectiveSiteId ? `/sites/${effectiveSiteId}/media` : undefined;
+  const redirectsTo = effectiveSiteId ? `/sites/${effectiveSiteId}/redirects` : undefined;
   const editorNavTo = isEditingPage
     ? `${location.pathname}${location.search}`
     : effectiveSiteId
