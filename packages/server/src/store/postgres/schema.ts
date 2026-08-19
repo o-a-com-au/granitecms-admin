@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { pgTable, text, uniqueIndex, index } from 'drizzle-orm/pg-core';
 
 // One table per existing JSON store (store/json-file-store.ts, being
@@ -17,12 +18,20 @@ export const users = pgTable(
     firstName: text('first_name').notNull(),
     lastName: text('last_name').notNull(),
     email: text('email').notNull(),
-    role: text('role').notNull(), // AdminUserRole: 'developer' | 'client'
-    status: text('status').notNull(), // AdminUserStatus: 'active' | 'paused'
+    // `enum` here is a TS-level narrowing only (still a plain text
+    // column, not a real Postgres enum type) - matches AdminUserRole/
+    // AdminUserStatus exactly, so select results type as AdminUser
+    // without a cast.
+    role: text('role', { enum: ['developer', 'client'] }).notNull(),
+    status: text('status', { enum: ['active', 'paused'] }).notNull(),
     timezone: text('timezone').notNull(),
     createdAt: text('created_at').notNull(),
   },
-  (table) => [uniqueIndex('users_email_idx').on(table.email)],
+  // Case-insensitive - matches how every route currently deduplicates
+  // (normaliseUsername(email), auth/users.ts) before comparing. A
+  // plain index on the raw column wouldn't be usable by a lower()-
+  // wrapped lookup query.
+  (table) => [uniqueIndex('users_email_idx').on(sql`lower(${table.email})`)],
 );
 
 export const sites = pgTable(
@@ -65,6 +74,11 @@ export const siteInvites = pgTable(
 );
 
 // Always exactly one row (id: 'singleton') - see auth/session-secret.ts.
+// Not narrowed to that literal via drizzle's `enum` option the way
+// users.role/status are - Store<T>'s own find/delete take a plain
+// `id: string`, and a literal-typed column can't satisfy that generic
+// signature. The app-level guarantee (ensureSessionSecret always
+// writes 'singleton') is enough; the type only needs to be `string`.
 export const sessionSecret = pgTable('session_secret', {
   id: text('id').primaryKey(),
   secret: text('secret').notNull(),
