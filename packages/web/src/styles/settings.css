@@ -1,0 +1,175 @@
+/* docs/design/Settings - *.png - the unified Settings shell
+   (SettingsLayout.tsx) sitting inside the default centred
+   .app-content column (app-shell.css), not the full-bleed
+   .list-page treatment the old three separate pages used. */
+.settings-page {
+  display: flex;
+  gap: 3rem;
+  align-items: flex-start;
+}
+
+.settings-sidebar {
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.settings-sidebar h1 {
+  margin-bottom: 1rem;
+}
+
+.settings-nav-item {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--colour-text);
+  text-decoration: none;
+}
+
+.settings-nav-item:hover {
+  color: var(--colour-text);
+  background: var(--colour-surface-hover);
+}
+
+.settings-nav-item[aria-current='page'] {
+  border-color: var(--colour-border);
+  background: var(--colour-surface);
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+  max-width: 520px;
+}
+
+.settings-content > section + section {
+  margin-top: 2rem;
+}
+
+.settings-name-fields {
+  display: flex;
+  gap: 1rem;
+}
+
+.settings-name-fields label {
+  flex: 1;
+}
+
+/* "Your Plan" (SubscriptionPage) / "Website Status" (ManageSitePage) -
+   a bordered/filled card nested inside the section, matching the
+   design's own boxed treatment distinct from the section itself. */
+.settings-card {
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
+}
+
+.settings-muted {
+  color: var(--colour-muted);
+  font-size: 0.85rem;
+}
+
+.settings-site-url {
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+}
+
+.settings-site-list,
+.settings-access-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.settings-site-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
+}
+
+.settings-site-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.settings-edit-link {
+  padding: 0.5rem 1.1rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  color: var(--colour-text);
+  text-decoration: none;
+}
+
+.settings-edit-link:hover {
+  background: var(--colour-surface-hover);
+}
+
+.settings-status-list {
+  margin: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.settings-status-list > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--colour-table-row-divider);
+}
+
+.settings-status-list dt {
+  color: var(--colour-muted);
+}
+
+.settings-status-list dd {
+  margin: 0;
+}
+
+.settings-access-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--colour-table-row-divider);
+}
+
+.settings-access-list li:last-child {
+  border-bottom: none;
+}
+
+/* Shared by "Revoke Access", "Cancel invite", and "Delete this
+   website" - a plain text link in the accent colour, not a bordered
+   button. ConfirmDialog.tsx's own comment already established this
+   app has no second/danger accent colour - the mockups agree,
+   showing "Delete this website" in the same blue as everything else.
+   button.settings-text-link, not the bare class - base.css's
+   button[type='button'] (element+attribute) sets its own background/
+   border-color/padding at the same specificity as a bare element+class
+   selector, and a plain class selector loses that tie regardless of
+   stylesheet load order (the same fix already applied to
+   button.password-toggle in password-field.css). */
+button.settings-text-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--colour-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+button.settings-text-link:hover {
+  color: var(--colour-primary-hover);
+  background: none;
+}

@@ -27,7 +27,10 @@ function ClientLanding() {
 // always an immediate redirect, either into whichever site's editor
 // was last visited (readLastSiteId, remembered by AppShell on every
 // site-scoped route) or, on a genuinely first-ever visit with no site
-// known yet, to the site registry at /settings - developer only.
+// known yet, to the site registry at /settings/sites - developer
+// only. Not the bare /settings (which now defaults to Personal
+// Details, not the registry) - a first-time developer's only useful
+// destination here is actually registering a site.
 export function HomeRedirect() {
   const { user } = useAuth();
   const lastSiteId = readLastSiteId();
@@ -40,5 +43,5 @@ export function HomeRedirect() {
     return <ClientLanding />;
   }
 
-  return <Navigate to="/settings" replace />;
+  return <Navigate to="/settings/sites" replace />;
 }

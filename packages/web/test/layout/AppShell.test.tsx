@@ -377,7 +377,7 @@ describe('AppShell', () => {
     expect(other.getAttribute('href')).toBe('/sites/site-2/editor?path=pages%2Findex.json&url=%2F');
 
     const settingsLink = screen.getByRole('menuitem', { name: 'Site settings' });
-    expect(settingsLink.getAttribute('href')).toBe('/settings');
+    expect(settingsLink.getAttribute('href')).toBe('/settings/sites');
   });
 
   it('clicking another site in "Switch site" navigates to it and closes the popover', async () => {
@@ -476,7 +476,7 @@ describe('AppShell', () => {
     expect(screen.getByRole('menuitem', { name: 'Logout' })).toBeDefined();
   });
 
-  it('a developer sees the "Account details" popover item, pointing at /account', async () => {
+  it('a developer sees the "Settings" popover item, pointing at /settings/personal', async () => {
     installFakeApiWithProfile();
 
     renderShell('/sites/site-1/content');
@@ -484,12 +484,12 @@ describe('AppShell', () => {
 
     fireEvent.click(screen.getByTitle('admin'));
 
-    const link = screen.getByRole('menuitem', { name: 'Account details' });
+    const link = screen.getByRole('menuitem', { name: 'Settings' });
     expect(link).toBeDefined();
-    expect(link.getAttribute('href')).toBe('/account');
+    expect(link.getAttribute('href')).toBe('/settings/personal');
   });
 
-  it('a client also sees the "Account details" popover item - unlike "Site settings", it is not developer-only', async () => {
+  it('a client also sees the "Settings" popover item - unlike "Site settings", it is not developer-only', async () => {
     installFakeApiWithClientProfile();
 
     renderShell('/sites/site-1/content');
@@ -497,34 +497,8 @@ describe('AppShell', () => {
 
     fireEvent.click(screen.getByTitle('client-1'));
 
-    const link = screen.getByRole('menuitem', { name: 'Account details' });
+    const link = screen.getByRole('menuitem', { name: 'Settings' });
     expect(link).toBeDefined();
-    expect(link.getAttribute('href')).toBe('/account');
-  });
-
-  it('a developer sees the "Manage subscription" popover item, pointing at /subscription', async () => {
-    installFakeApiWithProfile();
-
-    renderShell('/sites/site-1/content');
-    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
-
-    fireEvent.click(screen.getByTitle('admin'));
-
-    const link = screen.getByRole('menuitem', { name: 'Manage subscription' });
-    expect(link).toBeDefined();
-    expect(link.getAttribute('href')).toBe('/subscription');
-  });
-
-  it('a client also sees the "Manage subscription" popover item - it is not developer-only either', async () => {
-    installFakeApiWithClientProfile();
-
-    renderShell('/sites/site-1/content');
-    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
-
-    fireEvent.click(screen.getByTitle('client-1'));
-
-    const link = screen.getByRole('menuitem', { name: 'Manage subscription' });
-    expect(link).toBeDefined();
-    expect(link.getAttribute('href')).toBe('/subscription');
+    expect(link.getAttribute('href')).toBe('/settings/personal');
   });
 });

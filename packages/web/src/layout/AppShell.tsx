@@ -256,14 +256,11 @@ export function AppShell() {
                       Couldn&apos;t load sites
                     </span>
                   )}
-                  <Link to="/account" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
-                    Account details
-                  </Link>
-                  <Link to="/subscription" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
-                    Manage subscription
+                  <Link to="/settings/personal" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
+                    Settings
                   </Link>
                   {user?.role === 'developer' && (
-                    <Link to="/settings" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
+                    <Link to="/settings/sites" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
                       Site settings
                     </Link>
                   )}

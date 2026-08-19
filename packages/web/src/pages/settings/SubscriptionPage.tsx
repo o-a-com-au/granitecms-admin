@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { useAuth } from '../auth/AuthContext.tsx';
-import { pauseAccount } from '../api/auth.ts';
-import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
+import { useAuth } from '../../auth/AuthContext.tsx';
+import { pauseAccount } from '../../api/auth.ts';
+import { ConfirmDialog } from '../../editor/ConfirmDialog.tsx';
 
-// Reachable by both roles (unlike /settings) - pausing was available
-// to clients too when this lived in AppShell's popover, and stays so
-// here.
-export function ManageSubscriptionPage() {
+// Reachable by both roles - pausing is available to clients too.
+export function SubscriptionPage() {
   const { refresh } = useAuth();
   const [confirmingPause, setConfirmingPause] = useState(false);
   const [pausing, setPausing] = useState(false);
@@ -27,33 +25,26 @@ export function ManageSubscriptionPage() {
   }
 
   return (
-    <div className="list-page">
-      <div className="list-page-inner">
-        <h1>Manage Subscription</h1>
-
-        <section>
-          <h2>Plan</h2>
-          <p>Plan and billing management is coming soon.</p>
-        </section>
-
-        <section>
-          <h2>Pause subscription</h2>
-          <p>Pausing signs you out of the admin until you resume. Your site stays live and unaffected.</p>
-          <button type="button" onClick={() => setConfirmingPause(true)}>
-            Pause subscription
-          </button>
-        </section>
+    <section>
+      <h2>Manage Subscription</h2>
+      <div className="settings-card">
+        <h3>Your Plan</h3>
+        <p className="settings-muted">Plan and billing management is coming soon.</p>
+        <button type="button" className="button-primary" onClick={() => setConfirmingPause(true)}>
+          Pause Subscription
+        </button>
+        <p className="settings-muted">Pausing will lock you out of making any edits to your websites. All sites will stay live and unaffected.</p>
       </div>
 
       {confirmingPause && (
         <ConfirmDialog
           message="Pause your subscription? You'll be signed out of the admin until you resume, but your site stays live and unaffected."
-          confirmLabel="Pause subscription"
+          confirmLabel="Pause Subscription"
           busy={pausing}
           onConfirm={() => void handleConfirmPause()}
           onCancel={() => setConfirmingPause(false)}
         />
       )}
-    </div>
+    </section>
   );
 }

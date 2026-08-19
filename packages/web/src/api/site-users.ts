@@ -7,11 +7,12 @@ export interface SiteClient {
   grantedAt: string;
 }
 
-// The invite response only ever has a password when a brand new
-// client account was created - granting an existing client access to
-// another site never returns one (their existing credentials are left
-// untouched), matching the server route's own branching.
-export type SiteClientInviteResult = SiteClient & { password?: string };
+export interface SiteOwner {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
 
 async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
@@ -26,28 +27,12 @@ async function parseErrorMessage(response: Response, fallback: string): Promise<
   }
 }
 
-export async function listSiteClients(siteId: string): Promise<SiteClient[]> {
+export async function listSiteClients(siteId: string): Promise<{ owner: SiteOwner | null; clients: SiteClient[] }> {
   const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/users`);
   if (!response.ok) {
     throw new Error(await parseErrorMessage(response, 'Failed to load clients'));
   }
-  const body = (await response.json()) as { clients: SiteClient[] };
-  return body.clients;
-}
-
-export async function inviteSiteClient(
-  siteId: string,
-  input: { firstName: string; lastName: string; email: string; password?: string },
-): Promise<SiteClientInviteResult> {
-  const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/users`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, 'Failed to invite the client'));
-  }
-  return (await response.json()) as SiteClientInviteResult;
+  return (await response.json()) as { owner: SiteOwner | null; clients: SiteClient[] };
 }
 
 export async function revokeSiteClient(siteId: string, userId: string): Promise<{ accountDeleted: boolean }> {

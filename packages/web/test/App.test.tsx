@@ -30,7 +30,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Log in' })).toBeDefined());
   });
 
-  it('an authenticated visitor at / with no site ever visited is redirected to /settings, not the login screen', async () => {
+  it('an authenticated visitor at / with no site ever visited is redirected to /settings/sites, not the login screen', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -43,7 +43,7 @@ describe('App', () => {
 
     renderApp(['/']);
 
-    await waitFor(() => expect(screen.getByText('Site settings')).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Register a website' })).toBeDefined());
     expect(screen.queryByRole('heading', { name: 'Log in' })).toBeNull();
   });
 
@@ -64,7 +64,7 @@ describe('App', () => {
     // API too (this test is about routing, not content-loading, which
     // is covered elsewhere).
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Editor' })).toBeDefined());
-    expect(screen.queryByText('Site settings')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Register a website' })).toBeNull();
   });
 
   it('B1: /login itself is reachable while unauthenticated - the one exempt route', async () => {

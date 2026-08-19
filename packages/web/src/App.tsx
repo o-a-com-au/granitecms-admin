@@ -1,11 +1,14 @@
-import { type RouteObject } from 'react-router';
+import { Navigate, type RouteObject } from 'react-router';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { SignupPage } from './pages/SignupPage.tsx';
 import { ClaimInvitePage } from './pages/ClaimInvitePage.tsx';
 import { HomeRedirect } from './pages/HomeRedirect.tsx';
-import { AccountPage } from './pages/AccountPage.tsx';
-import { ManageSubscriptionPage } from './pages/ManageSubscriptionPage.tsx';
-import { SettingsPage } from './pages/SettingsPage.tsx';
+import { SettingsLayout } from './pages/settings/SettingsLayout.tsx';
+import { PersonalDetailsPage } from './pages/settings/PersonalDetailsPage.tsx';
+import { PasswordSecurityPage } from './pages/settings/PasswordSecurityPage.tsx';
+import { SubscriptionPage } from './pages/settings/SubscriptionPage.tsx';
+import { ManageSitesPage } from './pages/settings/ManageSitesPage.tsx';
+import { ManageSitePage } from './pages/settings/ManageSitePage.tsx';
 import { ContentBrowserPage } from './pages/ContentBrowserPage.tsx';
 import { MenusPage } from './pages/MenusPage.tsx';
 import { MediaLibraryPage } from './pages/MediaLibraryPage.tsx';
@@ -28,6 +31,13 @@ export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage /> },
   { path: '/signup', element: <SignupPage /> },
   { path: '/invite/:code', element: <ClaimInvitePage /> },
+  // docs/design/Settings - *.png replaced the previously-separate
+  // /account and /subscription pages with sections of the one unified
+  // /settings shell - these two redirects keep any already-memorised
+  // link (e.g. one sent out in an old invite/notification email)
+  // landing somewhere real rather than 404ing.
+  { path: '/account', element: <Navigate to="/settings/personal" replace /> },
+  { path: '/subscription', element: <Navigate to="/settings/subscription" replace /> },
   {
     element: <RequireAuth />,
     children: [
@@ -35,11 +45,22 @@ export const routes: RouteObject[] = [
         element: <AppShell />,
         children: [
           { path: '/', element: <HomeRedirect /> },
-          { path: '/account', element: <AccountPage /> },
-          { path: '/subscription', element: <ManageSubscriptionPage /> },
           {
-            element: <RequireDeveloper />,
-            children: [{ path: '/settings', element: <SettingsPage /> }],
+            path: '/settings',
+            element: <SettingsLayout />,
+            children: [
+              { index: true, element: <Navigate to="/settings/personal" replace /> },
+              { path: 'personal', element: <PersonalDetailsPage /> },
+              { path: 'password', element: <PasswordSecurityPage /> },
+              { path: 'subscription', element: <SubscriptionPage /> },
+              {
+                element: <RequireDeveloper />,
+                children: [
+                  { path: 'sites', element: <ManageSitesPage /> },
+                  { path: 'sites/:siteId', element: <ManageSitePage /> },
+                ],
+              },
+            ],
           },
           { path: '/sites/:siteId/content', element: <ContentBrowserPage /> },
           { path: '/sites/:siteId/menus', element: <MenusPage /> },

@@ -11,7 +11,7 @@ function renderHome() {
       <MemoryRouter initialEntries={['/']}>
         <Routes>
           <Route path="/" element={<HomeRedirect />} />
-          <Route path="/settings" element={<div>settings page</div>} />
+          <Route path="/settings/sites" element={<div>settings page</div>} />
           <Route path="/sites/:siteId/editor" element={<div>editor page</div>} />
         </Routes>
       </MemoryRouter>
@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 describe('HomeRedirect', () => {
-  it('a developer with no remembered site is sent to /settings to register one', async () => {
+  it('a developer with no remembered site is sent to /settings/sites to register one', async () => {
     stubApi({ id: 'dev-1', username: 'dev-1', role: 'developer', status: 'active' });
 
     renderHome();
