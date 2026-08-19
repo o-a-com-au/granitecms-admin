@@ -260,6 +260,11 @@
   padding: 0.5rem 0.25rem;
   font-weight: 500;
   border-radius: var(--radius-sm);
+  /* "Account Settings" is a <Link> (anchor), every other item here is
+     a <button> - this rule already overrides the browser's default
+     anchor colour but not its default underline, which otherwise
+     leaves that one item looking different for no intended reason. */
+  text-decoration: none;
 }
 
 .account-popover-item:hover {
