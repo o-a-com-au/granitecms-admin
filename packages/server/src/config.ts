@@ -39,6 +39,13 @@ export interface AdminConfig {
   // exactly where that proxy actually is, never blanket `true` unless
   // this process is genuinely unreachable except through it.
   trustProxy: string | boolean;
+  // pino level name ('info', 'debug', 'warn', 'error', 'silent', ...).
+  logLevel: string;
+  // Unconfigured is a first-class state, same pattern as smtp/oauth
+  // above - server.ts's error handler calls Sentry.captureException
+  // unconditionally, which safely no-ops when the SDK was never
+  // initialised (index.ts only calls Sentry.init when this is set).
+  sentryDsn: string | undefined;
 }
 
 function loadProviderConfig(clientIdVar: string, clientSecretVar: string): OAuthProviderConfig | undefined {
@@ -94,5 +101,12 @@ export function loadConfig(): AdminConfig {
   const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
   const trustProxyEnv = process.env.TRUST_PROXY;
   const trustProxy: string | boolean = trustProxyEnv === 'true' ? true : (trustProxyEnv ?? false);
-  return { port, webDistDir, baseUrl, googleOAuth, githubOAuth, smtp, databaseUrl, redisUrl, trustProxy };
+  // Quiet by default under the test runner (packages/server/package.json's
+  // "test" script sets NODE_ENV=test) - hundreds of tests each spinning
+  // up their own Fastify instance would otherwise spam a JSON log line
+  // per request. LOG_LEVEL always wins when explicitly set, including
+  // in tests that want to assert on log output.
+  const logLevel = process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'test' ? 'silent' : 'info');
+  const sentryDsn = process.env.SENTRY_DSN;
+  return { port, webDistDir, baseUrl, googleOAuth, githubOAuth, smtp, databaseUrl, redisUrl, trustProxy, logLevel, sentryDsn };
 }

@@ -6,6 +6,7 @@ import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
 import fastifyHelmet from '@fastify/helmet';
 import fastifyRateLimit from '@fastify/rate-limit';
+import * as Sentry from '@sentry/node';
 import { healthRoutes } from './routes/health.ts';
 import { createAuthRoutes } from './routes/auth.ts';
 import { createSitesRoutes } from './routes/sites.ts';
@@ -72,6 +73,12 @@ function isFastifyError(error: unknown): error is FastifyError {
 function handleError(error: FastifyError | Error, _request: FastifyRequest, reply: FastifyReply): void {
   const statusCode = isFastifyError(error) ? (error.statusCode ?? 500) : 500;
   if (statusCode >= 500) {
+    // Only genuine 500s, not every expected 4xx domain error
+    // (AuthError and friends) - those are normal control flow, not
+    // something worth an alert. Safe to call unconditionally: Sentry's
+    // SDK no-ops if Sentry.init() was never called (index.ts only
+    // calls it when SENTRY_DSN is actually configured - config.ts).
+    Sentry.captureException(error);
     reply.code(statusCode).send({ statusCode, error: 'Internal Server Error', message: 'Something went wrong' });
     return;
   }
@@ -82,7 +89,21 @@ export async function buildServer(
   config: AdminConfig = loadConfig(),
   deps: ServerDeps = defaultDeps(),
 ): Promise<FastifyInstance> {
-  const app = Fastify({ trustProxy: config.trustProxy });
+  const app = Fastify({
+    trustProxy: config.trustProxy,
+    logger: {
+      level: config.logLevel,
+      // Fastify's own request/response serializers include these
+      // headers by default (the session cookie itself, and any
+      // Authorization header) - redacted so a log line never carries
+      // a live, replayable credential, not just avoiding a leak of
+      // secret *values* elsewhere.
+      redact: {
+        paths: ['req.headers.cookie', 'req.headers.authorization', 'res.headers["set-cookie"]'],
+        censor: '[redacted]',
+      },
+    },
+  });
 
   app.setErrorHandler(handleError);
   app.decorateRequest('currentUser', null);

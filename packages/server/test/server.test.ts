@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import * as Sentry from '@sentry/node';
 import { buildServer, type ServerDeps } from '../src/server.ts';
 import type { AdminConfig } from '../src/config.ts';
 import { loadConfig } from '../src/config.ts';
@@ -46,6 +47,8 @@ describe('server - production static/SPA serving', () => {
       databaseUrl: 'postgres://admin:admin@localhost:5432/cms_admin',
       redisUrl: 'redis://localhost:6379',
       trustProxy: false,
+      logLevel: 'silent',
+      sentryDsn: undefined,
     };
   });
 
@@ -160,6 +163,68 @@ describe('server - trustProxy', () => {
 
     assert.equal(response.statusCode, 200);
     assert.match(setCookieHeader(response.headers['set-cookie']), /Secure/i);
+
+    await app.close();
+  });
+});
+
+describe('server - Sentry error reporting', () => {
+  afterEach(async () => {
+    // Sentry.init() sets process-wide state - undo it so this suite
+    // doesn't leak a configured client into every other test file's
+    // own (unconfigured) run.
+    await Sentry.close();
+  });
+
+  it('a genuine 500 is reported to Sentry once configured, with the real error intact', async () => {
+    const captured: unknown[] = [];
+    Sentry.init({
+      dsn: 'https://fake@fake.ingest.sentry.io/0',
+      // Swallows the event rather than ever attempting a real network
+      // send - beforeSend still fires with the real captured error
+      // first, which is all this test needs to observe.
+      beforeSend(event, hint) {
+        captured.push(hint.originalException);
+        return null;
+      },
+    });
+
+    const app = await buildServer();
+    app.get('/__test-throws', () => {
+      throw new Error('a genuine unexpected failure');
+    });
+
+    const response = await app.inject({ method: 'GET', url: '/__test-throws' });
+    // captureException queues the event for async processing - flush
+    // waits for that pipeline (including beforeSend) to actually run,
+    // rather than asserting before it's had a chance to.
+    await Sentry.flush();
+
+    assert.equal(response.statusCode, 500);
+    assert.deepEqual(response.json(), { statusCode: 500, error: 'Internal Server Error', message: 'Something went wrong' });
+    assert.equal(captured.length, 1);
+    assert.equal((captured[0] as Error).message, 'a genuine unexpected failure');
+
+    await app.close();
+  });
+
+  it('an expected 4xx domain error is never reported to Sentry', async () => {
+    const captured: unknown[] = [];
+    Sentry.init({
+      dsn: 'https://fake@fake.ingest.sentry.io/0',
+      beforeSend(event, hint) {
+        captured.push(hint.originalException);
+        return null;
+      },
+    });
+
+    const app = await buildServer();
+
+    const response = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'nobody', password: 'x' } });
+    await Sentry.flush();
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(captured.length, 0);
 
     await app.close();
   });

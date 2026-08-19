@@ -1,4 +1,5 @@
 import { Redis } from 'ioredis';
+import * as Sentry from '@sentry/node';
 import { buildServer } from './server.ts';
 import { loadConfig } from './config.ts';
 import { openDb } from './store/postgres/client.ts';
@@ -19,6 +20,14 @@ import type { OAuthProvider } from './auth/oauth-provider.ts';
 import { createMailer } from './email/mailer.ts';
 
 const config = loadConfig();
+
+// Unconfigured (no SENTRY_DSN) is a first-class, fully supported state
+// - server.ts's error handler calls Sentry.captureException
+// unconditionally, which safely no-ops when init() was never called.
+if (config.sentryDsn) {
+  Sentry.init({ dsn: config.sentryDsn });
+}
+
 const db = openDb(config.databaseUrl);
 const redis = new Redis(config.redisUrl);
 
@@ -67,3 +76,43 @@ const app = await buildServer(config, {
 
 await app.listen({ port: config.port, host: '0.0.0.0' });
 app.log.info(`admin server listening on port ${config.port}`);
+
+// Rolling deploys/restarts (systemd, a container orchestrator, a
+// platform's own zero-downtime deploy) send SIGTERM and expect the
+// process to stop accepting new connections but let in-flight ones
+// finish before exiting - not just die mid-request. app.close()
+// already does exactly that (stops the listener, drains in-flight
+// requests, then runs every plugin's own onClose hook), so this is
+// orchestration, not new drain logic. A self-imposed timeout forces
+// exit if something hangs, rather than relying solely on whatever
+// kill timeout the platform enforces.
+const SHUTDOWN_TIMEOUT_MS = 10_000;
+let shuttingDown = false;
+
+async function shutdown(signal: NodeJS.Signals): Promise<void> {
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
+  app.log.info(`received ${signal}, shutting down gracefully`);
+
+  const timeout = setTimeout(() => {
+    app.log.warn(`graceful shutdown did not finish within ${SHUTDOWN_TIMEOUT_MS}ms, forcing exit`);
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS);
+  timeout.unref();
+
+  try {
+    await app.close();
+    await db.$client.end();
+    redis.disconnect();
+    app.log.info('shutdown complete');
+    process.exit(0);
+  } catch (error) {
+    app.log.error(error, 'error during shutdown');
+    process.exit(1);
+  }
+}
+
+process.once('SIGTERM', () => void shutdown('SIGTERM'));
+process.once('SIGINT', () => void shutdown('SIGINT'));
