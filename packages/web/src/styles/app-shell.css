@@ -269,6 +269,12 @@
 
 .account-popover-item:hover {
   background: var(--colour-surface-hover);
+  /* Same anchor-vs-class specificity gap as the text-decoration fix
+     above: base.css's `a:hover` (element + pseudo-class) otherwise
+     outranks the plain `.account-popover-item` colour on hover,
+     turning "Account Settings" blue while every button-based item
+     next to it stays var(--colour-text). */
+  color: var(--colour-text);
 }
 
 .account-popover-sites {
