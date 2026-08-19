@@ -51,6 +51,30 @@
   margin-top: 2rem;
 }
 
+/* base.css's bare `section` selector gives every <section> its own
+   bordered/filled card by default (other pages still rely on that) -
+   the designs (docs/design/Settings - *.png) instead show each
+   section's heading sitting flat on the panel background, with only
+   specific content below it boxed (.settings-card, .settings-access-
+   list) or, for Personal Details/Password and Security's plain forms,
+   not boxed at all. Reset the default here rather than change the
+   shared rule. */
+.settings-content section {
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+/* Aligns "Personal Details" (the first content heading) with
+   "SETTINGS" in the sidebar - both would otherwise sit right after
+   .list-page-inner's own top padding, but h2's own margin-top
+   (base.css) doesn't collapse into that padding here since
+   .settings-content is a flex child, not a block box. */
+.settings-content > section:first-of-type > h2 {
+  margin-top: 0;
+}
+
 .settings-name-fields {
   display: flex;
   gap: 1rem;
@@ -80,14 +104,29 @@
   margin: 0 0 0.35rem;
 }
 
-.settings-site-list,
-.settings-access-list {
+.settings-site-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+/* Manage Access / Pending invites (ManageSitePage) - one shared box
+   around the whole list, matching the design, unlike
+   .settings-site-list's separately-boxed rows above - rows divide on
+   their own border-bottom (further down this file) rather than a gap
+   between list items. */
+.settings-access-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
 }
 
 .settings-site-row {
@@ -145,7 +184,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 0;
+  padding: 0.75rem 0;
   border-bottom: 1px solid var(--colour-table-row-divider);
 }
 

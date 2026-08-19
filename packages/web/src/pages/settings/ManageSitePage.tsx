@@ -246,7 +246,7 @@ export function ManageSitePage() {
 
       <section>
         <h2>Invite Access</h2>
-        <form onSubmit={handleInviteSubmit}>
+        <form onSubmit={handleInviteSubmit} className="settings-card">
           <label>
             Email addresses
             <textarea

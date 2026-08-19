@@ -44,7 +44,7 @@ export function ManageSitesPage() {
     <>
       <section>
         <h2>Register a website</h2>
-        <form onSubmit={handleRegister}>
+        <form onSubmit={handleRegister} className="settings-card">
           <label>
             Site URL
             <input
