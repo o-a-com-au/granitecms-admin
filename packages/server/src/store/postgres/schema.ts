@@ -82,3 +82,11 @@ export const sessionSecret = pgTable('session_secret', {
   id: text('id').primaryKey(),
   secret: text('secret').notNull(),
 });
+
+// Always exactly one row (id: 'singleton') - see
+// sites/site-token-encryption-key.ts. Same not-narrowed-to-a-literal
+// reasoning as session_secret above.
+export const siteTokenEncryptionKey = pgTable('site_token_encryption_key', {
+  id: text('id').primaryKey(),
+  key: text('key').notNull(),
+});

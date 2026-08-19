@@ -7,8 +7,10 @@ import { openPostgresSiteStore } from './store/postgres/site-store.ts';
 import { openPostgresSiteAccessStore } from './store/postgres/site-access-store.ts';
 import { openPostgresSiteInviteStore } from './store/postgres/site-invite-store.ts';
 import { openPostgresSessionSecretStore } from './store/postgres/session-secret-store.ts';
+import { openPostgresSiteTokenEncryptionKeyStore } from './store/postgres/site-token-encryption-key-store.ts';
 import { openRedisSessionStore } from './store/redis-session-store.ts';
 import { ensureSessionSecret } from './auth/session-secret.ts';
+import { ensureSiteTokenEncryptionKey } from './sites/site-token-encryption-key.ts';
 import { ensureBootstrapAdmin } from './auth/bootstrap.ts';
 import { backfillSiteOwnership } from './sites/site-ownership-backfill.ts';
 import { createGoogleProvider } from './auth/oauth-google.ts';
@@ -22,12 +24,15 @@ const redis = new Redis(config.redisUrl);
 
 const usersStore = openPostgresUserStore(db);
 const sessionSecretStore = openPostgresSessionSecretStore(db);
+const siteTokenEncryptionKeyStore = openPostgresSiteTokenEncryptionKeyStore(db);
 const sessionRecordStore = openRedisSessionStore(redis);
-const sitesStore = openPostgresSiteStore(db);
 const siteAccessStore = openPostgresSiteAccessStore(db);
 const siteInviteStore = openPostgresSiteInviteStore(db);
 
 const sessionSecret = await ensureSessionSecret(sessionSecretStore);
+const siteTokenEncryptionKey = await ensureSiteTokenEncryptionKey(siteTokenEncryptionKeyStore);
+const sitesStore = openPostgresSiteStore(db, siteTokenEncryptionKey);
+
 // Sequenced deliberately: role must be backfilled onto pre-existing
 // users before site ownership can be backfilled (it needs role
 // populated to find "the earliest developer").

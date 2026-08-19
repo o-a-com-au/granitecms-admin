@@ -1,5 +1,6 @@
 import { after, afterEach, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { openDb, type Db } from '../../src/store/postgres/client.ts';
 import { loadConfig } from '../../src/config.ts';
@@ -18,6 +19,8 @@ import type { SiteInvite } from '../../src/sites/site-invite.ts';
 // these) - not mocked, same "empirical over mocked" bias the rest of
 // this project already follows for real HTTP servers in the sites/
 // tests. Every table is truncated between tests for isolation.
+const TEST_ENCRYPTION_KEY = randomBytes(32);
+
 function makeUser(overrides: Partial<AdminUser> = {}): AdminUser {
   return {
     id: 'jane',
@@ -91,7 +94,7 @@ describe('postgres stores', () => {
   });
 
   it('sites: listByOwner returns only that owner\'s sites', async () => {
-    const store = openPostgresSiteStore(db);
+    const store = openPostgresSiteStore(db, TEST_ENCRYPTION_KEY);
     const userStore = openPostgresUserStore(db);
     await userStore.save(makeUser());
     await userStore.save(makeUser({ id: 'other-dev', username: 'other-dev', email: 'other@example.com' }));
@@ -107,7 +110,7 @@ describe('postgres stores', () => {
 
   it('site access: listBySite and listByUser each return the right slice', async () => {
     const userStore = openPostgresUserStore(db);
-    const siteStore = openPostgresSiteStore(db);
+    const siteStore = openPostgresSiteStore(db, TEST_ENCRYPTION_KEY);
     const store = openPostgresSiteAccessStore(db);
     await userStore.save(makeUser());
     await siteStore.save(makeSite());
@@ -123,7 +126,7 @@ describe('postgres stores', () => {
 
   it('site invites: listBySite returns only that site\'s invites, including nullable claim fields', async () => {
     const userStore = openPostgresUserStore(db);
-    const siteStore = openPostgresSiteStore(db);
+    const siteStore = openPostgresSiteStore(db, TEST_ENCRYPTION_KEY);
     const store = openPostgresSiteInviteStore(db);
     await userStore.save(makeUser());
     await siteStore.save(makeSite());
@@ -147,6 +150,34 @@ describe('postgres stores', () => {
     const [claimed] = await store.listBySite('site-1');
     assert.equal(claimed?.claimedAt, '2026-01-02T00:00:00.000Z');
     assert.equal(claimed?.claimedByUserId, 'client-1');
+  });
+
+  it('sites: the token is genuinely encrypted at rest, and a legacy plaintext row still reads back correctly', async () => {
+    const userStore = openPostgresUserStore(db);
+    const store = openPostgresSiteStore(db, TEST_ENCRYPTION_KEY);
+    await userStore.save(makeUser());
+
+    await store.save(makeSite({ id: 'site-1', token: 'a-real-site-token' }));
+
+    // Bypass the store entirely - the raw column value must not be
+    // the plaintext token, and must carry the v1: prefix
+    // (sites/site-token-crypto.ts) that marks it as encrypted.
+    const [rawRow] = await db.execute(sql`SELECT token FROM sites WHERE id = 'site-1'`);
+    assert.ok(rawRow, 'expected the raw row to exist');
+    const rawToken = (rawRow as { token: string }).token;
+    assert.notEqual(rawToken, 'a-real-site-token');
+    assert.match(rawToken, /^v1:/);
+
+    // The store itself still returns it decrypted, transparently.
+    assert.equal((await store.find('site-1'))?.token, 'a-real-site-token');
+
+    // A row written before this feature existed (plain text, no v1:
+    // prefix) - the lazy-migration path (site-token-crypto.ts's
+    // decryptSiteToken) must return it unchanged, not throw.
+    await db.execute(
+      sql`INSERT INTO sites (id, url, token, owner_id, created_at, updated_at) VALUES ('site-legacy', 'https://legacy.example.com', 'legacy-plaintext-token', 'jane', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
+    );
+    assert.equal((await store.find('site-legacy'))?.token, 'legacy-plaintext-token');
   });
 
   it('session secret: a single singleton row round-trips', async () => {
