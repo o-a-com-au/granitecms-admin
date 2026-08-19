@@ -1,12 +1,11 @@
 import { sql } from 'drizzle-orm';
 import { pgTable, text, uniqueIndex, index } from 'drizzle-orm/pg-core';
 
-// One table per existing JSON store (store/json-file-store.ts, being
-// retired) - shapes taken verbatim from the AdminUser/Site/SiteAccess/
-// SiteInvite/SessionSecretRecord interfaces, no changes beyond the
-// storage engine. No `sessions` table: session data lives in Redis
-// instead (auth/redis-session-store.ts), not Postgres - see that
-// file's own comment for why.
+// One table per former JSON store - shapes taken verbatim from the
+// AdminUser/Site/SiteAccess/SiteInvite/SessionSecretRecord interfaces,
+// no changes beyond the storage engine. No `sessions` table: session
+// data lives in Redis instead (store/redis-session-store.ts), not
+// Postgres - see that file's own comment for why.
 
 export const users = pgTable(
   'users',

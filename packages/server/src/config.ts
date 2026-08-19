@@ -15,7 +15,6 @@ export interface SmtpConfig {
 
 export interface AdminConfig {
   port: number;
-  dataDir: string;
   webDistDir: string;
   // The externally-reachable origin this server is deployed at, used
   // only to build OAuth callback URLs (routes/oauth.ts) and invite
@@ -60,16 +59,13 @@ function loadSmtpConfig(): SmtpConfig | undefined {
 // packages/server/src/config.ts (dev, run directly) and
 // packages/server/dist/config.js (built) both sit exactly two
 // directories under packages/, so '../../web/dist' resolves correctly
-// from either location. Resolved from this module's own location,
-// not process.cwd(): the built web assets are a fixed sibling of this
-// package, not something that varies by deployment the way the data
-// directory does (which stays CWD/env-relative, since it genuinely is
-// operator configuration).
+// from either location. Resolved from this module's own location, not
+// process.cwd() - the built web assets are a fixed sibling of this
+// package.
 const DEFAULT_WEB_DIST_DIR = resolve(import.meta.dirname, '../../web/dist');
 
 export function loadConfig(): AdminConfig {
   const port = Number(process.env.PORT ?? 4278);
-  const dataDir = resolve(process.env.ADMIN_DATA_DIR ?? 'data');
   const webDistDir = resolve(process.env.ADMIN_WEB_DIST ?? DEFAULT_WEB_DIST_DIR);
   // Falls back to a local dev origin - fine for local OAuth testing
   // against a provider app configured with that exact callback URL,
@@ -79,12 +75,12 @@ export function loadConfig(): AdminConfig {
   const githubOAuth = loadProviderConfig('GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET');
   const smtp = loadSmtpConfig();
   // Default matches docker-compose.yml's local Postgres/Redis exactly
-  // - same convenience-default pattern as baseUrl/dataDir/webDistDir
-  // above, not a "gracefully degraded" state (there isn't one here).
-  // A real deployment always needs its own managed Postgres/Redis
-  // regardless, so there's no accidental-production-fallback risk the
-  // way an unset SMTP config would have.
+  // - same convenience-default pattern as baseUrl/webDistDir above,
+  // not a "gracefully degraded" state (there isn't one here). A real
+  // deployment always needs its own managed Postgres/Redis regardless,
+  // so there's no accidental-production-fallback risk the way an
+  // unset SMTP config would have.
   const databaseUrl = process.env.DATABASE_URL ?? 'postgres://admin:admin@localhost:5432/cms_admin';
   const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
-  return { port, dataDir, webDistDir, baseUrl, googleOAuth, githubOAuth, smtp, databaseUrl, redisUrl };
+  return { port, webDistDir, baseUrl, googleOAuth, githubOAuth, smtp, databaseUrl, redisUrl };
 }

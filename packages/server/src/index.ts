@@ -1,16 +1,15 @@
-import { join } from 'node:path';
+import { Redis } from 'ioredis';
 import { buildServer } from './server.ts';
 import { loadConfig } from './config.ts';
-import { openJsonFileStore } from './store/json-file-store.ts';
 import { openDb } from './store/postgres/client.ts';
 import { openPostgresUserStore } from './store/postgres/user-store.ts';
 import { openPostgresSiteStore } from './store/postgres/site-store.ts';
 import { openPostgresSiteAccessStore } from './store/postgres/site-access-store.ts';
 import { openPostgresSiteInviteStore } from './store/postgres/site-invite-store.ts';
 import { openPostgresSessionSecretStore } from './store/postgres/session-secret-store.ts';
+import { openRedisSessionStore } from './store/redis-session-store.ts';
 import { ensureSessionSecret } from './auth/session-secret.ts';
 import { ensureBootstrapAdmin } from './auth/bootstrap.ts';
-import type { SessionRecord } from './auth/session-store-adapter.ts';
 import { backfillSiteOwnership } from './sites/site-ownership-backfill.ts';
 import { createGoogleProvider } from './auth/oauth-google.ts';
 import { createGithubProvider } from './auth/oauth-github.ts';
@@ -19,13 +18,11 @@ import { createMailer } from './email/mailer.ts';
 
 const config = loadConfig();
 const db = openDb(config.databaseUrl);
+const redis = new Redis(config.redisUrl);
 
 const usersStore = openPostgresUserStore(db);
 const sessionSecretStore = openPostgresSessionSecretStore(db);
-// Sessions stay on the JSON-file store for now - moving to Redis is a
-// separate, immediately-following commit (see auth/redis-session-store.ts
-// once it lands), not bundled into the Postgres cutover.
-const sessionRecordStore = openJsonFileStore<SessionRecord>(join(config.dataDir, 'sessions.json'));
+const sessionRecordStore = openRedisSessionStore(redis);
 const sitesStore = openPostgresSiteStore(db);
 const siteAccessStore = openPostgresSiteAccessStore(db);
 const siteInviteStore = openPostgresSiteInviteStore(db);

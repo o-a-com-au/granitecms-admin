@@ -28,7 +28,6 @@ describe('server - production static/SPA serving', () => {
     await writeFile(join(webDistDir, 'app.js'), 'console.log("asset");');
     config = {
       port: 0,
-      dataDir: join(webDistDir, 'data'),
       webDistDir,
       baseUrl: 'http://localhost:0',
       googleOAuth: undefined,
