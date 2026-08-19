@@ -12,23 +12,27 @@ import { createOAuthRoutes } from './routes/oauth.ts';
 import { createSiteInvitesRoutes, createInviteClaimRoutes } from './routes/site-invites.ts';
 import { loadConfig, type AdminConfig } from './config.ts';
 import type { Store } from './store/store.ts';
-import type { AdminUser } from './auth/users.ts';
+import type { UserStore } from './store/user-store.ts';
+import { openInMemoryUserStore } from './store/user-store.ts';
+import type { SiteStore } from './store/site-store.ts';
+import { openInMemorySiteStore } from './store/site-store.ts';
+import type { SiteAccessStore } from './store/site-access-store.ts';
+import { openInMemorySiteAccessStore } from './store/site-access-store.ts';
+import type { SiteInviteStore } from './store/site-invite-store.ts';
+import { openInMemorySiteInviteStore } from './store/site-invite-store.ts';
 import { toSessionStore, type SessionRecord } from './auth/session-store-adapter.ts';
 import { openInMemoryStore } from './store/in-memory-store.ts';
-import type { Site } from './sites/site.ts';
-import type { SiteAccess } from './sites/site-access.ts';
-import type { SiteInvite } from './sites/site-invite.ts';
 import type { OAuthProvider } from './auth/oauth-provider.ts';
 import type { Mailer } from './email/mailer.ts';
 import './auth/session-types.ts';
 
 export interface ServerDeps {
-  usersStore: Store<AdminUser>;
+  usersStore: UserStore;
   sessionRecordStore: Store<SessionRecord>;
   sessionSecret: string;
-  sitesStore: Store<Site>;
-  siteAccessStore: Store<SiteAccess>;
-  siteInviteStore: Store<SiteInvite>;
+  sitesStore: SiteStore;
+  siteAccessStore: SiteAccessStore;
+  siteInviteStore: SiteInviteStore;
   oauthProviders: OAuthProvider[];
   baseUrl: string;
   mailer: Mailer | undefined;
@@ -43,12 +47,12 @@ export interface ServerDeps {
 // invite routes passes its own deps with a real one.
 function defaultDeps(): ServerDeps {
   return {
-    usersStore: openInMemoryStore<AdminUser>(),
+    usersStore: openInMemoryUserStore(),
     sessionRecordStore: openInMemoryStore<SessionRecord>(),
     sessionSecret: randomBytes(48).toString('hex'),
-    sitesStore: openInMemoryStore<Site>(),
-    siteAccessStore: openInMemoryStore<SiteAccess>(),
-    siteInviteStore: openInMemoryStore<SiteInvite>(),
+    sitesStore: openInMemorySiteStore(),
+    siteAccessStore: openInMemorySiteAccessStore(),
+    siteInviteStore: openInMemorySiteInviteStore(),
     oauthProviders: [],
     baseUrl: '',
     mailer: undefined,

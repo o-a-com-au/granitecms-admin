@@ -2,13 +2,14 @@ import { randomUUID } from 'node:crypto';
 import multipart from '@fastify/multipart';
 import type { FastifyInstance } from 'fastify';
 import type { Store } from '../store/store.ts';
+import type { SiteStore } from '../store/site-store.ts';
+import type { SiteAccessStore } from '../store/site-access-store.ts';
 import type { AdminUser } from '../auth/users.ts';
 import { createRequireAuth, AuthError } from '../auth/require-auth.ts';
 import { formatFullName } from '../auth/full-name.ts';
 import { createRequireDeveloper } from '../auth/require-developer.ts';
 import { createRequireSiteAccess } from '../auth/require-site-access.ts';
 import type { Site } from '../sites/site.ts';
-import type { SiteAccess } from '../sites/site-access.ts';
 import { SiteNotFoundError } from '../sites/site-not-found-error.ts';
 import { checkSiteStatus, type SiteStatus } from '../sites/site-status.ts';
 import { fetchSiteContent, type ContentListFilters } from '../sites/site-content.ts';
@@ -285,22 +286,16 @@ function requireCommitAuthor(currentUser: Pick<AdminUser, 'firstName' | 'lastNam
   return { name: formatFullName(currentUser.firstName, currentUser.lastName), email: currentUser.email };
 }
 
-// GET / client branch: no first-class "sites this user can access"
-// query exists (Store<T> has no secondary index), so this resolves via
-// the SiteAccess rows granted to this user, then fetches each
-// referenced site - tolerating a since-deleted site by filtering out
-// misses rather than throwing.
-async function resolveClientSites(
-  sitesStore: Store<Site>,
-  siteAccessStore: Store<SiteAccess>,
-  userId: string,
-): Promise<Site[]> {
-  const grants = (await siteAccessStore.list()).filter((access) => access.userId === userId);
+// GET / client branch: resolves via the SiteAccess rows granted to
+// this user, then fetches each referenced site - tolerating a
+// since-deleted site by filtering out misses rather than throwing.
+async function resolveClientSites(sitesStore: Store<Site>, siteAccessStore: SiteAccessStore, userId: string): Promise<Site[]> {
+  const grants = await siteAccessStore.listByUser(userId);
   const sites = await Promise.all(grants.map((grant) => sitesStore.find(grant.siteId)));
   return sites.filter((site): site is Site => site !== undefined);
 }
 
-export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Store<Site>, siteAccessStore: Store<SiteAccess>) {
+export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: SiteStore, siteAccessStore: SiteAccessStore) {
   const requireAuth = createRequireAuth(usersStore);
   const requireDeveloper = createRequireDeveloper();
   const requireSiteAccess = createRequireSiteAccess(sitesStore, siteAccessStore, (request) => (request.params as { id: string }).id);
@@ -311,9 +306,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Stor
     app.get('/', { preHandler: requireAuth }, async (request) => {
       const user = request.currentUser!;
       const sites =
-        user.role === 'developer'
-          ? (await sitesStore.list()).filter((site) => site.ownerId === user.id)
-          : await resolveClientSites(sitesStore, siteAccessStore, user.id);
+        user.role === 'developer' ? await sitesStore.listByOwner(user.id) : await resolveClientSites(sitesStore, siteAccessStore, user.id);
       return Promise.all(sites.map(async (site) => toSiteListEntry(site, await checkSiteStatus(site))));
     });
 

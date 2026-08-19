@@ -1,13 +1,15 @@
 import type { FastifyInstance } from 'fastify';
 import type { Store } from '../store/store.ts';
+import type { UserStore } from '../store/user-store.ts';
+import type { SiteAccessStore } from '../store/site-access-store.ts';
 import type { AdminUser } from '../auth/users.ts';
-import { normaliseUsername } from '../auth/users.ts';
 import { createRequireAuth } from '../auth/require-auth.ts';
 import { createRequireDeveloper } from '../auth/require-developer.ts';
 import { createRequireSiteAccess } from '../auth/require-site-access.ts';
 import { generatePassword, hashPassword } from '../auth/password.ts';
 import { isStrongPassword, PASSWORD_REQUIREMENTS_MESSAGE } from '../auth/password-strength.ts';
 import { DEFAULT_TIMEZONE } from '../auth/timezone.ts';
+import { normaliseUsername } from '../auth/users.ts';
 import type { Site } from '../sites/site.ts';
 import { SiteNotFoundError } from '../sites/site-not-found-error.ts';
 import { siteAccessId, type SiteAccess } from '../sites/site-access.ts';
@@ -74,7 +76,7 @@ function toClientSummary(user: AdminUser, access: SiteAccess): ClientSummary {
   };
 }
 
-export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: Store<Site>, siteAccessStore: Store<SiteAccess>) {
+export function createSiteUsersRoutes(usersStore: UserStore, sitesStore: Store<Site>, siteAccessStore: SiteAccessStore) {
   const requireAuth = createRequireAuth(usersStore);
   const requireDeveloper = createRequireDeveloper();
   const requireSiteAccess = createRequireSiteAccess(
@@ -113,10 +115,10 @@ export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: 
       // Identity is derived from email, never a client-supplied
       // username - matching every other account-creation path in this
       // codebase (routes/oauth.ts's findOrCreateUser, the email-invite
-      // claim route). A list+filter lookup, not Store.find(id): there's
-      // no username input to derive the id from up front any more.
+      // claim route). findByEmail, not Store.find(id): there's no
+      // username input to derive the id from up front any more.
       const normalisedEmail = normaliseUsername(body.email);
-      const existing = (await usersStore.list()).find((user) => normaliseUsername(user.email) === normalisedEmail);
+      const existing = await usersStore.findByEmail(body.email);
 
       if (!existing) {
         // Not found - create a fresh client account with a generated
@@ -183,7 +185,7 @@ export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: 
         ? { id: ownerRecord.id, firstName: ownerRecord.firstName, lastName: ownerRecord.lastName, email: ownerRecord.email }
         : null;
 
-      const grants = (await siteAccessStore.list()).filter((access) => access.siteId === site.id);
+      const grants = await siteAccessStore.listBySite(site.id);
       const summaries = await Promise.all(
         grants.map(async (grant) => {
           const user = await usersStore.find(grant.userId);
@@ -216,7 +218,7 @@ export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: 
         // account is gone but the grant isn't.
         await siteAccessStore.delete(accessId);
 
-        const remaining = (await siteAccessStore.list()).filter((a) => a.userId === request.params.userId);
+        const remaining = await siteAccessStore.listByUser(request.params.userId);
         let accountDeleted = false;
         if (remaining.length === 0) {
           await usersStore.delete(request.params.userId);

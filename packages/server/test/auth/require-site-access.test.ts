@@ -3,12 +3,14 @@ import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { buildServer, type ServerDeps } from '../../src/server.ts';
 import { openInMemoryStore } from '../../src/store/in-memory-store.ts';
+import { openInMemoryUserStore } from '../../src/store/user-store.ts';
+import { openInMemorySiteStore } from '../../src/store/site-store.ts';
+import { openInMemorySiteAccessStore } from '../../src/store/site-access-store.ts';
+import { openInMemorySiteInviteStore } from '../../src/store/site-invite-store.ts';
 import { hashPassword } from '../../src/auth/password.ts';
 import type { AdminUser } from '../../src/auth/users.ts';
 import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
-import type { Site } from '../../src/sites/site.ts';
-import { siteAccessId, type SiteAccess } from '../../src/sites/site-access.ts';
-import type { SiteInvite } from '../../src/sites/site-invite.ts';
+import { siteAccessId } from '../../src/sites/site-access.ts';
 
 // requireSiteAccess is already exercised indirectly by
 // test/routes/sites.test.ts's ~2100 lines (every registerSite() call
@@ -22,15 +24,15 @@ import type { SiteInvite } from '../../src/sites/site-invite.ts';
 const PASSWORD = 'correct horse battery staple';
 
 interface Deps {
-  usersStore: ReturnType<typeof openInMemoryStore<AdminUser>>;
-  sitesStore: ReturnType<typeof openInMemoryStore<Site>>;
-  siteAccessStore: ReturnType<typeof openInMemoryStore<SiteAccess>>;
+  usersStore: ReturnType<typeof openInMemoryUserStore>;
+  sitesStore: ReturnType<typeof openInMemorySiteStore>;
+  siteAccessStore: ReturnType<typeof openInMemorySiteAccessStore>;
 }
 
 async function buildTestServer(): Promise<{ app: Awaited<ReturnType<typeof buildServer>>; deps: Deps }> {
-  const usersStore = openInMemoryStore<AdminUser>();
-  const sitesStore = openInMemoryStore<Site>();
-  const siteAccessStore = openInMemoryStore<SiteAccess>();
+  const usersStore = openInMemoryUserStore();
+  const sitesStore = openInMemorySiteStore();
+  const siteAccessStore = openInMemorySiteAccessStore();
 
   const serverDeps: ServerDeps = {
     usersStore,
@@ -38,7 +40,7 @@ async function buildTestServer(): Promise<{ app: Awaited<ReturnType<typeof build
     sessionSecret: randomBytes(48).toString('hex'),
     sitesStore,
     siteAccessStore,
-    siteInviteStore: openInMemoryStore<SiteInvite>(),
+    siteInviteStore: openInMemorySiteInviteStore(),
     oauthProviders: [],
     baseUrl: '',
     mailer: undefined,

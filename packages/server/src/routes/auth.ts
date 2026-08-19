@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Store } from '../store/store.ts';
+import type { UserStore } from '../store/user-store.ts';
 import type { AdminUser } from '../auth/users.ts';
 import { normaliseUsername } from '../auth/users.ts';
 import { DUMMY_HASH, DUMMY_SALT, hashPassword, verifyPassword } from '../auth/password.ts';
@@ -123,7 +124,7 @@ function parseChangePasswordBody(body: unknown): ChangePasswordBody | null {
   return { currentPassword: record.currentPassword, newPassword: record.newPassword };
 }
 
-export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStore: Store<SessionRecord>) {
+export function createAuthRoutes(usersStore: UserStore, sessionRecordStore: Store<SessionRecord>) {
   const requireSession = createRequireSession(usersStore);
   const requireAuth = createRequireAuth(usersStore);
 
@@ -196,7 +197,7 @@ export function createAuthRoutes(usersStore: Store<AdminUser>, sessionRecordStor
       }
 
       const normalisedEmail = normaliseUsername(body.email);
-      const existing = (await usersStore.list()).find((user) => normaliseUsername(user.email) === normalisedEmail);
+      const existing = await usersStore.findByEmail(body.email);
       if (existing) {
         reply.code(409);
         return { statusCode: 409, error: 'Conflict', message: 'An account with this email already exists - log in instead' };

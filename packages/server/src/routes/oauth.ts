@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import type { Store } from '../store/store.ts';
+import type { UserStore } from '../store/user-store.ts';
 import { normaliseUsername, type AdminUser } from '../auth/users.ts';
 import { generatePassword, hashPassword } from '../auth/password.ts';
 import { DEFAULT_TIMEZONE } from '../auth/timezone.ts';
@@ -48,11 +48,11 @@ async function exchangeCodeForToken(provider: OAuthProvider, code: string, redir
 // treats a typed username - so the same person can use a password
 // today and Google tomorrow and land on the identical account.
 async function findOrCreateUser(
-  usersStore: Store<AdminUser>,
+  usersStore: UserStore,
   identity: { email: string; firstName: string; lastName: string },
 ): Promise<AdminUser> {
   const normalisedEmail = normaliseUsername(identity.email);
-  const existing = (await usersStore.list()).find((user) => normaliseUsername(user.email) === normalisedEmail);
+  const existing = await usersStore.findByEmail(identity.email);
   if (existing) {
     return existing;
   }
@@ -93,7 +93,7 @@ async function findOrCreateUser(
 // prefix alongside the password-login routes. baseUrl comes from
 // config, never a request's own Host header, which an attacker
 // controls.
-export function createOAuthRoutes(providers: OAuthProvider[], usersStore: Store<AdminUser>, baseUrl: string) {
+export function createOAuthRoutes(providers: OAuthProvider[], usersStore: UserStore, baseUrl: string) {
   return async function oauthRoutes(app: FastifyInstance): Promise<void> {
     app.get('/providers', async () => ({ providers: providers.map((provider) => provider.id) }));
 

@@ -4,13 +4,14 @@ import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { buildServer, type ServerDeps } from '../../src/server.ts';
 import { openInMemoryStore } from '../../src/store/in-memory-store.ts';
+import { openInMemoryUserStore } from '../../src/store/user-store.ts';
+import { openInMemorySiteStore } from '../../src/store/site-store.ts';
+import { openInMemorySiteAccessStore } from '../../src/store/site-access-store.ts';
+import { openInMemorySiteInviteStore } from '../../src/store/site-invite-store.ts';
 import { normaliseUsername, type AdminUser } from '../../src/auth/users.ts';
 import { hashPassword } from '../../src/auth/password.ts';
 import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
-import type { Site } from '../../src/sites/site.ts';
-import type { SiteAccess } from '../../src/sites/site-access.ts';
 import type { OAuthProvider } from '../../src/auth/oauth-provider.ts';
-import type { SiteInvite } from '../../src/sites/site-invite.ts';
 
 let fakeTokenServer: Server | undefined;
 
@@ -68,12 +69,12 @@ function extractCookie(setCookieHeader: string | string[] | undefined): string {
 
 async function buildTestServer(oauthProviders: OAuthProvider[]): Promise<{ app: Awaited<ReturnType<typeof buildServer>>; deps: ServerDeps }> {
   const deps: ServerDeps = {
-    usersStore: openInMemoryStore<AdminUser>(),
+    usersStore: openInMemoryUserStore(),
     sessionRecordStore: openInMemoryStore<SessionRecord>(),
     sessionSecret: randomBytes(48).toString('hex'),
-    sitesStore: openInMemoryStore<Site>(),
-    siteAccessStore: openInMemoryStore<SiteAccess>(),
-    siteInviteStore: openInMemoryStore<SiteInvite>(),
+    sitesStore: openInMemorySiteStore(),
+    siteAccessStore: openInMemorySiteAccessStore(),
+    siteInviteStore: openInMemorySiteInviteStore(),
     oauthProviders,
     baseUrl: 'http://localhost:0',
     mailer: undefined,

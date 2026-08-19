@@ -3,13 +3,15 @@ import assert from 'node:assert/strict';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { buildServer, type ServerDeps } from '../../src/server.ts';
 import { openInMemoryStore } from '../../src/store/in-memory-store.ts';
+import { openInMemoryUserStore } from '../../src/store/user-store.ts';
+import { openInMemorySiteStore } from '../../src/store/site-store.ts';
+import { openInMemorySiteAccessStore } from '../../src/store/site-access-store.ts';
+import { openInMemorySiteInviteStore } from '../../src/store/site-invite-store.ts';
 import { hashPassword } from '../../src/auth/password.ts';
 import { PASSWORD_REQUIREMENTS_MESSAGE } from '../../src/auth/password-strength.ts';
-import { normaliseUsername, type AdminUser } from '../../src/auth/users.ts';
+import { normaliseUsername } from '../../src/auth/users.ts';
 import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
-import type { Site } from '../../src/sites/site.ts';
-import { siteAccessId, type SiteAccess } from '../../src/sites/site-access.ts';
-import type { SiteInvite } from '../../src/sites/site-invite.ts';
+import { siteAccessId } from '../../src/sites/site-access.ts';
 import type { Mailer } from '../../src/email/mailer.ts';
 
 const DEVELOPER_USERNAME = 'dev-one';
@@ -53,7 +55,7 @@ function fakeMailer(): { mailer: Mailer; sentTo: () => string[] } {
 }
 
 async function buildTestServer(options: { mailer?: Mailer } = {}): Promise<TestServer> {
-  const usersStore = openInMemoryStore<AdminUser>();
+  const usersStore = openInMemoryUserStore();
   const { hash, salt } = hashPassword(DEVELOPER_PASSWORD);
   const developerId = normaliseUsername(DEVELOPER_USERNAME);
   await usersStore.save({
@@ -70,7 +72,7 @@ async function buildTestServer(options: { mailer?: Mailer } = {}): Promise<TestS
     createdAt: new Date().toISOString(),
   });
 
-  const sitesStore = openInMemoryStore<Site>();
+  const sitesStore = openInMemorySiteStore();
   const siteId = randomUUID();
   await sitesStore.save({
     id: siteId,
@@ -86,8 +88,8 @@ async function buildTestServer(options: { mailer?: Mailer } = {}): Promise<TestS
     sessionRecordStore: openInMemoryStore<SessionRecord>(),
     sessionSecret: randomBytes(48).toString('hex'),
     sitesStore,
-    siteAccessStore: openInMemoryStore<SiteAccess>(),
-    siteInviteStore: openInMemoryStore<SiteInvite>(),
+    siteAccessStore: openInMemorySiteAccessStore(),
+    siteInviteStore: openInMemorySiteInviteStore(),
     oauthProviders: [],
     baseUrl: 'http://admin.example.test',
     mailer: options.mailer,

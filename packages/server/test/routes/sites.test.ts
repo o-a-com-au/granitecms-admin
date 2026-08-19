@@ -4,12 +4,13 @@ import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { buildServer, type ServerDeps } from '../../src/server.ts';
 import { openInMemoryStore } from '../../src/store/in-memory-store.ts';
+import { openInMemoryUserStore } from '../../src/store/user-store.ts';
+import { openInMemorySiteStore } from '../../src/store/site-store.ts';
+import { openInMemorySiteAccessStore } from '../../src/store/site-access-store.ts';
+import { openInMemorySiteInviteStore } from '../../src/store/site-invite-store.ts';
 import { hashPassword } from '../../src/auth/password.ts';
-import { normaliseUsername, type AdminUser } from '../../src/auth/users.ts';
+import { normaliseUsername } from '../../src/auth/users.ts';
 import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
-import type { Site } from '../../src/sites/site.ts';
-import type { SiteAccess } from '../../src/sites/site-access.ts';
-import type { SiteInvite } from '../../src/sites/site-invite.ts';
 
 const TEST_USERNAME = 'editor';
 const TEST_PASSWORD = 'correct horse battery staple';
@@ -25,7 +26,7 @@ async function buildTestServer(): Promise<{
   app: Awaited<ReturnType<typeof buildServer>>;
   cookie: string;
 }> {
-  const usersStore = openInMemoryStore<AdminUser>();
+  const usersStore = openInMemoryUserStore();
   const { hash, salt } = hashPassword(TEST_PASSWORD);
   await usersStore.save({
     id: normaliseUsername(TEST_USERNAME),
@@ -45,9 +46,9 @@ async function buildTestServer(): Promise<{
     usersStore,
     sessionRecordStore: openInMemoryStore<SessionRecord>(),
     sessionSecret: randomBytes(48).toString('hex'),
-    sitesStore: openInMemoryStore<Site>(),
-    siteAccessStore: openInMemoryStore<SiteAccess>(),
-    siteInviteStore: openInMemoryStore<SiteInvite>(),
+    sitesStore: openInMemorySiteStore(),
+    siteAccessStore: openInMemorySiteAccessStore(),
+    siteInviteStore: openInMemorySiteInviteStore(),
     oauthProviders: [],
     baseUrl: '',
     mailer: undefined,

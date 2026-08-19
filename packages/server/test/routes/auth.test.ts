@@ -3,14 +3,15 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { buildServer, type ServerDeps } from '../../src/server.ts';
 import { openInMemoryStore } from '../../src/store/in-memory-store.ts';
+import { openInMemoryUserStore } from '../../src/store/user-store.ts';
+import { openInMemorySiteStore } from '../../src/store/site-store.ts';
+import { openInMemorySiteAccessStore } from '../../src/store/site-access-store.ts';
+import { openInMemorySiteInviteStore } from '../../src/store/site-invite-store.ts';
 import { hashPassword } from '../../src/auth/password.ts';
 import { PASSWORD_REQUIREMENTS_MESSAGE } from '../../src/auth/password-strength.ts';
-import { normaliseUsername, type AdminUser } from '../../src/auth/users.ts';
+import { normaliseUsername } from '../../src/auth/users.ts';
 import { createRequireAuth } from '../../src/auth/require-auth.ts';
 import type { SessionRecord } from '../../src/auth/session-store-adapter.ts';
-import type { Site } from '../../src/sites/site.ts';
-import type { SiteAccess } from '../../src/sites/site-access.ts';
-import type { SiteInvite } from '../../src/sites/site-invite.ts';
 
 const TEST_USERNAME = 'editor';
 const TEST_PASSWORD = 'correct horse battery staple';
@@ -24,7 +25,7 @@ const TEST_LAST_NAME = 'Editor';
 const TEST_EMAIL = 'jane@example.com';
 
 async function buildTestServer(): Promise<{ deps: ServerDeps; app: Awaited<ReturnType<typeof buildServer>> }> {
-  const usersStore = openInMemoryStore<AdminUser>();
+  const usersStore = openInMemoryUserStore();
   const { hash, salt } = hashPassword(TEST_PASSWORD);
   await usersStore.save({
     id: normaliseUsername(TEST_USERNAME),
@@ -44,9 +45,9 @@ async function buildTestServer(): Promise<{ deps: ServerDeps; app: Awaited<Retur
     usersStore,
     sessionRecordStore: openInMemoryStore<SessionRecord>(),
     sessionSecret: randomBytes(48).toString('hex'),
-    sitesStore: openInMemoryStore<Site>(),
-    siteAccessStore: openInMemoryStore<SiteAccess>(),
-    siteInviteStore: openInMemoryStore<SiteInvite>(),
+    sitesStore: openInMemorySiteStore(),
+    siteAccessStore: openInMemorySiteAccessStore(),
+    siteInviteStore: openInMemorySiteInviteStore(),
     oauthProviders: [],
     baseUrl: '',
     mailer: undefined,

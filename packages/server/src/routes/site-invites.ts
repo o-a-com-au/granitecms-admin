@@ -1,5 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Store } from '../store/store.ts';
+import type { UserStore } from '../store/user-store.ts';
+import type { SiteInviteStore } from '../store/site-invite-store.ts';
 import { normaliseUsername, type AdminUser } from '../auth/users.ts';
 import { createRequireAuth } from '../auth/require-auth.ts';
 import { createRequireDeveloper } from '../auth/require-developer.ts';
@@ -53,7 +55,7 @@ export function createSiteInvitesRoutes(
   usersStore: Store<AdminUser>,
   sitesStore: Store<Site>,
   siteAccessStore: Store<SiteAccess>,
-  siteInviteStore: Store<SiteInvite>,
+  siteInviteStore: SiteInviteStore,
   mailer: Mailer | undefined,
   baseUrl: string,
 ) {
@@ -118,7 +120,7 @@ export function createSiteInvitesRoutes(
         throw new SiteNotFoundError(request.params.siteId);
       }
 
-      const invites = (await siteInviteStore.list()).filter((invite) => invite.siteId === site.id);
+      const invites = await siteInviteStore.listBySite(site.id);
       return { invites: invites.map(toSiteInviteSummary) };
     });
 
@@ -245,7 +247,7 @@ async function resolveOptionalUser(request: FastifyRequest, usersStore: Store<Ad
 // generically-typed route in this codebase, e.g. routes/site-users.ts)
 // are already invisible to that scanner, not merely exempted from it.
 export function createInviteClaimRoutes(
-  usersStore: Store<AdminUser>,
+  usersStore: UserStore,
   sitesStore: Store<Site>,
   siteAccessStore: Store<SiteAccess>,
   siteInviteStore: Store<SiteInvite>,
@@ -294,7 +296,7 @@ export function createInviteClaimRoutes(
         }
 
         const normalisedEmail = normaliseUsername(invite.email);
-        const existing = (await usersStore.list()).find((user) => normaliseUsername(user.email) === normalisedEmail);
+        const existing = await usersStore.findByEmail(invite.email);
         if (existing) {
           // The safety property this whole design turns on: an
           // unauthenticated claimant cannot silently attach access to

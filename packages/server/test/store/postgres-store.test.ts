@@ -47,11 +47,21 @@ function makeSite(overrides: Partial<Site> = {}): Site {
   };
 }
 
+async function truncateAll(db: Db): Promise<void> {
+  await db.execute(sql`TRUNCATE users, sites, site_access, site_invites, session_secret`);
+}
+
 describe('postgres stores', () => {
   let db: Db;
 
-  before(() => {
+  before(async () => {
     db = openDb(loadConfig().databaseUrl);
+    // Not just afterEach - a locally-running dev server (npm run dev,
+    // pointed at this same database) may already have bootstrapped a
+    // real admin account before this suite ever runs. This suite
+    // assumes exclusive ownership of its tables, same as
+    // json-file-store.test.ts assumes a fresh temp directory.
+    await truncateAll(db);
   });
 
   after(async () => {
@@ -59,7 +69,7 @@ describe('postgres stores', () => {
   });
 
   afterEach(async () => {
-    await db.execute(sql`TRUNCATE users, sites, site_access, site_invites, session_secret`);
+    await truncateAll(db);
   });
 
   it('users: round-trips through save/find/list/delete, and findByEmail is case-insensitive', async () => {
