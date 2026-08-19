@@ -233,3 +233,58 @@ button.settings-text-link:hover {
   color: var(--colour-primary-hover);
   background: none;
 }
+
+/* Phone (this app's established breakpoint - see app-shell.css's own
+   hamburger nav and editor-layout.css's Phone-Page-Edit designs, both
+   at the same 720px cutoff): the sidebar/content row doesn't fit side
+   by side, so it stacks instead, sidebar first - the same "one column
+   at a time" shape those other phone layouts already use. */
+@media (max-width: 720px) {
+  .settings-page {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  /* Both were sized for the desktop row's main axis (width) - flex: 0
+     0 220px would otherwise fix the sidebar's height instead once the
+     main axis turns vertical, and .settings-content's flex: 1 stretch
+     only ever applied to width, never height, so with align-items:
+     flex-start (unchanged above) both would shrink to fit their own
+     content instead of filling the column. */
+  .settings-sidebar {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .settings-content {
+    width: 100%;
+    max-width: none;
+  }
+
+  .settings-name-fields {
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  /* Manage Sites' rows (URL/status vs. Browse content/Edit) and Manage
+     Access's (name/email vs. Revoke Access) both assume a wide row -
+     cramped rather than genuinely broken at 720px, but a long email
+     address or hostname still forces a stack here as-is, so let both
+     wrap onto their own line early instead of first getting squeezed
+     to the point of overlapping the actions beside them. */
+  .settings-site-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+
+  .settings-site-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .settings-access-list li {
+    flex-wrap: wrap;
+    row-gap: 0.35rem;
+  }
+}
