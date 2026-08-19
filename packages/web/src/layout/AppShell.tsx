@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, Outlet, useLocation, useParams } from 'react-router';
+import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { formatFullName } from '../auth/fullName.ts';
 import { useTheme } from '../theme/ThemeContext.tsx';
@@ -16,6 +16,18 @@ import { readLastSiteId, resolveEditorHref, writeLastSiteId } from '../sites/cur
 // from package.json, whose own version has stayed at the 0.0.0
 // placeholder throughout development and isn't meant for display.
 const APP_VERSION = '2.3';
+
+// Falls back to the raw stored URL for the rare case it isn't a valid
+// URL at all (e.g. mid-edit in the registry) - the popover's "Switch
+// site" list/dropdown is meant to read as a short hostname either way,
+// never throw.
+function hostLabelFor(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
 
 interface TopNavItemProps {
   label: string;
@@ -63,6 +75,7 @@ function TopNavItem({ label, to, active }: TopNavItemProps) {
 export function AppShell() {
   const { siteId } = useParams<{ siteId?: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [accountOpen, setAccountOpen] = useState(false);
@@ -215,35 +228,40 @@ export function AppShell() {
                       <p className="account-popover-email">{user?.email}</p>
                     </div>
                   </div>
-                  {sites !== null && sites.length > 0 && (
+                  {/* docs/design/User-context-menu.png - a dropdown once
+                      there's more than one site to switch between (a
+                      plain list doesn't scale, and the mockup itself
+                      shows a select-styled control); with only one
+                      site there's nothing to actually switch to, so
+                      that one stays the plain non-interactive
+                      treatment it already had. */}
+                  {sites !== null && sites.length > 1 && (
                     <div className="account-popover-sites">
                       <p className="account-popover-sites-label">Switch site</p>
-                      {sites.map((site) => {
-                        let hostLabel: string;
-                        try {
-                          hostLabel = new URL(site.url).host;
-                        } catch {
-                          hostLabel = site.url;
-                        }
-                        if (site.id === siteId) {
-                          return (
-                            <span key={site.id} className="account-popover-item is-current" aria-current="page">
-                              {hostLabel}
-                            </span>
-                          );
-                        }
-                        return (
-                          <Link
-                            key={site.id}
-                            role="menuitem"
-                            className="account-popover-item"
-                            to={resolveEditorHref(site.id)}
-                            onClick={() => setAccountOpen(false)}
-                          >
-                            {hostLabel}
-                          </Link>
-                        );
-                      })}
+                      <select
+                        className="account-popover-site-select"
+                        aria-label="Switch site"
+                        value={effectiveSiteId ?? ''}
+                        onChange={(event) => {
+                          const nextSiteId = event.target.value;
+                          setAccountOpen(false);
+                          navigate(resolveEditorHref(nextSiteId));
+                        }}
+                      >
+                        {sites.map((site) => (
+                          <option key={site.id} value={site.id}>
+                            {hostLabelFor(site.url)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {sites !== null && sites.length === 1 && (
+                    <div className="account-popover-sites">
+                      <p className="account-popover-sites-label">Switch site</p>
+                      <span className="account-popover-item is-current" aria-current="page">
+                        {hostLabelFor(sites[0]!.url)}
+                      </span>
                     </div>
                   )}
                   {sites === null && !sitesError && (
@@ -257,13 +275,8 @@ export function AppShell() {
                     </span>
                   )}
                   <Link to="/settings/personal" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
-                    Settings
+                    Account Settings
                   </Link>
-                  {user?.role === 'developer' && (
-                    <Link to="/settings/sites" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
-                      Site settings
-                    </Link>
-                  )}
                   <button type="button" role="menuitem" className="account-popover-item" onClick={toggleTheme}>
                     {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                   </button>

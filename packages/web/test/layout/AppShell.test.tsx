@@ -359,38 +359,49 @@ describe('AppShell', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }));
   });
 
-  it('"Switch site" shows the current site as inert and the other as a real link, and links to Site settings', async () => {
-    installFakeApiWithTwoSites();
+  it('with only one site, "Switch site" shows it as plain, non-interactive text, not a dropdown', async () => {
+    installFakeApiWithProfile();
 
     renderShell('/sites/site-1/content');
     await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
 
     fireEvent.click(screen.getByTitle('admin'));
 
-    await waitFor(() => expect(screen.getByText('other.example.com')).toBeDefined());
     expect(screen.getByText('Switch site')).toBeDefined();
     const current = screen.getByText('localhost:3891');
     expect(current.tagName).toBe('SPAN');
     expect(current.getAttribute('aria-current')).toBe('page');
-
-    const other = screen.getByRole('menuitem', { name: 'other.example.com' });
-    expect(other.getAttribute('href')).toBe('/sites/site-2/editor?path=pages%2Findex.json&url=%2F');
-
-    const settingsLink = screen.getByRole('menuitem', { name: 'Site settings' });
-    expect(settingsLink.getAttribute('href')).toBe('/settings/sites');
+    expect(screen.queryByRole('combobox', { name: 'Switch site' })).toBeNull();
   });
 
-  it('clicking another site in "Switch site" navigates to it and closes the popover', async () => {
+  it('with more than one site, "Switch site" renders as a dropdown listing every site, selected on the current one', async () => {
     installFakeApiWithTwoSites();
 
     renderShell('/sites/site-1/content');
     await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
 
     fireEvent.click(screen.getByTitle('admin'));
-    await waitFor(() => expect(screen.getByText('other.example.com')).toBeDefined());
 
-    fireEvent.click(screen.getByRole('menuitem', { name: 'other.example.com' }));
+    const select = await screen.findByRole('combobox', { name: 'Switch site' });
+    expect((select as HTMLSelectElement).value).toBe('site-1');
+    const optionLabels = within(select).getAllByRole('option').map((option) => option.textContent);
+    expect(optionLabels).toEqual(['localhost:3891', 'other.example.com']);
+    expect(screen.queryByText('localhost:3891', { selector: 'span' })).toBeNull();
+  });
 
+  it('picking another site from the "Switch site" dropdown navigates to it and closes the popover', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    installFakeApiWithTwoSites();
+
+    renderShell('/sites/site-1/content');
+    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
+
+    fireEvent.click(screen.getByTitle('admin'));
+    const select = await screen.findByRole('combobox', { name: 'Switch site' });
+
+    fireEvent.change(select, { target: { value: 'site-2' } });
+
+    await waitFor(() => expect(readLastSiteId()).toBe('site-2'));
     expect(screen.queryByRole('menuitem', { name: 'Logout' })).toBeNull();
   });
 
@@ -452,7 +463,7 @@ describe('AppShell', () => {
     expect(screen.getByRole('navigation', { name: 'Primary' }).className).not.toContain('is-open');
   });
 
-  it('a developer sees the "Site settings" popover item', async () => {
+  it('a developer sees the "Account Settings" popover item, pointing at /settings/personal', async () => {
     installFakeApiWithProfile();
 
     renderShell('/sites/site-1/content');
@@ -460,36 +471,12 @@ describe('AppShell', () => {
 
     fireEvent.click(screen.getByTitle('admin'));
 
-    expect(screen.getByRole('menuitem', { name: 'Site settings' })).toBeDefined();
-  });
-
-  it('a client does not see the "Site settings" popover item', async () => {
-    installFakeApiWithClientProfile();
-
-    renderShell('/sites/site-1/content');
-    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
-
-    fireEvent.click(screen.getByTitle('client-1'));
-
-    expect(screen.queryByRole('menuitem', { name: 'Site settings' })).toBeNull();
-    // The popover itself, and other role-agnostic items, still render.
-    expect(screen.getByRole('menuitem', { name: 'Logout' })).toBeDefined();
-  });
-
-  it('a developer sees the "Settings" popover item, pointing at /settings/personal', async () => {
-    installFakeApiWithProfile();
-
-    renderShell('/sites/site-1/content');
-    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
-
-    fireEvent.click(screen.getByTitle('admin'));
-
-    const link = screen.getByRole('menuitem', { name: 'Settings' });
+    const link = screen.getByRole('menuitem', { name: 'Account Settings' });
     expect(link).toBeDefined();
     expect(link.getAttribute('href')).toBe('/settings/personal');
   });
 
-  it('a client also sees the "Settings" popover item - unlike "Site settings", it is not developer-only', async () => {
+  it('a client also sees the "Account Settings" popover item - reaching Manage Sites is developer-only, this link is not', async () => {
     installFakeApiWithClientProfile();
 
     renderShell('/sites/site-1/content');
@@ -497,7 +484,7 @@ describe('AppShell', () => {
 
     fireEvent.click(screen.getByTitle('client-1'));
 
-    const link = screen.getByRole('menuitem', { name: 'Settings' });
+    const link = screen.getByRole('menuitem', { name: 'Account Settings' });
     expect(link).toBeDefined();
     expect(link.getAttribute('href')).toBe('/settings/personal');
   });

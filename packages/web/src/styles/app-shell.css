@@ -283,6 +283,16 @@
   color: var(--colour-muted);
 }
 
+/* docs/design/User-context-menu.png - the multi-site switcher, a
+   plain native select (this app has no Radix/headless-primitives
+   layer - see the same call made for the Settings shell). base.css's
+   own input/select/textarea rule already gives it the bordered/filled
+   look the mockup shows; only the full-width sizing needs adding
+   here, to fill the popover the way a block-level list item would. */
+.account-popover-site-select {
+  width: 100%;
+}
+
 .account-popover-item.is-current {
   font-weight: 600;
   cursor: default;
