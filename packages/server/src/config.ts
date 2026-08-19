@@ -25,6 +25,11 @@ export interface AdminConfig {
   googleOAuth: OAuthProviderConfig | undefined;
   githubOAuth: OAuthProviderConfig | undefined;
   smtp: SmtpConfig | undefined;
+  // Required, not optional-with-fallback like smtp/oauth above -
+  // there is no working degraded state without a database or session
+  // store, unlike an unconfigured mailer or OAuth provider.
+  databaseUrl: string;
+  redisUrl: string;
 }
 
 function loadProviderConfig(clientIdVar: string, clientSecretVar: string): OAuthProviderConfig | undefined {
@@ -73,5 +78,13 @@ export function loadConfig(): AdminConfig {
   const googleOAuth = loadProviderConfig('GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET');
   const githubOAuth = loadProviderConfig('GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET');
   const smtp = loadSmtpConfig();
-  return { port, dataDir, webDistDir, baseUrl, googleOAuth, githubOAuth, smtp };
+  // Default matches docker-compose.yml's local Postgres/Redis exactly
+  // - same convenience-default pattern as baseUrl/dataDir/webDistDir
+  // above, not a "gracefully degraded" state (there isn't one here).
+  // A real deployment always needs its own managed Postgres/Redis
+  // regardless, so there's no accidental-production-fallback risk the
+  // way an unset SMTP config would have.
+  const databaseUrl = process.env.DATABASE_URL ?? 'postgres://admin:admin@localhost:5432/cms_admin';
+  const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
+  return { port, dataDir, webDistDir, baseUrl, googleOAuth, githubOAuth, smtp, databaseUrl, redisUrl };
 }

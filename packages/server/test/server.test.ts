@@ -34,6 +34,8 @@ describe('server - production static/SPA serving', () => {
       googleOAuth: undefined,
       githubOAuth: undefined,
       smtp: undefined,
+      databaseUrl: 'postgres://admin:admin@localhost:5432/cms_admin',
+      redisUrl: 'redis://localhost:6379',
     };
   });
 

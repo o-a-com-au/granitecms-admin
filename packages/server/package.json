@@ -8,18 +8,24 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "node --experimental-strip-types --test",
     "dev": "node --experimental-strip-types --watch src/index.ts",
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --experimental-strip-types src/store/postgres/migrate.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
     "@fastify/multipart": "^10.1.0",
     "@fastify/session": "^11.1.2",
     "@fastify/static": "^10.1.2",
+    "drizzle-orm": "^0.45.2",
     "fastify": "^5.10.0",
     "google-auth-library": "^11.0.2",
-    "nodemailer": "^9.0.5"
+    "ioredis": "^6.0.0",
+    "nodemailer": "^9.0.5",
+    "postgres": "^3.4.9"
   },
   "devDependencies": {
-    "@types/nodemailer": "^8.0.1"
+    "@types/nodemailer": "^8.0.1",
+    "drizzle-kit": "^0.31.10"
   }
 }

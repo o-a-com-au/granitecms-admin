@@ -1,0 +1,29 @@
+# Local development services only - not a production deployment
+# artifact. The admin server itself still runs directly via `npm run
+# dev`/`npm start`, same as before; this just gives it a real Postgres
+# and Redis to talk to (see docs/hosting-plan work: packages/server/src/store/postgres/,
+# packages/server/src/auth/redis-session-store.ts).
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: cms_admin
+    ports:
+      - '5432:5432'
+    volumes:
+      - cms-admin-postgres:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - cms-admin-redis:/data
+
+volumes:
+  cms-admin-postgres:
+  cms-admin-redis:
