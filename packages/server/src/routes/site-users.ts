@@ -53,6 +53,13 @@ interface ClientSummary {
   grantedAt: string;
 }
 
+interface OwnerSummary {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 // Never spreads AdminUser - mirrors routes/sites.ts's own
 // toSiteListEntry precedent ("raw token never included, built by
 // explicit mapping"), just for passwordHash/passwordSalt here instead.
@@ -167,6 +174,15 @@ export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: 
         throw new SiteNotFoundError(request.params.siteId);
       }
 
+      // The owner is a real AdminUser, not a SiteAccess grant - never
+      // revocable from here (there's always exactly one, set at
+      // registration - routes/sites.ts), so it's returned separately
+      // from clients rather than synthesised into the grants list.
+      const ownerRecord = await usersStore.find(site.ownerId);
+      const owner: OwnerSummary | null = ownerRecord
+        ? { id: ownerRecord.id, firstName: ownerRecord.firstName, lastName: ownerRecord.lastName, email: ownerRecord.email }
+        : null;
+
       const grants = (await siteAccessStore.list()).filter((access) => access.siteId === site.id);
       const summaries = await Promise.all(
         grants.map(async (grant) => {
@@ -175,7 +191,7 @@ export function createSiteUsersRoutes(usersStore: Store<AdminUser>, sitesStore: 
         }),
       );
 
-      return { clients: summaries.filter((summary): summary is ClientSummary => summary !== null) };
+      return { owner, clients: summaries.filter((summary): summary is ClientSummary => summary !== null) };
     });
 
     app.delete<{ Params: { siteId: string; userId: string } }>(

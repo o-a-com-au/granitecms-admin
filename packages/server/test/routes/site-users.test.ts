@@ -283,12 +283,19 @@ describe('site-users routes', () => {
 
     const response = await app.inject({ method: 'GET', url: `/api/sites/${siteId}/users`, headers: { cookie } });
     assert.equal(response.statusCode, 200);
-    const { clients } = response.json();
+    const { owner, clients } = response.json();
     assert.equal(clients.length, 1);
     assert.equal(clients[0].email, 'listed-client@example.com');
     assert.equal(clients[0].passwordHash, undefined);
     assert.equal(clients[0].passwordSalt, undefined);
     assert.equal(typeof clients[0].grantedAt, 'string');
+    // The owner comes back separately from the clients array - it's a
+    // real AdminUser resolved from the site's own ownerId, not a
+    // SiteAccess grant.
+    assert.equal(owner.firstName, DEVELOPER_FIRST_NAME);
+    assert.equal(owner.lastName, DEVELOPER_LAST_NAME);
+    assert.equal(owner.email, DEVELOPER_EMAIL);
+    assert.equal(owner.passwordHash, undefined);
 
     await app.close();
   });
