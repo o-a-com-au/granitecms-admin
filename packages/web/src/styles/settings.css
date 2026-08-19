@@ -75,9 +75,26 @@
   margin-top: 0;
 }
 
+/* base.css's bare `label` selector caps every label (and its input/
+   select/textarea, which stretch to fill it) at max-width: 420px -
+   tuned for other forms elsewhere. Every design (docs/design/Settings
+   - *.png) instead shows fields spanning the full width of whatever
+   they sit in, .settings-card included. */
+.settings-content label {
+  max-width: none;
+}
+
+/* form's own align-items: flex-start (base.css) sizes each direct
+   child to its own content width rather than stretching it - harmless
+   for a single label (which sets its own explicit width: 100%), but
+   without an explicit width here this row itself would shrink to fit
+   First Name and Last Name's natural width, leaving each label's own
+   flex: 1 to split that too-small box instead of the form's actual
+   available width. */
 .settings-name-fields {
   display: flex;
   gap: 1rem;
+  width: 100%;
 }
 
 .settings-name-fields label {

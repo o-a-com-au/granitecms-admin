@@ -30,7 +30,7 @@
 .list-page-inner {
   max-width: 900px;
   margin: 0 auto;
-  padding: 2rem 1.5rem 4rem;
+  padding: 5rem 1.5rem 4rem;
 }
 
 /* MediaLibraryPage's own override - the 900px cap above was tuned for
