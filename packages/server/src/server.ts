@@ -4,6 +4,8 @@ import Fastify, { type FastifyError, type FastifyInstance, type FastifyRequest, 
 import fastifyStatic from '@fastify/static';
 import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
+import fastifyHelmet from '@fastify/helmet';
+import fastifyRateLimit from '@fastify/rate-limit';
 import { healthRoutes } from './routes/health.ts';
 import { createAuthRoutes } from './routes/auth.ts';
 import { createSitesRoutes } from './routes/sites.ts';
@@ -80,10 +82,18 @@ export async function buildServer(
   config: AdminConfig = loadConfig(),
   deps: ServerDeps = defaultDeps(),
 ): Promise<FastifyInstance> {
-  const app = Fastify();
+  const app = Fastify({ trustProxy: config.trustProxy });
 
   app.setErrorHandler(handleError);
   app.decorateRequest('currentUser', null);
+
+  await app.register(fastifyHelmet);
+  // Generous global default (this isn't the brute-force defence - the
+  // specific login/signup/change-password routes set their own
+  // stricter per-route limit below) - just a backstop against genuine
+  // abuse/misbehaving clients hammering the API, without throttling
+  // normal use (e.g. GET /api/auth/me, fetched on every page load).
+  await app.register(fastifyRateLimit, { max: 300, timeWindow: '1 minute' });
 
   await app.register(fastifyCookie);
   await app.register(fastifySession, {

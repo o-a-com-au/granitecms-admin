@@ -125,6 +125,34 @@ describe('auth routes', () => {
     await app.close();
   });
 
+  it('repeated login attempts are rate-limited past the strict per-route threshold', async () => {
+    const { app } = await buildTestServer();
+
+    let lastResponse;
+    for (let i = 0; i < 11; i++) {
+      lastResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: 'nobody', password: 'whatever' },
+      });
+    }
+
+    assert.equal(lastResponse!.statusCode, 429);
+
+    await app.close();
+  });
+
+  it('a normal response carries the security headers helmet adds', async () => {
+    const { app } = await buildTestServer();
+
+    const response = await app.inject({ method: 'GET', url: '/api/health' });
+
+    assert.equal(response.headers['x-frame-options'], 'SAMEORIGIN');
+    assert.equal(response.headers['x-content-type-options'], 'nosniff');
+
+    await app.close();
+  });
+
   it('B3: a logged-in session is usable on a later request (GET /api/auth/me)', async () => {
     const { app } = await buildTestServer();
 

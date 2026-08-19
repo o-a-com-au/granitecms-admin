@@ -124,12 +124,20 @@ function parseChangePasswordBody(body: unknown): ChangePasswordBody | null {
   return { currentPassword: record.currentPassword, newPassword: record.newPassword };
 }
 
+// Stricter than the global default (server.ts) - these three are
+// exactly the endpoints a credential-stuffing/brute-force attempt
+// would hit, unlike e.g. GET /me which just reads the current session.
+// Keyed by IP by default (the plugin's own behaviour, unaffected by
+// trustProxy - see config.ts) - a shared office/NAT could occasionally
+// hit this collectively, an acceptable trade-off for what it prevents.
+const AUTH_ATTEMPT_RATE_LIMIT = { max: 10, timeWindow: '1 minute' };
+
 export function createAuthRoutes(usersStore: UserStore, sessionRecordStore: Store<SessionRecord>) {
   const requireSession = createRequireSession(usersStore);
   const requireAuth = createRequireAuth(usersStore);
 
   return async function authRoutes(app: FastifyInstance): Promise<void> {
-    app.post('/login', async (request, reply) => {
+    app.post('/login', { config: { rateLimit: AUTH_ATTEMPT_RATE_LIMIT } }, async (request, reply) => {
       const body = parseLoginBody(request.body);
       const user = body ? await usersStore.find(normaliseUsername(body.username)) : undefined;
 
@@ -177,7 +185,7 @@ export function createAuthRoutes(usersStore: UserStore, sessionRecordStore: Stor
     // just reached by password instead. username is never asked for -
     // it's derived from email, matching every other account-creation
     // path in this codebase now.
-    app.post('/signup', async (request, reply) => {
+    app.post('/signup', { config: { rateLimit: AUTH_ATTEMPT_RATE_LIMIT } }, async (request, reply) => {
       const body = parseSignupBody(request.body);
       if (!body) {
         reply.code(400);
@@ -327,7 +335,7 @@ export function createAuthRoutes(usersStore: UserStore, sessionRecordStore: Stor
       };
     });
 
-    app.post('/change-password', { preHandler: requireAuth }, async (request, reply) => {
+    app.post('/change-password', { preHandler: requireAuth, config: { rateLimit: AUTH_ATTEMPT_RATE_LIMIT } }, async (request, reply) => {
       const body = parseChangePasswordBody(request.body);
       if (!body) {
         reply.code(400);

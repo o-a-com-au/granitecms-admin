@@ -29,6 +29,16 @@ export interface AdminConfig {
   // store, unlike an unconfigured mailer or OAuth provider.
   databaseUrl: string;
   redisUrl: string;
+  // Passed straight to Fastify's own trustProxy option (proxy-addr
+  // syntax: a specific IP/CIDR, or the literal presets 'loopback'/
+  // 'linklocal'/'uniquelocal') - false by default, same as Fastify's
+  // own default and the sibling agent repo's site.config.json
+  // trustProxy field. Needed for the session cookie's secure: 'auto'
+  // (server.ts) to see the real client protocol correctly once a
+  // reverse proxy terminates TLS in front of this process - set it to
+  // exactly where that proxy actually is, never blanket `true` unless
+  // this process is genuinely unreachable except through it.
+  trustProxy: string | boolean;
 }
 
 function loadProviderConfig(clientIdVar: string, clientSecretVar: string): OAuthProviderConfig | undefined {
@@ -82,5 +92,7 @@ export function loadConfig(): AdminConfig {
   // unset SMTP config would have.
   const databaseUrl = process.env.DATABASE_URL ?? 'postgres://admin:admin@localhost:5432/cms_admin';
   const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
-  return { port, webDistDir, baseUrl, googleOAuth, githubOAuth, smtp, databaseUrl, redisUrl };
+  const trustProxyEnv = process.env.TRUST_PROXY;
+  const trustProxy: string | boolean = trustProxyEnv === 'true' ? true : (trustProxyEnv ?? false);
+  return { port, webDistDir, baseUrl, googleOAuth, githubOAuth, smtp, databaseUrl, redisUrl, trustProxy };
 }
