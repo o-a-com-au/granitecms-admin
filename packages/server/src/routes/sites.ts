@@ -427,7 +427,19 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
     // decide here.
     app.get<{ Params: { id: string; '*': string } }>(
       '/:id/preview/*',
-      { preHandler: [requireAuth, requireSiteAccess] },
+      // contentSecurityPolicy: false - this route deliberately serves
+      // another origin's rendered HTML for the browser to load into an
+      // iframe (fetchSitePreview injects a <base href> pointing at the
+      // real site origin so its relative asset paths resolve
+      // correctly). The admin's global CSP's default base-uri 'self'
+      // silently blocks that <base> tag from taking effect at all,
+      // which then breaks every relative asset reference (they fall
+      // back to resolving against the admin's own domain instead).
+      // Safe to relax only here: the iframe boundary is the real
+      // isolation, and the site's own API token never reaches the
+      // browser regardless (fetchSitePreview attaches it server-side
+      // via fetchSite's authToken option, never passed to the client).
+      { preHandler: [requireAuth, requireSiteAccess], helmet: { contentSecurityPolicy: false } },
       async (request, reply) => {
         const site = await sitesStore.find(request.params.id);
         if (!site) {
@@ -456,7 +468,11 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
     // current theme.
     app.get<{ Params: { id: string; ref: string; '*': string } }>(
       '/:id/preview-revision/:ref/*',
-      { preHandler: [requireAuth, requireSiteAccess] },
+      // contentSecurityPolicy: false - same reasoning as
+      // GET /:id/preview/* above (fetchSitePreviewRevision injects the
+      // same <base> tag fix, blocked the same way by the default CSP's
+      // base-uri 'self').
+      { preHandler: [requireAuth, requireSiteAccess], helmet: { contentSecurityPolicy: false } },
       async (request, reply) => {
         const site = await sitesStore.find(request.params.id);
         if (!site) {

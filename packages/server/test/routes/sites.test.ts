@@ -1003,6 +1003,23 @@ describe('sites routes', () => {
     await app.close();
   });
 
+  it('GET /api/sites/:id/preview/* has no Content-Security-Policy header - the default base-uri \'self\' silently blocks the <base> tag this route injects to fix cross-origin asset paths, breaking every site preview\'s styling', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakePreviewSite({ acceptedToken: 'the-token', hasDraft: true });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/preview/about`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers['content-security-policy'], undefined);
+
+    await app.close();
+  });
+
   it('F4: a page with no draft still previews correctly, forwarding the live-fallback HTML', async () => {
     const { app, cookie } = await buildTestServer();
     const siteUrl = await startFakePreviewSite({ acceptedToken: 'the-token', hasDraft: false });
@@ -1100,6 +1117,23 @@ describe('sites routes', () => {
     assert.equal(response.statusCode, 200);
     assert.equal(response.headers['content-type'], 'text/html; charset=utf-8');
     assert.equal(response.body, '<html><body>About, as it was</body></html>');
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/preview-revision/:ref/* also has no Content-Security-Policy header, same reasoning as GET /:id/preview/*', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakePreviewRevisionSite({ acceptedToken: 'the-token' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/preview-revision/abc123/about`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers['content-security-policy'], undefined);
 
     await app.close();
   });
