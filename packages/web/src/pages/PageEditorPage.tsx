@@ -5,6 +5,8 @@ import { useAutosaveDraft } from '../editor/useAutosaveDraft.ts';
 import { useDraftPublishActions } from '../editor/useDraftPublishActions.ts';
 import { backfillPageName, derivePageLabel } from './derivePageLabel.ts';
 import { PreviewFrame } from '../editor/PreviewFrame.tsx';
+import { EditorContentPlaceholder, isPlaceholderStatus } from '../editor/EditorContentPlaceholder.tsx';
+import { useToast } from '../toast/ToastContext.tsx';
 import { type DeviceTier } from '../editor/DeviceToggle.tsx';
 import { canEditAsSections, PageSectionsEditor } from '../sections/PageSectionsEditor.tsx';
 import { SectionFieldsPanel } from '../sections/SectionFieldsPanel.tsx';
@@ -23,6 +25,7 @@ import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 // array) and for the envelope fields it doesn't give controls to.
 export function PageEditorPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
+  const { showToast } = useToast();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const path = searchParams.get('path') ?? '';
@@ -431,8 +434,35 @@ export function PageEditorPage() {
   // draft already exists, or the current editing session has started
   // changing/saving/failed/conflicted - rather than sitting there
   // permanently.
-  const contentLoaded = status !== 'loading' && status !== 'not-found' && status !== 'load-error';
+  const contentLoaded = !isPlaceholderStatus(status);
   const hasPendingChanges = source === 'draft' || status !== 'ready';
+
+  // 'not-found' stays a quiet placeholder-only state (common/expected
+  // enough - a freshly-created page, a stale link - that a popup for it
+  // would be noise), but a genuine load failure or an unreachable site
+  // is worth interrupting for, exactly the case this whole change was
+  // prompted by (see the plan doc). Keyed on status/errorMessage
+  // together since both are only ever set once, synchronously, per
+  // load() attempt (useAutosaveDraft.ts) - this can't refire mid-state.
+  useEffect(() => {
+    if (status === 'load-error') {
+      showToast(errorMessage ?? 'Failed to load content.');
+    } else if (status === 'unreachable') {
+      showToast(errorMessage ?? 'Could not reach the site.');
+    }
+  }, [status, errorMessage, showToast]);
+
+  useEffect(() => {
+    if (status === 'save-error' && errorMessage) {
+      showToast(errorMessage);
+    }
+  }, [status, errorMessage, showToast]);
+
+  useEffect(() => {
+    if (actionError) {
+      showToast(actionError);
+    }
+  }, [actionError, showToast]);
 
   // Remembers this as the site's own "last visited editor page"
   // (currentSite.ts) - only once content has actually loaded, so a
@@ -529,33 +559,6 @@ export function PageEditorPage() {
   // it to control.
   usePageDeviceToggle(previewUrl !== null ? <DeviceToggle device={device} onChange={setDevice} /> : null);
 
-  if (status === 'loading') {
-    return (
-      <div>
-        <h1>Editor</h1>
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  if (status === 'not-found') {
-    return (
-      <div>
-        <h1>Editor</h1>
-        <p role="alert">No content found at this path.</p>
-      </div>
-    );
-  }
-
-  if (status === 'load-error') {
-    return (
-      <div>
-        <h1>Editor</h1>
-        <p role="alert">{errorMessage ?? 'Failed to load content.'}</p>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="editor-page">
@@ -563,9 +566,7 @@ export function PageEditorPage() {
           <div className="editor-sidebar">
             <div className="editor-sidebar-top">
               {invalidJson && <p role="alert">Not valid JSON yet - not saved.</p>}
-              {status === 'save-error' && errorMessage && <p role="alert">{errorMessage}</p>}
-              {actionError && <p role="alert">{actionError}</p>}
-  
+
               {status === 'conflict' && (
                 <section>
                   <p role="alert">This page changed since you opened it.</p>
@@ -616,48 +617,52 @@ export function PageEditorPage() {
             </div>
   
             <div className="editor-tab-content">
-              <div className="editor-tab-panel" ref={tabPanelRef}>
-                {effectiveViewMode === 'metafields' && (
-                  <PageMetadataPanel
-                    key={path}
-                    content={content}
-                    setContent={setContent}
-                    siteId={siteId}
-                    path={path}
-                    previewUrl={previewUrl}
-                    renameDisabled={hasPendingChanges}
-                    onRenamed={handleRenamed}
-                  />
-                )}
-                {effectiveViewMode === 'sections' && (
-                  <PageSectionsEditor
-                    siteId={siteId}
-                    content={content}
-                    setContent={setContent}
-                    validationErrors={validationErrors}
-                    onEditInstance={handleEditInstance}
-                    onHighlightSection={handleHighlightFromAdmin}
-                    highlightedSectionId={highlightedSectionId}
-                    selectedInstanceId={selectedInstanceId}
-                  />
-                )}
-                {effectiveViewMode === 'raw' && (
-                  <label className="raw-json-label">
-                    Content
-                    <textarea value={content} onChange={(event) => setContent(event.target.value)} />
-                  </label>
-                )}
-                {effectiveViewMode === 'history' && (
-                  <PageHistoryTab
-                    siteId={siteId}
-                    path={path}
-                    previewRef={historyPreviewRef}
-                    hasDraft={source === 'draft'}
-                    onSelectRevision={setHistoryPreviewRef}
-                    onRestored={reloadLatest}
-                  />
-                )}
-              </div>
+              {isPlaceholderStatus(status) ? (
+                <EditorContentPlaceholder status={status} />
+              ) : (
+                <div className="editor-tab-panel" ref={tabPanelRef}>
+                  {effectiveViewMode === 'metafields' && (
+                    <PageMetadataPanel
+                      key={path}
+                      content={content}
+                      setContent={setContent}
+                      siteId={siteId}
+                      path={path}
+                      previewUrl={previewUrl}
+                      renameDisabled={hasPendingChanges}
+                      onRenamed={handleRenamed}
+                    />
+                  )}
+                  {effectiveViewMode === 'sections' && (
+                    <PageSectionsEditor
+                      siteId={siteId}
+                      content={content}
+                      setContent={setContent}
+                      validationErrors={validationErrors}
+                      onEditInstance={handleEditInstance}
+                      onHighlightSection={handleHighlightFromAdmin}
+                      highlightedSectionId={highlightedSectionId}
+                      selectedInstanceId={selectedInstanceId}
+                    />
+                  )}
+                  {effectiveViewMode === 'raw' && (
+                    <label className="raw-json-label">
+                      Content
+                      <textarea value={content} onChange={(event) => setContent(event.target.value)} />
+                    </label>
+                  )}
+                  {effectiveViewMode === 'history' && (
+                    <PageHistoryTab
+                      siteId={siteId}
+                      path={path}
+                      previewRef={historyPreviewRef}
+                      hasDraft={source === 'draft'}
+                      onSelectRevision={setHistoryPreviewRef}
+                      onRestored={reloadLatest}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           </div>
   
@@ -670,16 +675,20 @@ export function PageEditorPage() {
           </button>
   
           <div className={`editor-preview-full${mobilePreviewOpen ? ' is-open-mobile' : ''}`}>
-            <PreviewFrame
-              siteId={siteId}
-              url={previewUrl}
-              status={status}
-              device={device}
-              revisionRef={historyPreviewRef}
-              iframeRef={previewIframeRef}
-              onFrameLoad={handlePreviewFrameLoad}
-              onFrameMouseLeave={() => setHighlightedSectionId(null)}
-            />
+            {isPlaceholderStatus(status) ? (
+              <EditorContentPlaceholder status={status} />
+            ) : (
+              <PreviewFrame
+                siteId={siteId}
+                url={previewUrl}
+                status={status}
+                device={device}
+                revisionRef={historyPreviewRef}
+                iframeRef={previewIframeRef}
+                onFrameLoad={handlePreviewFrameLoad}
+                onFrameMouseLeave={() => setHighlightedSectionId(null)}
+              />
+            )}
             {mobilePreviewOpen && (
               <button type="button" className="editor-mobile-preview-close" onClick={() => setMobilePreviewOpen(false)}>
                 Close Preview

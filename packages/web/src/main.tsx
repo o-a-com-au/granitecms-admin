@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router';
 import { AuthProvider } from './auth/AuthContext.tsx';
 import { ThemeProvider } from './theme/ThemeContext.tsx';
+import { ToastProvider } from './toast/ToastContext.tsx';
 import { routes } from './App.tsx';
 // Self-hosted (not a Google Fonts <link>) - no external request at
 // runtime, matching this being a self-hosted admin tool, and each
@@ -26,7 +27,9 @@ createRoot(container).render(
   <StrictMode>
     <ThemeProvider>
       <AuthProvider>
-        <RouterProvider router={router} />
+        <ToastProvider>
+          <RouterProvider router={router} />
+        </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
   </StrictMode>,

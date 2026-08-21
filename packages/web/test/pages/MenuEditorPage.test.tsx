@@ -3,6 +3,7 @@ import { type ReactNode } from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter, Link, RouterProvider } from 'react-router';
 import { MenuEditorPage } from '../../src/pages/MenuEditorPage.tsx';
+import { ToastProvider } from '../../src/toast/ToastContext.tsx';
 
 interface FakeState {
   content: string | null;
@@ -96,7 +97,11 @@ function renderPage(
     ],
     { initialEntries: [initialEntry] },
   );
-  return render(<RouterProvider router={router} />);
+  return render(
+    <ToastProvider>
+      <RouterProvider router={router} />
+    </ToastProvider>,
+  );
 }
 
 async function waitForActions(): Promise<void> {

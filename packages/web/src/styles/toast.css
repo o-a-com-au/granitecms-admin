@@ -1,0 +1,67 @@
+/* Sits above the modal overlay (modal.css's own documented stack tops
+   out at 50) - a toast must never block interaction the way the
+   modal's scrim deliberately does, but it still has to be visible over
+   a modal if one happens to be open when an error lands. */
+.toast-stack {
+  position: fixed;
+  /* Clears AppShell's own top bar (app-shell.css's .app-topbar), which
+     ToastProvider has no layout knowledge of - it's mounted as a
+     sibling of the whole router in main.tsx, not inside AppShell -
+     found live: at --space-md alone, a toast sat on top of the
+     topbar's own account/theme icons instead of below them. */
+  top: 4.5rem;
+  right: var(--space-md);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-width: 360px;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.5);
+  animation: toast-in 0.15s ease-out;
+}
+
+.toast p {
+  margin: 0;
+  flex: 1;
+}
+
+.toast-error {
+  background: rgba(240, 104, 92, 0.16);
+  color: var(--colour-danger);
+  border: 1px solid rgba(240, 104, 92, 0.35);
+}
+
+.toast-success {
+  background: rgba(62, 207, 110, 0.16);
+  color: var(--colour-ok);
+  border: 1px solid rgba(62, 207, 110, 0.35);
+}
+
+.toast-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

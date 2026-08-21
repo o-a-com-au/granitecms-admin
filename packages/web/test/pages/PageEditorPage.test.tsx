@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter, Link, RouterProvider } from 'react-router';
 import { PageEditorPage } from '../../src/pages/PageEditorPage.tsx';
+import { ToastProvider } from '../../src/toast/ToastContext.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider } from '../../src/layout/PageActionsContext.tsx';
 import { formatCommitTimestamp } from '../../src/history/PageHistoryTab.tsx';
 import { readLastEditorLocation, writeLastEditorLocation } from '../../src/sites/currentSite.ts';
@@ -228,9 +229,11 @@ function renderPage(initialEntry = '/sites/site-1/editor?path=pages%2Fabout.json
     { initialEntries: [initialEntry] },
   );
   return render(
-    <TestPageActionsHost>
-      <RouterProvider router={router} />
-    </TestPageActionsHost>,
+    <ToastProvider>
+      <TestPageActionsHost>
+        <RouterProvider router={router} />
+      </TestPageActionsHost>
+    </ToastProvider>,
   );
 }
 
@@ -376,7 +379,11 @@ describe('PageEditorPage', () => {
     installFakeEditorApi({ content: null, etag: null, source: 'draft' });
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('No content found at this path.')).toBeDefined());
+    // Two placeholders, not one - the tab-content panel and the preview
+    // pane each show their own EditorContentPlaceholder now that the
+    // shell stays mounted instead of the page bailing out with a single
+    // early-return message (see this group's own plan doc).
+    await waitFor(() => expect(screen.getAllByText('No content found at this path.')).toHaveLength(2));
   });
 
   it('F1: renders a preview iframe pointed at the proxy preview route when a url is present', async () => {
@@ -1184,7 +1191,9 @@ describe('PageEditorPage', () => {
     installFakeEditorApi({ content: null, etag: null, source: 'draft' });
 
     renderPage('/sites/site-1/editor?path=pages%2Fnever-existed.json&url=%2Fnever-existed');
-    await waitFor(() => expect(screen.getByRole('alert')).toBeDefined());
+    // 'not-found' is a quiet placeholder-only state now, not an alert -
+    // wait on the placeholder text instead (see the test above).
+    await waitFor(() => expect(screen.getAllByText('No content found at this path.')).toHaveLength(2));
 
     expect(readLastEditorLocation('site-1')).toBe('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
   });

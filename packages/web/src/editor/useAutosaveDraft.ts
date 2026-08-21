@@ -9,7 +9,8 @@ export type EditorStatus =
   | 'save-error'
   | 'conflict'
   | 'not-found'
-  | 'load-error';
+  | 'load-error'
+  | 'unreachable';
 
 const DEBOUNCE_MS = 1000;
 
@@ -76,6 +77,9 @@ export function useAutosaveDraft(
     } catch (err) {
       if (err instanceof SiteEditorError && err.reason === 'not-found') {
         updateStatus('not-found');
+      } else if (err instanceof SiteEditorError && err.reason === 'unreachable') {
+        updateStatus('unreachable');
+        setErrorMessage(err.message);
       } else {
         updateStatus('load-error');
         setErrorMessage(err instanceof Error ? err.message : 'Failed to load content');

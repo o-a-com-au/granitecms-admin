@@ -1,8 +1,11 @@
+import { useEffect } from 'react';
 import { useBlocker, useParams, useSearchParams } from 'react-router';
 import { useAutosaveDraft } from '../editor/useAutosaveDraft.ts';
 import { useDraftPublishActions } from '../editor/useDraftPublishActions.ts';
 import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
 import { UnsavedChangesPrompt } from '../editor/UnsavedChangesPrompt.tsx';
+import { EditorContentPlaceholder, isPlaceholderStatus } from '../editor/EditorContentPlaceholder.tsx';
+import { useToast } from '../toast/ToastContext.tsx';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
 import { deriveMenuName } from './deriveMenuName.ts';
 
@@ -62,6 +65,7 @@ function serializeMenu(envelope: Record<string, unknown>, items: MenuItem[]): st
 // pages do, so save/conflict/publish/discard behave identically.
 export function MenuEditorPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
+  const { showToast } = useToast();
   const [searchParams] = useSearchParams();
   const path = searchParams.get('path') ?? '';
 
@@ -87,9 +91,33 @@ export function MenuEditorPage() {
   // Save/Discard render in this page's own footer now (docs/design/
   // Sections Tab.png's pattern, matching PageEditorPage), not the
   // app's shared header - there is no shared header any more.
-  const contentLoaded = status !== 'loading' && status !== 'not-found' && status !== 'load-error';
+  const contentLoaded = !isPlaceholderStatus(status);
   const hasPendingChanges = source === 'draft' || status !== 'ready';
   const showFooter = contentLoaded && hasPendingChanges;
+
+  // Same toast-firing rationale as PageEditorPage.tsx: 'not-found' stays
+  // a quiet placeholder-only state, but a genuine load failure or an
+  // unreachable site interrupts with a popup, same as save/action
+  // failures do.
+  useEffect(() => {
+    if (status === 'load-error') {
+      showToast(errorMessage ?? 'Failed to load content.');
+    } else if (status === 'unreachable') {
+      showToast(errorMessage ?? 'Could not reach the site.');
+    }
+  }, [status, errorMessage, showToast]);
+
+  useEffect(() => {
+    if (status === 'save-error' && errorMessage) {
+      showToast(errorMessage);
+    }
+  }, [status, errorMessage, showToast]);
+
+  useEffect(() => {
+    if (actionError) {
+      showToast(actionError);
+    }
+  }, [actionError, showToast]);
 
   // Same guard as PageEditorPage's own - called unconditionally here,
   // before any of the early returns below, since hooks can never be
@@ -113,39 +141,6 @@ export function MenuEditorPage() {
     if (ok) {
       blocker.proceed?.();
     }
-  }
-
-  if (status === 'loading') {
-    return (
-      <div className="list-page">
-        <div className="list-page-inner menu-editor-page">
-          <h1>Menu</h1>
-          <p>Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (status === 'not-found') {
-    return (
-      <div className="list-page">
-        <div className="list-page-inner menu-editor-page">
-          <h1>Menu</h1>
-          <p role="alert">No content found at this path.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (status === 'load-error') {
-    return (
-      <div className="list-page">
-        <div className="list-page-inner menu-editor-page">
-          <h1>Menu</h1>
-          <p role="alert">{errorMessage ?? 'Failed to load content.'}</p>
-        </div>
-      </div>
-    );
   }
 
   const menu = parseMenu(content);
@@ -206,8 +201,6 @@ export function MenuEditorPage() {
           <h1>{deriveMenuName(path)}</h1>
 
           {invalidJson && <p role="alert">Not valid JSON yet - not saved.</p>}
-          {status === 'save-error' && errorMessage && <p role="alert">{errorMessage}</p>}
-          {actionError && <p role="alert">{actionError}</p>}
 
           {status === 'conflict' && (
             <section>
@@ -229,52 +222,56 @@ export function MenuEditorPage() {
             </section>
           )}
 
-          {menu === null ? (
+          {isPlaceholderStatus(status) ? (
+            <EditorContentPlaceholder status={status} />
+          ) : menu === null ? (
             <p role="alert">This menu&apos;s content isn&apos;t valid right now - fix it before it can be edited here.</p>
           ) : (
-            <ul className="menu-item-list">
-              {menu.items.map((item, index) => (
-                // No stable id in the data model (menu.schema.json's items
-                // are additionalProperties: false - a client-side id has
-                // nowhere to live) - index is the only key available, an
-                // accepted trade-off for a short, non-virtualised list.
-                <li key={index} className="menu-item-row">
-                  <label>
-                    Label
-                    <input value={item.label} onChange={(event) => handleLabelChange(index, event.target.value)} />
-                  </label>
-                  <label>
-                    URL
-                    <input value={item.url} onChange={(event) => handleUrlChange(index, event.target.value)} />
-                  </label>
-                  <button type="button" onClick={() => handleMove(index, -1)} disabled={index === 0} aria-label="Move up">
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleMove(index, 1)}
-                    disabled={index === menu.items.length - 1}
-                    aria-label="Move down"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    className="instance-row-remove"
-                    aria-label={`Remove ${item.label || 'menu item'}`}
-                    onClick={() => handleRemoveItem(index)}
-                  >
-                    <TrashIcon />
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="menu-item-list">
+                {menu.items.map((item, index) => (
+                  // No stable id in the data model (menu.schema.json's items
+                  // are additionalProperties: false - a client-side id has
+                  // nowhere to live) - index is the only key available, an
+                  // accepted trade-off for a short, non-virtualised list.
+                  <li key={index} className="menu-item-row">
+                    <label>
+                      Label
+                      <input value={item.label} onChange={(event) => handleLabelChange(index, event.target.value)} />
+                    </label>
+                    <label>
+                      URL
+                      <input value={item.url} onChange={(event) => handleUrlChange(index, event.target.value)} />
+                    </label>
+                    <button type="button" onClick={() => handleMove(index, -1)} disabled={index === 0} aria-label="Move up">
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMove(index, 1)}
+                      disabled={index === menu.items.length - 1}
+                      aria-label="Move down"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      className="instance-row-remove"
+                      aria-label={`Remove ${item.label || 'menu item'}`}
+                      onClick={() => handleRemoveItem(index)}
+                    >
+                      <TrashIcon />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="menu-editor-footer">
+                <button type="button" className="instance-add-button" onClick={handleAddItem}>
+                  + Add menu item
+                </button>
+              </div>
+            </>
           )}
-          <div className="menu-editor-footer">
-            <button type="button" className="instance-add-button" onClick={handleAddItem}>
-              + Add menu item
-            </button>
-          </div>
 
           {showFooter && (
             <div className="editor-footer">

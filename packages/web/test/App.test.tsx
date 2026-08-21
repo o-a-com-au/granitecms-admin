@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { AuthProvider } from '../src/auth/AuthContext.tsx';
 import { ThemeProvider } from '../src/theme/ThemeContext.tsx';
+import { ToastProvider } from '../src/toast/ToastContext.tsx';
 import { routes } from '../src/App.tsx';
 import { createFakeStorage } from './helpers/fakeStorage.ts';
 
@@ -15,7 +16,9 @@ function renderApp(initialEntries: string[]) {
   return render(
     <ThemeProvider>
       <AuthProvider>
-        <RouterProvider router={router} />
+        <ToastProvider>
+          <RouterProvider router={router} />
+        </ToastProvider>
       </AuthProvider>
     </ThemeProvider>,
   );
@@ -58,12 +61,13 @@ describe('App', () => {
 
     renderApp(['/']);
 
-    // PageEditorPage renders its own "Editor" heading in every status
-    // (loading/not-found/load-error) - enough to prove the redirect
-    // landed on the editor route, without needing to mock its content
-    // API too (this test is about routing, not content-loading, which
-    // is covered elsewhere).
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Editor' })).toBeDefined());
+    // PageEditorPage's own editor-tabs tablist renders unconditionally
+    // now, regardless of load status (the shell stays mounted through
+    // loading/not-found/load-error - see this group's own plan doc) -
+    // enough to prove the redirect landed on the editor route, without
+    // needing to mock its content API too (this test is about routing,
+    // not content-loading, which is covered elsewhere).
+    await waitFor(() => expect(screen.getByRole('tablist', { name: 'Editor view' })).toBeDefined());
     expect(screen.queryByRole('heading', { name: 'Register a website' })).toBeNull();
   });
 
