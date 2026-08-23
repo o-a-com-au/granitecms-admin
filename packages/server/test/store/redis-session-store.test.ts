@@ -5,9 +5,16 @@ import { openRedisSessionStore } from '../../src/store/redis-session-store.ts';
 import { loadConfig } from '../../src/config.ts';
 import type { Session } from 'fastify';
 
-// Real integration test against the local docker-compose Redis
-// (docker compose up -d before running these) - same "empirical over
-// mocked" bias as test/store/postgres-store.test.ts.
+// Real integration test against the local docker-compose Redis's own
+// logical DB 1 (docker compose up -d before running these - see
+// packages/server/package.json's own test script for the REDIS_URL
+// override) - same "empirical over mocked" bias as
+// test/store/postgres-store.test.ts. DB 1, not the default DB 0 a real
+// dev server's own sessions live in, for the same reason
+// postgres-store.test.ts gets its own database: this suite deletes
+// every session:* key it finds, and a shared DB with a real logged-in
+// dev session meant this used to fail outright, or silently log a real
+// session out.
 function makeSession(overrides: Partial<Session> = {}): Session {
   return { cookie: { originalMaxAge: null }, userId: 'jane', ...overrides } as Session;
 }

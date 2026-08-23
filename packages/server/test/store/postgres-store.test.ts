@@ -14,11 +14,18 @@ import type { Site } from '../../src/sites/site.ts';
 import type { SiteAccess } from '../../src/sites/site-access.ts';
 import type { SiteInvite } from '../../src/sites/site-invite.ts';
 
-// Real integration tests against the local docker-compose Postgres
-// (docker compose up -d, then npm run db:migrate, before running
-// these) - not mocked, same "empirical over mocked" bias the rest of
+// Real integration tests against the local docker-compose Postgres's
+// own cms_admin_test database (docker compose up -d - the test DB and
+// its schema are provisioned automatically on first container start,
+// see docker/postgres-init/ - then DATABASE_URL=postgres://admin:admin@localhost:5432/cms_admin_test
+// npm run db:migrate --workspace packages/server if it's ever out of
+// date) - not mocked, same "empirical over mocked" bias the rest of
 // this project already follows for real HTTP servers in the sites/
-// tests. Every table is truncated between tests for isolation.
+// tests. A separate database from the one `npm run dev` bootstraps a
+// real local admin account into (packages/server/package.json's own
+// test script sets DATABASE_URL) - every table is still truncated
+// between tests for isolation between test runs, but that's no longer
+// load-bearing for dev-data safety the way it used to be.
 const TEST_ENCRYPTION_KEY = randomBytes(32);
 
 function makeUser(overrides: Partial<AdminUser> = {}): AdminUser {
@@ -59,11 +66,13 @@ describe('postgres stores', () => {
 
   before(async () => {
     db = openDb(loadConfig().databaseUrl);
-    // Not just afterEach - a locally-running dev server (npm run dev,
-    // pointed at this same database) may already have bootstrapped a
-    // real admin account before this suite ever runs. This suite
-    // assumes exclusive ownership of its tables, same as
-    // json-file-store.test.ts assumes a fresh temp directory.
+    // Not just afterEach - a previous run of this same suite (or a
+    // stray manual query against cms_admin_test) may have left rows
+    // behind. This suite assumes exclusive ownership of its tables,
+    // same as json-file-store.test.ts assumes a fresh temp directory -
+    // a real dev server's own bootstrapped admin account lives in a
+    // separate database entirely now (cms_admin, not cms_admin_test),
+    // so it's never at risk here.
     await truncateAll(db);
   });
 
