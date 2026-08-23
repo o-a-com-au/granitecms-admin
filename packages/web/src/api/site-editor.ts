@@ -1,5 +1,6 @@
 export type SiteEditorErrorReason =
   | 'not-found'
+  | 'site-not-found'
   | 'unreachable'
   | 'unauthorized'
   | 'error'
@@ -47,6 +48,7 @@ export interface ReadResult {
 function isReason(value: unknown): value is SiteEditorErrorReason {
   return (
     value === 'not-found' ||
+    value === 'site-not-found' ||
     value === 'unreachable' ||
     value === 'unauthorized' ||
     value === 'error' ||

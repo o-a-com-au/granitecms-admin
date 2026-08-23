@@ -14,7 +14,7 @@ export interface ContentListFilters {
   draftStatus?: 'has-draft' | 'no-draft';
 }
 
-type SiteContentErrorReason = 'unreachable' | 'unauthorized' | 'error';
+type SiteContentErrorReason = 'unreachable' | 'unauthorized' | 'site-not-found' | 'error';
 
 export class SiteContentError extends Error {
   readonly reason: SiteContentErrorReason;
@@ -27,7 +27,7 @@ export class SiteContentError extends Error {
 }
 
 function isReason(value: unknown): value is SiteContentErrorReason {
-  return value === 'unreachable' || value === 'unauthorized' || value === 'error';
+  return value === 'unreachable' || value === 'unauthorized' || value === 'site-not-found' || value === 'error';
 }
 
 export async function listSiteContent(siteId: string, filters: ContentListFilters): Promise<ContentListEntry[]> {
@@ -46,10 +46,13 @@ export async function listSiteContent(siteId: string, filters: ContentListFilter
     let reason: SiteContentErrorReason = 'error';
     let message = 'Failed to load content';
     try {
-      const body = (await response.json()) as { error?: string; reason?: unknown };
-      if (body.error) {
-        message = body.error;
-      }
+      const body = (await response.json()) as { error?: string; message?: string; reason?: unknown };
+      // message first, same reasoning as site-editor.ts's own
+      // reasonFromResponse: "error" is just the generic status phrase
+      // or, for a thrown domain error like SiteNotFoundError, the
+      // class name itself (e.g. "SiteNotFoundError") - never anything
+      // fit to show a user.
+      message = body.message ?? body.error ?? message;
       if (isReason(body.reason)) {
         reason = body.reason;
       }

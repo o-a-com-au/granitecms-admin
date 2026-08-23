@@ -4,7 +4,9 @@ import { useAutosaveDraft } from '../editor/useAutosaveDraft.ts';
 import { useDraftPublishActions } from '../editor/useDraftPublishActions.ts';
 import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
 import { UnsavedChangesPrompt } from '../editor/UnsavedChangesPrompt.tsx';
-import { EditorContentPlaceholder, isPlaceholderStatus } from '../editor/EditorContentPlaceholder.tsx';
+import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
+import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
+import { isPlaceholderStatus, buildPlaceholderPanelProps } from '../site-status/placeholder-status.ts';
 import { useToast } from '../toast/ToastContext.tsx';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
 import { deriveMenuName } from './deriveMenuName.ts';
@@ -94,18 +96,6 @@ export function MenuEditorPage() {
   const contentLoaded = !isPlaceholderStatus(status);
   const hasPendingChanges = source === 'draft' || status !== 'ready';
   const showFooter = contentLoaded && hasPendingChanges;
-
-  // Same toast-firing rationale as PageEditorPage.tsx: 'not-found' stays
-  // a quiet placeholder-only state, but a genuine load failure or an
-  // unreachable site interrupts with a popup, same as save/action
-  // failures do.
-  useEffect(() => {
-    if (status === 'load-error') {
-      showToast(errorMessage ?? 'Failed to load content.');
-    } else if (status === 'unreachable') {
-      showToast(errorMessage ?? 'Could not reach the site.');
-    }
-  }, [status, errorMessage, showToast]);
 
   useEffect(() => {
     if (status === 'save-error' && errorMessage) {
@@ -223,7 +213,11 @@ export function MenuEditorPage() {
           )}
 
           {isPlaceholderStatus(status) ? (
-            <EditorContentPlaceholder status={status} />
+            status === 'loading' ? (
+              <TopLoadingBar active />
+            ) : (
+              <SiteStatusPanel {...buildPlaceholderPanelProps(status, { errorMessage, siteId, onRetry: reloadLatest })} />
+            )
           ) : menu === null ? (
             <p role="alert">This menu&apos;s content isn&apos;t valid right now - fix it before it can be edited here.</p>
           ) : (

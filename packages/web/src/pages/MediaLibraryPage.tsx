@@ -6,10 +6,7 @@ export function MediaLibraryPage() {
 
   return (
     <div className="list-page">
-      <div className="list-page-inner media-library-page-inner">
-        <h1>Media</h1>
-        <MediaLibrary siteId={siteId} mode="browse" />
-      </div>
+      <MediaLibrary siteId={siteId} mode="browse" />
     </div>
   );
 }

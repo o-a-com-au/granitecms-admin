@@ -5,12 +5,15 @@ import { useSiteRedirects } from '../redirects/useSiteRedirects.ts';
 import { buildDeleteRedirectMessage } from '../redirects/buildRedirectMessage.ts';
 import { RedirectFormModal } from '../redirects/RedirectFormModal.tsx';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
+import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
+import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
+import { buildLoadErrorActions, loadErrorMessage } from '../sites/site-load-error.ts';
 
 type ModalState = { mode: 'create' } | { mode: 'edit'; entry: RedirectEntry } | null;
 
 export function RedirectsPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
-  const { entries, loadError, refresh } = useSiteRedirects(siteId);
+  const { entries, loading, loadError, refresh } = useSiteRedirects(siteId);
   const [modalState, setModalState] = useState<ModalState>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -32,6 +35,26 @@ export function RedirectsPage() {
     refresh();
   }
 
+  if (loadError) {
+    return (
+      <div className="list-page">
+        <SiteStatusPanel
+          variant="problem"
+          message={loadErrorMessage(loadError)}
+          actions={buildLoadErrorActions(loadError, siteId, refresh)}
+        />
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="list-page">
+        <TopLoadingBar active />
+      </div>
+    );
+  }
+
   return (
     <div className="list-page">
       <div className="list-page-inner">
@@ -42,12 +65,11 @@ export function RedirectsPage() {
           </button>
         </div>
 
-        {loadError && <p role="alert">{loadError}</p>}
         {deleteError && <p role="alert">{deleteError}</p>}
 
-        {!loadError && entries.length === 0 && <p>No redirects yet.</p>}
-
-        {entries.length > 0 && (
+        {entries.length === 0 ? (
+          <p>No redirects yet.</p>
+        ) : (
           <table className="list-table">
             <thead>
               <tr>

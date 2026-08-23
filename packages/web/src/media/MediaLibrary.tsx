@@ -2,6 +2,9 @@ import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { deleteSiteMedia, uploadSiteMedia, type MediaItem } from '../api/site-media.ts';
 import { useSiteMedia } from './useSiteMedia.ts';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
+import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
+import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
+import { buildLoadErrorActions, loadErrorMessage } from '../sites/site-load-error.ts';
 
 export interface MediaLibraryProps {
   siteId: string;
@@ -38,7 +41,7 @@ function matchesSearch(item: MediaItem, query: string): boolean {
 }
 
 export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange }: MediaLibraryProps) {
-  const { items, loadError, maxUploadBytes, refresh } = useSiteMedia(siteId);
+  const { items, loading, loadError, maxUploadBytes, refresh } = useSiteMedia(siteId);
   const [search, setSearch] = useState('');
   const [fileErrors, setFileErrors] = useState<FileError[]>([]);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -130,8 +133,26 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange 
 
   const filteredItems = items.filter((item) => matchesSearch(item, search));
 
+  // The full-width panel treatment only applies to the top-level Media
+  // screen (mode: 'browse') - MediaPickerModal's own mode: 'picker'
+  // usage is a small modal, not a full screen, so it keeps its
+  // existing flat inline-error behaviour below instead.
+  if (mode === 'browse' && loading) {
+    return <TopLoadingBar active />;
+  }
+  if (mode === 'browse' && loadError) {
+    return (
+      <SiteStatusPanel
+        variant="problem"
+        message={loadErrorMessage(loadError)}
+        actions={buildLoadErrorActions(loadError, siteId, refresh)}
+      />
+    );
+  }
+
   return (
-    <div className="media-library">
+    <div className={mode === 'browse' ? 'list-page-inner media-library-page-inner' : 'media-library'}>
+      {mode === 'browse' && <h1>Media</h1>}
       <div className="media-library-toolbar">
         <input
           type="search"
@@ -153,7 +174,7 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange 
         />
       </div>
 
-      {loadError && <p role="alert">{loadError}</p>}
+      {loadError && <p role="alert">{loadErrorMessage(loadError)}</p>}
       {deleteError && <p role="alert">{deleteError}</p>}
       {fileErrors.length > 0 && (
         <ul className="media-library-errors" role="alert">

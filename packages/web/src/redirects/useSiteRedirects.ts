@@ -1,30 +1,36 @@
 import { useCallback, useEffect, useState } from 'react';
 import { listSiteRedirects, type RedirectEntry } from '../api/site-redirects.ts';
+import { toLoadError, type LoadError } from '../sites/site-load-error.ts';
 
 export interface UseSiteRedirectsResult {
   entries: RedirectEntry[];
-  loadError: string | null;
+  loading: boolean;
+  loadError: LoadError | null;
   refresh: () => void;
 }
 
 export function useSiteRedirects(siteId: string): UseSiteRedirectsResult {
   const [entries, setEntries] = useState<RedirectEntry[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<LoadError | null>(null);
   const [refreshCount, setRefreshCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     setLoadError(null);
 
     listSiteRedirects(siteId)
       .then((result) => {
         if (!cancelled) {
           setEntries(result.entries);
+          setLoading(false);
         }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setLoadError(err instanceof Error ? err.message : 'Failed to load redirects');
+          setLoadError(toLoadError(err));
+          setLoading(false);
         }
       });
 
@@ -37,5 +43,5 @@ export function useSiteRedirects(siteId: string): UseSiteRedirectsResult {
     setRefreshCount((count) => count + 1);
   }, []);
 
-  return { entries, loadError, refresh };
+  return { entries, loading, loadError, refresh };
 }

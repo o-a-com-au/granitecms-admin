@@ -29,6 +29,15 @@
   min-height: 0;
 }
 
+/* Matches the horizontal inset the loaded state gets for free from
+   .editor-sidebar's left margin and .preview-viewport's own left/right
+   margins - SiteStatusPanel is this shell's only child while there's
+   nothing real to show yet, so without this it sits flush against both
+   edges instead of reading as the same panel, mid-load. */
+.editor-shell > .site-status-panel {
+  margin: 0 var(--space-sm);
+}
+
 /* A column of its own - alerts/conflict box and the tab bar
    (.editor-sidebar-top) stay fixed at the top, .editor-tab-content is
    its own independent scroll region below them, and .editor-footer's
@@ -36,6 +45,21 @@
    Tab.png). Previously one shared scroll region wrapped the tabs
    themselves too, so scrolling a long tab's content also scrolled the
    Page/Sections/Fields tabs out of view. */
+/* Only ever mounted once real content exists (PageEditorPage.tsx
+   renders SiteStatusPanel in its place while loading) - the animation
+   here gets the "slides in once ready" effect for free from that
+   mount, with no JS transition state needed. */
+@keyframes editor-sidebar-slide-in {
+  from {
+    transform: translateX(-12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 .editor-sidebar {
   flex: 0 0 var(--editor-sidebar-width);
   max-width: var(--editor-sidebar-width);
@@ -45,6 +69,13 @@
   margin: var(--space-sm);
   margin-top: 0;
   margin-right: 0;
+  animation: editor-sidebar-slide-in 0.25s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-sidebar {
+    animation: none;
+  }
 }
 
 .editor-sidebar-top {
@@ -268,43 +299,6 @@ button.fields-panel-delete:hover {
   align-items: center;
   justify-content: center;
   color: var(--colour-muted);
-}
-
-/* Stands in for the tab panel and the preview pane alike whenever
-   there's no real content to show yet (loading, not-found, a load
-   failure, or an unreachable site) - the sidebar/tabs around it stay
-   mounted the whole time (PageEditorPage.tsx/MenuEditorPage.tsx no
-   longer bail out with an early return), so this is the only part of
-   the shell that changes. */
-.editor-content-placeholder {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 8rem;
-  color: var(--colour-muted);
-  text-align: center;
-  padding: var(--space-lg);
-}
-
-.editor-content-placeholder.is-loading p {
-  animation: editor-placeholder-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes editor-placeholder-pulse {
-  0%,
-  100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .editor-content-placeholder.is-loading p {
-    animation: none;
-  }
 }
 
 .editor-actions {

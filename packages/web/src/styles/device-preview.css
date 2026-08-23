@@ -99,3 +99,15 @@
 .preview-viewport[data-device='mobile'] {
   padding-bottom: 0;
 }
+
+/* Before the iframe's own document has painted (first load, or any
+   later reload - including the deliberately slower one this delay
+   proxy is testing right now), a browser shows it as plain white.
+   That reads as a stray white rectangle against the framed grey
+   viewport in tablet/mobile, where the device-card treatment makes
+   the gap around it obvious - matching it to the surrounding viewport
+   colour avoids that flash. */
+.preview-viewport[data-device='tablet'] iframe,
+.preview-viewport[data-device='mobile'] iframe {
+  background: var(--colour-viewport);
+}

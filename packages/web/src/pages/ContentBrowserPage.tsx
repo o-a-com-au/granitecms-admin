@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { listSiteContent, SiteContentError } from '../api/site-content.ts';
 import type { ContentListEntry } from '../api/site-content.ts';
 import { isMenuPath } from './deriveMenuName.ts';
 import { formatChangedAt } from './formatChangedAt.ts';
 import { buildPageTree, flattenVisibleTree, type PageTreeNode } from './pageTree.ts';
+import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
+import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
+import { buildLoadErrorActions, loadErrorMessage, type LoadError } from '../sites/site-load-error.ts';
 
 type StatusFilter = 'all' | 'live' | 'unpublished';
 
@@ -70,11 +73,6 @@ function collectParentPaths(nodes: PageTreeNode[], into: Set<string>): void {
       collectParentPaths(node.children, into);
     }
   }
-}
-
-interface LoadError {
-  reason: 'unreachable' | 'unauthorized' | 'error';
-  message: string;
 }
 
 interface PageTreeRowProps {
@@ -144,6 +142,9 @@ export function ContentBrowserPage() {
   const [entries, setEntries] = useState<ContentListEntry[] | null>(null);
   const [error, setError] = useState<LoadError | null>(null);
 
+  const [reloadToken, setReloadToken] = useState(0);
+  const retry = useCallback(() => setReloadToken((count) => count + 1), []);
+
   // Always a fresh, live call - never gated on a cached SiteStatus
   // from the registry page, matching Group C's own "live status on
   // every request" principle. A site can go unreachable/unauthorized
@@ -173,7 +174,7 @@ export function ContentBrowserPage() {
     return () => {
       cancelled = true;
     };
-  }, [siteId]);
+  }, [siteId, reloadToken]);
 
   // Branches start collapsed - seeded once per fresh fetch from the
   // full, unfiltered page set (not whatever the search box/status tabs
@@ -227,6 +228,26 @@ export function ContentBrowserPage() {
 
   const rows = pages !== null ? flattenVisibleTree(buildPageTree(pages), collapsedPaths) : null;
 
+  if (error) {
+    return (
+      <div className="list-page">
+        <SiteStatusPanel
+          variant="problem"
+          message={loadErrorMessage(error)}
+          actions={buildLoadErrorActions(error, siteId, retry)}
+        />
+      </div>
+    );
+  }
+
+  if (entries === null) {
+    return (
+      <div className="list-page">
+        <TopLoadingBar active />
+      </div>
+    );
+  }
+
   return (
     <div className="list-page">
       <div className="list-page-inner">
@@ -254,50 +275,31 @@ export function ContentBrowserPage() {
           </div>
         </div>
 
-        {error && (
-          <p role="alert">
-            {error.reason === 'unreachable' && 'This site is unreachable right now.'}
-            {error.reason === 'unauthorized' && (
-              <>
-                This site&apos;s token was rejected.{' '}
-                <Link to={`/settings/sites/${siteId}`}>Rotate it from Manage Site</Link>.
-              </>
-            )}
-            {error.reason === 'error' && error.message}
-          </p>
-        )}
-
-        {!error && entries === null && <p>Loading...</p>}
-
-        {!error && rows !== null && (
-          <>
-            {rows.length === 0 ? (
-              <p>No pages found.</p>
-            ) : (
-              <table className="list-table pages-list-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Changed</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(({ node, depth }) => (
-                    <PageTreeRow
-                      key={node.entry.path}
-                      siteId={siteId}
-                      node={node}
-                      depth={depth}
-                      collapsed={collapsedPaths.has(node.entry.path)}
-                      onToggle={handleToggle}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </>
+        {rows !== null && rows.length === 0 ? (
+          <p>No pages found.</p>
+        ) : (
+          <table className="list-table pages-list-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Changed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows?.map(({ node, depth }) => (
+                <PageTreeRow
+                  key={node.entry.path}
+                  siteId={siteId}
+                  node={node}
+                  depth={depth}
+                  collapsed={collapsedPaths.has(node.entry.path)}
+                  onToggle={handleToggle}
+                />
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </div>

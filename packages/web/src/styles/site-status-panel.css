@@ -1,0 +1,142 @@
+/* SiteStatusPanel.tsx - the one full-width "nothing real to show yet"
+   panel used by every top-level site-scoped screen. background:
+   --colour-surface explicitly, not left transparent - .list-page
+   already sits at --colour-surface so that case would work either way,
+   but .editor-shell has no background of its own and falls through to
+   .editor-page's --colour-bg (a visibly different shade in dark
+   theme), which made the Editor's panel read as a different tone from
+   every other screen's. Same colour, stated once here, fixes both. */
+.site-status-panel {
+  /* flex: 1 alone only fills the parent's height when that parent is
+     itself a flex container (.editor-shell) - .list-page is a plain
+     block, so this also needs height: 100% (works there since
+     .list-page still has a real computed height, from its own flex: 1
+     sizing one level up against .app-content) or the message would
+     only centre within a small min-height box near the top instead of
+     the panel's real, full height. */
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  min-height: 12rem;
+  padding: var(--space-lg);
+  text-align: center;
+  color: var(--colour-muted);
+  background: var(--colour-surface);
+  border-radius: var(--radius-sm);
+}
+
+.site-status-panel p {
+  animation: site-status-panel-fade-in-up 0.4s ease-out;
+}
+
+.site-status-panel.is-loading p {
+  /* Delayed by the fade-in-up's own duration so the two don't fight -
+     the pulse only takes over once the entrance has finished. */
+  animation:
+    site-status-panel-fade-in-up 0.4s ease-out,
+    site-status-panel-pulse 1.4s ease-in-out 0.4s infinite;
+}
+
+@keyframes site-status-panel-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes site-status-panel-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-status-panel p,
+  .site-status-panel.is-loading p,
+  .site-status-panel-action {
+    animation: none;
+  }
+}
+
+.site-status-panel-actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.site-status-panel-action {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface-hover);
+  color: var(--colour-text);
+  text-decoration: none;
+  /* Slightly behind the message's own fade-in-up, so the two read as
+     one sequence (text, then its actions) rather than popping in
+     together. `both` holds it at the `from` keyframe's opacity: 0
+     through that delay, instead of flashing visible then fading. */
+  animation: site-status-panel-fade-in-up 0.4s ease-out 0.1s both;
+}
+
+.site-status-panel-action:hover {
+  border-color: var(--colour-primary);
+}
+
+/* TopLoadingBar.tsx - fixed to the viewport, not scoped to any one
+   panel, so it reads as "the app is working" rather than belonging to
+   whichever screen happens to be showing it. Only ever mounted after
+   its own 300ms delay has already elapsed (TopLoadingBar.tsx), so the
+   entrance itself doesn't need its own fade-in - by the time it exists
+   at all, the load has already stopped being instant. Just the track
+   here - .top-loading-bar-fill below is the actual coloured bar,
+   growing to look like real progress rather than a throbbing pulse. */
+.top-loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  overflow: hidden;
+  z-index: 1000;
+}
+
+/* Genuinely indeterminate (there's no real percentage to report), but
+   a one-shot growth from 0 to 90%, decelerating, reads as "making
+   progress" rather than "just spinning" - the same trick most
+   nprogress-style bars use. forwards holds it at 90% if the load
+   outlasts the animation, rather than snapping back to empty. */
+.top-loading-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--colour-primary);
+  animation: top-loading-bar-progress 2s cubic-bezier(0.1, 0.6, 0.4, 1) forwards;
+}
+
+@keyframes top-loading-bar-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 90%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .top-loading-bar-fill {
+    animation: none;
+    width: 90%;
+  }
+}

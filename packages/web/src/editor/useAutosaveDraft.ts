@@ -9,6 +9,7 @@ export type EditorStatus =
   | 'save-error'
   | 'conflict'
   | 'not-found'
+  | 'site-not-found'
   | 'load-error'
   | 'unreachable';
 
@@ -75,7 +76,9 @@ export function useAutosaveDraft(
       setSource(result.source);
       updateStatus('ready');
     } catch (err) {
-      if (err instanceof SiteEditorError && err.reason === 'not-found') {
+      if (err instanceof SiteEditorError && err.reason === 'site-not-found') {
+        updateStatus('site-not-found');
+      } else if (err instanceof SiteEditorError && err.reason === 'not-found') {
         updateStatus('not-found');
       } else if (err instanceof SiteEditorError && err.reason === 'unreachable') {
         updateStatus('unreachable');

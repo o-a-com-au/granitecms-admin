@@ -126,13 +126,36 @@ export function AppShell() {
   // every site-scoped route this shell wraps re-records itself here, no
   // per-page plumbing needed. "/" and the always-visible Editor nav item
   // both read this back once siteId itself isn't in the URL.
+  //
+  // Also refreshes this shell's own sites list here - AppShell is the
+  // persistent layout (it never remounts on in-app navigation), so its
+  // useSites() call only ever fetched once, on first mount, before a
+  // fresh first-run registration (OnboardingPage.tsx, a completely
+  // separate component with no way to reach back into this one) added
+  // any site at all. Landing on a real site-scoped route for the first
+  // time, right after registering, is exactly the moment that stale
+  // empty list needs to catch up - found live: the top nav stayed
+  // hidden after registering, even though a real site now existed,
+  // until a full reload remounted this shell and refetched.
   useEffect(() => {
     if (siteId) {
       writeLastSiteId(siteId);
+      void refreshSites();
     }
-  }, [siteId]);
+  }, [siteId, refreshSites]);
 
   const initial = user?.username ? user.username[0]?.toUpperCase() : '?';
+
+  // Genuinely nothing to navigate to yet, not just "no site currently
+  // selected" - every nav item would render disabled (TopNavItem's own
+  // fallback) or, worse, pointing at a stale remembered siteId
+  // (readLastSiteId()) that no longer exists. sites === null (still
+  // loading) stays false here, not true - the nav starting empty and
+  // then appearing once the fetch confirms real sites exist is a
+  // normal, expected loading pattern; briefly showing it optimistically
+  // and then hiding it again for a genuinely empty registry (found
+  // live) reads as broken, not as a loading state.
+  const hasSites = sites !== null && sites.length > 0;
 
   const editorTo = siteId ? `/sites/${siteId}/editor` : undefined;
   const isEditingPage = location.pathname === editorTo;
@@ -178,16 +201,18 @@ export function AppShell() {
       <div className="app-shell">
         <header className="app-topbar">
           <div className="app-topbar-start">
-            <button
-              type="button"
-              className="app-topbar-hamburger"
-              aria-haspopup="menu"
-              aria-expanded={mobileNavOpen}
-              aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
-              onClick={() => setMobileNavOpen((current) => !current)}
-            >
-              <HamburgerIcon open={mobileNavOpen} />
-            </button>
+            {hasSites && (
+              <button
+                type="button"
+                className="app-topbar-hamburger"
+                aria-haspopup="menu"
+                aria-expanded={mobileNavOpen}
+                aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
+                onClick={() => setMobileNavOpen((current) => !current)}
+              >
+                <HamburgerIcon open={mobileNavOpen} />
+              </button>
+            )}
             <Link className="app-logo" to="/" title="Granite CMS">
               <span className="app-logo-mark">
                 <GraniteLogo />
@@ -197,20 +222,30 @@ export function AppShell() {
               </span>
             </Link>
           </div>
+          {/* Always rendered, even with nothing to navigate to yet -
+              its own flex: 1 (app-shell.css) is what fills the middle
+              span between the logo and the account avatar, keeping the
+              avatar pinned to the right edge either way. Only the items
+              inside are conditional. */}
           <nav className={`app-topbar-nav${mobileNavOpen ? ' is-open' : ''}`} aria-label="Primary">
-            {/* First item, as the default/primary destination - always
-                present, like Pages/Menus/Media/Redirects. Links to the
-                current location while already there (unchanged),
-                otherwise to whichever site is known (falling back to
-                the last-visited one) and that site's own last-visited
-                editor location, falling back again to its default
-                homepage document. Disabled only on a genuine first-ever
-                visit, before any site has ever been known. */}
-            <TopNavItem label="Editor" to={editorNavTo} active={isEditingPage} />
-            <TopNavItem label="Pages" to={contentTo} active={location.pathname === contentTo} />
-            <TopNavItem label="Menus" to={menusTo} active={location.pathname === menusTo} />
-            <TopNavItem label="Media" to={mediaTo} active={location.pathname === mediaTo} />
-            <TopNavItem label="Redirects" to={redirectsTo} active={location.pathname === redirectsTo} />
+            {hasSites && (
+              <>
+                {/* First item, as the default/primary destination -
+                    always present, like Pages/Menus/Media/Redirects.
+                    Links to the current location while already there
+                    (unchanged), otherwise to whichever site is known
+                    (falling back to the last-visited one) and that
+                    site's own last-visited editor location, falling
+                    back again to its default homepage document.
+                    Disabled only on a genuine first-ever visit, before
+                    any site has ever been known. */}
+                <TopNavItem label="Editor" to={editorNavTo} active={isEditingPage} />
+                <TopNavItem label="Pages" to={contentTo} active={location.pathname === contentTo} />
+                <TopNavItem label="Menus" to={menusTo} active={location.pathname === menusTo} />
+                <TopNavItem label="Media" to={mediaTo} active={location.pathname === mediaTo} />
+                <TopNavItem label="Redirects" to={redirectsTo} active={location.pathname === redirectsTo} />
+              </>
+            )}
           </nav>
           <div className="app-topbar-end">
             <div className="app-topbar-device-toggle">{deviceToggle}</div>

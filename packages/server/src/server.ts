@@ -66,6 +66,19 @@ function isFastifyError(error: unknown): error is FastifyError {
   return error instanceof Error && 'statusCode' in error;
 }
 
+// A handful of domain errors (SiteNotFoundError so far) carry their
+// own machine-readable `reason` alongside the human message, the same
+// convention plain route-handler 404 bodies already use (e.g.
+// routes/sites.ts's `{ error: '...', reason: 'not-found' }' returns) -
+// forwarded through so frontend error parsing (site-content.ts's
+// SiteContentError, site-editor.ts's SiteEditorError) can react to
+// this exact class of error the same way it reacts to those.
+function reasonOf(error: unknown): string | undefined {
+  return typeof error === 'object' && error !== null && 'reason' in error && typeof error.reason === 'string'
+    ? error.reason
+    : undefined;
+}
+
 // Mirrors the agent repo's own server.ts error handler: pass a
 // non-500 domain error (AuthError and friends) through with its real
 // status/message intact, but never leak a raw internal error message
@@ -82,7 +95,8 @@ function handleError(error: FastifyError | Error, _request: FastifyRequest, repl
     reply.code(statusCode).send({ statusCode, error: 'Internal Server Error', message: 'Something went wrong' });
     return;
   }
-  reply.code(statusCode).send({ statusCode, error: error.name || 'Bad Request', message: error.message });
+  const reason = reasonOf(error);
+  reply.code(statusCode).send({ statusCode, error: error.name || 'Bad Request', message: error.message, ...(reason ? { reason } : undefined) });
 }
 
 export async function buildServer(

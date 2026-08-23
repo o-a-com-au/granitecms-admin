@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router';
 import { AuthProvider } from '../../src/auth/AuthContext.tsx';
 import { ThemeProvider } from '../../src/theme/ThemeContext.tsx';
 import { AppShell } from '../../src/layout/AppShell.tsx';
@@ -280,6 +280,101 @@ describe('AppShell', () => {
     expect(screen.getByTitle('Pages (unavailable)')).toBeDefined();
     expect(screen.getByTitle('Menus (unavailable)')).toBeDefined();
     expect(screen.getByTitle('Editor (unavailable)')).toBeDefined();
+  });
+
+  it('renders no nav items at all - not even disabled ones - when the registry itself has zero sites', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/api/auth/me') {
+          return new Response(JSON.stringify({ id: 'admin', username: 'admin' }), { status: 200 });
+        }
+        if (url === '/api/sites') {
+          return new Response(JSON.stringify([]), { status: 200 });
+        }
+        throw new Error(`unhandled fetch in test: ${url}`);
+      }),
+    );
+    renderShell('/settings');
+
+    await waitFor(() => expect(screen.getByText('settings content')).toBeDefined());
+    // The nav landmark itself stays mounted (it's what keeps the
+    // account avatar pinned to the right edge - see AppShell.tsx) but
+    // holds nothing.
+    expect(within(screen.getByRole('navigation', { name: 'Primary' })).queryAllByRole('link')).toHaveLength(0);
+    expect(screen.queryByTitle('Pages (unavailable)')).toBeNull();
+    expect(screen.queryByTitle('Menus (unavailable)')).toBeNull();
+    expect(screen.queryByTitle('Editor (unavailable)')).toBeNull();
+  });
+
+  // The actual bug this covers: AppShell is the persistent layout - it
+  // never remounts on in-app navigation, so its own useSites() call
+  // only ever fetched once, on mount. Registering a brand new first
+  // site happens entirely inside OnboardingPage.tsx, a separate
+  // component with no way to reach back into this one, so without a
+  // refresh triggered here too, the nav stayed hidden (registry still
+  // looked empty to THIS shell) even after landing on a real site's
+  // editor - only a full reload (a fresh AppShell mount) picked it up.
+  it('picks up a brand new site and shows the nav once navigation lands on its editor, without needing a reload', async () => {
+    let registered = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/api/auth/me') {
+          return new Response(JSON.stringify({ id: 'admin', username: 'admin' }), { status: 200 });
+        }
+        if (url === '/api/sites') {
+          return new Response(JSON.stringify(registered ? [SITE] : []), { status: 200 });
+        }
+        throw new Error(`unhandled fetch in test: ${url}`);
+      }),
+    );
+
+    function OnboardingStandIn() {
+      const navigate = useNavigate();
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            // The real registration call happens in OnboardingPage.tsx
+            // itself, well before this shell is ever involved - only
+            // the "a site now exists, then navigate into it" sequence
+            // matters here.
+            registered = true;
+            navigate('/sites/site-1/editor');
+          }}
+        >
+          register
+        </button>
+      );
+    }
+
+    render(
+      <ThemeProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/onboarding']}>
+            <Routes>
+              <Route element={<AppShell />}>
+                <Route path="/onboarding" element={<OnboardingStandIn />} />
+                <Route path="/sites/:siteId/editor" element={<div>editor content</div>} />
+              </Route>
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'register' })).toBeDefined());
+    expect(within(screen.getByRole('navigation', { name: 'Primary' })).queryAllByRole('link')).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'register' }));
+
+    await waitFor(() => expect(screen.getByText('editor content')).toBeDefined());
+    await waitFor(() =>
+      expect(within(screen.getByRole('navigation', { name: 'Primary' })).getAllByRole('link').length).toBeGreaterThan(0),
+    );
   });
 
   it('Editor, Pages, Menus, Media, and Redirects all fall back to a locally-remembered site when siteId itself is unset (e.g. on /settings)', async () => {

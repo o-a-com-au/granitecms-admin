@@ -1,18 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { listSiteContent, SiteContentError } from '../api/site-content.ts';
 import { readSiteEditorContent } from '../api/site-editor.ts';
 import { deriveMenuName, isMenuPath } from './deriveMenuName.ts';
+import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
+import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
+import { buildLoadErrorActions, loadErrorMessage, type LoadError } from '../sites/site-load-error.ts';
 
 interface MenuRow {
   path: string;
   name: string;
   items: string[];
-}
-
-interface LoadError {
-  reason: 'unreachable' | 'unauthorized' | 'error';
-  message: string;
 }
 
 function isMenuItemArray(value: unknown): value is Array<{ label: string }> {
@@ -44,6 +42,8 @@ export function MenusPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
   const [menus, setMenus] = useState<MenuRow[] | null>(null);
   const [error, setError] = useState<LoadError | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+  const retry = useCallback(() => setReloadToken((count) => count + 1), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,47 +84,54 @@ export function MenusPage() {
     return () => {
       cancelled = true;
     };
-  }, [siteId]);
+  }, [siteId, reloadToken]);
+
+  if (error) {
+    return (
+      <div className="list-page">
+        <SiteStatusPanel
+          variant="problem"
+          message={loadErrorMessage(error)}
+          actions={buildLoadErrorActions(error, siteId, retry)}
+        />
+      </div>
+    );
+  }
+
+  if (menus === null) {
+    return (
+      <div className="list-page">
+        <TopLoadingBar active />
+      </div>
+    );
+  }
 
   return (
     <div className="list-page">
       <div className="list-page-inner">
         <h1>Menus</h1>
 
-        {error && (
-          <p role="alert">
-            {error.reason === 'unreachable' && 'This site is unreachable right now.'}
-            {error.reason === 'unauthorized' && (
-              <>
-                This site&apos;s token was rejected.{' '}
-                <Link to={`/settings/sites/${siteId}`}>Rotate it from Manage Site</Link>.
-              </>
-            )}
-            {error.reason === 'error' && error.message}
-          </p>
-        )}
-
-        {!error && menus === null && <p>Loading...</p>}
-        {!error && menus !== null && menus.length === 0 && <p>No menus found.</p>}
-        {!error && menus !== null && menus.length > 0 && (
-            <table className="list-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Menu items</th>
+        {menus.length === 0 ? (
+          <p>No menus found.</p>
+        ) : (
+          <table className="list-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Menu items</th>
+              </tr>
+            </thead>
+            <tbody>
+              {menus.map((menu) => (
+                <tr key={menu.path}>
+                  <td>
+                    <Link to={`/sites/${siteId}/menus/edit?path=${encodeURIComponent(menu.path)}`}>{menu.name}</Link>
+                  </td>
+                  <td>{menu.items.length > 0 ? menu.items.join(', ') : 'No items'}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {menus.map((menu) => (
-                  <tr key={menu.path}>
-                    <td>
-                      <Link to={`/sites/${siteId}/menus/edit?path=${encodeURIComponent(menu.path)}`}>{menu.name}</Link>
-                    </td>
-                    <td>{menu.items.length > 0 ? menu.items.join(', ') : 'No items'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </div>

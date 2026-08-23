@@ -216,7 +216,7 @@ describe('ContentBrowserPage', () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText(/token was rejected/)).toBeDefined());
-    const link = screen.getByRole('link', { name: 'Rotate it from Manage Site' });
+    const link = screen.getByRole('link', { name: 'Diagnose' });
     expect(link.getAttribute('href')).toBe('/settings/sites/site-1');
   });
 

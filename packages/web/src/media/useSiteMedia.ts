@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { listSiteMedia, type MediaItem } from '../api/site-media.ts';
+import { toLoadError, type LoadError } from '../sites/site-load-error.ts';
 
 export interface UseSiteMediaResult {
   items: MediaItem[];
-  loadError: string | null;
+  loading: boolean;
+  loadError: LoadError | null;
   maxUploadBytes: number | null;
   refresh: () => void;
 }
@@ -14,12 +16,14 @@ export interface UseSiteMediaResult {
 // useThemeSchemas's own precedent for the identical situation.
 export function useSiteMedia(siteId: string): UseSiteMediaResult {
   const [items, setItems] = useState<MediaItem[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<LoadError | null>(null);
   const [maxUploadBytes, setMaxUploadBytes] = useState<number | null>(null);
   const [refreshCount, setRefreshCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     setLoadError(null);
 
     listSiteMedia(siteId)
@@ -27,11 +31,13 @@ export function useSiteMedia(siteId: string): UseSiteMediaResult {
         if (!cancelled) {
           setItems(result.items);
           setMaxUploadBytes(result.maxUploadBytes);
+          setLoading(false);
         }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setLoadError(err instanceof Error ? err.message : 'Failed to load media');
+          setLoadError(toLoadError(err));
+          setLoading(false);
         }
       });
 
@@ -49,5 +55,5 @@ export function useSiteMedia(siteId: string): UseSiteMediaResult {
     setRefreshCount((count) => count + 1);
   }, []);
 
-  return { items, loadError, maxUploadBytes, refresh };
+  return { items, loading, loadError, maxUploadBytes, refresh };
 }

@@ -26,7 +26,7 @@ describe('MediaLibraryPage', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('heading', { name: 'Media' })).toBeDefined();
-    await waitFor(() => expect(screen.getByText('photo.jpg')).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Media' })).toBeDefined());
+    expect(screen.getByText('photo.jpg')).toBeDefined();
   });
 });

@@ -379,11 +379,11 @@ describe('PageEditorPage', () => {
     installFakeEditorApi({ content: null, etag: null, source: 'draft' });
     renderPage();
 
-    // Two placeholders, not one - the tab-content panel and the preview
-    // pane each show their own EditorContentPlaceholder now that the
-    // shell stays mounted instead of the page bailing out with a single
-    // early-return message (see this group's own plan doc).
-    await waitFor(() => expect(screen.getAllByText('No content found at this path.')).toHaveLength(2));
+    // One panel spanning the whole shell, not a separate placeholder in
+    // the sidebar and the preview pane - the sidebar isn't mounted at
+    // all while there's nothing real to show (see the wholesale site-
+    // status-panel plan doc).
+    await waitFor(() => expect(screen.getByText('No content found at this path.')).toBeDefined());
   });
 
   it('F1: renders a preview iframe pointed at the proxy preview route when a url is present', async () => {
@@ -1193,7 +1193,7 @@ describe('PageEditorPage', () => {
     renderPage('/sites/site-1/editor?path=pages%2Fnever-existed.json&url=%2Fnever-existed');
     // 'not-found' is a quiet placeholder-only state now, not an alert -
     // wait on the placeholder text instead (see the test above).
-    await waitFor(() => expect(screen.getAllByText('No content found at this path.')).toHaveLength(2));
+    await waitFor(() => expect(screen.getByText('No content found at this path.')).toBeDefined());
 
     expect(readLastEditorLocation('site-1')).toBe('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
   });
