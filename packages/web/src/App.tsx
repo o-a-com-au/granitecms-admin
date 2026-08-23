@@ -3,6 +3,7 @@ import { LoginPage } from './pages/LoginPage.tsx';
 import { SignupPage } from './pages/SignupPage.tsx';
 import { ClaimInvitePage } from './pages/ClaimInvitePage.tsx';
 import { HomeRedirect } from './pages/HomeRedirect.tsx';
+import { OnboardingPage } from './pages/OnboardingPage.tsx';
 import { SettingsLayout } from './pages/settings/SettingsLayout.tsx';
 import { PersonalDetailsPage } from './pages/settings/PersonalDetailsPage.tsx';
 import { PasswordSecurityPage } from './pages/settings/PasswordSecurityPage.tsx';
@@ -45,6 +46,10 @@ export const routes: RouteObject[] = [
         element: <AppShell />,
         children: [
           { path: '/', element: <HomeRedirect /> },
+          {
+            element: <RequireDeveloper />,
+            children: [{ path: '/onboarding', element: <OnboardingPage /> }],
+          },
           {
             path: '/settings',
             element: <SettingsLayout />,

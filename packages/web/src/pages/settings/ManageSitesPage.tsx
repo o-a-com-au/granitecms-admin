@@ -1,31 +1,24 @@
-import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useSites } from '../../sites/useSites.ts';
 import { SiteStatusBadge } from '../../sites/SiteStatusBadge.tsx';
-import { registerSite } from '../../api/sites.ts';
+import { useRegisterSiteForm } from '../../sites/useRegisterSiteForm.ts';
 import { writeLastSiteId } from '../../sites/currentSite.ts';
 
 // Developer-only (App.tsx wraps this route in RequireDeveloper) - a
 // client never registers or owns a site. Per-site actions (rotate
 // token, manage access, delete) all live on ManageSitePage now,
 // reached via "Edit" - this page is just registration + the list.
+// Always shows the normal Settings-shell view, even with zero sites
+// registered - a developer who deliberately navigated here via
+// Settings > Manage Sites wants the registry, not the bare first-run
+// welcome screen (OnboardingPage.tsx, reached only via HomeRedirect's
+// own "/" landing logic).
 export function ManageSitesPage() {
   const { sites, error, refresh } = useSites();
   const navigate = useNavigate();
 
-  const [url, setUrl] = useState('');
-  const [token, setToken] = useState('');
-  const [registerError, setRegisterError] = useState<string | null>(null);
-  const [registering, setRegistering] = useState(false);
-
-  async function handleRegister(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    setRegisterError(null);
-    setRegistering(true);
-    try {
-      const created = await registerSite(url, token);
-      setUrl('');
-      setToken('');
+  const { url, setUrl, token, setToken, registerError, registering, handleRegister } = useRegisterSiteForm(
+    async (created) => {
       await refresh();
       // Registering a site makes it "the" site to land in - the
       // default-landing redirect at "/" reads this, so this is what
@@ -33,12 +26,8 @@ export function ManageSitesPage() {
       // rather than leaving you stranded on this registry screen.
       writeLastSiteId(created.id);
       navigate('/');
-    } catch (err) {
-      setRegisterError(err instanceof Error ? err.message : 'Failed to register the site');
-    } finally {
-      setRegistering(false);
-    }
-  }
+    },
+  );
 
   return (
     <>

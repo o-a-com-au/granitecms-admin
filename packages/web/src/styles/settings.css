@@ -111,6 +111,61 @@
   background: var(--colour-surface);
 }
 
+/* First-run onboarding (OnboardingPage.tsx, reached only via "/" with
+   zero sites registered) - a bare, full-bleed screen (app-shell.css's
+   own .app-content:has(.onboarding-page) override drops the usual
+   padded column) rather than a card floating on the normal page
+   background, matching the reference design. */
+.onboarding-page {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--colour-bg);
+}
+
+.onboarding-step-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* Applied to .onboarding-content itself (heading included), not just
+   the form - OnboardingPage.tsx keys that whole block by step, so it's
+   a fresh mount and this plays on every step change in both
+   directions, not just the first paint. */
+@keyframes onboarding-step-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.onboarding-step {
+  animation: onboarding-step-fade-in-up 0.4s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-step {
+    animation: none;
+  }
+}
+
+/* Overrides base.css's bare h1 (small, uppercase, letter-spaced - a
+   page-category label, e.g. "SETTINGS") with an actual welcome
+   heading - sentence case, no letter-spacing, a real reading size. */
+.onboarding-content h1 {
+  margin: 0 0 2rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  line-height: 1.4;
+}
+
 .settings-muted {
   color: var(--colour-muted);
   font-size: 0.85rem;

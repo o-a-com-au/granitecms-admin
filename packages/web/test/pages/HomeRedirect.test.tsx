@@ -11,7 +11,7 @@ function renderHome() {
       <MemoryRouter initialEntries={['/']}>
         <Routes>
           <Route path="/" element={<HomeRedirect />} />
-          <Route path="/settings/sites" element={<div>settings page</div>} />
+          <Route path="/onboarding" element={<div>onboarding page</div>} />
           <Route path="/sites/:siteId/editor" element={<div>editor page</div>} />
         </Routes>
       </MemoryRouter>
@@ -40,33 +40,38 @@ afterEach(() => {
 });
 
 describe('HomeRedirect', () => {
-  it('a developer with no remembered site is sent to /settings/sites to register one', async () => {
+  it('a developer with no remembered site is sent to /onboarding to register their first site', async () => {
     stubApi({ id: 'dev-1', username: 'dev-1', role: 'developer', status: 'active' });
 
     renderHome();
 
-    await waitFor(() => expect(screen.getByText('settings page')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('onboarding page')).toBeDefined());
   });
 
-  it('anyone with a remembered site lands directly in that site\'s editor, without fetching the site list', async () => {
+  it('anyone with a remembered site that still exists lands directly in that site\'s editor', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     localStorage.setItem('cms-admin-last-site', 'site-1');
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = typeof input === 'string' ? input : input.toString();
-      if (url === '/api/auth/me') {
-        return new Response(
-          JSON.stringify({ id: 'dev-1', username: 'dev-1', role: 'developer', status: 'active' }),
-          { status: 200 },
-        );
-      }
-      throw new Error(`unhandled fetch in test: ${url}`);
-    });
-    vi.stubGlobal('fetch', fetchMock);
+    stubApi({ id: 'dev-1', username: 'dev-1', role: 'developer', status: 'active' }, [{ id: 'site-1' }]);
 
     renderHome();
 
     await waitFor(() => expect(screen.getByText('editor page')).toBeDefined());
-    expect(fetchMock).not.toHaveBeenCalledWith('/api/sites');
+  });
+
+  // The actual bug this covers: readLastSiteId() only ever changes via
+  // writeLastSiteId (AppShell.tsx) - it has no way to know a site was
+  // deleted from the registry entirely (another tab, or the registry
+  // being reset). Before this fix, a developer in that state was sent
+  // straight into a doomed /sites/:id/editor route (a permanent
+  // "SiteNotFoundError") instead of back to onboarding.
+  it('a developer with a remembered site that no longer exists falls back to /onboarding instead of a doomed redirect', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    localStorage.setItem('cms-admin-last-site', 'deleted-site');
+    stubApi({ id: 'dev-1', username: 'dev-1', role: 'developer', status: 'active' }, []);
+
+    renderHome();
+
+    await waitFor(() => expect(screen.getByText('onboarding page')).toBeDefined());
   });
 
   it('a client with no remembered site lands on their first available site, not /settings (regression: /settings is developer-only and would otherwise redirect-loop against "/")', async () => {
@@ -83,6 +88,16 @@ describe('HomeRedirect', () => {
     renderHome();
 
     await waitFor(() => expect(screen.getByText('No sites are available for this account yet.')).toBeDefined());
-    expect(screen.queryByText('settings page')).toBeNull();
+    expect(screen.queryByText('onboarding page')).toBeNull();
+  });
+
+  it('a client with a remembered site that no longer exists falls back to their first current site instead', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    localStorage.setItem('cms-admin-last-site', 'revoked-site');
+    stubApi({ id: 'client-1', username: 'client-1', role: 'client', status: 'active' }, [{ id: 'site-2' }]);
+
+    renderHome();
+
+    await waitFor(() => expect(screen.getByText('editor page')).toBeDefined());
   });
 });

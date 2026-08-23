@@ -33,20 +33,32 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Log in' })).toBeDefined());
   });
 
-  it('an authenticated visitor at / with no site ever visited is redirected to /settings/sites, not the login screen', async () => {
+  it('an authenticated visitor at / with no site ever visited is redirected to /onboarding, not the login screen', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({ id: 'admin', username: 'admin', role: 'developer', status: 'active' }),
-          { status: 200 },
-        ),
-      ),
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/api/auth/me') {
+          return new Response(
+            JSON.stringify({ id: 'admin', username: 'admin', role: 'developer', status: 'active' }),
+            { status: 200 },
+          );
+        }
+        if (url === '/api/sites') {
+          return new Response(JSON.stringify([]), { status: 200 });
+        }
+        throw new Error(`unhandled fetch in test: ${url}`);
+      }),
     );
 
     renderApp(['/']);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Register a website' })).toBeDefined());
+    // A genuinely empty registry lands on the bare first-run welcome
+    // screen at /onboarding (OnboardingPage.tsx) - distinct from
+    // Settings > Manage Sites (ManageSitesPage.tsx), which always shows
+    // the normal "Register a website" registry view even with zero
+    // sites, reserved for a developer deliberately navigating there.
+    await waitFor(() => expect(screen.getByText(/Welcome to Granite CMS/)).toBeDefined());
     expect(screen.queryByRole('heading', { name: 'Log in' })).toBeNull();
   });
 
@@ -56,19 +68,68 @@ describe('App', () => {
     vi.stubGlobal('localStorage', storage);
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'admin', username: 'admin' }), { status: 200 })),
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/api/auth/me') {
+          return new Response(
+            JSON.stringify({ id: 'admin', username: 'admin', role: 'developer', status: 'active' }),
+            { status: 200 },
+          );
+        }
+        // HomeRedirect now validates the remembered site against the
+        // real registry before trusting it (see HomeRedirect.tsx) -
+        // site-1 has to genuinely exist here for the redirect to land.
+        if (url === '/api/sites') {
+          return new Response(JSON.stringify([{ id: 'site-1' }]), { status: 200 });
+        }
+        // Anything else (the editor's own content fetch) is deliberately
+        // left unmocked - this test is about routing, not content-
+        // loading, which is covered elsewhere (see the comment below).
+        throw new Error(`unhandled fetch in test: ${url}`);
+      }),
     );
 
     renderApp(['/']);
 
-    // PageEditorPage's own editor-tabs tablist renders unconditionally
-    // now, regardless of load status (the shell stays mounted through
-    // loading/not-found/load-error - see this group's own plan doc) -
-    // enough to prove the redirect landed on the editor route, without
-    // needing to mock its content API too (this test is about routing,
-    // not content-loading, which is covered elsewhere).
-    await waitFor(() => expect(screen.getByRole('tablist', { name: 'Editor view' })).toBeDefined());
+    // PageEditorPage's own .editor-page shell renders regardless of
+    // load status (a SiteStatusPanel stands in for the sidebar/preview
+    // while there's nothing real to show yet) - enough to prove the
+    // redirect landed on the editor route, without needing to mock its
+    // content API too (this test is about routing, not content-loading,
+    // which is covered elsewhere).
+    await waitFor(() => expect(document.querySelector('.editor-page')).not.toBeNull());
     expect(screen.queryByRole('heading', { name: 'Register a website' })).toBeNull();
+  });
+
+  it('deliberately navigating to Settings > Manage Sites shows the normal registry, not the onboarding screen, even with zero sites', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/api/auth/me') {
+          return new Response(
+            JSON.stringify({ id: 'admin', username: 'admin', role: 'developer', status: 'active' }),
+            { status: 200 },
+          );
+        }
+        if (url === '/api/sites') {
+          return new Response(JSON.stringify([]), { status: 200 });
+        }
+        throw new Error(`unhandled fetch in test: ${url}`);
+      }),
+    );
+
+    renderApp(['/settings/sites']);
+
+    // Gates on auth resolving (RequireAuth) - the heading/sidebar
+    // themselves don't depend on the sites fetch below.
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Register a website' })).toBeDefined());
+    expect(screen.getByRole('link', { name: 'Personal Details' })).toBeDefined();
+    expect(screen.queryByText(/Welcome to Granite CMS/)).toBeNull();
+    // A second, separate gate - "Nothing registered yet." additionally
+    // depends on the /api/sites fetch resolving, which can still be
+    // in flight at the moment the heading above first appears.
+    await waitFor(() => expect(screen.getByText('Nothing registered yet.')).toBeDefined());
   });
 
   it('B1: /login itself is reachable while unauthenticated - the one exempt route', async () => {
