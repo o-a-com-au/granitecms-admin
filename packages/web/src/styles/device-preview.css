@@ -52,24 +52,70 @@
   align-items: flex-start;
   padding: 2.5rem;
   overflow: auto;
+  border: 1px solid var(--colour-border);
   border-top-left-radius: var(--radius-sm);
   border-top-right-radius: var(--radius-sm);
   transition: padding 0.3s ease;
   margin: 0 var(--space-sm) 0 var(--space-sm);
-  border: 1px solid var(--colour-border);
-  background: var(--colour-viewport);
+  background: var(--colour-surface);
 }
 
+/* Dark mode only - the browser's own default scrollbar is a light-
+   themed control regardless of the page around it, which reads oddly
+   against this panel's own dark surface. scrollbar-color (Firefox,
+   Chrome/Edge, Safari 18.2+) plus the older ::-webkit-scrollbar
+   pseudo-elements (Safari before that, and for broader reliability
+   generally) cover it either way. Light mode is left alone - the
+   default light scrollbar already matches there. */
+[data-theme='dark'] .preview-viewport {
+  scrollbar-color: var(--colour-border) var(--colour-surface);
+}
+
+[data-theme='dark'] .preview-viewport::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+[data-theme='dark'] .preview-viewport::-webkit-scrollbar-track {
+  background: var(--colour-surface);
+}
+
+[data-theme='dark'] .preview-viewport::-webkit-scrollbar-thumb {
+  background: var(--colour-border);
+  border-radius: var(--radius-sm);
+}
+
+[data-theme='dark'] .preview-viewport::-webkit-scrollbar-thumb:hover {
+  background: var(--colour-muted);
+}
+
+/* opacity: 0 until PreviewFrame.tsx's own onLoad fires (is-visible) -
+   covers every load, not just the first (see frameVisible there), so a
+   later autosave-triggered refresh or page switch gets the same brief
+   fade back in rather than the new document just snapping into view. */
 .preview-viewport iframe {
   height: 100%;
   min-height: 640px;
   border: none;
   border-radius: 10px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
+  opacity: 0;
   transition:
     width 0.3s ease,
     border-radius 0.3s ease,
-    box-shadow 0.3s ease;
+    box-shadow 0.3s ease,
+    opacity 0.25s ease;
+}
+
+.preview-viewport iframe.is-visible {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview-viewport iframe {
+    transition: none;
+    opacity: 1;
+  }
 }
 
 /* Desktop is the natural full-width state, not a simulated device
@@ -94,10 +140,24 @@
 /* Tablet/mobile keep the top/left/right inset that reads as a device
    frame, but sit flush with the bottom of the screen rather than
    floating with an equal gap below - only the top padding is doing
-   framing work here. */
+   framing work here.
+
+   Also no visible scrollbar around the device frame itself here - a
+   real phone or tablet doesn't show a browser-chrome scrollbar around
+   its own screen, so leaving this container's default one in place
+   undercut the whole point of the device-card treatment. Still scrolls
+   (overflow: auto above is untouched), just without the visible
+   track/thumb. Desktop is deliberately left alone - it's the natural,
+   un-simulated state, not standing in for a real device. */
 .preview-viewport[data-device='tablet'],
 .preview-viewport[data-device='mobile'] {
   padding-bottom: 0;
+  scrollbar-width: none;
+}
+
+.preview-viewport[data-device='tablet']::-webkit-scrollbar,
+.preview-viewport[data-device='mobile']::-webkit-scrollbar {
+  display: none;
 }
 
 /* Before the iframe's own document has painted (first load, or any
@@ -109,5 +169,5 @@
    colour avoids that flash. */
 .preview-viewport[data-device='tablet'] iframe,
 .preview-viewport[data-device='mobile'] iframe {
-  background: var(--colour-viewport);
+  background: var(--colour-surface);
 }

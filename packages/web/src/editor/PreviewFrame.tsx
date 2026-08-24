@@ -40,6 +40,35 @@ const DEVICE_WIDTHS: Record<DeviceTier, string> = {
   mobile: '375px',
 };
 
+// A real phone/tablet browser hides its own scrollbar entirely -
+// simulating one on a desktop browser's iframe without this shows a
+// desktop-style scrollbar down the side of the "device", which no
+// actual phone or tablet visitor would ever see. Purely cosmetic to
+// this admin's own device-simulation chrome, not a change to the
+// site's real rendered output: nothing here touches the site's own
+// files, and a real published visitor on a real phone already doesn't
+// see this scrollbar anyway - this just makes the simulation match
+// that, rather than diverging from it. Safe only because the iframe's
+// src is same-origin (see the F1/F3 note below) - reaching into a
+// genuinely cross-origin document's own head like this would be
+// blocked entirely.
+const HIDE_SCROLLBAR_STYLE_ID = 'admin-preview-hide-scrollbar';
+
+function setIframeScrollbarHidden(doc: Document, hidden: boolean): void {
+  const existing = doc.getElementById(HIDE_SCROLLBAR_STYLE_ID);
+  if (!hidden) {
+    existing?.remove();
+    return;
+  }
+  if (existing || !doc.head) {
+    return;
+  }
+  const style = doc.createElement('style');
+  style.id = HIDE_SCROLLBAR_STYLE_ID;
+  style.textContent = 'html { scrollbar-width: none; } html::-webkit-scrollbar { display: none; }';
+  doc.head.appendChild(style);
+}
+
 // Same per-segment escaping technique as site-editor.ts's own
 // encodePathSegments - a leading slash round-trips correctly since
 // split('/') on "/" yields ["", ""].
@@ -115,6 +144,13 @@ export function PreviewFrame({
 }: PreviewFrameProps) {
   const pendingScrollRef = useRef<{ x: number; y: number } | null>(null);
   const refreshToken = usePreviewRefreshToken(status, iframeRef, pendingScrollRef);
+  // Drives a plain CSS opacity transition (device-preview.css) rather
+  // than an animation keyed on mount - the iframe element itself is
+  // never remounted (src reassignment is a real browser navigation,
+  // not a fresh DOM node), so a mount-triggered animation would only
+  // ever have played once, on the very first load, and never again on
+  // a later autosave-triggered refresh or page switch.
+  const [frameVisible, setFrameVisible] = useState(false);
 
   // Restores whatever usePreviewRefreshToken captured, above, right
   // before triggering this reload - only ever set for that one case
@@ -134,8 +170,32 @@ export function PreviewFrame({
       iframeRef?.current?.contentWindow?.scrollTo({ left: pending.x, top: pending.y, behavior: 'instant' });
       pendingScrollRef.current = null;
     }
+    setFrameVisible(true);
     onFrameLoad?.();
   }
+
+  // Resets ahead of the src reassignment these three together drive
+  // (below) - a real browser navigation inside the iframe, not a fresh
+  // element, so nothing else would otherwise clear frameVisible before
+  // handleFrameLoad sets it again once the new document is actually
+  // ready.
+  useEffect(() => {
+    setFrameVisible(false);
+  }, [url, revisionRef, refreshToken]);
+
+  // Re-applies on every fresh load (frameVisible flips true only once
+  // the new document is actually ready - a plain reload replaces the
+  // document entirely, wiping any style previously injected into the
+  // old one) and on every device change on an already-loaded document
+  // (switching tiers never reloads the iframe, only resizes it - see
+  // DEVICE_WIDTHS below).
+  useEffect(() => {
+    const doc = iframeRef?.current?.contentDocument;
+    if (!doc) {
+      return;
+    }
+    setIframeScrollbarHidden(doc, device !== 'desktop');
+  }, [device, frameVisible, iframeRef]);
 
   // A native listener, not the iframeRef.current.
   //
@@ -180,7 +240,14 @@ export function PreviewFrame({
   return (
     <div className="preview-pane">
       <div className="preview-viewport" data-device={device}>
-        <iframe ref={iframeRef} title="Live preview" src={src} style={{ width: DEVICE_WIDTHS[device] }} onLoad={handleFrameLoad} />
+        <iframe
+          ref={iframeRef}
+          title="Live preview"
+          src={src}
+          className={frameVisible ? 'is-visible' : ''}
+          style={{ width: DEVICE_WIDTHS[device] }}
+          onLoad={handleFrameLoad}
+        />
       </div>
     </div>
   );

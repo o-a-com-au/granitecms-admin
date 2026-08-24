@@ -8,6 +8,7 @@ import { PageActionsProvider, PageDeviceToggleProvider } from '../../src/layout/
 import { formatCommitTimestamp } from '../../src/history/PageHistoryTab.tsx';
 import { readLastEditorLocation, writeLastEditorLocation } from '../../src/sites/currentSite.ts';
 import { createFakeStorage } from '../helpers/fakeStorage.ts';
+import { createFakeDataTransfer } from '../helpers/fakeDataTransfer.ts';
 
 // Stands in for AppShell's own top-bar slots - PageEditorPage pushes
 // Discard/Save Changes and the device-size toggle into them via
@@ -198,7 +199,7 @@ function dragOnto(fromHandle: HTMLElement, toRow: HTMLElement, half: 'top' | 'bo
     toJSON: () => ({}),
   } as DOMRect);
 
-  fireEvent.dragStart(fromHandle);
+  fireEvent.dragStart(fromHandle, { dataTransfer: createFakeDataTransfer() });
   fireEvent.dragOver(toRow, { clientY: half === 'top' ? 5 : 35 });
   fireEvent.drop(toRow);
 }
@@ -228,13 +229,16 @@ function renderPage(initialEntry = '/sites/site-1/editor?path=pages%2Fabout.json
     ],
     { initialEntries: [initialEntry] },
   );
-  return render(
-    <ToastProvider>
-      <TestPageActionsHost>
-        <RouterProvider router={router} />
-      </TestPageActionsHost>
-    </ToastProvider>,
-  );
+  return {
+    router,
+    ...render(
+      <ToastProvider>
+        <TestPageActionsHost>
+          <RouterProvider router={router} />
+        </TestPageActionsHost>
+      </ToastProvider>,
+    ),
+  };
 }
 
 afterEach(() => {
@@ -876,6 +880,76 @@ describe('PageEditorPage', () => {
     const preview = shell.querySelector('.editor-preview-full') as Node;
     const position = sidebar.compareDocumentPosition(preview);
     expect(Boolean(position & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+  });
+
+  it('the sidebar stays collapsed (full-width preview) briefly after the first load, then reveals itself', async () => {
+    installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
+    renderPage();
+
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+    const sidebar = document.querySelector('.editor-sidebar') as HTMLElement;
+    expect(sidebar.className).not.toContain('is-revealed');
+
+    await waitFor(() => expect(sidebar.className).toContain('is-revealed'), { timeout: 1500 });
+  });
+
+  it('once revealed, switching to a different page keeps the sidebar in place rather than collapsing it again', async () => {
+    installFakeEditorApi({ content: '{"title":"About"}', etag: '"etag-1"', source: 'live' });
+    const { router } = renderPage();
+
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+    const sidebar = document.querySelector('.editor-sidebar') as HTMLElement;
+    await waitFor(() => expect(sidebar.className).toContain('is-revealed'), { timeout: 1500 });
+
+    await router.navigate('/sites/site-1/editor?path=pages%2Fcontact.json&url=%2Fcontact');
+
+    // Still revealed the instant the new page starts loading - never
+    // collapses back to width: 0 for this second load, unlike the
+    // first one above.
+    expect(sidebar.className).toContain('is-revealed');
+  });
+
+  it('replays the tab-content fade-in on a genuine page switch, not just a Page Meta <-> Sections tab change', async () => {
+    installFakeEditorApi({ content: '{"title":"About"}', etag: '"etag-1"', source: 'live' });
+    const { router } = renderPage();
+
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+    // The class is added by a separate ref-driven effect, one flush
+    // after the state update that renders the "Content" field itself -
+    // wrapped in its own waitFor rather than asserted immediately after
+    // the one above, so this doesn't race that flush.
+    await waitFor(() => expect(document.querySelector('.editor-tab-panel')?.className).toContain('tab-fade-in'));
+
+    await router.navigate('/sites/site-1/editor?path=pages%2Fcontact.json&url=%2Fcontact');
+
+    // .editor-tab-panel unmounts entirely while the new page's content
+    // is loading (isContentPlaceholder in PageEditorPage.tsx) and
+    // remounts fresh once it's ready - staying on the same Page Meta
+    // tab throughout means effectiveViewMode never changes, so without
+    // also depending on that placeholder flag, the freshly mounted
+    // panel would never get the class added at all.
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+    await waitFor(() => expect(document.querySelector('.editor-tab-panel')?.className).toContain('tab-fade-in'));
+  });
+
+  it('marks the preview as pushed by the Fields panel (has-fields-panel) once a section is selected, clearing it again on close', async () => {
+    installFakeEditorApi({
+      content: JSON.stringify({ title: 'Hi', published: true, sections: [{ id: 'a', type: 'hero', settings: { heading: 'Hi there' } }] }),
+      etag: '"etag-1"',
+      source: 'draft',
+    });
+    renderPage();
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined());
+    const preview = document.querySelector('.editor-preview-full') as HTMLElement;
+    expect(preview.className).not.toContain('has-fields-panel');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit hero' }));
+    await waitFor(() => expect(screen.getByLabelText('Heading')).toBeDefined());
+    expect(preview.className).toContain('has-fields-panel');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(preview.className).not.toContain('has-fields-panel');
   });
 
   it('a Page tab is available alongside Sections, showing Page title (seeded from real content) plus placeholder page-attribute fields', async () => {

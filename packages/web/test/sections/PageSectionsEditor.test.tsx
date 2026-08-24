@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { PageSectionsEditor } from '../../src/sections/PageSectionsEditor.tsx';
+import { createFakeDataTransfer } from '../helpers/fakeDataTransfer.ts';
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 const THEME_SCHEMAS_BODY = {
@@ -40,7 +42,44 @@ const PAGE_WITH_SECTIONS = JSON.stringify({
 // separate, independently-mounted right-hand panel rather than a mode
 // of this component, so this file only covers the Sections list itself.
 describe('PageSectionsEditor', () => {
-  it('shows a loading message while the theme schemas are being fetched', () => {
+  it('shows the Sections heading immediately, but holds off the skeleton row until the fetch has been running a full second', async () => {
+    vi.useFakeTimers();
+    let resolveFetch!: (response: Response) => void;
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { resolveFetch = resolve; }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <PageSectionsEditor
+        siteId="site-1"
+        content={PAGE_WITH_SECTIONS}
+        setContent={vi.fn()}
+        validationErrors={null}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Sections')).toBeDefined();
+    expect(document.querySelector('.sections-skeleton-row')).toBeNull();
+    expect(screen.queryByText('Loading theme...')).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(999);
+    });
+    expect(document.querySelector('.sections-skeleton-row')).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(document.querySelector('.sections-skeleton-row')).not.toBeNull();
+
+    // Settles the still-pending fetch so it can't resolve after the
+    // test finishes and warn about an update outside act().
+    await act(async () => {
+      resolveFetch(new Response(JSON.stringify(THEME_SCHEMAS_BODY), { status: 200 }));
+    });
+  });
+
+  it('never shows the skeleton row at all when the fetch settles inside the first second', async () => {
     installFakeThemeSchemasFetch();
     render(
       <PageSectionsEditor
@@ -52,7 +91,8 @@ describe('PageSectionsEditor', () => {
       />,
     );
 
-    expect(screen.getByText('Loading theme...')).toBeDefined();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined());
+    expect(document.querySelector('.sections-skeleton-row')).toBeNull();
   });
 
   it('shows an inline error if the theme schemas fail to load', async () => {
@@ -70,6 +110,7 @@ describe('PageSectionsEditor', () => {
     );
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeDefined());
+    expect(screen.getByText('Sections')).toBeDefined();
   });
 
   it('falls back to an explanatory message when the content has no sections array', async () => {
@@ -161,7 +202,7 @@ describe('PageSectionsEditor', () => {
       y: 0,
       toJSON: () => ({}),
     } as DOMRect);
-    fireEvent.dragStart(handles[0] as HTMLElement);
+    fireEvent.dragStart(handles[0] as HTMLElement, { dataTransfer: createFakeDataTransfer() });
     fireEvent.dragOver(rows[1] as HTMLElement, { clientY: 35 });
     fireEvent.drop(rows[1] as HTMLElement);
 

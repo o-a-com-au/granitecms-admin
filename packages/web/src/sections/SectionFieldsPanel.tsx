@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { SectionSettingsForm } from './SectionSettingsForm.tsx';
 import { TrashIcon } from './TrashIcon.tsx';
 import { schemaTitle, type Instance } from './instance-types.ts';
@@ -31,6 +32,37 @@ export function SectionFieldsPanel({
   onClose,
 }: SectionFieldsPanelProps) {
   const { themeSchemas, loadError } = useThemeSchemas(siteId);
+
+  // Replays the same fade-in-from-right effect PageEditorPage.tsx uses
+  // for its own Page Meta <-> Sections tab switch (editor-layout.css's
+  // .tab-fade-in, generalised off .editor-tab-panel specifically for
+  // this second use) - clicking a different section/block while this
+  // panel is already open changes selectedInstanceId but never remounts
+  // this component (PageEditorPage.tsx renders it without a key), so
+  // without this the new instance's fields would just swap in place
+  // with no entrance at all. Declared before any of the early returns
+  // below, per the rules of hooks - panelRef stays null harmlessly
+  // during the loading/error/not-found branches, which never actually
+  // render the div it's attached to.
+  //
+  // themeSchemas !== null is also in the deps, not just
+  // selectedInstanceId - opening the panel for the very first time on a
+  // theme whose schemas haven't loaded yet means this effect's first run
+  // finds panelRef.current still null (still on the "Loading theme..."
+  // branch); once the fetch resolves and the real panel mounts,
+  // selectedInstanceId itself hasn't changed, so without this the
+  // effect would never fire again and that first open would never fade
+  // in at all.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const node = panelRef.current;
+    if (!node) {
+      return;
+    }
+    node.classList.remove('tab-fade-in');
+    void node.offsetWidth;
+    node.classList.add('tab-fade-in');
+  }, [selectedInstanceId, themeSchemas !== null]);
 
   if (loadError) {
     return <p role="alert">{loadError}</p>;
@@ -76,7 +108,7 @@ export function SectionFieldsPanel({
   }
 
   return (
-    <div className="fields-panel">
+    <div className="fields-panel" ref={panelRef}>
       <div className="fields-panel-header">
         <h2 className="panel-heading">{schemaTitle(schema, instance.type)}</h2>
         <button type="button" className="fields-panel-close" aria-label="Close" onClick={onClose}>

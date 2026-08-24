@@ -80,7 +80,11 @@ describe('App', () => {
         // real registry before trusting it (see HomeRedirect.tsx) -
         // site-1 has to genuinely exist here for the redirect to land.
         if (url === '/api/sites') {
-          return new Response(JSON.stringify([{ id: 'site-1' }]), { status: 200 });
+          // A real SiteListEntry needs a url (AppShell's own top-bar
+          // wordmark reads it to show the current site's address) -
+          // { id: 'site-1' } alone used to be enough here since nothing
+          // read any other field, but is no longer a realistic fixture.
+          return new Response(JSON.stringify([{ id: 'site-1', url: 'http://localhost:3891' }]), { status: 200 });
         }
         // Anything else (the editor's own content fetch) is deliberately
         // left unmocked - this test is about routing, not content-

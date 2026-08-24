@@ -17,7 +17,7 @@ import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
 import { UnsavedChangesPrompt } from '../editor/UnsavedChangesPrompt.tsx';
 import { PageHistoryTab } from '../history/PageHistoryTab.tsx';
 import { writeLastEditorLocation } from '../sites/currentSite.ts';
-import { usePageActions, usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
+import { usePageActions, usePageDeviceToggle, usePagePath } from '../layout/PageActionsContext.tsx';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 
 // Group I: the structured section/block editor (PageSectionsEditor) is
@@ -347,6 +347,23 @@ export function PageEditorPage() {
   // <-> Sections tab switch - toggling the class via a ref rather than
   // keying the panel on effectiveViewMode, which would remount
   // PageSectionsEditor and lose its scroll state.
+  //
+  // Also replays on a genuine page switch (a different path, not just a
+  // different tab) - isContentPlaceholder in the deps, not
+  // effectiveViewMode alone, since .editor-tab-panel itself unmounts
+  // while the new page's content is loading (see the isPlaceholderStatus
+  // check around it below) and remounts fresh once it's ready. That
+  // remount is what needs to be caught here: a fresh node never carries
+  // the class from before, so without this the new page's content would
+  // just snap into place with no entrance at all, unlike a same-page tab
+  // switch. Unlike the tab-switch case, there's no state to lose by
+  // remounting here - a page switch already discards everything.
+  //
+  // The boolean, not raw status, is what belongs in the deps - status
+  // also churns through dirty/saving/conflict/ready on every ordinary
+  // autosave, none of which ever unmounts this panel, and re-playing the
+  // animation on every keystroke-triggered save would be pure noise.
+  const isContentPlaceholder = isPlaceholderStatus(status);
   const tabPanelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const node = tabPanelRef.current;
@@ -356,7 +373,7 @@ export function PageEditorPage() {
     node.classList.remove('tab-fade-in');
     void node.offsetWidth;
     node.classList.add('tab-fade-in');
-  }, [effectiveViewMode]);
+  }, [effectiveViewMode, isContentPlaceholder]);
 
   // Selecting an instance no longer switches the left column to a
   // "Fields" mode in place - the revised layout (docs/designs/Revised-
@@ -436,8 +453,29 @@ export function PageEditorPage() {
   // draft already exists, or the current editing session has started
   // changing/saving/failed/conflicted - rather than sitting there
   // permanently.
-  const contentLoaded = !isPlaceholderStatus(status);
+  const contentLoaded = !isContentPlaceholder;
   const hasPendingChanges = source === 'draft' || status !== 'ready';
+
+  // The very first load of this editor session shows the preview at
+  // full width, sidebar-less - once real content actually arrives, a
+  // deliberate 500ms beat lets the loaded page register on its own
+  // before the sidebar slides in, rather than the two arriving in the
+  // same instant. Never resets back to false afterwards, including
+  // across a later path change (picking a different page from the
+  // Sections/Page Meta tabs, or the preview's own in-page links) - once
+  // revealed, the sidebar stays put; only its own tab content and the
+  // preview swap per-page from then on, the same way any other already-
+  // open editor would. A fresh mount (leaving the editor entirely and
+  // coming back) naturally resets this, which is exactly "first load"
+  // again.
+  const [sidebarRevealed, setSidebarRevealed] = useState(false);
+  useEffect(() => {
+    if (!contentLoaded || sidebarRevealed) {
+      return;
+    }
+    const timer = setTimeout(() => setSidebarRevealed(true), 500);
+    return () => clearTimeout(timer);
+  }, [contentLoaded, sidebarRevealed]);
 
   useEffect(() => {
     if (status === 'save-error' && errorMessage) {
@@ -546,157 +584,184 @@ export function PageEditorPage() {
   // it to control.
   usePageDeviceToggle(previewUrl !== null ? <DeviceToggle device={device} onChange={setDevice} /> : null);
 
+  // AppShell's own logo/wordmark slot (see AppShell.tsx and
+  // PageActionsContext.tsx's usePagePath) shows this page's real
+  // address in place of the plain brand mark while it's open - null
+  // (no live preview for this content type) falls back to that brand
+  // mark, same as usePageDeviceToggle above.
+  usePagePath(previewUrl);
+
   return (
     <>
       <div className="editor-page">
         <div className="editor-shell">
-          {isPlaceholderStatus(status) ? (
-            status === 'loading' ? (
-              <TopLoadingBar active />
-            ) : (
-              <SiteStatusPanel {...buildPlaceholderPanelProps(status, { errorMessage, siteId, onRetry: reloadLatest })} />
-            )
-          ) : (
-            <>
-              <div className="editor-sidebar">
-                <div className="editor-sidebar-top">
-                  {invalidJson && <p role="alert">Not valid JSON yet - not saved.</p>}
+          {/* .editor-sidebar is always mounted, same convention as
+              .editor-fields-panel below - collapsed to width: 0 via the
+              is-revealed class (editor-layout.css) rather than
+              conditionally rendered, specifically so .editor-preview-full/
+              PreviewFrame never move position in this tree and never
+              remount (and reload the live iframe) at the exact moment
+              the sidebar reveals itself. Full width before that reveal
+              is a side effect of the sidebar occupying zero space, not a
+              separate layout branch. */}
+          {/* inert while collapsed - it's still in the DOM (width: 0,
+              see editor-layout.css) rather than unmounted, but its tab
+              buttons must never be keyboard-focusable or exposed to
+              assistive tech while genuinely invisible. */}
+          <div className={`editor-sidebar${sidebarRevealed ? ' is-revealed' : ''}`} inert={!sidebarRevealed}>
+            <div className="editor-sidebar-top">
+              {invalidJson && <p role="alert">Not valid JSON yet - not saved.</p>}
 
-                  {status === 'conflict' && (
-                    <section>
-                      <p role="alert">This page changed since you opened it.</p>
-                      <button type="button" onClick={reloadLatest}>
-                        Reload latest version
-                      </button>
-                      <button type="button" onClick={loadComparison}>
-                        View changes
-                      </button>
-                      {comparisonContent !== null && (
-                        <div>
-                          <h2>Latest on the server</h2>
-                          <pre>{comparisonContent}</pre>
-                          <h2>Your unsaved version</h2>
-                          <pre>{content}</pre>
-                        </div>
-                      )}
-                    </section>
-                  )}
-
-                  <div className="editor-tabs" role="tablist" aria-label="Editor view">
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={effectiveViewMode === 'metafields'}
-                      onClick={() => handleNonSectionsTabClick('metafields')}
-                    >
-                      Page Meta
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={effectiveViewMode === 'sections'}
-                      disabled={!sectionsAvailable}
-                      onClick={() => setViewMode('sections')}
-                    >
-                      Sections
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={effectiveViewMode === 'history'}
-                      onClick={() => handleNonSectionsTabClick('history')}
-                    >
-                      History
-                    </button>
-                  </div>
-                </div>
-
-                <div className="editor-tab-content">
-                  <div className="editor-tab-panel" ref={tabPanelRef}>
-                    {effectiveViewMode === 'metafields' && (
-                      <PageMetadataPanel
-                        key={path}
-                        content={content}
-                        setContent={setContent}
-                        siteId={siteId}
-                        path={path}
-                        previewUrl={previewUrl}
-                        renameDisabled={hasPendingChanges}
-                        onRenamed={handleRenamed}
-                      />
-                    )}
-                    {effectiveViewMode === 'sections' && (
-                      <PageSectionsEditor
-                        siteId={siteId}
-                        content={content}
-                        setContent={setContent}
-                        validationErrors={validationErrors}
-                        onEditInstance={handleEditInstance}
-                        onHighlightSection={handleHighlightFromAdmin}
-                        highlightedSectionId={highlightedSectionId}
-                        selectedInstanceId={selectedInstanceId}
-                      />
-                    )}
-                    {effectiveViewMode === 'raw' && (
-                      <label className="raw-json-label">
-                        Content
-                        <textarea value={content} onChange={(event) => setContent(event.target.value)} />
-                      </label>
-                    )}
-                    {effectiveViewMode === 'history' && (
-                      <PageHistoryTab
-                        siteId={siteId}
-                        path={path}
-                        previewRef={historyPreviewRef}
-                        hasDraft={source === 'draft'}
-                        onSelectRevision={setHistoryPreviewRef}
-                        onRestored={reloadLatest}
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* A sibling of .editor-preview-full, not nested inside it -
-                  that panel is itself hidden by default below the mobile
-                  breakpoint, which would hide a child toggle button along
-                  with it, leaving no way to ever open it. */}
-              <button type="button" className="editor-mobile-preview-toggle" onClick={() => setMobilePreviewOpen(true)}>
-                Preview
-              </button>
-
-              <div className={`editor-preview-full${mobilePreviewOpen ? ' is-open-mobile' : ''}`}>
-                <PreviewFrame
-                  siteId={siteId}
-                  url={previewUrl}
-                  status={status}
-                  device={device}
-                  revisionRef={historyPreviewRef}
-                  iframeRef={previewIframeRef}
-                  onFrameLoad={handlePreviewFrameLoad}
-                  onFrameMouseLeave={() => setHighlightedSectionId(null)}
-                />
-                {mobilePreviewOpen && (
-                  <button type="button" className="editor-mobile-preview-close" onClick={() => setMobilePreviewOpen(false)}>
-                    Close Preview
+              {status === 'conflict' && (
+                <section>
+                  <p role="alert">This page changed since you opened it.</p>
+                  <button type="button" onClick={reloadLatest}>
+                    Reload latest version
                   </button>
-                )}
-              </div>
+                  <button type="button" onClick={loadComparison}>
+                    View changes
+                  </button>
+                  {comparisonContent !== null && (
+                    <div>
+                      <h2>Latest on the server</h2>
+                      <pre>{comparisonContent}</pre>
+                      <h2>Your unsaved version</h2>
+                      <pre>{content}</pre>
+                    </div>
+                  )}
+                </section>
+              )}
 
-              <div className={`editor-fields-panel${selectedInstanceId !== null ? ' is-open' : ''}`}>
-                {selectedInstanceId !== null && (
-                  <SectionFieldsPanel
-                    siteId={siteId}
-                    content={content}
-                    setContent={setContent}
-                    validationErrors={validationErrors}
-                    selectedInstanceId={selectedInstanceId}
-                    onClose={handleCloseFields}
-                  />
-                )}
+              <div className="editor-tabs" role="tablist" aria-label="Editor view">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={effectiveViewMode === 'metafields'}
+                  onClick={() => handleNonSectionsTabClick('metafields')}
+                >
+                  Page Meta
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={effectiveViewMode === 'sections'}
+                  disabled={!sectionsAvailable}
+                  onClick={() => setViewMode('sections')}
+                >
+                  Sections
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={effectiveViewMode === 'history'}
+                  onClick={() => handleNonSectionsTabClick('history')}
+                >
+                  History
+                </button>
               </div>
-            </>
-          )}
+            </div>
+
+            {/* Once revealed, the sidebar stays put across a later page
+                change - only this inner content area blanks while that
+                specific page's own content is (re)loading, the same
+                TopLoadingBar at the top of the viewport covering both
+                this and the preview pane's own reload below. */}
+            <div className="editor-tab-content">
+              {isContentPlaceholder ? null : (
+                <div className="editor-tab-panel" ref={tabPanelRef}>
+                  {effectiveViewMode === 'metafields' && (
+                    <PageMetadataPanel
+                      key={path}
+                      content={content}
+                      setContent={setContent}
+                      siteId={siteId}
+                      path={path}
+                      previewUrl={previewUrl}
+                      renameDisabled={hasPendingChanges}
+                      onRenamed={handleRenamed}
+                    />
+                  )}
+                  {effectiveViewMode === 'sections' && (
+                    <PageSectionsEditor
+                      siteId={siteId}
+                      content={content}
+                      setContent={setContent}
+                      validationErrors={validationErrors}
+                      onEditInstance={handleEditInstance}
+                      onHighlightSection={handleHighlightFromAdmin}
+                      highlightedSectionId={highlightedSectionId}
+                      selectedInstanceId={selectedInstanceId}
+                    />
+                  )}
+                  {effectiveViewMode === 'raw' && (
+                    <label className="raw-json-label">
+                      Content
+                      <textarea value={content} onChange={(event) => setContent(event.target.value)} />
+                    </label>
+                  )}
+                  {effectiveViewMode === 'history' && (
+                    <PageHistoryTab
+                      siteId={siteId}
+                      path={path}
+                      previewRef={historyPreviewRef}
+                      hasDraft={source === 'draft'}
+                      onSelectRevision={setHistoryPreviewRef}
+                      onRestored={reloadLatest}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* A sibling of .editor-preview-full, not nested inside it -
+              that panel is itself hidden by default below the mobile
+              breakpoint, which would hide a child toggle button along
+              with it, leaving no way to ever open it. */}
+          <button type="button" className="editor-mobile-preview-toggle" onClick={() => setMobilePreviewOpen(true)}>
+            Preview
+          </button>
+
+          <div
+            className={`editor-preview-full${sidebarRevealed ? ' has-sidebar' : ''}${selectedInstanceId !== null ? ' has-fields-panel' : ''}${mobilePreviewOpen ? ' is-open-mobile' : ''}`}
+          >
+            {isContentPlaceholder ? (
+              status === 'loading' ? (
+                <TopLoadingBar active />
+              ) : (
+                <SiteStatusPanel {...buildPlaceholderPanelProps(status, { errorMessage, siteId, onRetry: reloadLatest })} />
+              )
+            ) : (
+              <PreviewFrame
+                siteId={siteId}
+                url={previewUrl}
+                status={status}
+                device={device}
+                revisionRef={historyPreviewRef}
+                iframeRef={previewIframeRef}
+                onFrameLoad={handlePreviewFrameLoad}
+                onFrameMouseLeave={() => setHighlightedSectionId(null)}
+              />
+            )}
+            {mobilePreviewOpen && (
+              <button type="button" className="editor-mobile-preview-close" onClick={() => setMobilePreviewOpen(false)}>
+                Close Preview
+              </button>
+            )}
+          </div>
+
+          <div className={`editor-fields-panel${selectedInstanceId !== null ? ' is-open' : ''}`}>
+            {selectedInstanceId !== null && (
+              <SectionFieldsPanel
+                siteId={siteId}
+                content={content}
+                setContent={setContent}
+                validationErrors={validationErrors}
+                selectedInstanceId={selectedInstanceId}
+                onClose={handleCloseFields}
+              />
+            )}
+          </div>
         </div>
       </div>
       {blocker.state === 'blocked' && (

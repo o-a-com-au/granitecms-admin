@@ -103,6 +103,41 @@ describe('SectionFieldsPanel', () => {
     expect((screen.getByLabelText('Label') as HTMLInputElement).value).toBe('Click');
   });
 
+  it('fades in from the right on open, and replays on every later switch to a different section/block', async () => {
+    installFakeThemeSchemasFetch();
+    const { rerender } = render(
+      <SectionFieldsPanel
+        siteId="site-1"
+        content={PAGE_WITH_SECTIONS}
+        setContent={vi.fn()}
+        validationErrors={null}
+        selectedInstanceId="section-1"
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(document.querySelector('.fields-panel')?.className).toContain('tab-fade-in'));
+
+    // This component is never remounted by PageEditorPage.tsx when the
+    // selection changes (no key prop) - the same .fields-panel node
+    // persists across selectedInstanceId changes, so this only proves
+    // the effect actually replays the class rather than it having
+    // simply been left over from the initial open above.
+    rerender(
+      <SectionFieldsPanel
+        siteId="site-1"
+        content={PAGE_WITH_SECTIONS}
+        setContent={vi.fn()}
+        validationErrors={null}
+        selectedInstanceId="block-1"
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('button')).toBeDefined());
+    expect(document.querySelector('.fields-panel')?.className).toContain('tab-fade-in');
+  });
+
   it('shows the theme schema\'s own "title", not the raw type slug, once one is declared', async () => {
     installFakeThemeSchemasFetch({
       sections: { hero: { type: 'object', title: 'Hero', properties: { heading: { type: 'string' } } } },

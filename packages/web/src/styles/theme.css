@@ -83,7 +83,6 @@
   --colour-border: var(--grey-700);
   --colour-muted: var(--grey-500);
   --colour-text: var(--grey-200);
-  --colour-viewport: var(--grey-50);
   --colour-table-header: var(--grey-900);
   --colour-table-background: var(--grey-850);
   --colour-table-row-divider: var(--grey-800);
@@ -99,7 +98,6 @@
   --colour-border: var(--grey-200);
   --colour-muted: var(--grey-500);
   --colour-text: var(--grey-700);
-  --colour-viewport: var(--grey-900);
   --colour-table-header: var(--grey-50);
   --colour-table-background: var(--grey-100);
   --colour-table-row-divider: var(--grey-200);

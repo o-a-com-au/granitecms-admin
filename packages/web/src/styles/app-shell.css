@@ -87,6 +87,43 @@
   font-weight: 300;
 }
 
+/* Replaces the plain "GRANITE 2.3" word while a specific site (and,
+   inside the editor, one of its pages) is the current view (AppShell's
+   own siteAddressLabel) - a real address can run much longer than the
+   fixed wordmark ever did, so this caps it rather than letting it push
+   the centred nav out of place or wrap onto a second line. */
+.app-logo-url {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+/* Sits beside .app-logo, not inside it - the wordmark itself is
+   already an <a> (Link to "/"), and nesting a second anchor inside it
+   would be invalid HTML. Opens the real live site (not this admin's
+   own draft preview) in a new tab, so it's deliberately plain, muted
+   chrome rather than a coloured call-to-action button. */
+.app-logo-external-link {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0.3rem;
+  border-radius: var(--radius-sm);
+  color: var(--colour-muted);
+}
+
+.app-logo-external-link:hover {
+  background: var(--colour-surface-hover);
+  color: var(--colour-text);
+}
+
 /* flex: 1 (not 0 0 auto) plus justify-content: center is what actually
    centres the nav between .app-topbar-start and .app-topbar-end
    (docs/designs/App-Menu.png) - the nav's own flex-basis fills the
@@ -431,6 +468,13 @@
 
   .app-topbar-nav.is-open {
     display: flex;
+  }
+
+  /* Same idea as .app-topbar-device-toggle above - considerably less
+     room here once the hamburger and account avatar both claim their
+     own fixed space either side of it. */
+  .app-logo-url {
+    max-width: 9rem;
   }
 
   /* Left-aligned like every other row in the dropdown, not centred

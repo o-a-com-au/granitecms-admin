@@ -24,17 +24,21 @@
 }
 
 .editor-shell {
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
 }
 
-/* Matches the horizontal inset the loaded state gets for free from
-   .editor-sidebar's left margin and .preview-viewport's own left/right
-   margins - SiteStatusPanel is this shell's only child while there's
-   nothing real to show yet, so without this it sits flush against both
-   edges instead of reading as the same panel, mid-load. */
-.editor-shell > .site-status-panel {
+/* .preview-viewport (device-preview.css) carries its own left/right
+   margin, which is what insets the real preview from its neighbours
+   normally - SiteStatusPanel/TopLoadingBar sit directly in
+   .editor-preview-full instead (nothing to preview yet), so this gives
+   the same inset explicitly. Applies unchanged whether the sidebar is
+   collapsed (first load, full width) or revealed (a later page's own
+   load failed) - both leave .editor-preview-full occupying the same
+   full remaining span either way. */
+.editor-preview-full > .site-status-panel {
   margin: 0 var(--space-sm);
 }
 
@@ -44,37 +48,51 @@
    Save/Discard stay pinned at the bottom (docs/design/Sections
    Tab.png). Previously one shared scroll region wrapped the tabs
    themselves too, so scrolling a long tab's content also scrolled the
-   Page/Sections/Fields tabs out of view. */
-/* Only ever mounted once real content exists (PageEditorPage.tsx
-   renders SiteStatusPanel in its place while loading) - the animation
-   here gets the "slides in once ready" effect for free from that
-   mount, with no JS transition state needed. */
-@keyframes editor-sidebar-slide-in {
-  from {
-    transform: translateX(-12px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
+   Page/Sections/Fields tabs out of view.
 
+   Always mounted, same convention as .editor-fields-panel below -
+   rather than conditionally rendered, so .editor-preview-full (the
+   live preview) never moves position in the tree and never remounts -
+   and reloads - at exactly the moment this reveals itself
+   (PageEditorPage.tsx toggles .is-revealed once, briefly after the
+   very first load's content actually arrives, and never back).
+
+   position: absolute + transform: translateX, not a width: 0 -> full
+   animation - animating width made the content look like it was being
+   wiped/revealed by an expanding box, not genuinely moving. Taking it
+   out of flow entirely like this is also what makes the preview
+   genuinely full width beforehand, as a side effect of this
+   contributing no flex space at all, not a separate "full width"
+   layout branch anywhere else - .editor-preview-full's own margin-left
+   (below) does the "pushes, doesn't overlay" job once revealed, in
+   step with this same transition. */
 .editor-sidebar {
-  flex: 0 0 var(--editor-sidebar-width);
-  max-width: var(--editor-sidebar-width);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--editor-sidebar-width);
   margin: var(--space-sm);
   margin-top: 0;
   margin-right: 0;
-  animation: editor-sidebar-slide-in 0.25s ease-out;
+  transform: translateX(calc(-100% - var(--space-sm)));
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
+}
+
+.editor-sidebar.is-revealed {
+  transform: translateX(0);
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .editor-sidebar {
-    animation: none;
+    transition: none;
   }
 }
 
@@ -127,6 +145,7 @@
   flex-direction: column;
   padding: var(--space-lg) var(--space-md);
   background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
 }
 
@@ -144,7 +163,12 @@
   min-height: 0;
 }
 
-.editor-tab-panel.tab-fade-in {
+/* Not scoped to .editor-tab-panel specifically (a plain .tab-fade-in
+   selector) - SectionFieldsPanel.tsx's own root reuses this same class/
+   keyframe for the exact same effect on section-to-section switches,
+   via the same remove-reflow-add ref technique PageEditorPage.tsx uses
+   for this element. */
+.tab-fade-in {
   animation: editor-tab-fade-in 0.25s ease;
 }
 
@@ -160,7 +184,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .editor-tab-panel.tab-fade-in {
+  .tab-fade-in {
     animation: none;
   }
 }
@@ -175,43 +199,85 @@
   resize: none;
 }
 
+/* margin-left, not something .editor-sidebar itself contributes -
+   that's position: absolute now (above), so it takes up no flex space
+   of its own at all. This is what makes the reveal genuinely push the
+   preview rather than the sidebar just sliding in on top of it -
+   .has-sidebar toggles in step with .editor-sidebar's own
+   .is-revealed, same transition duration, so the two settle at the
+   same moment. var(--space-sm) matches .editor-sidebar's own right
+   margin being 0 - .preview-viewport's own left margin (device-
+   preview.css) provides the actual visible gap beyond that, same as
+   it always has. */
 .editor-preview-full {
   flex: 1;
   min-width: 0;
   display: flex;
+  margin-left: 0;
+  margin-right: 0;
+  transition:
+    margin-left 0.3s ease,
+    margin-right 0.3s ease;
+}
+
+.editor-preview-full.has-sidebar {
+  margin-left: calc(var(--space-sm) + var(--editor-sidebar-width));
+}
+
+/* Same idea, mirrored for the Fields panel on the other side (below) -
+   .has-fields-panel toggles in step with .editor-fields-panel's own
+   .is-open, same transition duration. */
+.editor-preview-full.has-fields-panel {
+  margin-right: calc(var(--space-sm) + var(--editor-sidebar-width));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-preview-full {
+    transition: none;
+  }
 }
 
 /* The Fields panel - a sibling of .editor-sidebar on the other side of
    the preview, not a mode of it. Same fixed width when open so the
    layout reads as symmetric either way (an empty gutter on the right
    would be more jarring than a matching one). Always mounted (see
-   PageEditorPage.tsx) and collapsed to width: 0 rather than
-   conditionally rendered, so opening it is a genuine width transition
-   - .editor-preview-full is flex: 1, so it reflows and visibly shrinks
-   in step with this panel's own width, instead of snapping instantly
-   the moment a fixed-width sibling appears in the DOM. */
-.editor-fields-panel {
-  flex: 0 0 auto;
-  width: 0;
-  min-height: 0;
-  overflow: hidden;
-  padding: 0;
-  margin: 0;
-  background: var(--colour-surface);
-  border-radius: var(--radius-sm);
-  transition:
-    width 0.3s ease,
-    padding 0.3s ease,
-    margin 0.3s ease;
-}
+   PageEditorPage.tsx), same convention as .editor-sidebar above, so
+   .editor-preview-full never moves position in the tree.
 
-.editor-fields-panel.is-open {
+   position: absolute + transform: translateX (mirrored from
+   .editor-sidebar's own - this is the same off-canvas slide, just
+   sliding in from the right instead of the left) - a width: 0 -> full
+   animation made this look like it was growing into place rather than
+   genuinely sliding in, same issue the sidebar had before it moved to
+   this same technique. .editor-preview-full's own margin-right (below)
+   does the "pushes, doesn't overlay" job once open, in step with this
+   same transition. */
+.editor-fields-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
   width: var(--editor-sidebar-width);
-  overflow-y: auto;
-  padding: var(--space-lg) var(--space-md);
   margin: var(--space-sm);
   margin-top: 0;
   margin-left: 0;
+  overflow: hidden;
+  padding: 0;
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  transform: translateX(calc(100% + var(--space-sm)));
+  opacity: 0;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
+}
+
+.editor-fields-panel.is-open {
+  transform: translateX(0);
+  opacity: 1;
+  overflow-y: auto;
+  padding: var(--space-lg) var(--space-md);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -326,6 +392,13 @@ button.fields-panel-delete:hover {
   }
 
   .editor-sidebar {
+    /* Back in normal flow - the desktop base rule above takes this
+       fully out of flow (position: absolute + transform) to contribute
+       zero flex space until revealed. Mobile has no neighbouring
+       preview for it to push, so it's just the main full-bleed screen
+       instead, in flow like any other stacked column. */
+    position: static;
+    transform: none;
     flex: 1;
     width: 100%;
     max-width: none;
@@ -333,6 +406,13 @@ button.fields-panel-delete:hover {
        side-by-side layout gets - a phone screen has no neighbouring
        panel for that gap to visually separate this one from. */
     margin: 0;
+    /* Overrides the desktop-only collapsed-by-default state above
+       (opacity: 0/overflow: hidden, toggled by .is-revealed) - this is
+       the main mobile screen, full-bleed always, regardless of the
+       desktop-only reveal timing. Mobile's own equivalent is the
+       pre-existing Preview toggle/overlay below, not this. */
+    opacity: 1;
+    overflow: visible;
   }
 
   .editor-mobile-preview-toggle {
@@ -364,11 +444,35 @@ button.fields-panel-delete:hover {
     bottom: 1.25rem;
   }
 
-  .editor-preview-full {
+  .editor-preview-full,
+  .editor-preview-full.has-sidebar,
+  .editor-preview-full.has-fields-panel {
     display: none;
+    /* Resets the desktop push-in-sync margins (above) - .is-open-mobile
+       below is a position: fixed full-screen overlay, not something
+       sitting beside the sidebar or Fields panel, so either margin
+       would only ever shift it off-screen for no reason here. */
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .editor-preview-full.is-open-mobile {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: var(--colour-bg);
+  }
+
+  /* Loading/error content (SiteStatusPanel, TopLoadingBar) always lives
+     in .editor-preview-full now (PageEditorPage.tsx), same as the real
+     preview - without this, it would be invisible here until the user
+     happened to tap the Preview toggle, since that's the only thing
+     .is-open-mobile above normally reacts to. Same full-screen
+     treatment either way. */
+  .editor-preview-full:has(.site-status-panel),
+  .editor-preview-full:has(.top-loading-bar) {
     display: flex;
     flex-direction: column;
     position: fixed;
@@ -397,6 +501,10 @@ button.fields-panel-delete:hover {
     max-width: none;
     margin: 0;
     padding-top: 1.5rem;
+    /* transform/opacity deliberately left alone - .is-open (desktop
+       rule, above) already resolves both to their resting values
+       (translateX(0), opacity: 1), which is exactly what this fixed
+       full-screen overlay needs too. */
   }
 
   .editor-fields-panel.is-open {

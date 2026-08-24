@@ -6,7 +6,7 @@ import { useTheme } from '../theme/ThemeContext.tsx';
 import { IconSprite } from '../icons/index.tsx';
 import { HamburgerIcon } from '../icons/HamburgerIcon.tsx';
 import { GraniteLogo } from './GraniteLogo.tsx';
-import { PageActionsProvider, PageDeviceToggleProvider } from './PageActionsContext.tsx';
+import { PageActionsProvider, PageDeviceToggleProvider, PagePathProvider } from './PageActionsContext.tsx';
 import { useSites } from '../sites/useSites.ts';
 import { readLastSiteId, resolveEditorHref, writeLastSiteId } from '../sites/currentSite.ts';
 
@@ -27,6 +27,47 @@ function hostLabelFor(url: string): string {
   } catch {
     return url;
   }
+}
+
+// SiteListEntry.url is a registered origin, e.g. "http://host:3891" -
+// but new URL() always normalises a bare origin to include a trailing
+// slash ("http://host:3891/"), so a naive concatenation with path
+// (which always starts with its own leading slash) can end up
+// "host:3891//about". Stripping any trailing slash first guarantees
+// exactly one, regardless of which form this particular domain was
+// stored in. "/" itself is the site's own root, not a real segment to
+// append - joining it verbatim would show a bare trailing slash for
+// every site's homepage.
+function joinDomainAndPath(domain: string, path: string | null): string {
+  if (path === null || path === '/') {
+    return domain.replace(/\/$/, '');
+  }
+  return domain.replace(/\/$/, '') + path;
+}
+
+// A generic Feather-style "external link" glyph, not one of
+// IconSprite's own baked, multi-colour design icons (icons/index.tsx) -
+// this is a plain currentColor utility affordance, not a piece of the
+// design system's dedicated icon set, so it doesn't belong in that
+// sprite alongside them.
+function ExternalLinkIcon() {
+  return (
+    <svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
+  );
 }
 
 interface TopNavItemProps {
@@ -83,6 +124,7 @@ export function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [pageActions, setPageActions] = useState<ReactNode>(null);
   const [deviceToggle, setDeviceToggle] = useState<ReactNode>(null);
+  const [pagePath, setPagePath] = useState<ReactNode>(null);
   const { sites, error: sitesError, refresh: refreshSites } = useSites();
 
   // Dismiss on an outside click - the popover has no backdrop of its
@@ -157,6 +199,18 @@ export function AppShell() {
   // live) reads as broken, not as a loading state.
   const hasSites = sites !== null && sites.length > 0;
 
+  // The logo/wordmark slot shows this site's own address instead of
+  // the plain brand mark whenever a route is genuinely scoped to one
+  // (siteId itself in the URL) - unlike editorTo/contentTo/etc. below,
+  // this deliberately does NOT fall back to the last-visited site while
+  // on a route with no site in the URL at all (e.g. /settings), where
+  // showing some other site's address next to unrelated content would
+  // be misleading rather than helpful.
+  const currentSite = siteId ? (sites?.find((site) => site.id === siteId) ?? null) : null;
+  const pagePathStr = typeof pagePath === 'string' ? pagePath : null;
+  const siteAddressLabel = currentSite ? joinDomainAndPath(hostLabelFor(currentSite.url), pagePathStr) : null;
+  const siteLiveHref = currentSite ? joinDomainAndPath(currentSite.url, pagePathStr) : null;
+
   const editorTo = siteId ? `/sites/${siteId}/editor` : undefined;
   const isEditingPage = location.pathname === editorTo;
   // Falls back to the last-visited site (e.g. while on /settings, where
@@ -217,10 +271,26 @@ export function AppShell() {
               <span className="app-logo-mark">
                 <GraniteLogo />
               </span>
-              <span className="app-logo-word">
-                GRANITE<span className="app-logo-version">{APP_VERSION}</span>
-              </span>
+              {siteAddressLabel ? (
+                <span className="app-logo-word app-logo-url">{siteAddressLabel}</span>
+              ) : (
+                <span className="app-logo-word">
+                  GRANITE<span className="app-logo-version">{APP_VERSION}</span>
+                </span>
+              )}
             </Link>
+            {siteAddressLabel && siteLiveHref && (
+              <a
+                className="app-logo-external-link"
+                href={siteLiveHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Open ${siteAddressLabel} in a new tab`}
+                aria-label={`Open ${siteAddressLabel} in a new tab`}
+              >
+                <ExternalLinkIcon />
+              </a>
+            )}
           </div>
           {/* Always rendered, even with nothing to navigate to yet -
               its own flex: 1 (app-shell.css) is what fills the middle
@@ -342,7 +412,9 @@ export function AppShell() {
         <div className="app-content">
           <PageActionsProvider setActions={setPageActions}>
             <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>
-              <Outlet />
+              <PagePathProvider setPagePath={setPagePath}>
+                <Outlet />
+              </PagePathProvider>
             </PageDeviceToggleProvider>
           </PageActionsProvider>
         </div>

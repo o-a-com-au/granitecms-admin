@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes, useNavigate } from 'react-router';
 import { AuthProvider } from '../../src/auth/AuthContext.tsx';
 import { ThemeProvider } from '../../src/theme/ThemeContext.tsx';
 import { AppShell } from '../../src/layout/AppShell.tsx';
+import { usePagePath } from '../../src/layout/PageActionsContext.tsx';
 import { defaultEditorHref, readLastSiteId } from '../../src/sites/currentSite.ts';
 import { createFakeStorage } from '../helpers/fakeStorage.ts';
 
@@ -206,6 +207,32 @@ function installFakeApiWithClientProfile() {
   });
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
+}
+
+// Stands in for PageEditorPage's own usePagePath(previewUrl) call - a
+// real page editor route drags in far more fetching/state than these
+// wordmark tests care about, so this registers the one thing that
+// actually matters to AppShell's own slot.
+function PagePathStub({ path }: { path: string | null }) {
+  usePagePath(path);
+  return <div>editor content</div>;
+}
+
+function renderShellWithPagePath(initialEntry: string, path: string | null) {
+  installFakeApi();
+  return render(
+    <ThemeProvider>
+      <AuthProvider>
+        <MemoryRouter initialEntries={[initialEntry]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/sites/:siteId/editor" element={<PagePathStub path={path} />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>
+    </ThemeProvider>,
+  );
 }
 
 afterEach(() => {
@@ -466,7 +493,10 @@ describe('AppShell', () => {
     fireEvent.click(screen.getByTitle('admin'));
 
     expect(screen.getByText('Switch site')).toBeDefined();
-    const current = screen.getByText('localhost:3891');
+    // Scoped to the popover row specifically, not a bare getByText -
+    // the top bar's own wordmark (AppShell.tsx) now shows this same
+    // site's address too, once it's the current site.
+    const current = screen.getByText('localhost:3891', { selector: '.account-popover-item' });
     expect(current.tagName).toBe('SPAN');
     expect(current.getAttribute('aria-current')).toBe('page');
     expect(screen.queryByRole('combobox', { name: 'Switch site' })).toBeNull();
@@ -484,7 +514,11 @@ describe('AppShell', () => {
     expect((select as HTMLSelectElement).value).toBe('site-1');
     const optionLabels = within(select).getAllByRole('option').map((option) => option.textContent);
     expect(optionLabels).toEqual(['localhost:3891', 'other.example.com']);
-    expect(screen.queryByText('localhost:3891', { selector: 'span' })).toBeNull();
+    // The plain non-interactive current-site span only ever renders in
+    // the single-site case above - scoped to the popover row here too,
+    // since the top bar's own wordmark span (AppShell.tsx) legitimately
+    // shows this same text regardless of how many sites are registered.
+    expect(screen.queryByText('localhost:3891', { selector: '.account-popover-item' })).toBeNull();
   });
 
   it('picking another site from the "Switch site" dropdown navigates to it and closes the popover', async () => {
@@ -585,5 +619,52 @@ describe('AppShell', () => {
     const link = screen.getByRole('menuitem', { name: 'Account Settings' });
     expect(link).toBeDefined();
     expect(link.getAttribute('href')).toBe('/settings/personal');
+  });
+
+  it('shows the plain brand mark, not a site address, on a route with no site in the URL', async () => {
+    installFakeApi();
+
+    renderShell('/');
+    await waitFor(() => expect(screen.getByText('home content')).toBeDefined());
+
+    expect(screen.getByText('GRANITE')).toBeDefined();
+    expect(screen.queryByText('localhost:3891', { selector: '.app-logo-url' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /open .* in a new tab/i })).toBeNull();
+  });
+
+  it('shows the current site\'s own domain in place of the brand mark on a site-scoped route, with a link to the live site', async () => {
+    installFakeApi();
+
+    renderShell('/sites/site-1/content');
+    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
+
+    expect(screen.getByText('localhost:3891', { selector: '.app-logo-url' })).toBeDefined();
+    expect(screen.queryByText('GRANITE')).toBeNull();
+    const externalLink = screen.getByRole('link', { name: 'Open localhost:3891 in a new tab' });
+    expect(externalLink.getAttribute('href')).toBe('http://localhost:3891');
+    expect(externalLink.getAttribute('target')).toBe('_blank');
+  });
+
+  it('appends the currently open page\'s own path once the editor registers one, joined onto the site\'s domain', async () => {
+    renderShellWithPagePath('/sites/site-1/editor', '/what-we-stand-for');
+    await waitFor(() => expect(screen.getByText('editor content')).toBeDefined());
+
+    expect(screen.getByText('localhost:3891/what-we-stand-for', { selector: '.app-logo-url' })).toBeDefined();
+    const externalLink = screen.getByRole('link', { name: 'Open localhost:3891/what-we-stand-for in a new tab' });
+    expect(externalLink.getAttribute('href')).toBe('http://localhost:3891/what-we-stand-for');
+  });
+
+  it('shows the bare domain, with no trailing slash, when the open page\'s own path is the site root', async () => {
+    renderShellWithPagePath('/sites/site-1/editor', '/');
+    await waitFor(() => expect(screen.getByText('editor content')).toBeDefined());
+
+    expect(screen.getByText('localhost:3891', { selector: '.app-logo-url' })).toBeDefined();
+  });
+
+  it('falls back to the domain alone while the editor has no live preview for the open content type (path is null)', async () => {
+    renderShellWithPagePath('/sites/site-1/editor', null);
+    await waitFor(() => expect(screen.getByText('editor content')).toBeDefined());
+
+    expect(screen.getByText('localhost:3891', { selector: '.app-logo-url' })).toBeDefined();
   });
 });

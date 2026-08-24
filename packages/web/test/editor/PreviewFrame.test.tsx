@@ -105,6 +105,40 @@ describe('PreviewFrame', () => {
     expect(iframe.closest('.preview-viewport')?.getAttribute('data-device')).toBe('mobile');
   });
 
+  it('hides the previewed document\'s own scrollbar in tablet/mobile, not desktop - a real phone/tablet browser hides it too', () => {
+    const iframeRef = createRef<HTMLIFrameElement>();
+    const { rerender } = render(
+      <PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" iframeRef={iframeRef} />,
+    );
+    const doc = iframeRef.current?.contentDocument as Document;
+    // jsdom never actually fetches/parses an iframe's src (a well-known
+    // limitation, unrelated to this feature) - its synthetic default
+    // document is genuinely empty, no <html>/<head> at all, unlike any
+    // real HTML response (confirmed against the actual proxy route
+    // elsewhere - it injects a <base> tag into the site's own real
+    // <head>). Built here purely so this test exercises the same
+    // document shape production code always sees.
+    if (!doc.documentElement) {
+      const html = doc.createElement('html');
+      html.appendChild(doc.createElement('head'));
+      doc.appendChild(html);
+    }
+    fireEvent.load(iframeRef.current as HTMLIFrameElement);
+    expect(doc.getElementById('admin-preview-hide-scrollbar')).toBeNull();
+
+    // Switching device tiers never reloads the iframe (only resizes
+    // it) - this has to take effect on the already-loaded document,
+    // not wait for another load event.
+    rerender(<PreviewFrame siteId="site-1" url="/about" status="ready" device="mobile" iframeRef={iframeRef} />);
+    expect(doc.getElementById('admin-preview-hide-scrollbar')).not.toBeNull();
+
+    rerender(<PreviewFrame siteId="site-1" url="/about" status="ready" device="tablet" iframeRef={iframeRef} />);
+    expect(doc.getElementById('admin-preview-hide-scrollbar')).not.toBeNull();
+
+    rerender(<PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" iframeRef={iframeRef} />);
+    expect(doc.getElementById('admin-preview-hide-scrollbar')).toBeNull();
+  });
+
   it('F2: a completed autosave preserves the previous scroll position across the reload it triggers', () => {
     const iframeRef = createRef<HTMLIFrameElement>();
     const { rerender } = render(
@@ -158,5 +192,24 @@ describe('PreviewFrame', () => {
     rerender(<PreviewFrame siteId="site-1" url="/docs" status="ready" device="desktop" iframeRef={iframeRef} />);
     fireEvent.load(iframeRef.current as HTMLIFrameElement);
     expect(scrollToSpy).not.toHaveBeenCalled();
+  });
+
+  it('fades the iframe in on load (is-visible), not before - and again on every later load, not just the first', () => {
+    const { rerender } = render(<PreviewFrame siteId="site-1" url="/about" status="loading" device="desktop" />);
+    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    expect(iframe.className).not.toContain('is-visible');
+
+    rerender(<PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" />);
+    fireEvent.load(iframe);
+    expect(iframe.className).toContain('is-visible');
+
+    // A genuine switch to a different page hides it again until that
+    // page's own load event - the same brief fade back in, not a
+    // one-time entrance.
+    rerender(<PreviewFrame siteId="site-1" url="/docs" status="ready" device="desktop" />);
+    expect(iframe.className).not.toContain('is-visible');
+
+    fireEvent.load(iframe);
+    expect(iframe.className).toContain('is-visible');
   });
 });
