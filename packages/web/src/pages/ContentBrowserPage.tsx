@@ -5,6 +5,7 @@ import type { ContentListEntry } from '../api/site-content.ts';
 import { isMenuPath } from './deriveMenuName.ts';
 import { formatChangedAt } from './formatChangedAt.ts';
 import { buildPageTree, flattenVisibleTree, type PageTreeNode } from './pageTree.ts';
+import { NewPageModal } from './NewPageModal.tsx';
 import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
 import { buildLoadErrorActions, loadErrorMessage, type LoadError } from '../sites/site-load-error.ts';
@@ -138,6 +139,7 @@ export function ContentBrowserPage() {
   const status: StatusFilter = isStatusFilter(statusParam) ? statusParam : 'all';
   const [search, setSearch] = useState('');
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
+  const [newPageModalOpen, setNewPageModalOpen] = useState(false);
 
   const [entries, setEntries] = useState<ContentListEntry[] | null>(null);
   const [error, setError] = useState<LoadError | null>(null);
@@ -251,7 +253,12 @@ export function ContentBrowserPage() {
   return (
     <div className="list-page">
       <div className="list-page-inner">
-        <h1>Browse Pages</h1>
+        <div className="list-page-header">
+          <h1>Browse Pages</h1>
+          <button type="button" className="button-primary" onClick={() => setNewPageModalOpen(true)}>
+            + New Page
+          </button>
+        </div>
 
         <div className="content-toolbar">
           <input
@@ -302,6 +309,8 @@ export function ContentBrowserPage() {
           </table>
         )}
       </div>
+
+      {newPageModalOpen && <NewPageModal siteId={siteId} onClose={() => setNewPageModalOpen(false)} />}
     </div>
   );
 }

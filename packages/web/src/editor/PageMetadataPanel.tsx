@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { moveSitePage } from '../api/site-publishing.ts';
 import { SiteEditorError } from '../api/site-editor.ts';
+import { slugify } from '../pages/slugify.ts';
 
 export interface PageMetadataPanelProps {
   content: string;
@@ -96,18 +97,6 @@ function replaceLastSegment(value: string, newSegment: string): string {
   const segments = value.split('/');
   segments[segments.length - 1] = newSegment;
   return segments.join('/');
-}
-
-// WordPress-style: lowercase, non-alphanumeric runs become a single
-// hyphen, no leading/trailing hyphen. Deliberately simple (no
-// unicode transliteration) - every real slug in this project's own
-// demo content is plain ASCII, and a fancier transliteration table is
-// speculative complexity nothing here has asked for.
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
 }
 
 // The remaining fields on this panel (meta description, author,

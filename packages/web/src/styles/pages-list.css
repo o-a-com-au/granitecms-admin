@@ -59,6 +59,17 @@
   }
 }
 
+/* Shared heading-plus-primary-action row - RedirectsPage.tsx's own
+   .redirects-header precedent, generalised here since ContentBrowserPage's
+   own "+ New Page" button (Group Q) needs the identical layout and
+   there's nothing page-specific about it. */
+.list-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
 /* MediaLibraryPage's own override - the 900px cap above was tuned for
    a table, not a photo grid. A starting point to sanity-check
    visually, not a final number. */

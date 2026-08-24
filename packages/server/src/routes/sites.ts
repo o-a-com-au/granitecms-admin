@@ -26,6 +26,7 @@ import { fetchSiteRevision } from '../sites/site-revision.ts';
 import { revertSitePath } from '../sites/site-revert.ts';
 import { moveSitePath } from '../sites/site-move.ts';
 import { fetchSiteThemeSchemas } from '../sites/site-theme-schemas.ts';
+import { fetchSitePageTemplates } from '../sites/site-page-templates.ts';
 import { deleteSiteMedia, listSiteMedia, uploadSiteMedia } from '../sites/site-media.ts';
 import { createSiteRedirect, deleteSiteRedirect, listSiteRedirects, updateSiteRedirect } from '../sites/site-redirects.ts';
 
@@ -865,6 +866,29 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
       reply.code(502);
       return { error: result.message, reason: result.outcome };
     });
+
+    // Group Q: what the admin's New Page template picker is built from -
+    // same single read-only pass-through as /theme/schemas above, no
+    // dedicated "create from template" route needed (that's just the
+    // existing PUT /:id/drafts/* with the chosen template's own content).
+    app.get<{ Params: { id: string } }>(
+      '/:id/theme/page-templates',
+      { preHandler: [requireAuth, requireSiteAccess] },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const result = await fetchSitePageTemplates(site);
+        if (result.outcome === 'ok') {
+          return { templates: result.templates };
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
 
     // Media routes live in their own nested plugin, not registered
     // directly on `app` above: Fastify's register() gives a nested

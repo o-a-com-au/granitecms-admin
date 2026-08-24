@@ -241,4 +241,29 @@ describe('ContentBrowserPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Collapse About' }));
     expect(screen.queryByRole('link', { name: 'Team' })).toBeNull();
   });
+
+  it('Group Q: the "+ New Page" button opens the New Page modal', async () => {
+    // Dispatches by URL, not a single unconditional response like the
+    // other tests here - opening the modal also fires its own
+    // /theme/page-templates fetch (NewPageModal.tsx), which needs a
+    // real { templates: [...] } shape, not the bare content-list array
+    // every other test in this file returns for any request.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.includes('/theme/page-templates')) {
+          return new Response(JSON.stringify({ templates: [] }), { status: 200 });
+        }
+        return new Response(JSON.stringify([ENTRY_ONE]), { status: 200 });
+      }),
+    );
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByRole('link', { name: 'About' })).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: '+ New Page' }));
+
+    expect(screen.getByRole('heading', { name: 'New Page' })).toBeDefined();
+  });
 });
