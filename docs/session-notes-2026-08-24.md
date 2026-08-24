@@ -1,0 +1,43 @@
+# Session notes - 2026-08-24
+
+Status snapshot for picking this back up.
+
+## What's done, this session
+
+**Editor off-canvas panel reveals.** The Page Meta/Sections sidebar and the Fields panel both used to animate via a `width: 0 -> full` collapse, which read as the content being wiped/grown into place rather than a genuine slide. Both now use `position: absolute` + `transform: translateX()` instead - the sidebar contributes zero flex space at rest and slides in from the left, the Fields panel mirrors it from the right. `.editor-preview-full` gets a matching `margin-left`/`margin-right` push (`.has-sidebar`/`.has-fields-panel`) in step with each, so the preview genuinely gets pushed rather than overlaid. First load is full-width, the sidebar reveals itself 500ms after content actually arrives, and stays revealed across later page switches instead of collapsing again.
+
+The tab-content fade-in (`.tab-fade-in`, previously scoped to `.editor-tab-panel` for the Page Meta <-> Sections switch) is now a plain reusable class - it also replays on a genuine page switch (keyed off the placeholder-status boolean, not raw `status`, so it doesn't fire on every autosave's dirty/saving/ready churn), and `SectionFieldsPanel` reuses the same class/keyframe for switching between selected sections/blocks.
+
+**Live preview polish.** Viewport background/border cleaned up to match the surrounding chrome, a dark-mode scrollbar, and tablet/mobile now hide both the admin's own device-frame scrollbar and the previewed document's own (same-origin `<style>` injection into the iframe's own head - cosmetic only, never touches the site's real files, and any real phone/tablet visitor already doesn't see either scrollbar anyway). The iframe fades in on every load (first load and later ones) via real React state, not an imperative class toggle.
+
+**AppShell top bar shows the current site's address.** Replaces the plain "GRANITE 2.3" wordmark with the site's own domain once a route is genuinely scoped to one, and the currently-open page's own path inside the editor specifically - falls back to the brand mark everywhere else (Settings, the registry, any route with no site in the URL). An external-link icon next to it opens the real live page in a new tab. New `PagePathProvider`/`usePagePath` slot in `PageActionsContext.tsx`, following the same generalised-factory pattern as the existing page-actions/device-toggle slots.
+
+**Sections tab.** The "Sections" heading now stays up through loading and error states (previously the whole panel, heading included, was replaced by a bare message). Loading itself shows a single empty skeleton row with a shimmer animation instead of "Loading theme..." text - held back for a full second, so an ordinary fast load never shows it at all.
+
+**Section/block row drag-and-drop, extensively reworked.** Dragging now pins a floating pill (native `dataTransfer.setDragImage`) showing the row's own name to the cursor, Spotify-reorder style, with `effectAllowed: 'move'` so the browser shows a real move cursor instead of whatever it defaulted to. The pill has to be portaled to `document.body` - rendering it in place broke real drags outright once the sidebar's own transform-based reveal shipped (a transformed ancestor becomes the containing block for the pill's `position: fixed` "off-screen" trick, and an intervening `overflow: auto` container clipped it away entirely before that, so `setDragImage` was handed an element the browser never actually painted).
+
+The dropped row also fades back in via real React state (a monotonic token, not a boolean, so dragging the same row twice in a row still replays it - an earlier `classList`-only version got silently wiped by an unrelated `isHighlighted` change the reorder itself could trigger a render later, since React has no idea an imperatively-added class exists and overwrites the whole attribute the next time it recomputes that className string for any reason).
+
+Also replaced the chevron's old text glyphs with a proper `AccordionArrowIcon` SVG, added a same-sized spacer so a row with no children still reserves the arrow's column (every label lines up regardless of whether that row has one), and tightened the row's own left padding now that the arrow/spacer supplies its own leading inset.
+
+**A real cluster of drag-and-drop bugs**, each found live via manual testing and each traced to the blue drop-indicator line or the list's own edges not genuinely being valid drop targets:
+- The indicator itself had no `dragover`/`drop` handlers - a cursor landing precisely on its thin strip never got `preventDefault()` called, silently rejecting the drop per the HTML5 spec.
+- Its negative margin made it overlap into whichever row sat on either side, and DOM paint order decided which one won hit-testing there - before a row it always lost, after a row it always won instead, giving an exact top-half-works/bottom-half-fails split depending on which side of a gap you approached from. Fixed by removing the overlap entirely, not by relying on `pointer-events: none` (drag events don't respect it as consistently as plain mouse events across browsers).
+- Dropping above the first row or below the last failed outright - that space belonged to no element's own box at all, just the flex gap the panel puts between its heading and the list. The list itself now grows real, hit-testable padding there for as long as a drag is active - deferred by one `requestAnimationFrame`, since applying it in the very same commit as `dragstart` shifts the dragged row's own layout immediately and gets the whole native drag silently cancelled by the browser (confirmed live: dragstart fired, no dragover ever followed).
+- That same "is this empty space" check also matched the list's own flex gap between every *ordinary* pair of rows, not just its outer edges - comparing against the whole list's midpoint snapped the indicator to the very top/bottom while hovering any row boundary. Fixed by comparing against the actual first/last row's own rects instead.
+- Releasing directly in an ordinary inter-row gap still failed even after that fix, because that specific `dragover` never called `preventDefault()` (only the two branches that actually change `dropIndex` did) - a drop only succeeds where the *immediately preceding* dragover confirmed it, regardless of what `dropIndex` already holds from an earlier one.
+
+New `test/helpers/fakeDataTransfer.ts` - jsdom's synthetic `DragEvent` never populates a real `DataTransfer`, which crashed every dragstart handler the moment it started touching `effectAllowed`/`setDragImage`. Also discovered jsdom has no `DragEvent` constructor at all, so `fireEvent.dragOver(el, { clientY })` silently drops `clientY` via testing-library's plain-`Event` fallback - doesn't affect most existing tests' actual assertions, but any *new* drag test that needs a real `clientY` has to patch it onto the created event object manually (see the two "genuinely outside every row's own hit-box" tests for the pattern).
+
+Two commits, both pushed: `d674df2` (editor/preview/top-bar polish), `95e2031` (drag-and-drop overhaul).
+
+## Known gotchas, still true
+
+- Everything from `docs/session-notes-2026-08-23.md` (backgrounded dev processes not surviving between tool calls, no self-service token recovery, the 4-second site-fetch timeout) is still true - untouched this session.
+- The drag-and-drop pill/dead-zone fixes above were each found by genuinely dragging rows around in the browser - the automated test suite could not have caught most of them on its own (jsdom doesn't do real layout, real hit-testing, or a real `DragEvent`). Any future drag-and-drop change here needs a real manual pass in the browser, not just green tests, before calling it done.
+- `.instance-list.is-dragging-active`'s padding is currently `0.75rem` top/bottom (halved once already from an initial `1.5rem` that felt like too much visual shift) - purely a feel judgement call, not a hard constraint; revisit if it still doesn't feel right.
+
+## Loose ends / possible next steps
+
+- The same drop-indicator/dead-zone class of bugs could in principle affect any *other* reorderable list in the admin if one gets added later - the fix pattern (real padding during a drag, deferred by a frame; compare against actual first/last row rects, not the container's own; unconditional `preventDefault()` on the container's own catch-all) is now established in `SectionList.tsx`/`BlockList.tsx` and should be copied rather than rediscovered.
+- Nothing currently pending review or half-finished - both commits are fully tested (typecheck/lint/full suite green) and pushed.
