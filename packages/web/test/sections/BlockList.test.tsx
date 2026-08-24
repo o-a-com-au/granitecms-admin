@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { BlockList } from '../../src/sections/BlockList.tsx';
 import type { Instance, ThemeTypeSchemas } from '../../src/sections/instance-types.ts';
+import { createFakeDataTransfer } from '../helpers/fakeDataTransfer.ts';
 
 afterEach(() => {
   cleanup();
@@ -35,7 +36,7 @@ function dragOnto(fromHandle: HTMLElement, toRow: HTMLElement, half: 'top' | 'bo
     toJSON: () => ({}),
   } as DOMRect);
 
-  fireEvent.dragStart(fromHandle);
+  fireEvent.dragStart(fromHandle, { dataTransfer: createFakeDataTransfer() });
   fireEvent.dragOver(toRow, { clientY: half === 'top' ? 5 : 35 });
   fireEvent.drop(toRow);
 }
@@ -58,6 +59,191 @@ describe('BlockList', () => {
     dragOnto(handles[0] as HTMLElement, rows[2] as HTMLElement, 'bottom');
 
     expect(onChange).toHaveBeenCalledWith([block('b'), block('c'), block('a')]);
+  });
+
+  it('reorders correctly when the drop lands above the very top row - genuinely outside every row\'s own hit-box, not just above its midpoint', () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <BlockList blocks={[block('a'), block('b'), block('c')]} blockTypes={BLOCK_TYPES} onChange={onChange} onEditInstance={vi.fn()} />,
+    );
+
+    const handles = screen.getAllByRole('button', { name: 'Drag to reorder' });
+    const wrapper = container.firstElementChild as HTMLElement;
+    const list = wrapper.querySelector('.instance-list') as HTMLElement;
+    const rows = list.querySelectorAll('.instance-row');
+    // Only the first and last row's own rects matter now, not the
+    // list's - see SectionList.tsx's own equivalent test for why.
+    vi.spyOn(rows[0] as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+      height: 40,
+      bottom: 140,
+      left: 0,
+      right: 0,
+      width: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+    vi.spyOn(rows[2] as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+      top: 260,
+      height: 40,
+      bottom: 300,
+      left: 0,
+      right: 0,
+      width: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    // See SectionList.tsx's own equivalent test for why clientY has to
+    // be patched onto the event manually (jsdom has no DragEvent
+    // constructor, so testing-library's fallback plain Event silently
+    // drops it from the init dictionary) and why it's dispatched to the
+    // list itself, not the wrapper - event.target === event.currentTarget
+    // is how handleContainerDragOver knows this is genuinely on the
+    // list's own padding, not bubbled up from a row. 50 is above the
+    // first row's own top edge (100).
+    fireEvent.dragStart(handles[2] as HTMLElement, { dataTransfer: createFakeDataTransfer() });
+    const dragOverEvent = createEvent.dragOver(list);
+    Object.assign(dragOverEvent, { clientY: 50 });
+    fireEvent(list, dragOverEvent);
+    fireEvent.drop(list);
+
+    expect(onChange).toHaveBeenCalledWith([block('c'), block('a'), block('b')]);
+  });
+
+  it('does not snap the indicator to the top/bottom while hovering an ordinary gap between two middle rows', () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <BlockList
+        blocks={[block('a'), block('b'), block('c'), block('d')]}
+        blockTypes={BLOCK_TYPES}
+        onChange={onChange}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    const handles = screen.getAllByRole('button', { name: 'Drag to reorder' });
+    const wrapper = container.firstElementChild as HTMLElement;
+    const list = wrapper.querySelector('.instance-list') as HTMLElement;
+    const rows = list.querySelectorAll('.instance-row');
+    vi.spyOn(rows[0] as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+      top: 0,
+      height: 40,
+      bottom: 40,
+      left: 0,
+      right: 0,
+      width: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+    vi.spyOn(rows[3] as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+      top: 160,
+      height: 40,
+      bottom: 200,
+      left: 0,
+      right: 0,
+      width: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    fireEvent.dragStart(handles[3] as HTMLElement, { dataTransfer: createFakeDataTransfer() });
+    const dragOverEvent = createEvent.dragOver(list);
+    Object.assign(dragOverEvent, { clientY: 95 });
+    const preventDefaultSpy = vi.spyOn(dragOverEvent, 'preventDefault');
+    fireEvent(list, dragOverEvent);
+
+    // See SectionList.tsx's own equivalent test for why this is the
+    // only thing a jsdom-based test can verify here - it doesn't
+    // enforce the real browser rule this exists for.
+    expect(preventDefaultSpy).toHaveBeenCalled();
+
+    fireEvent.drop(list);
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('reorders correctly even when the drop lands exactly on the blue indicator line between two rows, not inside either row', () => {
+    const onChange = vi.fn();
+    render(
+      <BlockList blocks={[block('a'), block('b'), block('c')]} blockTypes={BLOCK_TYPES} onChange={onChange} onEditInstance={vi.fn()} />,
+    );
+
+    const handles = screen.getAllByRole('button', { name: 'Drag to reorder' });
+    const rows = handles.map((handle) => handle.closest('li') as HTMLElement);
+
+    vi.spyOn(rows[1] as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+      top: 0,
+      height: 40,
+      bottom: 40,
+      left: 0,
+      right: 0,
+      width: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    fireEvent.dragStart(handles[0] as HTMLElement, { dataTransfer: createFakeDataTransfer() });
+    fireEvent.dragOver(rows[1] as HTMLElement, { clientY: 35 });
+
+    const indicator = document.querySelector('.drop-indicator') as HTMLElement;
+    expect(indicator).not.toBeNull();
+
+    fireEvent.dragOver(indicator);
+    fireEvent.drop(indicator);
+
+    expect(onChange).toHaveBeenCalledWith([block('b'), block('a'), block('c')]);
+  });
+
+  it('fades the dropped row back in once it lands in a genuinely different position', async () => {
+    render(
+      <BlockList blocks={[block('a'), block('b'), block('c')]} blockTypes={BLOCK_TYPES} onChange={vi.fn()} onEditInstance={vi.fn()} />,
+    );
+
+    const handles = screen.getAllByRole('button', { name: 'Drag to reorder' });
+    const rows = handles.map((handle) => handle.closest('li') as HTMLElement);
+    const rowMain = rows[0]?.querySelector('.instance-row-main');
+
+    dragOnto(handles[0] as HTMLElement, rows[2] as HTMLElement, 'bottom');
+
+    // A frame later (requestAnimationFrame), not synchronous - see
+    // SectionList.tsx's own equivalent test for why.
+    await waitFor(() => expect(rowMain?.className).toContain('is-just-dropped'));
+  });
+
+  it('does not fade a row dropped back into the gap it started in (a no-op move)', () => {
+    render(
+      <BlockList blocks={[block('a'), block('b'), block('c')]} blockTypes={BLOCK_TYPES} onChange={vi.fn()} onEditInstance={vi.fn()} />,
+    );
+
+    const handles = screen.getAllByRole('button', { name: 'Drag to reorder' });
+    const rows = handles.map((handle) => handle.closest('li') as HTMLElement);
+    const rowMain = rows[0]?.querySelector('.instance-row-main');
+
+    dragOnto(handles[0] as HTMLElement, rows[0] as HTMLElement, 'top');
+
+    expect(rowMain?.className).not.toContain('is-just-dropped');
+  });
+
+  it('pins a pill showing the block\'s own name to the cursor as the native drag image, Spotify-reorder style', () => {
+    render(<BlockList blocks={[block('a', 'button')]} blockTypes={BLOCK_TYPES} onChange={vi.fn()} onEditInstance={vi.fn()} />);
+
+    const handle = screen.getByRole('button', { name: 'Drag to reorder' });
+    // Portaled to document.body (BlockList.tsx) - see SectionList.tsx's
+    // own equivalent test for why.
+    const pill = document.querySelector('.instance-row-drag-pill');
+    expect(pill?.textContent).toBe('button');
+
+    const dataTransfer = { effectAllowed: 'none', setDragImage: vi.fn() };
+    fireEvent.dragStart(handle, { dataTransfer });
+
+    expect(dataTransfer.effectAllowed).toBe('move');
+    expect(dataTransfer.setDragImage).toHaveBeenCalledWith(pill, 0, 12);
   });
 
   it('I2: the add-block menu lists types sourced from the fetched theme schemas, not hardcoded', () => {
@@ -192,6 +378,29 @@ describe('BlockList', () => {
 
     // Two Add Block buttons: the outer add-menu and the nested one.
     expect(screen.getAllByRole('button', { name: 'Add Block' })).toHaveLength(2);
+  });
+
+  it('reserves the arrow\'s column with an empty spacer on a row whose type has no nested blocks, so every label still lines up', () => {
+    render(
+      <BlockList
+        blocks={[
+          { id: 'g1', type: 'group', settings: {}, blocks: [] },
+          block('b1'),
+        ]}
+        blockTypes={BLOCK_TYPES}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    // group nests further blocks (a real arrow, collapsed by default) -
+    // button doesn't (BLOCK_TYPES above), so it gets the spacer instead.
+    expect(screen.getByRole('button', { name: 'Expand' })).toBeDefined();
+    const rows = screen.getAllByRole('button', { name: /^Edit /i });
+    expect(rows[0]?.querySelector('.instance-row-chevron')).not.toBeNull();
+    expect(rows[0]?.querySelector('.instance-row-chevron-spacer')).toBeNull();
+    expect(rows[1]?.querySelector('.instance-row-chevron')).toBeNull();
+    expect(rows[1]?.querySelector('.instance-row-chevron-spacer')).not.toBeNull();
   });
 
   it('expanding one block\'s nested blocks collapses whichever sibling block was already open - an accordion, not independent per-row state', () => {

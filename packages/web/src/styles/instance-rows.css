@@ -11,6 +11,28 @@
   gap: var(--space-xs);
 }
 
+/* SectionList.tsx/BlockList.tsx toggle this for exactly as long as a
+   drag is in progress - gives the list's own box some real, hit-
+   testable space above the first row and below the last one, so a
+   pointer can genuinely be dragged "past the very top/bottom" and
+   still land somewhere a dragover/drop handler actually fires. Without
+   this, that space simply didn't exist as part of any element's own
+   box at all (just the flex gap .sections-panel puts between the
+   heading and the list), so a real browser had nothing to dispatch a
+   drag event to there and silently rejected a drop released in it -
+   found live, dragging to the very top of the list and releasing above
+   the blue line never actually moved anything. Not present outside a
+   drag - it would otherwise permanently add dead visual space around
+   an otherwise tight list. */
+/* padding-top/bottom only, not the padding shorthand - .instance-list-
+   nested (below) sets its own padding-left for the nesting indent, and
+   the shorthand would reset that back to 0 whenever a drag is also in
+   progress inside a nested list. */
+.instance-list.is-dragging-active {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
 .instance-list-nested {
   margin: 0.4rem 0 0 1.1rem;
   padding-left: 0.75rem;
@@ -25,11 +47,37 @@
   opacity: 0.4;
 }
 
+/* Toggled imperatively (SectionList.tsx's SectionRow / BlockList.tsx's
+   BlockRow, via a remove-reflow-add ref effect, same technique as
+   editor-layout.css's .tab-fade-in) the instant a row lands in its new
+   position from a completed drag - a plain opacity fade back in, so
+   the row that just moved reads as "landed here", not a silent jump.
+   Starts from fully transparent, not a partial dip - 0.25 was too
+   subtle a swing to actually notice, found live. */
+@keyframes instance-row-drop-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.instance-row-main.is-just-dropped {
+  animation: instance-row-drop-fade-in 0.9s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .instance-row-main.is-just-dropped {
+    animation: none;
+  }
+}
+
 .instance-row-main {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-md);
+  padding: var(--space-xs) var(--space-md) var(--space-xs) var(--space-xs);
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
   background: var(--colour-section);
@@ -100,19 +148,64 @@
    extra element in the selector is deliberate, matching
    button[type='button']'s own specificity (which otherwise wins and
    silently puts its grey background back, since a bare class alone is
-   less specific than element+attribute). */
+   less specific than element+attribute).
+   A fixed flex box centring an SVG icon (AccordionArrowIcon.tsx), not a
+   font-size'd text glyph any more - the previous "›"/"‹" characters sat
+   at whatever height their font's own metrics happened to place them,
+   which never quite lined up with the label's own text baseline next
+   to it (docs/design's accordion-arrow.svg + mockup). */
 button.instance-row-chevron {
   flex: 0 0 auto;
-  padding: 0.1rem 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
   border: none;
   background: none;
   color: var(--colour-muted);
-  font-size: 1rem;
-  line-height: 1;
 }
 
+/* background: none overrides base.css's own button[type='button']:hover
+   grey fill (equal element+attribute vs element+class specificity, this
+   file loads after base.css - see index.css) - the arrow reads as a
+   plain icon, not a button chrome, so it shouldn't pick up a hover box
+   the way a real button would. */
 button.instance-row-chevron:hover {
+  background: none;
   color: var(--colour-text);
+}
+
+/* Rendered instead of the real button (SectionList.tsx/BlockList.tsx)
+   on a row whose type doesn't accept blocks at all - same box, empty,
+   so every row's label starts at the same x position whether or not
+   that particular row actually has an arrow. */
+.instance-row-chevron-spacer {
+  flex: 0 0 auto;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Points right at rest, matching the mockup's collapsed state - rotated
+   to point left once expanded, the same relationship the old '›'/'‹'
+   text glyphs had, just as a rotation of the one icon rather than two
+   separate characters. */
+.instance-row-chevron-icon {
+  display: flex;
+  width: 0.6rem;
+  height: 0.6rem;
+  transition: transform 0.15s ease;
+}
+
+.instance-row-chevron-icon.is-expanded {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .instance-row-chevron-icon {
+    transition: none;
+  }
 }
 
 /* Hidden until the row is hovered/focused, not just uncoloured - the
@@ -163,6 +256,10 @@ button.instance-row-remove:hover {
   cursor: grabbing;
 }
 
+.instance-row-drag-handle:hover {
+  color: #fff;
+}
+
 /* DragHandleIcon.tsx renders its svg at width/height: 100% - this box
    does the actual sizing, matching the icon's previous fixed 14x20px
    default (at the browser's un-overridden 16px root), same convention
@@ -174,13 +271,52 @@ button.instance-row-remove:hover {
   height: 1rem;
 }
 
+/* SectionList.tsx/BlockList.tsx's own native-drag "ghost" - the pill a
+   real drag pins to the cursor, Spotify-reorder style, in place of the
+   browser's own default screenshot of the drag handle. Off-screen at
+   rest (position: fixed, not display: none/visibility: hidden - both
+   of those stop a browser from ever painting it, and setDragImage needs
+   a genuinely painted element to snapshot), only ever seen via the
+   dataTransfer.setDragImage() snapshot taken the instant a drag starts. */
+.instance-row-drag-pill {
+  position: fixed;
+  top: -1000px;
+  left: -1000px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: var(--colour-primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* The active drop location - a 4px blue line between rows. */
+/* No negative margin any more, deliberately - it used to pull this 2px
+   into whichever row sits on EITHER side, so its own rendered box
+   genuinely overlapped that row's edge rather than just sitting next
+   to it. In that overlap, whichever element is LATER in DOM order
+   paints (and hit-tests) on top: before a row, the row itself is later
+   and always won there, but after a row (this indicator inserted
+   between it and the next one), THIS was later and won instead -
+   found live as an exact top-half-works/bottom-half-fails asymmetry,
+   the drop silently failing only when dropping from a row's own bottom
+   half, onto the gap immediately below it. pointer-events: none was a
+   first attempt at the same problem and is kept as a harmless second
+   layer, but doesn't fully close every case on its own (drag events
+   aren't as consistently respectful of it across engines as plain
+   mouse events are) - removing the overlap at its source, so there is
+   no ambiguous shared pixel for either mechanism to have to arbitrate
+   in the first place, is what actually fixes it outright. */
 .drop-indicator {
   height: 4px;
-  margin: -2px 0;
   background: var(--colour-primary);
   border-radius: 2px;
   list-style: none;
+  pointer-events: none;
 }
 
 .instance-add-row {
@@ -279,5 +415,39 @@ button.instance-add-button:hover {
 @media (max-width: 720px) {
   button.instance-row-remove {
     display: none;
+  }
+}
+
+/* PageSectionsEditor.tsx's own loading state - same shape as a real
+   .instance-row-main (border/radius/background) so it reads as "a
+   section is about to appear here", not a generic placeholder block.
+   height is fixed rather than left to content, since there's no label/
+   icon content driving it the way a real row has. The shimmer is a
+   background-position sweep across a wider-than-the-row gradient, not
+   an opacity pulse - a faint highlight band passing through reads as
+   "still loading" without the whole row visibly flashing. */
+.sections-skeleton-row {
+  height: 2.75rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--colour-section);
+  background-image: linear-gradient(90deg, transparent, var(--colour-surface-hover), transparent);
+  background-size: 50% 100%;
+  background-repeat: no-repeat;
+  animation: sections-skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes sections-skeleton-shimmer {
+  from {
+    background-position: -50% 0;
+  }
+  to {
+    background-position: 150% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sections-skeleton-row {
+    animation: none;
   }
 }
