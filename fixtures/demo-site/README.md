@@ -24,12 +24,15 @@ would hit an "embedded repository" problem the moment anything tried to
 ## Registering it in the admin
 
 - Site URL: `http://localhost:3891`
-- API token: `1f6157d9db9053c68d376d606c72cc0e805a33915a3854194ded79d52f03355a`
-
-This token is a local-only development credential with no other purpose -
-only `site.config.json`'s sha256 hash of it is ever stored anywhere, the same
-as every other demo credential shown in plaintext throughout this project's
-own development sessions.
+- API token: printed to your terminal by `npm run demo:setup` the first time
+  it creates `.demo-runtime` (via `mint-token` - see the sibling agent repo's
+  `docs/hosting.md`). Not committed anywhere: this tracked template's own
+  `vhost/site.config.json` ships with an empty `tokens` array, and a fresh
+  token is minted per developer instead of every clone of this repo sharing
+  one static, publicly-known credential.
+- Lost it, or need another one? `.demo-runtime/vhost/node_modules/.bin/mint-token .demo-runtime`
+  mints a new one against the already-running demo without disturbing
+  whichever token you're currently using in the admin.
 
 ## What's in here
 
