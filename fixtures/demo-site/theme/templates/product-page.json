@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 5,
+  "name": "Product Page",
+  "title": "Product Page",
+  "type": "page",
+  "layout": "theme",
+  "published": false,
+  "sections": [
+    {
+      "id": "sec-hero",
+      "type": "hero",
+      "settings": {
+        "eyebrow": "Product",
+        "heading": "Introducing your product",
+        "subheading": "One or two sentences on what it does and who it's for."
+      },
+      "blocks": [
+        { "id": "blk-hero-cta", "type": "button", "settings": { "label": "Get started", "url": "#", "style": "primary" } }
+      ]
+    },
+    {
+      "id": "sec-features",
+      "type": "feature-grid",
+      "settings": {
+        "eyebrow": "Features",
+        "heading": "What's included",
+        "subheading": "The core capabilities worth leading with."
+      },
+      "blocks": [
+        { "id": "blk-feature-1", "type": "feature-card", "settings": { "icon": "bolt", "heading": "Fast to set up", "description": "Get running in minutes, not days." } },
+        { "id": "blk-feature-2", "type": "feature-card", "settings": { "icon": "block", "heading": "Built to scale", "description": "Grows with you from first customer to thousandth." } },
+        { "id": "blk-feature-3", "type": "feature-card", "settings": { "icon": "admin", "heading": "Easy to manage", "description": "A clean interface your whole team can actually use." } }
+      ]
+    },
+    {
+      "id": "sec-pricing",
+      "type": "pricing",
+      "settings": {
+        "eyebrow": "Pricing",
+        "heading": "Simple, transparent pricing",
+        "subheading": "Pick the plan that fits, upgrade any time."
+      },
+      "blocks": [
+        {
+          "id": "blk-tier-starter",
+          "type": "pricing-tier",
+          "settings": {
+            "name": "Starter",
+            "price": "$0",
+            "period": "/month",
+            "description": "Everything you need to get going.",
+            "features": ["Core features", "Community support"],
+            "ctaLabel": "Get started",
+            "ctaUrl": "#"
+          }
+        },
+        {
+          "id": "blk-tier-pro",
+          "type": "pricing-tier",
+          "settings": {
+            "name": "Pro",
+            "price": "$29",
+            "period": "/month",
+            "description": "For teams ready to scale up.",
+            "features": ["Everything in Starter", "Priority support", "Advanced features"],
+            "ctaLabel": "Start free trial",
+            "ctaUrl": "#",
+            "highlighted": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "sec-testimonials",
+      "type": "testimonials",
+      "settings": {
+        "eyebrow": "Customers",
+        "heading": "What our customers say"
+      },
+      "blocks": [
+        {
+          "id": "blk-testimonial-1",
+          "type": "testimonial-card",
+          "settings": {
+            "quote": "This replaced three other tools we were paying for, and it's faster than all of them combined.",
+            "name": "Alex Rivera",
+            "role": "Head of Ops",
+            "initials": "AR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sec-faq",
+      "type": "faq",
+      "settings": {
+        "eyebrow": "FAQ",
+        "heading": "Frequently asked questions"
+      },
+      "blocks": [
+        { "id": "blk-faq-1", "type": "faq-item", "settings": { "question": "Can I try it before I buy?", "answer": "Yes - every plan starts with a free trial, no card required." } },
+        { "id": "blk-faq-2", "type": "faq-item", "settings": { "question": "Can I change plans later?", "answer": "Any time, from your account settings - upgrades and downgrades both take effect immediately." } }
+      ]
+    },
+    {
+      "id": "sec-cta",
+      "type": "cta-banner",
+      "settings": {
+        "heading": "Ready to get started?",
+        "subheading": "Join the teams already using it today."
+      },
+      "blocks": [
+        { "id": "blk-final-cta", "type": "button", "settings": { "label": "Start free trial", "url": "#", "style": "primary" } }
+      ]
+    }
+  ]
+}

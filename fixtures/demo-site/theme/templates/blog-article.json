@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 5,
+  "name": "Blog Article",
+  "title": "Blog Article",
+  "type": "page",
+  "layout": "theme",
+  "published": false,
+  "sections": [
+    {
+      "id": "sec-hero",
+      "type": "hero",
+      "settings": {
+        "eyebrow": "Blog",
+        "heading": "Your article headline goes here",
+        "subheading": "A one or two sentence summary of what this post covers - this is the deck readers see before they click in."
+      },
+      "blocks": []
+    },
+    {
+      "id": "sec-cta",
+      "type": "cta-banner",
+      "settings": {
+        "heading": "Enjoyed this article?",
+        "subheading": "Read more from the blog for the rest of the story."
+      },
+      "blocks": [
+        {
+          "id": "blk-cta-button",
+          "type": "button",
+          "settings": { "label": "Browse all posts", "url": "/blog", "style": "primary" }
+        }
+      ]
+    }
+  ]
+}
