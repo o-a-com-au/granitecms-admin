@@ -24,11 +24,21 @@ export interface AdminConfig {
   googleOAuth: OAuthProviderConfig | undefined;
   githubOAuth: OAuthProviderConfig | undefined;
   smtp: SmtpConfig | undefined;
-  // Required, not optional-with-fallback like smtp/oauth above -
-  // there is no working degraded state without a database or session
-  // store, unlike an unconfigured mailer or OAuth provider.
+  // Which store implementations index.ts actually constructs - 'sqlite'
+  // (the default, no DATABASE_URL set) needs neither of the two fields
+  // below; 'postgres' (DATABASE_URL explicitly set) needs both. Not a
+  // capability tier - both are fully supported, real persistence, see
+  // store/sqlite/ and store/postgres/.
+  storageDriver: 'postgres' | 'sqlite';
+  // Only meaningful when storageDriver is 'postgres'. Defaults match
+  // docker-compose.yml's local Postgres/Redis exactly, same
+  // convenience-default pattern as baseUrl/webDistDir above.
   databaseUrl: string;
   redisUrl: string;
+  // Only meaningful when storageDriver is 'sqlite' - where the bundled
+  // database file lives. ADMIN_DATA_DIR revives a convention this repo
+  // documented in CLAUDE.md from before its Postgres migration.
+  sqlitePath: string;
   // Passed straight to Fastify's own trustProxy option (proxy-addr
   // syntax: a specific IP/CIDR, or the literal presets 'loopback'/
   // 'linklocal'/'uniquelocal') - false by default, same as Fastify's
@@ -97,8 +107,14 @@ export function loadConfig(): AdminConfig {
   // deployment always needs its own managed Postgres/Redis regardless,
   // so there's no accidental-production-fallback risk the way an
   // unset SMTP config would have.
+  // Setting DATABASE_URL is what opts a deployment into Postgres/Redis -
+  // unset means the sqlite default below. redisUrl's own default still
+  // applies once in postgres mode, same convenience-default pattern as
+  // databaseUrl's.
+  const storageDriver: 'postgres' | 'sqlite' = process.env.DATABASE_URL ? 'postgres' : 'sqlite';
   const databaseUrl = process.env.DATABASE_URL ?? 'postgres://admin:admin@localhost:5432/cms_admin';
   const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
+  const sqlitePath = resolve(process.env.ADMIN_DATA_DIR ?? 'data', 'admin.sqlite');
   const trustProxyEnv = process.env.TRUST_PROXY;
   const trustProxy: string | boolean = trustProxyEnv === 'true' ? true : (trustProxyEnv ?? false);
   // Quiet by default under the test runner (packages/server/package.json's
@@ -108,5 +124,19 @@ export function loadConfig(): AdminConfig {
   // in tests that want to assert on log output.
   const logLevel = process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'test' ? 'silent' : 'info');
   const sentryDsn = process.env.SENTRY_DSN;
-  return { port, webDistDir, baseUrl, googleOAuth, githubOAuth, smtp, databaseUrl, redisUrl, trustProxy, logLevel, sentryDsn };
+  return {
+    port,
+    webDistDir,
+    baseUrl,
+    googleOAuth,
+    githubOAuth,
+    smtp,
+    storageDriver,
+    databaseUrl,
+    redisUrl,
+    sqlitePath,
+    trustProxy,
+    logLevel,
+    sentryDsn,
+  };
 }

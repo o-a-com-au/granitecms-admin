@@ -10,6 +10,22 @@ import { openPostgresSiteInviteStore } from './store/postgres/site-invite-store.
 import { openPostgresSessionSecretStore } from './store/postgres/session-secret-store.ts';
 import { openPostgresSiteTokenEncryptionKeyStore } from './store/postgres/site-token-encryption-key-store.ts';
 import { openRedisSessionStore } from './store/redis-session-store.ts';
+import { openSqliteDb } from './store/sqlite/client.ts';
+import { openSqliteUserStore } from './store/sqlite/user-store.ts';
+import { openSqliteSiteStore } from './store/sqlite/site-store.ts';
+import { openSqliteSiteAccessStore } from './store/sqlite/site-access-store.ts';
+import { openSqliteSiteInviteStore } from './store/sqlite/site-invite-store.ts';
+import { openSqliteSessionSecretStore } from './store/sqlite/session-secret-store.ts';
+import { openSqliteSiteTokenEncryptionKeyStore } from './store/sqlite/site-token-encryption-key-store.ts';
+import { openSqliteSessionStore } from './store/sqlite/session-store.ts';
+import type { Store } from './store/store.ts';
+import type { UserStore } from './store/user-store.ts';
+import type { SiteStore } from './store/site-store.ts';
+import type { SiteAccessStore } from './store/site-access-store.ts';
+import type { SiteInviteStore } from './store/site-invite-store.ts';
+import type { SessionSecretRecord } from './auth/session-secret.ts';
+import type { SiteTokenEncryptionKeyRecord } from './sites/site-token-encryption-key.ts';
+import type { SessionRecord } from './auth/session-store-adapter.ts';
 import { ensureSessionSecret } from './auth/session-secret.ts';
 import { ensureSiteTokenEncryptionKey } from './sites/site-token-encryption-key.ts';
 import { ensureBootstrapAdmin } from './auth/bootstrap.ts';
@@ -28,19 +44,53 @@ if (config.sentryDsn) {
   Sentry.init({ dsn: config.sentryDsn });
 }
 
-const db = openDb(config.databaseUrl);
-const redis = new Redis(config.redisUrl);
+// storageDriver picks which real, persistent implementation of every
+// Store<T> gets constructed - 'sqlite' (default, no DATABASE_URL) needs
+// no external service at all; 'postgres' (DATABASE_URL set) is the same
+// stack this repo has always used. Everything from here on only ever
+// depends on the Store<T> interfaces, never on which branch ran.
+let usersStore: UserStore;
+let sessionSecretStore: Store<SessionSecretRecord>;
+let siteTokenEncryptionKeyStore: Store<SiteTokenEncryptionKeyRecord>;
+let sessionRecordStore: Store<SessionRecord>;
+let siteAccessStore: SiteAccessStore;
+let siteInviteStore: SiteInviteStore;
+let makeSitesStore: (encryptionKey: Buffer) => SiteStore;
+let closeStorage: () => Promise<void>;
 
-const usersStore = openPostgresUserStore(db);
-const sessionSecretStore = openPostgresSessionSecretStore(db);
-const siteTokenEncryptionKeyStore = openPostgresSiteTokenEncryptionKeyStore(db);
-const sessionRecordStore = openRedisSessionStore(redis);
-const siteAccessStore = openPostgresSiteAccessStore(db);
-const siteInviteStore = openPostgresSiteInviteStore(db);
+if (config.storageDriver === 'postgres') {
+  const db = openDb(config.databaseUrl);
+  const redis = new Redis(config.redisUrl);
+
+  usersStore = openPostgresUserStore(db);
+  sessionSecretStore = openPostgresSessionSecretStore(db);
+  siteTokenEncryptionKeyStore = openPostgresSiteTokenEncryptionKeyStore(db);
+  sessionRecordStore = openRedisSessionStore(redis);
+  siteAccessStore = openPostgresSiteAccessStore(db);
+  siteInviteStore = openPostgresSiteInviteStore(db);
+  makeSitesStore = (encryptionKey) => openPostgresSiteStore(db, encryptionKey);
+  closeStorage = async () => {
+    await db.$client.end();
+    redis.disconnect();
+  };
+} else {
+  const sqliteDb = openSqliteDb(config.sqlitePath);
+
+  usersStore = openSqliteUserStore(sqliteDb);
+  sessionSecretStore = openSqliteSessionSecretStore(sqliteDb);
+  siteTokenEncryptionKeyStore = openSqliteSiteTokenEncryptionKeyStore(sqliteDb);
+  sessionRecordStore = openSqliteSessionStore(sqliteDb);
+  siteAccessStore = openSqliteSiteAccessStore(sqliteDb);
+  siteInviteStore = openSqliteSiteInviteStore(sqliteDb);
+  makeSitesStore = (encryptionKey) => openSqliteSiteStore(sqliteDb, encryptionKey);
+  closeStorage = async () => {
+    sqliteDb.close();
+  };
+}
 
 const sessionSecret = await ensureSessionSecret(sessionSecretStore);
 const siteTokenEncryptionKey = await ensureSiteTokenEncryptionKey(siteTokenEncryptionKeyStore);
-const sitesStore = openPostgresSiteStore(db, siteTokenEncryptionKey);
+const sitesStore = makeSitesStore(siteTokenEncryptionKey);
 
 // Sequenced deliberately: role must be backfilled onto pre-existing
 // users before site ownership can be backfilled (it needs role
@@ -104,8 +154,7 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
 
   try {
     await app.close();
-    await db.$client.end();
-    redis.disconnect();
+    await closeStorage();
     app.log.info('shutdown complete');
     process.exit(0);
   } catch (error) {

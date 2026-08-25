@@ -12,10 +12,21 @@ same way every local dev/test invocation in this repo already does -
 not the `tsc`-compiled `dist/` output, which nothing in this project
 actually exercises today.
 
+## Storage backend
+
+Unset, this defaults to a bundled SQLite database (`data/admin.sqlite`,
+override the directory with `ADMIN_DATA_DIR`) - genuine persistence, not
+a trial mode, and fine for a real single-instance deployment. Setting
+`DATABASE_URL` switches to Postgres/Redis instead. Neither is a
+capability tier; pick Postgres/Redis for multi-instance deployments or
+when you'd rather point at an existing managed database.
+
 ## Required environment variables
 
-- `DATABASE_URL` - Postgres connection string.
-- `REDIS_URL` - Redis connection string.
+- `DATABASE_URL` - Postgres connection string. Omit to use the bundled
+  SQLite default instead (see above).
+- `REDIS_URL` - Redis connection string. Only consulted when
+  `DATABASE_URL` is set.
 - `ADMIN_BASE_URL` - the externally-reachable origin (e.g.
   `https://admin.example.com`). Used to build OAuth callback URLs and
   invite claim links - get this wrong and both break.

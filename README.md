@@ -37,6 +37,21 @@ admin's own session.
 ## Running it locally
 
 ```
+npm install
+npm run dev
+```
+
+No Docker, no database to provision - this defaults to a bundled SQLite
+database (`data/admin.sqlite`, override with `ADMIN_DATA_DIR`), a real,
+persistent store, not a trial mode. The bootstrap admin account is
+created on first boot and its one-time credentials are printed to the
+terminal. The web app runs on `http://localhost:5173` and proxies `/api`
+to the server on `http://localhost:4278`.
+
+Want to develop or test against real Postgres and Redis instead (the
+same stack a real deployment uses)?
+
+```
 npm run dev:setup
 ```
 
@@ -44,8 +59,9 @@ Brings up Postgres and Redis (`docker-compose.yml`), waits for Postgres to
 actually be ready, runs migrations, and starts both dev servers. Local
 login: `admin` / `admin` (fixed for local development only - see
 `scripts/dev-setup.sh` and `auth/bootstrap.ts`; never used for a real
-deploy). The web app runs on `http://localhost:5173` and proxies `/api` to
-the server on `http://localhost:4278`.
+deploy). Setting `DATABASE_URL` is what switches the storage backend from
+SQLite to Postgres/Redis - neither is a capability tier, both are fully
+supported, real persistence.
 
 Want a real site to point it at while you work? See the sibling
 `granitecms` repo's `create-site` command, or this repo's own
