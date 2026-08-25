@@ -56,7 +56,7 @@ node -e "
 const fs = require('node:fs');
 const path = process.argv[1] + '/vhost/package.json';
 const pkg = JSON.parse(fs.readFileSync(path, 'utf-8'));
-pkg.dependencies['@oa/cms-agent'] = 'file:' + process.argv[2];
+pkg.dependencies['@o-a/cms-agent'] = 'file:' + process.argv[2];
 fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
 " "$RUNTIME" "$TARBALL_PATH"
 (cd "$RUNTIME/vhost" && npm install --silent)

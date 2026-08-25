@@ -2,7 +2,7 @@
 
 A real theme and content set, used for manual "does this actually work" demos
 and live end-to-end verification of Phase 3 groups against a real running
-`@oa/cms-agent` instance - not the automated `npm test` suites, which keep
+`@o-a/cms-agent` instance - not the automated `npm test` suites, which keep
 their own small, disposable per-test fixtures.
 
 This directory is the tracked, immutable template. It has no `.git` of its
@@ -13,7 +13,7 @@ would hit an "embedded repository" problem the moment anything tried to
 
 - `npm run demo:setup` copies this template into `.demo-runtime/` (gitignored,
   at the repo root), `git init`s it there, and builds + packs + installs the
-  sibling `@oa/cms-agent` package from `../app-granite-cms` into it. Safe to
+  sibling `@o-a/cms-agent` package from `../app-granite-cms` into it. Safe to
   re-run any time you want the demo running the latest agent code - it only
   recreates `.demo-runtime` if missing.
 - `npm run demo:reset` wipes `.demo-runtime` first, so you get a clean copy of

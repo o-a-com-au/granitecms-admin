@@ -2,7 +2,7 @@
 
 ## What this project is
 
-The control-plane admin application for `@oa/cms-agent` sites: a site registry, sidebar editor, live preview, publish/discard controls, page history, and section/block editing, all driven by calling each registered site's versioned `/v1/` HTTP API.
+The control-plane admin application for `@o-a/cms-agent` sites: a site registry, sidebar editor, live preview, publish/discard controls, page history, and section/block editing, all driven by calling each registered site's versioned `/v1/` HTTP API.
 
 This repo has no build plan of its own. `../app-granite-cms/docs/cms-build-plan.md` and `../app-granite-cms/docs/phase-3-checklist.md` (in the sibling agent repo) are the source of truth for what gets built here, in what order, and why. Read the relevant group there before starting work on it.
 

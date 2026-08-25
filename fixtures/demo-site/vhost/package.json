@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@oa/cms-agent": "REPLACE_WITH_TARBALL_PATH"
+    "@o-a/cms-agent": "REPLACE_WITH_TARBALL_PATH"
   }
 }
