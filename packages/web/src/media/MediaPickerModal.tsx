@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { MediaLibrary } from './MediaLibrary.tsx';
 import type { MediaItem } from '../api/site-media.ts';
 
@@ -22,7 +23,17 @@ export function MediaPickerModal({ siteId, onSelect, onClose }: MediaPickerModal
     }
   }
 
-  return (
+  // Rendered via a portal to document.body rather than in place: this
+  // field is only ever used from inside SchemaField, which only ever
+  // renders inside .editor-fields-panel - and that panel carries a
+  // permanent transform (its off-canvas slide animation, still
+  // `translateX(0)` even while open, never `none`), which per the CSS
+  // spec makes it the containing block for any position: fixed
+  // descendant. Without the portal, .modal-overlay's "fixed, cover the
+  // viewport" sizing resolves against the panel's own box instead of
+  // the viewport, which is what made this look like it was opening
+  // inside the edit pane rather than over the whole page.
+  return createPortal(
     <div className="modal-overlay">
       <div className="media-picker-modal" role="dialog" aria-modal="true" aria-labelledby="media-picker-heading">
         <h2 id="media-picker-heading">Choose an image</h2>
@@ -38,6 +49,7 @@ export function MediaPickerModal({ siteId, onSelect, onClose }: MediaPickerModal
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

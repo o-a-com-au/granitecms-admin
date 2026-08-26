@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAddMenu } from './useAddMenu.ts';
 import {
   BulletListIcon,
@@ -325,13 +326,20 @@ export function RichTextField({ value, onChange, labelledBy }: RichTextFieldProp
   // every other modal already in this app (ConfirmDialog,
   // MediaPickerModal) - the toolbar's own toggle button is the one way
   // in and out.
+  // Portal to document.body for the same reason MediaPickerModal does:
+  // this field only ever renders inside .editor-fields-panel, whose
+  // permanent transform (translateX(0) even while open, never `none`)
+  // makes it the containing block for a position: fixed descendant -
+  // without the portal this modal opens inside the edit pane instead
+  // of over the whole page, same bug, same fix.
   if (expanded) {
-    return (
+    return createPortal(
       <div className="modal-overlay">
         <div className="richtext-field-modal" role="dialog" aria-modal="true" aria-label="Edit rich text">
           {fieldBox}
         </div>
-      </div>
+      </div>,
+      document.body,
     );
   }
   return fieldBox;
