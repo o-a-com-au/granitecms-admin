@@ -61,10 +61,17 @@ function RawJsonFallback({ value, onChange }: { value: unknown; onChange: (value
 // this project), so a library would be heavier than the problem
 // warrants - matching this project's consistent preference for the
 // simplest mechanism that actually works (same reasoning as choosing
-// plain jsdiff over a diff-viewer library in Group H).
+// plain jsdiff over a diff-viewer library in Group H). format also
+// picks a richer widget for textarea/uri/date/color strings and for
+// radio (an enum rendered as radio buttons instead of a <select>) -
+// all five are UI hints only, same as richtext/image: ajv runs with
+// strict:false and no ajv-formats, so none of these are validated
+// server-side, and a theme author who needs real validation still has
+// pattern/minLength/etc. available.
 export function SchemaField({ siteId, label, schema, value, onChange, error }: SchemaFieldProps) {
   const type = typeof schema.type === 'string' ? schema.type : undefined;
   const format = typeof schema.format === 'string' ? schema.format : undefined;
+  const isRadio = format === 'radio' && isEnumSchema(schema);
   const fieldId = useId();
 
   let control: React.ReactNode;
@@ -80,6 +87,26 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
     );
   } else if (format === 'image' && type === 'object') {
     control = <ImageField siteId={siteId} value={value} onChange={onChange} />;
+  } else if (isRadio) {
+    control = (
+      <div role="radiogroup" aria-labelledby={fieldId} className="schema-field-radiogroup">
+        {schema.enum.map((option) => {
+          const optionValue = String(option);
+          return (
+            <label key={optionValue} className="schema-field-radio-option">
+              <input
+                type="radio"
+                name={fieldId}
+                value={optionValue}
+                checked={String(value ?? '') === optionValue}
+                onChange={() => onChange(coerceEnumValue(schema.enum, optionValue))}
+              />
+              {optionValue}
+            </label>
+          );
+        })}
+      </div>
+    );
   } else if (isEnumSchema(schema)) {
     control = (
       <select value={String(value ?? '')} onChange={(event) => onChange(coerceEnumValue(schema.enum, event.target.value))}>
@@ -112,6 +139,35 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
         }}
       />
     );
+  } else if (format === 'textarea' && type === 'string') {
+    control = (
+      <textarea
+        minLength={typeof schema.minLength === 'number' ? schema.minLength : undefined}
+        maxLength={typeof schema.maxLength === 'number' ? schema.maxLength : undefined}
+        value={typeof value === 'string' ? value : ''}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    );
+  } else if (format === 'uri' && type === 'string') {
+    control = (
+      <input
+        type="url"
+        minLength={typeof schema.minLength === 'number' ? schema.minLength : undefined}
+        maxLength={typeof schema.maxLength === 'number' ? schema.maxLength : undefined}
+        value={typeof value === 'string' ? value : ''}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    );
+  } else if (format === 'date' && type === 'string') {
+    control = <input type="date" value={typeof value === 'string' ? value : ''} onChange={(event) => onChange(event.target.value)} />;
+  } else if (format === 'color' && type === 'string') {
+    control = (
+      <input
+        type="color"
+        value={typeof value === 'string' && value !== '' ? value : '#000000'}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    );
   } else if (type === 'string') {
     control = (
       <input
@@ -140,7 +196,12 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
   // it. RichTextField already sets aria-labelledby on its own editor
   // element, so it doesn't need the native label association here -
   // every other field type still does, and keeps the <label> wrapper.
-  const isCompoundField = format === 'richtext' && type === 'string';
+  // Radio shares the same reasoning for a different cause: it renders
+  // several of its own <label> elements (one per option, each properly
+  // associated with its own <input>), and a native <label> cannot
+  // nest inside another - the group's own aria-labelledby (set on its
+  // role="radiogroup" div above) covers the association instead.
+  const isCompoundField = (format === 'richtext' && type === 'string') || isRadio;
   const Wrapper = isCompoundField ? 'div' : 'label';
 
   // base.css styles every plain <label> (layout, muted colour,

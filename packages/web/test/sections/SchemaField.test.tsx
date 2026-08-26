@@ -131,6 +131,93 @@ describe('SchemaField', () => {
     expect(input.type).toBe('text');
   });
 
+  it('renders a <textarea> for format: "textarea", respecting minLength/maxLength', () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaField
+        siteId="site-1"
+        label="Bio"
+        schema={{ type: 'string', format: 'textarea', maxLength: 500 }}
+        value="Hello"
+        onChange={onChange}
+      />,
+    );
+
+    const textarea = screen.getByLabelText('Bio') as HTMLTextAreaElement;
+    expect(textarea.tagName).toBe('TEXTAREA');
+    expect(textarea.maxLength).toBe(500);
+    fireEvent.change(textarea, { target: { value: 'Updated' } });
+    expect(onChange).toHaveBeenCalledWith('Updated');
+  });
+
+  it('renders an <input type="url"> for format: "uri"', () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaField
+        siteId="site-1"
+        label="Website"
+        schema={{ type: 'string', format: 'uri' }}
+        value="https://example.com"
+        onChange={onChange}
+      />,
+    );
+
+    const input = screen.getByLabelText('Website') as HTMLInputElement;
+    expect(input.type).toBe('url');
+    fireEvent.change(input, { target: { value: 'https://example.org' } });
+    expect(onChange).toHaveBeenCalledWith('https://example.org');
+  });
+
+  it('renders an <input type="date"> for format: "date"', () => {
+    const onChange = vi.fn();
+    render(<SchemaField siteId="site-1" label="Published" schema={{ type: 'string', format: 'date' }} value="2026-08-26" onChange={onChange} />);
+
+    const input = screen.getByLabelText('Published') as HTMLInputElement;
+    expect(input.type).toBe('date');
+    fireEvent.change(input, { target: { value: '2026-09-01' } });
+    expect(onChange).toHaveBeenCalledWith('2026-09-01');
+  });
+
+  it('renders an <input type="color"> for format: "color", defaulting an absent value to black', () => {
+    const onChange = vi.fn();
+    render(<SchemaField siteId="site-1" label="Accent" schema={{ type: 'string', format: 'color' }} value={undefined} onChange={onChange} />);
+
+    const input = screen.getByLabelText('Accent') as HTMLInputElement;
+    expect(input.type).toBe('color');
+    expect(input.value).toBe('#000000');
+    fireEvent.change(input, { target: { value: '#ff6600' } });
+    expect(onChange).toHaveBeenCalledWith('#ff6600');
+  });
+
+  it('renders radio buttons for an enum field with format: "radio", not a <select>', () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaField
+        siteId="site-1"
+        label="Position"
+        schema={{ type: 'string', enum: ['left', 'right'], format: 'radio' }}
+        value="left"
+        onChange={onChange}
+      />,
+    );
+
+    const group = screen.getByRole('radiogroup', { name: 'Position' });
+    const [leftOption, rightOption] = screen.getAllByRole('radio') as HTMLInputElement[];
+    expect(leftOption).toBeDefined();
+    expect(rightOption).toBeDefined();
+    expect(leftOption?.checked).toBe(true);
+    fireEvent.click(rightOption as HTMLInputElement);
+    expect(onChange).toHaveBeenCalledWith('right');
+    expect(group).toBeDefined();
+  });
+
+  it('an enum field without format: "radio" still renders a <select>, not radio buttons', () => {
+    render(<SchemaField siteId="site-1" label="Position" schema={{ type: 'string', enum: ['left', 'right'] }} value="left" onChange={vi.fn()} />);
+
+    expect(screen.queryByRole('radiogroup')).toBeNull();
+    expect(screen.getByLabelText('Position').tagName).toBe('SELECT');
+  });
+
   it('I5: shows a field-specific error message when one is passed, not a generic banner', () => {
     render(
       <SchemaField siteId="site-1" label="Heading" schema={{ type: 'string' }} value="" onChange={vi.fn()} error="must be at least 1 character" />,
