@@ -7,6 +7,20 @@ afterEach(() => {
 });
 
 describe('ColorField - swatch grid (swatches configured)', () => {
+  it('always renders "No colour" first, then the declared swatches, then "+"', () => {
+    render(<ColorField value="#c2410c" swatches={['#c2410c', '#1d4ed8']} onChange={vi.fn()} />);
+
+    const buttons = screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'));
+    expect(buttons).toEqual(['No colour', '#c2410c', '#1d4ed8', 'Custom colour']);
+  });
+
+  it('places a custom (non-preset) value second, right after "No colour"', () => {
+    render(<ColorField value="#00ff00" swatches={['#c2410c', '#1d4ed8']} onChange={vi.fn()} />);
+
+    const buttons = screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'));
+    expect(buttons).toEqual(['No colour', 'Current colour: #00ff00', '#c2410c', '#1d4ed8', 'Custom colour']);
+  });
+
   it('renders one button per swatch, marking the current value pressed', () => {
     render(<ColorField value="#1d4ed8" swatches={['#c2410c', '#1d4ed8']} onChange={vi.fn()} />);
 

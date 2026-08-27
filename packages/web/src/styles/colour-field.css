@@ -58,6 +58,22 @@ button.colour-field-preview--none {
   );
 }
 
+/* base.css's button[type='button']:hover rule is a second shorthand
+   background reset, at even higher specificity (0,2,1) than the
+   plain button[type='button'] rule above was - the same
+   background-image wipeout happens again on hover unless this exact
+   selector shape is repeated with :hover appended. */
+button.colour-field-swatch--none:hover,
+button.colour-field-preview--none:hover {
+  background-image: linear-gradient(
+    to top right,
+    transparent calc(50% - 1px),
+    var(--colour-border) calc(50% - 1px),
+    var(--colour-border) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+}
+
 .colour-field-swatch--add {
   display: flex;
   align-items: center;

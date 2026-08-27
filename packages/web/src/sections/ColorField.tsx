@@ -51,6 +51,13 @@ function ColorSwatchGrid({ current, hasValue, swatches, onChange }: VariantProps
   return (
     <div className="colour-field">
       <div className="colour-field-swatch-grid" role="group" aria-label="Colour">
+        <button
+          type="button"
+          className="colour-field-swatch colour-field-swatch--none"
+          aria-label="No colour"
+          aria-pressed={!hasValue}
+          onClick={() => onChange('')}
+        />
         {isCustomValue && (
           <button
             type="button"
@@ -72,13 +79,6 @@ function ColorSwatchGrid({ current, hasValue, swatches, onChange }: VariantProps
             onClick={() => onChange(swatch)}
           />
         ))}
-        <button
-          type="button"
-          className="colour-field-swatch colour-field-swatch--none"
-          aria-label="No colour"
-          aria-pressed={!hasValue}
-          onClick={() => onChange('')}
-        />
         <button
           ref={addButtonRef}
           type="button"
