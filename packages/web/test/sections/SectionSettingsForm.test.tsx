@@ -105,6 +105,41 @@ describe('SectionSettingsForm', () => {
     });
   });
 
+  it('a fieldErrors entry for a property the schema no longer declares shows as its own callout, not silently dropped', () => {
+    render(
+      <SectionSettingsForm
+        siteId="site-1"
+        schema={HERO_SCHEMA}
+        settings={{ heading: 'Hi', columns: 2, radioField: 'left' }}
+        onChange={vi.fn()}
+        fieldErrors={{ radioField: 'This field is no longer used by the current theme.' }}
+      />,
+    );
+
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain('radioField');
+    expect(alert.textContent).toContain('This field is no longer used by the current theme.');
+    // It's a callout, not a SchemaField - no input/label was created for it.
+    expect(screen.queryByLabelText(/radioField/i)).toBeNull();
+  });
+
+  it('the callout\'s Remove button strips just that key, leaving every other setting untouched', () => {
+    const onChange = vi.fn();
+    render(
+      <SectionSettingsForm
+        siteId="site-1"
+        schema={HERO_SCHEMA}
+        settings={{ heading: 'Hi', columns: 2, radioField: 'left' }}
+        onChange={onChange}
+        fieldErrors={{ radioField: 'This field is no longer used by the current theme.' }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove radioField' }));
+
+    expect(onChange).toHaveBeenCalledWith({ heading: 'Hi', columns: 2 });
+  });
+
   it('falls back to raw settings editing for an unknown type, without discarding the instance', () => {
     const onChange = vi.fn();
     render(<SectionSettingsForm siteId="site-1" schema={undefined} settings={{ legacy: true }} onChange={onChange} />);

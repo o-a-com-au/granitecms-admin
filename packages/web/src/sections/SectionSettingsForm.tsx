@@ -42,6 +42,10 @@ function UnknownTypeFallback({ settings, onChange }: Pick<SectionSettingsFormPro
   );
 }
 
+function omitKey(settings: Record<string, unknown>, key: string): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(settings).filter(([settingsKey]) => settingsKey !== key));
+}
+
 // I3, I5: one SchemaField per settings-schema property. A type the
 // theme no longer declares (e.g. content authored against an older
 // theme version) falls back to raw settings editing rather than
@@ -52,6 +56,17 @@ export function SectionSettingsForm({ siteId, schema, settings, onChange, fieldE
   }
 
   const properties = (schema.properties ?? {}) as Record<string, Record<string, unknown>>;
+
+  // A fieldErrors key that doesn't match any property the schema still
+  // declares - in practice always additionalProperties (see page-
+  // content.ts's friendlyFieldErrorMessage), left over once a theme's
+  // settings shape changes after content was already authored against
+  // an older version of it. SchemaField has nothing to attach that
+  // error to any more, so without this branch it was a real, correctly
+  // detected error with no way to see or act on it - just an
+  // unexplained "has-error" dot on the section row (see SectionList's
+  // own hasError, driven by the exact same fieldErrors map).
+  const orphanedKeys = fieldErrors ? Object.keys(fieldErrors).filter((key) => !(key in properties)) : [];
 
   return (
     <div className="section-settings-form">
@@ -65,6 +80,16 @@ export function SectionSettingsForm({ siteId, schema, settings, onChange, fieldE
           onChange={(value) => onChange({ ...settings, [key]: value })}
           error={fieldErrors?.[key]}
         />
+      ))}
+      {orphanedKeys.map((key) => (
+        <div className="orphaned-field-alert" role="alert" key={key}>
+          <p>
+            <strong>{key}</strong>: {fieldErrors?.[key]}
+          </p>
+          <button type="button" onClick={() => onChange(omitKey(settings, key))}>
+            Remove {key}
+          </button>
+        </div>
       ))}
     </div>
   );

@@ -63,6 +63,15 @@ function friendlyFieldErrorMessage(error: ValidationFieldError): string {
   if (error.keyword === 'minLength' || error.keyword === 'required') {
     return 'This field is required.';
   }
+  // additionalProperties fires when the theme's own settings schema no
+  // longer declares a property this content still has a value for
+  // (e.g. a field renamed or removed after the content was authored) -
+  // Ajv's stock "must NOT have additional properties" names neither the
+  // property nor why, which reads as a bug report rather than something
+  // an editor can act on.
+  if (error.keyword === 'additionalProperties') {
+    return 'This field is no longer used by the current theme.';
+  }
   return error.message;
 }
 
