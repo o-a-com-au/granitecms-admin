@@ -477,11 +477,22 @@ export function PageEditorPage() {
     return () => clearTimeout(timer);
   }, [contentLoaded, sidebarRevealed]);
 
+  // validationErrors present means this specific failure already has a
+  // proper home: SchemaField renders each one inline, right under the
+  // field that's actually wrong (SectionFieldsPanel/buildFieldErrorMap).
+  // A toast on top of that was pure duplication - worse, autosave
+  // retries on every debounced edit while the content stays invalid,
+  // so a still-invalid field (e.g. dragging a range slider, or typing
+  // through an in-progress value) fired a fresh toast on every retry,
+  // stacking distracting, semi-transparent banners directly over the
+  // fields panel rather than settling once you fix the field. A toast
+  // still fires for anything without per-field detail to show instead
+  // (network failures, unexpected server errors).
   useEffect(() => {
-    if (status === 'save-error' && errorMessage) {
+    if (status === 'save-error' && errorMessage && !validationErrors) {
       showToast(errorMessage);
     }
-  }, [status, errorMessage, showToast]);
+  }, [status, errorMessage, validationErrors, showToast]);
 
   useEffect(() => {
     if (actionError) {

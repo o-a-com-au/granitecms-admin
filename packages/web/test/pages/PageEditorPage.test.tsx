@@ -47,6 +47,12 @@ interface FakeState {
   // of the ETag check - for asserting on the resulting 'save-error'
   // state (and that Save Changes becomes unclickable while in it).
   forceDraftSaveError?: boolean;
+  // Same 400 failure as forceDraftSaveError, but with a real `errors`
+  // array attached - matching the agent's actual ajv-validation-failure
+  // shape, and the one case SchemaField can show inline per field. Used
+  // to prove the save-error toast is suppressed whenever that inline
+  // home exists, unlike the toast-worthy forceDraftSaveError case above.
+  forceDraftValidationError?: boolean;
   // Backs the site's content listing (GET /content, no trailing path -
   // distinct from the single-item GET /content/:path read below) that
   // PageEditorPage indexes url -> path from, for the preview-click-to-
@@ -120,6 +126,17 @@ function installFakeEditorApi(initial: FakeState) {
       if (state.forceDraftSaveError) {
         return new Response(
           JSON.stringify({ statusCode: 400, error: 'Bad Request', message: 'must have required property \'name\'' }),
+          { status: 400 },
+        );
+      }
+      if (state.forceDraftValidationError) {
+        return new Response(
+          JSON.stringify({
+            statusCode: 400,
+            error: 'Bad Request',
+            message: 'The site rejected this content as invalid.',
+            errors: [{ path: '/name', message: 'must have required property \'name\'', keyword: 'required' }],
+          }),
           { status: 400 },
         );
       }
@@ -319,6 +336,26 @@ describe('PageEditorPage', () => {
 
     await waitFor(() => expect(screen.getByText('must have required property \'name\'')).toBeDefined(), PAST_DEBOUNCE);
     expect(screen.getByRole('button', { name: 'Save Changes' })).toHaveProperty('disabled', true);
+  });
+
+  it('does not toast a save-error that has a real validationErrors array - SchemaField already shows those inline', async () => {
+    installFakeEditorApi({
+      content: '{"title":"Hi","name":"Hi"}',
+      etag: '"etag-1"',
+      source: 'draft',
+      forceDraftValidationError: true,
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+
+    fireEvent.change(screen.getByLabelText('Content'), { target: { value: '{"title":"Edited","name":"Edited"}' } });
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: 'Save Changes' })).toHaveProperty('disabled', true),
+      PAST_DEBOUNCE,
+    );
+    expect(screen.queryByText('The site rejected this content as invalid.')).toBeNull();
+    expect(document.querySelector('.toast-error')).toBeNull();
   });
 
   it('shows a clear message while JSON is invalid, and never sends it', async () => {
