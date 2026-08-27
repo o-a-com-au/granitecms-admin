@@ -12,6 +12,29 @@
   min-width: 0;
 }
 
+/* base.css's global input:focus rule (a rectangular outline, meant for
+   text-shaped inputs) looks wrong around a slider's own thin track -
+   overridden here in favour of a ring on just the thumb, the usual
+   accessible pattern for range inputs. Not simply removed: a keyboard
+   user tabbing to the slider still needs a visible focus indicator,
+   just one that fits the control's actual shape. -webkit and -moz
+   need their own separate rules - a shared selector list would be
+   invalidated by whichever browser doesn't recognise the other's
+   pseudo-element. */
+.range-field input[type='range']:focus {
+  outline: none;
+}
+
+.range-field input[type='range']:focus::-webkit-slider-thumb {
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--colour-primary);
+}
+
+.range-field input[type='range']:focus::-moz-range-thumb {
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--colour-primary);
+}
+
 .range-field-value {
   display: flex;
   align-items: center;
