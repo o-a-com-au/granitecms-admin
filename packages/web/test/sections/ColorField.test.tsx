@@ -1,27 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ColorField } from '../../src/sections/ColorField.tsx';
 
 afterEach(() => {
   cleanup();
 });
 
-describe('ColorField', () => {
-  function nativeColorInput(): HTMLInputElement {
-    return document.querySelector('input[type="color"]') as HTMLInputElement;
-  }
-
-  function hexInput(): HTMLInputElement {
-    return document.querySelector('.colour-field-hex-input') as HTMLInputElement;
-  }
-
-  it('renders no swatch group when the list is empty', () => {
-    render(<ColorField value="#c2410c" swatches={[]} onChange={vi.fn()} />);
-
-    expect(screen.queryByRole('group')).toBeNull();
-    expect(nativeColorInput().value).toBe('#c2410c');
-  });
-
+describe('ColorField - swatch grid (swatches configured)', () => {
   it('renders one button per swatch, marking the current value pressed', () => {
     render(<ColorField value="#1d4ed8" swatches={['#c2410c', '#1d4ed8']} onChange={vi.fn()} />);
 
@@ -40,39 +25,111 @@ describe('ColorField', () => {
     expect(onChange).toHaveBeenCalledWith('#1d4ed8');
   });
 
-  it('the native colour input still accepts a value outside the swatch list', () => {
+  it('renders a "No colour" button, pressed only when the value is unset', () => {
+    render(<ColorField value={undefined} swatches={['#c2410c']} onChange={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'No colour' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('clicking "No colour" clears the value', () => {
     const onChange = vi.fn();
-    render(<ColorField value="#c2410c" swatches={['#c2410c', '#1d4ed8']} onChange={onChange} />);
+    render(<ColorField value="#c2410c" swatches={['#c2410c']} onChange={onChange} />);
 
-    fireEvent.change(nativeColorInput(), { target: { value: '#00ff00' } });
-    expect(onChange).toHaveBeenCalledWith('#00ff00');
-  });
-
-  it('defaults an absent/empty value to black for the native input', () => {
-    render(<ColorField value={undefined} swatches={[]} onChange={vi.fn()} />);
-
-    expect(nativeColorInput().value).toBe('#000000');
-  });
-
-  it('shows no Clear button when no colour is set', () => {
-    render(<ColorField value={undefined} swatches={[]} onChange={vi.fn()} />);
-
-    expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull();
-  });
-
-  it('Clear resets the value to empty once a colour is set', () => {
-    const onChange = vi.fn();
-    render(<ColorField value="#c2410c" swatches={[]} onChange={onChange} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
-
+    fireEvent.click(screen.getByRole('button', { name: 'No colour' }));
     expect(onChange).toHaveBeenCalledWith('');
   });
 
-  it('shows the current value in the hex text input too', () => {
+  it('shows no extra "current colour" cell when the value matches a declared swatch', () => {
+    render(<ColorField value="#c2410c" swatches={['#c2410c', '#1d4ed8']} onChange={vi.fn()} />);
+
+    expect(screen.queryByLabelText(/^Current colour/)).toBeNull();
+  });
+
+  it('shows a leading, pressed "current colour" cell when the value does not match any declared swatch', () => {
+    render(<ColorField value="#00ff00" swatches={['#c2410c', '#1d4ed8']} onChange={vi.fn()} />);
+
+    const current = screen.getByLabelText('Current colour: #00ff00');
+    expect(current.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('clicking the "+" button opens the custom colour popover', () => {
+    render(<ColorField value="#c2410c" swatches={['#c2410c']} onChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Custom colour' }));
+
+    expect(screen.getByRole('dialog', { name: 'Choose a colour' })).toBeDefined();
+  });
+
+  it('clicking the leading "current colour" cell also opens the popover', () => {
+    render(<ColorField value="#00ff00" swatches={['#c2410c']} onChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText('Current colour: #00ff00'));
+
+    expect(screen.getByRole('dialog', { name: 'Choose a colour' })).toBeDefined();
+  });
+
+  it('picking a colour via the popover\'s hex input commits through onChange', async () => {
+    const onChange = vi.fn();
+    render(<ColorField value="#c2410c" swatches={['#c2410c']} onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Custom colour' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Choose a colour' });
+    const popoverHex = dialog.querySelector('.colour-picker-popover-hex-input') as HTMLInputElement;
+    fireEvent.change(popoverHex, { target: { value: '#00ff00' } });
+    fireEvent.blur(popoverHex);
+
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith('#00ff00'));
+  });
+});
+
+describe('ColorField - hex row (no swatches configured)', () => {
+  function hexInput(): HTMLInputElement {
+    return document.querySelector('.colour-field-hex-input') as HTMLInputElement;
+  }
+
+  function preview(): HTMLButtonElement {
+    return document.querySelector('.colour-field-preview') as HTMLButtonElement;
+  }
+
+  it('renders no swatch grid at all', () => {
+    render(<ColorField value="#c2410c" swatches={[]} onChange={vi.fn()} />);
+
+    expect(document.querySelector('.colour-field-swatch-grid')).toBeNull();
+  });
+
+  it('shows the "no colour" style on the preview when unset', () => {
+    render(<ColorField value={undefined} swatches={[]} onChange={vi.fn()} />);
+
+    expect(preview().className).toContain('colour-field-preview--none');
+  });
+
+  it('shows the real colour on the preview once a value is set', () => {
+    render(<ColorField value="#c2410c" swatches={[]} onChange={vi.fn()} />);
+
+    expect(preview().className).not.toContain('colour-field-preview--none');
+    expect(preview().style.backgroundColor).toBe('rgb(194, 65, 12)');
+  });
+
+  it('shows the current value in the hex input', () => {
     render(<ColorField value="#c2410c" swatches={[]} onChange={vi.fn()} />);
 
     expect(hexInput().value).toBe('#c2410c');
+  });
+
+  it('shows no Clear button while unset, and shows one once a colour is set', () => {
+    const { rerender } = render(<ColorField value={undefined} swatches={[]} onChange={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Clear colour' })).toBeNull();
+
+    rerender(<ColorField value="#c2410c" swatches={[]} onChange={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Clear colour' })).toBeDefined();
+  });
+
+  it('Clear resets the value to empty', () => {
+    const onChange = vi.fn();
+    render(<ColorField value="#c2410c" swatches={[]} onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear colour' }));
+    expect(onChange).toHaveBeenCalledWith('');
   });
 
   it('typing in the hex input does not commit until blur', () => {
@@ -134,5 +191,13 @@ describe('ColorField', () => {
     fireEvent.blur(hexInput());
 
     expect(onChange).toHaveBeenCalledWith('');
+  });
+
+  it('clicking the preview opens the custom colour popover', () => {
+    render(<ColorField value="#c2410c" swatches={[]} onChange={vi.fn()} />);
+
+    fireEvent.click(preview());
+
+    expect(screen.getByRole('dialog', { name: 'Choose a colour' })).toBeDefined();
   });
 });

@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { ColorPickerPopover } from './ColorPickerPopover.tsx';
+import { normalizeHex } from './colour-utils.ts';
 
 export interface ColorFieldProps {
   value: unknown;
@@ -6,45 +8,103 @@ export interface ColorFieldProps {
   onChange: (value: string) => void;
 }
 
-// Accepts with or without a leading #, 3- or 6-digit, either case -
-// normalized to a lowercase #rrggbb, the one strict shape the native
-// <input type="color"> itself will accept as a value. Returns null for
-// anything else (an in-progress or genuinely invalid string) rather
-// than guessing - the caller decides what to do with that.
-function normalizeHex(input: string): string | null {
-  const trimmed = input.trim().replace(/^#/, '');
-  if (/^[0-9a-fA-F]{6}$/.test(trimmed)) {
-    return `#${trimmed.toLowerCase()}`;
-  }
-  if (/^[0-9a-fA-F]{3}$/.test(trimmed)) {
-    return `#${trimmed
-      .toLowerCase()
-      .split('')
-      .map((digit) => digit + digit)
-      .join('')}`;
-  }
-  return null;
+function sameColor(a: string, b: string): boolean {
+  return a.toLowerCase() === b.toLowerCase();
 }
 
-// The native <input type="color"> stays the source of truth and the
-// only way to enter something not in the swatch list - swatches are a
-// fast path onto the exact same onChange, never a separate, restricted
-// mode. This is why the theme's own "swatches" keyword (SchemaField's
-// format: "color" branch) is deliberately not "enum": an enum is a
-// real, Ajv-enforced constraint, which would reject a genuinely custom
-// colour outright - swatches are only ever a suggestion.
+// Two genuinely different layouts depending on whether the theme
+// declared any swatches at all - real child components, each owning
+// only the state it actually needs, rather than one component
+// branching partway through on a shared set of hooks (React's rules
+// of hooks don't allow conditionally skipping some of a component's
+// own hooks based on a prop, even one that's static in practice for
+// any given field instance).
 export function ColorField({ value, swatches, onChange }: ColorFieldProps) {
   const hasValue = typeof value === 'string' && value !== '';
   const current = hasValue ? (value as string) : '#000000';
-  // A browser's native colour-picker popup (opened by clicking the
-  // swatch) can't be styled or added to via any web API - this text
-  // input is the practical equivalent, a normal sibling control, not
-  // something injected into that native popup. Buffers local text and
-  // only commits (normalizing via normalizeHex) on blur/Enter, the
-  // same "let them finish typing" pattern RangeField's own number box
-  // uses - committing on every keystroke would make it impossible to
-  // type a full 6-digit hex without each partial prefix along the way
-  // being rejected as invalid.
+
+  if (swatches.length > 0) {
+    return <ColorSwatchGrid current={current} hasValue={hasValue} swatches={swatches} onChange={onChange} />;
+  }
+  return <ColorHexRow current={current} hasValue={hasValue} onChange={onChange} />;
+}
+
+interface VariantProps {
+  current: string;
+  hasValue: boolean;
+  onChange: (value: string) => void;
+}
+
+// Variant A (swatches configured): every declared swatch as a grid
+// button, plus two fixed utility cells (None to clear, + to open the
+// full custom picker) - and, only while the current value doesn't
+// match any declared swatch, one extra leading cell showing/
+// highlighting that value. That leading cell is purely a transient
+// display of the current value, never written back into the theme's
+// own swatches list - the schema's swatches are fixed by the theme
+// author, not something a content editor's picks can add to.
+function ColorSwatchGrid({ current, hasValue, swatches, onChange }: VariantProps & { swatches: string[] }) {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
+  const isCustomValue = hasValue && !swatches.some((swatch) => sameColor(swatch, current));
+
+  return (
+    <div className="colour-field">
+      <div className="colour-field-swatch-grid" role="group" aria-label="Colour">
+        {isCustomValue && (
+          <button
+            type="button"
+            className="colour-field-swatch colour-field-swatch--current"
+            style={{ backgroundColor: current }}
+            aria-label={`Current colour: ${current}`}
+            aria-pressed="true"
+            onClick={() => setPopoverOpen((open) => !open)}
+          />
+        )}
+        {swatches.map((swatch) => (
+          <button
+            key={swatch}
+            type="button"
+            className="colour-field-swatch"
+            style={{ backgroundColor: swatch }}
+            aria-label={swatch}
+            aria-pressed={hasValue && sameColor(swatch, current)}
+            onClick={() => onChange(swatch)}
+          />
+        ))}
+        <button
+          type="button"
+          className="colour-field-swatch colour-field-swatch--none"
+          aria-label="No colour"
+          aria-pressed={!hasValue}
+          onClick={() => onChange('')}
+        />
+        <button
+          ref={addButtonRef}
+          type="button"
+          className="colour-field-swatch colour-field-swatch--add"
+          aria-label="Custom colour"
+          aria-expanded={popoverOpen}
+          onClick={() => setPopoverOpen((open) => !open)}
+        >
+          +
+        </button>
+      </div>
+      {popoverOpen && (
+        <ColorPickerPopover anchorRef={addButtonRef} value={current} onChange={onChange} onClose={() => setPopoverOpen(false)} />
+      )}
+    </div>
+  );
+}
+
+// Variant B (no swatches declared): a preview square (opens the same
+// custom picker) plus an always-visible hex input - closer to the
+// field's original shape from before swatches existed. Clear only
+// shows once a value is actually set, same reasoning as ImageField's
+// own Remove button.
+function ColorHexRow({ current, hasValue, onChange }: VariantProps) {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const previewRef = useRef<HTMLButtonElement>(null);
   const [hexText, setHexText] = useState(current);
 
   useEffect(() => {
@@ -66,28 +126,21 @@ export function ColorField({ value, swatches, onChange }: ColorFieldProps) {
 
   return (
     <div className="colour-field">
-      {swatches.length > 0 && (
-        <div className="colour-field-swatches" role="group" aria-label="Preset colours">
-          {swatches.map((swatch) => (
-            <button
-              key={swatch}
-              type="button"
-              className="colour-field-swatch"
-              style={{ backgroundColor: swatch }}
-              aria-label={swatch}
-              aria-pressed={current.toLowerCase() === swatch.toLowerCase()}
-              onClick={() => onChange(swatch)}
-            />
-          ))}
-        </div>
-      )}
       <div className="colour-field-input-row">
-        <input type="color" value={current} onChange={(event) => onChange(event.target.value)} />
+        <button
+          ref={previewRef}
+          type="button"
+          className={`colour-field-preview${hasValue ? '' : ' colour-field-preview--none'}`}
+          style={hasValue ? { backgroundColor: current } : undefined}
+          aria-label="Choose a colour"
+          aria-expanded={popoverOpen}
+          onClick={() => setPopoverOpen((open) => !open)}
+        />
         <input
           type="text"
           className="colour-field-hex-input"
           value={hexText}
-          placeholder="#000000"
+          placeholder="#"
           spellCheck={false}
           onChange={(event) => setHexText(event.target.value)}
           onBlur={(event) => commitHexText(event.target.value)}
@@ -98,16 +151,15 @@ export function ColorField({ value, swatches, onChange }: ColorFieldProps) {
             }
           }}
         />
-        {/* The native input can never itself be blank (browsers coerce
-            an empty value to black), so clearing back to "no colour
-            set" needs its own explicit action - same gap ImageField
-            had before its own Remove button. */}
         {hasValue && (
-          <button type="button" className="colour-field-clear" onClick={() => onChange('')}>
-            Clear
+          <button type="button" className="colour-field-clear" aria-label="Clear colour" onClick={() => onChange('')}>
+            ×
           </button>
         )}
       </div>
+      {popoverOpen && (
+        <ColorPickerPopover anchorRef={previewRef} value={current} onChange={onChange} onClose={() => setPopoverOpen(false)} />
+      )}
     </div>
   );
 }

@@ -220,15 +220,15 @@ describe('SchemaField', () => {
     expect(onChange).toHaveBeenCalledWith('2026-09-01');
   });
 
-  it('renders an <input type="color"> for format: "color", defaulting an absent value to black', () => {
+  // ColorField.test.tsx covers the color widget's own two variants in
+  // full - this just confirms SchemaField actually wires format:
+  // "color" (no swatches, here) to it.
+  it('renders a ColorField (no-swatches variant) for format: "color"', () => {
     const onChange = vi.fn();
     render(<SchemaField siteId="site-1" label="Accent" schema={{ type: 'string', format: 'color' }} value={undefined} onChange={onChange} />);
 
-    const input = screen.getByLabelText('Accent') as HTMLInputElement;
-    expect(input.type).toBe('color');
-    expect(input.value).toBe('#000000');
-    fireEvent.change(input, { target: { value: '#ff6600' } });
-    expect(onChange).toHaveBeenCalledWith('#ff6600');
+    expect(document.querySelector('.colour-field-hex-input')).not.toBeNull();
+    expect(document.querySelector('.colour-field-swatch-grid')).toBeNull();
   });
 
   it('a format: "color" field with both swatches and enum still renders ColorField, not a <select>', () => {
@@ -244,7 +244,7 @@ describe('SchemaField', () => {
     );
 
     expect(screen.queryByRole('combobox')).toBeNull();
-    expect(screen.getByRole('group', { name: 'Preset colours' })).toBeDefined();
+    expect(screen.getByRole('group', { name: 'Colour' })).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: '#1d4ed8' }));
     expect(onChange).toHaveBeenCalledWith('#1d4ed8');
   });
