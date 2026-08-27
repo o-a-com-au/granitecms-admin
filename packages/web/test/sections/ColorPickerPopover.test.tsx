@@ -51,13 +51,25 @@ describe('ColorPickerPopover', () => {
     expect(onChange).toHaveBeenCalledWith('#1d4ed8');
   });
 
-  it('pressing Enter commits immediately, same as blur', () => {
-    const { onChange } = renderPopover();
+  it('pressing Enter commits and closes the popover, same as the tick button', () => {
+    const { onChange, onClose } = renderPopover();
 
     fireEvent.change(popoverHex(), { target: { value: '#1d4ed8' } });
     fireEvent.keyDown(popoverHex(), { key: 'Enter' });
 
     expect(onChange).toHaveBeenCalledWith('#1d4ed8');
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('pressing Enter on an invalid hex reverts the text and does not close', () => {
+    const { onChange, onClose } = renderPopover();
+
+    fireEvent.change(popoverHex(), { target: { value: 'nope' } });
+    fireEvent.keyDown(popoverHex(), { key: 'Enter' });
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(popoverHex().value).toBe('#c2410c');
   });
 
   it('blurring an invalid hex reverts the text without calling onChange', () => {
@@ -67,6 +79,27 @@ describe('ColorPickerPopover', () => {
     fireEvent.blur(popoverHex());
 
     expect(onChange).not.toHaveBeenCalled();
+    expect(popoverHex().value).toBe('#c2410c');
+  });
+
+  it('clicking the tick button approves the typed hex and closes the popover', () => {
+    const { onChange, onClose } = renderPopover();
+
+    fireEvent.change(popoverHex(), { target: { value: '#1d4ed8' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Approve colour' }));
+
+    expect(onChange).toHaveBeenCalledWith('#1d4ed8');
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('clicking the tick button with an invalid hex reverts the text and does not close', () => {
+    const { onChange, onClose } = renderPopover();
+
+    fireEvent.change(popoverHex(), { target: { value: 'nope' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Approve colour' }));
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
     expect(popoverHex().value).toBe('#c2410c');
   });
 

@@ -97,13 +97,23 @@ export function ColorPickerPopover({ anchorRef, value, onChange, onClose }: Colo
     };
   }, [anchorRef, onClose]);
 
-  function commitHexText(raw: string): void {
+  // Returns whether the text actually committed - the tick button (and
+  // Enter, which now behaves the same way) only closes the popover
+  // once there's a real committed value, never on an invalid entry.
+  function commitHexText(raw: string): boolean {
     const normalized = normalizeHex(raw);
     if (normalized === null) {
       setHexText(value);
-      return;
+      return false;
     }
     onChange(normalized);
+    return true;
+  }
+
+  function handleApprove(raw: string): void {
+    if (commitHexText(raw)) {
+      onClose();
+    }
   }
 
   return createPortal(
@@ -119,21 +129,31 @@ export function ColorPickerPopover({ anchorRef, value, onChange, onClose }: Colo
       }}
     >
       <HexColorPicker color={value} onChange={onChange} />
-      <input
-        type="text"
-        className="colour-picker-popover-hex-input"
-        value={hexText}
-        placeholder="#000000"
-        spellCheck={false}
-        onChange={(event) => setHexText(event.target.value)}
-        onBlur={(event) => commitHexText(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            commitHexText(event.currentTarget.value);
-          }
-        }}
-      />
+      <div className="colour-picker-popover-hex-row">
+        <input
+          type="text"
+          className="colour-picker-popover-hex-input"
+          value={hexText}
+          placeholder="#000000"
+          spellCheck={false}
+          onChange={(event) => setHexText(event.target.value)}
+          onBlur={(event) => commitHexText(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              handleApprove(event.currentTarget.value);
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="colour-picker-popover-approve"
+          aria-label="Approve colour"
+          onClick={() => handleApprove(hexText)}
+        >
+          ✓
+        </button>
+      </div>
     </div>,
     document.body,
   );
