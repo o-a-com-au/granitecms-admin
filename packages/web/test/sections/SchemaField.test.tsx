@@ -7,8 +7,11 @@ afterEach(() => {
 });
 
 describe('SchemaField', () => {
-  // Real fixture schema: fixtures/demo-site/theme/blocks/button.liquid's style field.
-  it('I3: renders a <select> for an enum field, sourced from the real button.style schema', () => {
+  // Real fixture schema: fixtures/demo-site/theme/blocks/button.liquid's
+  // style field - 3 short options, so SelectField auto-picks tabs over
+  // a <select> (SelectField.test.tsx covers the decision logic itself
+  // in full; this just confirms SchemaField actually wires enum to it).
+  it('I3: renders an enum field via SelectField, sourced from the real button.style schema', () => {
     const onChange = vi.fn();
     render(
       <SchemaField
@@ -20,9 +23,8 @@ describe('SchemaField', () => {
       />,
     );
 
-    const select = screen.getByLabelText('Style') as HTMLSelectElement;
-    expect(select.tagName).toBe('SELECT');
-    fireEvent.change(select, { target: { value: 'on-dark' } });
+    expect(screen.queryByRole('combobox')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'on-dark' }));
     expect(onChange).toHaveBeenCalledWith('on-dark');
   });
 
@@ -247,33 +249,18 @@ describe('SchemaField', () => {
     expect(onChange).toHaveBeenCalledWith('#1d4ed8');
   });
 
-  it('renders radio buttons for an enum field with format: "radio", not a <select>', () => {
-    const onChange = vi.fn();
+  it('an enum with more than 3 options renders as a <select>, not tabs', () => {
     render(
       <SchemaField
         siteId="site-1"
-        label="Position"
-        schema={{ type: 'string', enum: ['left', 'right'], format: 'radio' }}
-        value="left"
-        onChange={onChange}
+        label="Size"
+        schema={{ type: 'string', enum: ['xs', 'sm', 'md', 'lg'] }}
+        value="sm"
+        onChange={vi.fn()}
       />,
     );
 
-    const group = screen.getByRole('radiogroup', { name: 'Position' });
-    const [leftOption, rightOption] = screen.getAllByRole('radio') as HTMLInputElement[];
-    expect(leftOption).toBeDefined();
-    expect(rightOption).toBeDefined();
-    expect(leftOption?.checked).toBe(true);
-    fireEvent.click(rightOption as HTMLInputElement);
-    expect(onChange).toHaveBeenCalledWith('right');
-    expect(group).toBeDefined();
-  });
-
-  it('an enum field without format: "radio" still renders a <select>, not radio buttons', () => {
-    render(<SchemaField siteId="site-1" label="Position" schema={{ type: 'string', enum: ['left', 'right'] }} value="left" onChange={vi.fn()} />);
-
-    expect(screen.queryByRole('radiogroup')).toBeNull();
-    expect(screen.getByLabelText('Position').tagName).toBe('SELECT');
+    expect(screen.getByLabelText('Size').tagName).toBe('SELECT');
   });
 
   it('I5: shows a field-specific error message when one is passed, not a generic banner', () => {

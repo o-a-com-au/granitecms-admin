@@ -3,6 +3,7 @@ import { ColorField } from './ColorField.tsx';
 import { ImageField } from './ImageField.tsx';
 import { RangeField } from './RangeField.tsx';
 import { RichTextField } from './RichTextField.tsx';
+import { SelectField } from './SelectField.tsx';
 import { ToggleField } from './ToggleField.tsx';
 
 export interface SchemaFieldProps {
@@ -43,14 +44,6 @@ function colorSwatches(value: unknown): string[] {
   return value.filter((entry): entry is string => typeof entry === 'string');
 }
 
-// Native <select> values are always strings - map back to whichever
-// original enum entry stringifies to the selected one, so a non-
-// string enum (not seen in any real theme file today, but ajv itself
-// doesn't forbid it) still round-trips to its real type.
-function coerceEnumValue(enumValues: unknown[], selected: string): unknown {
-  return enumValues.find((entry) => String(entry) === selected) ?? selected;
-}
-
 // I3: an invalid settings shape (object/array, or a schema this
 // mapper doesn't otherwise recognise) falls back to a per-field raw
 // JSON textarea rather than silently dropping the field - it stays
@@ -82,26 +75,29 @@ function RawJsonFallback({ value, onChange }: { value: unknown; onChange: (value
 }
 
 // I3: maps one settings-schema property to an appropriate input -
-// enum -> select, string -> text, integer/number -> number, boolean
-// -> checkbox, anything else -> the raw-JSON fallback above. A small
-// custom mapper, not a JSON-Schema-form library: the schema surface
-// here is narrow and flat (confirmed against every real theme file in
-// this project), so a library would be heavier than the problem
-// warrants - matching this project's consistent preference for the
-// simplest mechanism that actually works (same reasoning as choosing
-// plain jsdiff over a diff-viewer library in Group H). format also
-// picks a richer widget for textarea/uri/date/color strings, for
-// radio (an enum rendered as radio buttons instead of a <select>), for
+// enum -> SelectField (tabs or a <select>, decided automatically - see
+// that file's own comment), string -> text, integer/number -> number,
+// boolean -> checkbox, anything else -> the raw-JSON fallback above. A
+// small custom mapper, not a JSON-Schema-form library: the schema
+// surface here is narrow and flat (confirmed against every real theme
+// file in this project), so a library would be heavier than the
+// problem warrants - matching this project's consistent preference
+// for the simplest mechanism that actually works (same reasoning as
+// choosing plain jsdiff over a diff-viewer library in Group H). format
+// also picks a richer widget for textarea/uri/date/color strings, for
 // range (a number with both minimum and maximum, rendered as a slider
 // plus a number box), and for toggle (a boolean rendered as a switch
-// instead of a plain checkbox) - all seven are UI hints only, same as
+// instead of a plain checkbox) - all six are UI hints only, same as
 // richtext/image: ajv runs with strict:false and no ajv-formats, so
 // none of these are validated server-side, and a theme author who
 // needs real validation still has pattern/minLength/etc. available.
+// enum has no format opt-in at all any more - format: "radio" used to
+// pick a segmented-tab look over a <select>, but SelectField now
+// decides that for itself from the option count/label length, so
+// there's nothing left for a theme author to choose.
 export function SchemaField({ siteId, label, schema, value, onChange, error }: SchemaFieldProps) {
   const type = typeof schema.type === 'string' ? schema.type : undefined;
   const format = typeof schema.format === 'string' ? schema.format : undefined;
-  const isRadio = format === 'radio' && isEnumSchema(schema);
   const fieldId = useId();
 
   let control: React.ReactNode;
@@ -118,43 +114,15 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
   } else if (format === 'image' && type === 'object') {
     control = <ImageField siteId={siteId} value={value} onChange={onChange} />;
   } else if (format === 'color' && type === 'string') {
-    // Checked ahead of isRadio/isEnumSchema below: a colour field may
-    // declare its own "swatches" (a plain array of hex strings, not
-    // "enum" - see ColorField's own comment for why) alongside enum
-    // for something else entirely, or no enum at all. Either way this
-    // branch must win before the generic enum-shaped branches get a
-    // chance to treat it as a select/radio.
+    // Checked ahead of isEnumSchema below: a colour field may declare
+    // its own "swatches" (a plain array of hex strings, not "enum" -
+    // see ColorField's own comment for why) alongside enum for
+    // something else entirely, or no enum at all. Either way this
+    // branch must win before the generic enum branch gets a chance to
+    // treat it as a plain SelectField.
     control = <ColorField value={value} swatches={colorSwatches(schema.swatches)} onChange={onChange} />;
-  } else if (isRadio) {
-    control = (
-      <div role="radiogroup" aria-labelledby={fieldId} className="schema-field-radiogroup">
-        {schema.enum.map((option) => {
-          const optionValue = String(option);
-          return (
-            <label key={optionValue} className="schema-field-radio-option">
-              <input
-                type="radio"
-                name={fieldId}
-                value={optionValue}
-                checked={String(value ?? '') === optionValue}
-                onChange={() => onChange(coerceEnumValue(schema.enum, optionValue))}
-              />
-              {optionValue}
-            </label>
-          );
-        })}
-      </div>
-    );
   } else if (isEnumSchema(schema)) {
-    control = (
-      <select value={String(value ?? '')} onChange={(event) => onChange(coerceEnumValue(schema.enum, event.target.value))}>
-        {schema.enum.map((option) => (
-          <option key={String(option)} value={String(option)}>
-            {String(option)}
-          </option>
-        ))}
-      </select>
-    );
+    control = <SelectField value={value} options={schema.enum} labelledBy={fieldId} onChange={onChange} />;
   } else if (format === 'toggle' && type === 'boolean') {
     control = <ToggleField checked={Boolean(value)} onChange={onChange} />;
   } else if (type === 'boolean') {
@@ -239,12 +207,13 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
   // it. RichTextField already sets aria-labelledby on its own editor
   // element, so it doesn't need the native label association here -
   // every other field type still does, and keeps the <label> wrapper.
-  // Radio shares the same reasoning for a different cause: it renders
-  // several of its own <label> elements (one per option, each properly
-  // associated with its own <input>), and a native <label> cannot
-  // nest inside another - the group's own aria-labelledby (set on its
-  // role="radiogroup" div above) covers the association instead.
-  const isCompoundField = (format === 'richtext' && type === 'string') || isRadio;
+  // SelectField's own tabs don't need this treatment despite also
+  // being a group of several controls: they're plain <button>s (a
+  // labelable element per that same spec list), not nested <label>s
+  // like the old radio widget's per-option labels were - a native
+  // <label> wrapping several buttons is valid HTML, and clicking any
+  // one of them directly still just fires that button's own handler.
+  const isCompoundField = format === 'richtext' && type === 'string';
   const Wrapper = isCompoundField ? 'div' : 'label';
 
   // base.css styles every plain <label> (layout, muted colour,

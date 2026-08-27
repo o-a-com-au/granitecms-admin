@@ -1,0 +1,31 @@
+/* SelectField.tsx - a segmented-tab control for a short list of short
+   labels (auto-decided, not themer-chosen); everything else stays a
+   plain <select>, which needs no styling of its own here. */
+.select-field-tabs {
+  display: inline-flex;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.select-field-tabs button {
+  padding: 0.4rem 0.9rem;
+  border: none;
+  border-right: 1px solid var(--colour-border);
+  border-radius: 0;
+  background: var(--colour-bg);
+  color: var(--colour-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.select-field-tabs button:last-child {
+  border-right: none;
+}
+
+.select-field-tabs button[aria-pressed='true'] {
+  background: var(--colour-primary);
+  color: #fff;
+}

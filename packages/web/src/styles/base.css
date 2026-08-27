@@ -73,26 +73,6 @@ label,
   max-width: 420px;
 }
 
-.schema-field-radiogroup {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-/* Overrides the bare `label` selector above for SchemaField's radio
-   option labels - the group needs a compact "○ text" row, not the
-   full-width flex-column layout meant for the outer field label. */
-.schema-field-radio-option {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.4rem;
-  width: auto;
-  max-width: none;
-  font-size: inherit;
-  color: var(--colour-text);
-}
-
 input,
 select,
 textarea {
