@@ -37,9 +37,18 @@
    square, the same plain-graphic convention as this project's other
    placeholder art (e.g. granite-starter's placeholder.svg), rather
    than pulling in an icon font/library for one glyph. Reused for
-   Variant B's own preview square when nothing is set. */
-.colour-field-swatch--none,
-.colour-field-preview--none {
+   Variant B's own preview square when nothing is set.
+
+   button.foo, not just .foo - both cells are real <button
+   type="button">s, and base.css's own button[type='button'] rule
+   (specificity 0,1,1) sets the background shorthand, which implicitly
+   resets background-image to none as part of that shorthand. A bare
+   class selector (0,1,0) loses that fight regardless of source order,
+   silently erasing the gradient - out-specifying it the same way
+   button.instance-row-chevron and button.page-tree-toggle already
+   have to elsewhere in this app (see index.css's own comment). */
+button.colour-field-swatch--none,
+button.colour-field-preview--none {
   background-image: linear-gradient(
     to top right,
     transparent calc(50% - 1px),
