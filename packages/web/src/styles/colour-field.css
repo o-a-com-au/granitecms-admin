@@ -1,0 +1,28 @@
+/* ColorField.tsx - a row of preset swatch buttons (a theme's own
+   "swatches" list, optional) above the native colour input, which
+   stays the one way to enter something not in that list. */
+.colour-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.colour-field-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.colour-field-swatch {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+}
+
+.colour-field-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--colour-primary);
+  outline-offset: 1px;
+}

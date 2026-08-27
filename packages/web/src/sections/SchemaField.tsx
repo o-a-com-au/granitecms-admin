@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { ColorField } from './ColorField.tsx';
 import { ImageField } from './ImageField.tsx';
 import { RichTextField } from './RichTextField.tsx';
 
@@ -13,6 +14,19 @@ export interface SchemaFieldProps {
 
 function isEnumSchema(schema: Record<string, unknown>): schema is Record<string, unknown> & { enum: unknown[] } {
   return Array.isArray(schema.enum);
+}
+
+// "swatches" is a plain array of hex strings, deliberately not real
+// JSON Schema (no keyword validates its shape) - same tolerance the
+// theme's own "allowedBlocks" already relies on. A malformed value
+// (not an array, or an array with non-string entries) degrades to no
+// swatches rather than throwing - still a working colour field, just
+// without the shortcut.
+function colorSwatches(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is string => typeof entry === 'string');
 }
 
 // Native <select> values are always strings - map back to whichever
@@ -87,6 +101,14 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
     );
   } else if (format === 'image' && type === 'object') {
     control = <ImageField siteId={siteId} value={value} onChange={onChange} />;
+  } else if (format === 'color' && type === 'string') {
+    // Checked ahead of isRadio/isEnumSchema below: a colour field may
+    // declare its own "swatches" (a plain array of hex strings, not
+    // "enum" - see ColorField's own comment for why) alongside enum
+    // for something else entirely, or no enum at all. Either way this
+    // branch must win before the generic enum-shaped branches get a
+    // chance to treat it as a select/radio.
+    control = <ColorField value={value} swatches={colorSwatches(schema.swatches)} onChange={onChange} />;
   } else if (isRadio) {
     control = (
       <div role="radiogroup" aria-labelledby={fieldId} className="schema-field-radiogroup">
@@ -160,14 +182,6 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
     );
   } else if (format === 'date' && type === 'string') {
     control = <input type="date" value={typeof value === 'string' ? value : ''} onChange={(event) => onChange(event.target.value)} />;
-  } else if (format === 'color' && type === 'string') {
-    control = (
-      <input
-        type="color"
-        value={typeof value === 'string' && value !== '' ? value : '#000000'}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    );
   } else if (type === 'string') {
     control = (
       <input

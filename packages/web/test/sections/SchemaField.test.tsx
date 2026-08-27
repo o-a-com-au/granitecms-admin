@@ -189,6 +189,24 @@ describe('SchemaField', () => {
     expect(onChange).toHaveBeenCalledWith('#ff6600');
   });
 
+  it('a format: "color" field with both swatches and enum still renders ColorField, not a <select>', () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaField
+        siteId="site-1"
+        label="Accent"
+        schema={{ type: 'string', format: 'color', swatches: ['#c2410c', '#1d4ed8'], enum: ['#c2410c', '#1d4ed8'] }}
+        value="#c2410c"
+        onChange={onChange}
+      />,
+    );
+
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.getByRole('group', { name: 'Preset colours' })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: '#1d4ed8' }));
+    expect(onChange).toHaveBeenCalledWith('#1d4ed8');
+  });
+
   it('renders radio buttons for an enum field with format: "radio", not a <select>', () => {
     const onChange = vi.fn();
     render(
