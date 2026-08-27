@@ -14,19 +14,31 @@ const SECTION_WITH_BLOCK: Instance[] = [
 describe('buildFieldErrorMap', () => {
   it('keys a flat field error by its plain settings property name', () => {
     const map = buildFieldErrorMap(SECTION_WITH_BLOCK, [
-      { path: '/sections/0/settings/heading', message: 'must be at least 1 character', keyword: 'minLength' },
+      { path: '/sections/0/settings/heading', message: 'must NOT have fewer than 1 characters', keyword: 'minLength' },
     ]);
 
-    expect(map['section-1']).toEqual({ heading: 'must be at least 1 character' });
+    expect(map['section-1']).toEqual({ heading: 'This field is required.' });
   });
 
   it('recurses into a nested block to key its own error under the block instance id', () => {
     const map = buildFieldErrorMap(SECTION_WITH_BLOCK, [
-      { path: '/sections/0/blocks/0/settings/label', message: 'must not be blank', keyword: 'minLength' },
+      { path: '/sections/0/blocks/0/settings/label', message: 'must NOT have fewer than 1 characters', keyword: 'minLength' },
     ]);
 
-    expect(map['block-1']).toEqual({ label: 'must not be blank' });
+    expect(map['block-1']).toEqual({ label: 'This field is required.' });
     expect(map['section-1']).toBeUndefined();
+  });
+
+  // Ajv's own minLength/required wording is developer jargon a content
+  // editor shouldn't have to parse - both collapse to one plain
+  // message. Every other keyword (maximum/type/etc., covered by the
+  // other tests here) keeps Ajv's own message untouched.
+  it('replaces Ajv\'s own minLength/required wording with a plain message', () => {
+    const map = buildFieldErrorMap(SECTION_WITH_BLOCK, [
+      { path: '/sections/0/settings/heading', message: "must have required property 'heading'", keyword: 'required' },
+    ]);
+
+    expect(map['section-1']).toEqual({ heading: 'This field is required.' });
   });
 
   // The image field's own {url, focalX, focalY} shape is the first

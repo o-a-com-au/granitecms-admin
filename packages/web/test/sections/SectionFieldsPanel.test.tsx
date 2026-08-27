@@ -188,13 +188,13 @@ describe('SectionFieldsPanel', () => {
         siteId="site-1"
         content={PAGE_WITH_SECTIONS}
         setContent={vi.fn()}
-        validationErrors={[{ path: '/sections/0/settings/heading', message: 'must be at least 1 character', keyword: 'minLength' }]}
+        validationErrors={[{ path: '/sections/0/settings/heading', message: 'must NOT have fewer than 1 characters', keyword: 'minLength' }]}
         selectedInstanceId="section-1"
         onClose={vi.fn()}
       />,
     );
 
-    await waitFor(() => expect(screen.getByText('must be at least 1 character')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('This field is required.')).toBeDefined());
   });
 
   it('I5: a validation error against a nested block field reaches that block\'s own field, not the section\'s', async () => {
@@ -204,13 +204,13 @@ describe('SectionFieldsPanel', () => {
         siteId="site-1"
         content={PAGE_WITH_SECTIONS}
         setContent={vi.fn()}
-        validationErrors={[{ path: '/sections/0/blocks/0/settings/label', message: 'must not be blank', keyword: 'minLength' }]}
+        validationErrors={[{ path: '/sections/0/blocks/0/settings/label', message: 'must NOT have fewer than 1 characters', keyword: 'minLength' }]}
         selectedInstanceId="block-1"
         onClose={vi.fn()}
       />,
     );
 
-    await waitFor(() => expect(screen.getByText('must not be blank')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('This field is required.')).toBeDefined());
     expect(screen.queryByLabelText('heading')).toBeNull();
   });
 

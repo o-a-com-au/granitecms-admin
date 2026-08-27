@@ -50,6 +50,22 @@ export function parsePage(content: string): ParsedPage | null {
 // last-processed-wins - every real schema's own nested object today
 // (just the image field) is small enough that showing one of the two
 // messages is still useful, not silently blank.
+// Ajv's own wording for these two keywords ("must NOT have fewer than
+// 1 characters", "must have required property 'url'") is developer-
+// facing jargon, not something to show a content editor. Every real
+// minLength in this project's own theme schemas today is 1 (a plain
+// non-empty-string requirement, e.g. the image field's own nested
+// url) - so collapsing both keywords to one plain message is accurate
+// for every real case, not just a guess. Every other keyword (pattern,
+// minimum/maximum, enum, etc.) keeps Ajv's own message untouched -
+// only these two have a real, seen-in-practice wording problem.
+function friendlyFieldErrorMessage(error: ValidationFieldError): string {
+  if (error.keyword === 'minLength' || error.keyword === 'required') {
+    return 'This field is required.';
+  }
+  return error.message;
+}
+
 export function buildFieldErrorMap(sections: Instance[], errors: ValidationFieldError[] | null): FieldErrorMap {
   const map: FieldErrorMap = {};
   if (!errors) {
@@ -64,7 +80,7 @@ export function buildFieldErrorMap(sections: Instance[], errors: ValidationField
       for (const error of fieldErrors) {
         if (error.path.startsWith(settingsPrefix)) {
           const key = error.path.slice(settingsPrefix.length).split('/')[0] ?? '';
-          map[instance.id] = { ...map[instance.id], [key]: error.message };
+          map[instance.id] = { ...map[instance.id], [key]: friendlyFieldErrorMessage(error) };
         }
       }
       if (instance.blocks) {
