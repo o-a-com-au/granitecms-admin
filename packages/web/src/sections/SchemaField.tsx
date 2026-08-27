@@ -120,7 +120,7 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
     // something else entirely, or no enum at all. Either way this
     // branch must win before the generic enum branch gets a chance to
     // treat it as a plain SelectField.
-    control = <ColorField value={value} swatches={colorSwatches(schema.swatches)} onChange={onChange} />;
+    control = <ColorField value={value} swatches={colorSwatches(schema.swatches)} labelledBy={fieldId} onChange={onChange} />;
   } else if (isEnumSchema(schema)) {
     control = <SelectField value={value} options={schema.enum} labelledBy={fieldId} onChange={onChange} />;
   } else if (format === 'toggle' && type === 'boolean') {
@@ -213,7 +213,16 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
   // like the old radio widget's per-option labels were - a native
   // <label> wrapping several buttons is valid HTML, and clicking any
   // one of them directly still just fires that button's own handler.
-  const isCompoundField = format === 'richtext' && type === 'string';
+  // ColorField needs it for a different reason again: a native
+  // <label> forwards :hover (not just click) to its first labelable
+  // descendant - now the "No colour"/preview button, since it's first
+  // in the DOM - so hovering anywhere in the label's own box (which
+  // can extend past the field's actual visible width, up to
+  // .schema-field-label's own max-width: 420px) lit up that button's
+  // hover style with the cursor nowhere near it. Confirmed live.
+  // ColorField sets its own aria-labelledby (via the labelledBy prop)
+  // in place of the native association this removes.
+  const isCompoundField = (format === 'richtext' && type === 'string') || (format === 'color' && type === 'string');
   const Wrapper = isCompoundField ? 'div' : 'label';
 
   // base.css styles every plain <label> (layout, muted colour,

@@ -244,7 +244,7 @@ describe('SchemaField', () => {
     );
 
     expect(screen.queryByRole('combobox')).toBeNull();
-    expect(screen.getByRole('group', { name: 'Colour' })).toBeDefined();
+    expect(screen.getByRole('group', { name: 'Accent' })).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: '#1d4ed8' }));
     expect(onChange).toHaveBeenCalledWith('#1d4ed8');
   });

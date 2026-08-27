@@ -5,6 +5,7 @@ import { normalizeHex } from './colour-utils.ts';
 export interface ColorFieldProps {
   value: unknown;
   swatches: string[];
+  labelledBy: string;
   onChange: (value: string) => void;
 }
 
@@ -19,19 +20,20 @@ function sameColor(a: string, b: string): boolean {
 // of hooks don't allow conditionally skipping some of a component's
 // own hooks based on a prop, even one that's static in practice for
 // any given field instance).
-export function ColorField({ value, swatches, onChange }: ColorFieldProps) {
+export function ColorField({ value, swatches, labelledBy, onChange }: ColorFieldProps) {
   const hasValue = typeof value === 'string' && value !== '';
   const current = hasValue ? (value as string) : '#000000';
 
   if (swatches.length > 0) {
-    return <ColorSwatchGrid current={current} hasValue={hasValue} swatches={swatches} onChange={onChange} />;
+    return <ColorSwatchGrid current={current} hasValue={hasValue} swatches={swatches} labelledBy={labelledBy} onChange={onChange} />;
   }
-  return <ColorHexRow current={current} hasValue={hasValue} onChange={onChange} />;
+  return <ColorHexRow current={current} hasValue={hasValue} labelledBy={labelledBy} onChange={onChange} />;
 }
 
 interface VariantProps {
   current: string;
   hasValue: boolean;
+  labelledBy: string;
   onChange: (value: string) => void;
 }
 
@@ -43,14 +45,14 @@ interface VariantProps {
 // display of the current value, never written back into the theme's
 // own swatches list - the schema's swatches are fixed by the theme
 // author, not something a content editor's picks can add to.
-function ColorSwatchGrid({ current, hasValue, swatches, onChange }: VariantProps & { swatches: string[] }) {
+function ColorSwatchGrid({ current, hasValue, swatches, labelledBy, onChange }: VariantProps & { swatches: string[] }) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const isCustomValue = hasValue && !swatches.some((swatch) => sameColor(swatch, current));
 
   return (
     <div className="colour-field">
-      <div className="colour-field-swatch-grid" role="group" aria-label="Colour">
+      <div className="colour-field-swatch-grid" role="group" aria-labelledby={labelledBy}>
         <button
           type="button"
           className="colour-field-swatch colour-field-swatch--none"
@@ -102,7 +104,7 @@ function ColorSwatchGrid({ current, hasValue, swatches, onChange }: VariantProps
 // field's original shape from before swatches existed. Clear only
 // shows once a value is actually set, same reasoning as ImageField's
 // own Remove button.
-function ColorHexRow({ current, hasValue, onChange }: VariantProps) {
+function ColorHexRow({ current, hasValue, labelledBy, onChange }: VariantProps) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const previewRef = useRef<HTMLButtonElement>(null);
   const [hexText, setHexText] = useState(current);
@@ -142,6 +144,7 @@ function ColorHexRow({ current, hasValue, onChange }: VariantProps) {
           value={hexText}
           placeholder="#"
           spellCheck={false}
+          aria-labelledby={labelledBy}
           onChange={(event) => setHexText(event.target.value)}
           onBlur={(event) => commitHexText(event.target.value)}
           onKeyDown={(event) => {
