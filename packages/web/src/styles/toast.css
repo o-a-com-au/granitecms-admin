@@ -18,6 +18,25 @@
   max-width: 360px;
 }
 
+/* Below app-shell.css's own 720px breakpoint, the fields/sections
+   panel goes full-bleed (editor-layout.css) and .app-topbar-actions
+   relocates from the top bar to a fixed bottom bar (app-shell.css) -
+   a toast still pinned near the top-right at this width sits directly
+   on top of that full-width panel's own content instead of floating
+   over empty page background the way it does on desktop. Moved to
+   hover just above where that bottom action bar would be instead: the
+   two are only ever likely to appear together anyway, since an error
+   toast here most often follows a Save attempt. */
+@media (max-width: 720px) {
+  .toast-stack {
+    top: auto;
+    bottom: 5rem;
+    left: var(--space-md);
+    right: var(--space-md);
+    max-width: none;
+  }
+}
+
 .toast {
   display: flex;
   align-items: flex-start;
