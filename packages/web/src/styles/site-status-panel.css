@@ -80,7 +80,7 @@
 .site-status-panel-action {
   padding: 0.5rem 1rem;
   border: 1px solid var(--colour-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   background: var(--colour-surface-hover);
   color: var(--colour-text);
   text-decoration: none;

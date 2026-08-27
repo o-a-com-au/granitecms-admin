@@ -80,7 +80,7 @@ textarea {
   color: var(--colour-text);
   padding: 0.5rem 0.65rem;
   border: 1px solid var(--colour-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   background: var(--colour-bg);
 }
 
@@ -101,7 +101,7 @@ button {
   font: inherit;
   padding: 0.5rem 1.1rem;
   border: 1px solid var(--colour-primary);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   background: var(--colour-primary);
   color: #fff;
   cursor: pointer;

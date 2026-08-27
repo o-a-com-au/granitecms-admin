@@ -399,7 +399,7 @@ button.instance-add-button:hover {
   color: var(--colour-text);
   padding: 0.5rem 0.6rem;
   font-weight: 500;
-  border-radius: calc(var(--radius-sm) - 2px);
+  border-radius: var(--radius-xs);
 }
 
 .instance-add-menu-item:hover {

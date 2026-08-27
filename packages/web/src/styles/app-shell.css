@@ -39,7 +39,7 @@
   height: 2.25rem;
   padding: 0;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   background: none;
   color: var(--colour-text);
 }
@@ -308,7 +308,7 @@
   color: var(--colour-text);
   padding: 0.5rem 0.25rem;
   font-weight: 500;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   /* "Account Settings" is a <Link> (anchor), every other item here is
      a <button> - this rule already overrides the browser's default
      anchor colour but not its default underline, which otherwise

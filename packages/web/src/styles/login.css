@@ -52,7 +52,7 @@
   text-align: center;
   padding: 0.6rem 1rem;
   border: 1px solid var(--colour-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   color: var(--colour-text);
   text-decoration: none;
 }

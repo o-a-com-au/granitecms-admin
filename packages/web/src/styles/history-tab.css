@@ -43,7 +43,7 @@ button.history-row-restore {
   flex: 0 0 auto;
   padding: 0.3rem 0.65rem;
   border: 1px solid var(--colour-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   background: var(--colour-surface);
   color: var(--colour-text);
   font-size: 0.75rem;
