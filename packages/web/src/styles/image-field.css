@@ -8,6 +8,33 @@
   gap: 0.5rem;
 }
 
+.image-field-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Once there's an image, the preview and url input read as one
+   element: no gap at the seam, and the shared border between them
+   collapsed to a single line rather than each side's own border
+   doubling it up. Only the input's top edge is pulled - its own
+   bottom/left/right border (and the preview's own rounded corners)
+   stay exactly as they'd be alone, so this only ever touches the one
+   shared edge. */
+.image-field-card--attached {
+  gap: 0;
+}
+
+.image-field-card--attached .image-field-preview img {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.image-field-card--attached .image-field-url-input {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: none;
+}
+
 .image-field-url-input {
   width: 100%;
 }

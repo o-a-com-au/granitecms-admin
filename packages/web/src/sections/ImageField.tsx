@@ -78,22 +78,29 @@ export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
 
   return (
     <div className="image-field">
-      {hasImage && (
-        <div className="image-field-preview">
-          <img
-            src={resolveImageSrc(coerced.url, siteUrl)}
-            alt="Click to set focal point"
-            onClick={handleImageClick}
-            draggable={false}
-          />
-          <span
-            className="image-field-focal-marker"
-            aria-hidden="true"
-            style={{ left: `${coerced.focalX * 100}%`, top: `${coerced.focalY * 100}%` }}
-          />
-        </div>
-      )}
-      <input type="text" className="image-field-url-input" placeholder="https://" value={coerced.url} onChange={handleUrlChange} />
+      {/* Grouped into one card, not two separate flex children of
+          .image-field - the preview and url input are meant to read as
+          one element once there's an image, sharing one border/corner
+          radius with no gap at the seam (image-field.css's own
+          --attached modifier below), not the field's normal gap. */}
+      <div className={`image-field-card${hasImage ? ' image-field-card--attached' : ''}`}>
+        {hasImage && (
+          <div className="image-field-preview">
+            <img
+              src={resolveImageSrc(coerced.url, siteUrl)}
+              alt="Click to set focal point"
+              onClick={handleImageClick}
+              draggable={false}
+            />
+            <span
+              className="image-field-focal-marker"
+              aria-hidden="true"
+              style={{ left: `${coerced.focalX * 100}%`, top: `${coerced.focalY * 100}%` }}
+            />
+          </div>
+        )}
+        <input type="text" className="image-field-url-input" placeholder="https://" value={coerced.url} onChange={handleUrlChange} />
+      </div>
       <div className="image-field-actions">
         <button type="button" onClick={() => setPickerOpen(true)}>
           {hasImage ? 'Change Image' : 'Choose Image'}
