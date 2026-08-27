@@ -15,7 +15,7 @@
 .colour-field-swatch-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 0.5rem;
+  gap: var(--space-xs);
   max-width: 16rem;
 }
 
@@ -64,7 +64,7 @@
 .colour-field-input-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-xs);
 }
 
 .colour-field-preview {
@@ -117,9 +117,21 @@
   box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.4);
 }
 
+/* Explicit 200px, matching react-colorful's own hardcoded
+   .react-colorful width (see node_modules/react-colorful's injected
+   CSS) - without this, the row's own auto/shrink-to-fit width is
+   computed from the hex input's intrinsic content size (its browser-
+   default min-content width is wider than you'd expect even with
+   min-width: 0 on the input itself, since that only affects how far
+   flexbox can shrink it, not its contribution to a still-unconstrained
+   ancestor's own auto-width), not from the gradient picker above it -
+   the two end up different widths and the tick button pokes out past
+   the picker's own right edge. */
 .colour-picker-popover-hex-row {
   display: flex;
-  gap: 0.5rem;
+  width: 200px;
+  box-sizing: border-box;
+  gap: var(--space-xs);
 }
 
 .colour-picker-popover-hex-input {
