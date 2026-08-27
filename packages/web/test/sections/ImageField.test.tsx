@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ImageField, type ImageFieldValue } from '../../src/sections/ImageField.tsx';
 
@@ -8,11 +8,22 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+// ImageField's own useSites() call means every render now fetches
+// /api/sites, whether or not a given test cares about it - stubbed
+// unconditionally (not just in the picker-focused tests below) so the
+// other tests don't hit a real, unhandled fetch. site-1's url is what
+// resolveImageSrc resolves a bare site-relative path against.
 function installFakeMediaApi() {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
       const url = input.toString();
+      if (url === '/api/sites') {
+        return new Response(
+          JSON.stringify([{ id: 'site-1', url: 'http://site.example', createdAt: '', updatedAt: '', status: { state: 'ok', agentVersion: '', contentSchemaVersion: 1, sqliteDriver: '' } }]),
+          { status: 200 },
+        );
+      }
       if (url === '/api/sites/site-1/media') {
         return new Response(
           JSON.stringify({
@@ -58,6 +69,10 @@ function renderField(value: unknown, onChange = vi.fn()) {
 }
 
 describe('ImageField', () => {
+  beforeEach(() => {
+    installFakeMediaApi();
+  });
+
   it('renders a text input bound to the current url', () => {
     renderField({ url: 'https://example.com/a.jpg', focalX: 0.5, focalY: 0.5 });
 
@@ -128,7 +143,6 @@ describe('ImageField', () => {
   });
 
   it('Choose Image opens the media picker modal', async () => {
-    installFakeMediaApi();
     renderField(undefined);
 
     fireEvent.click(screen.getByRole('button', { name: 'Choose Image' }));
@@ -138,7 +152,6 @@ describe('ImageField', () => {
   });
 
   it('selecting an image from the picker sets the url and preserves the existing focal point', async () => {
-    installFakeMediaApi();
     const { onChange } = renderField({ url: 'https://example.com/a.jpg', focalX: 0.2, focalY: 0.8 });
 
     fireEvent.click(screen.getByRole('button', { name: 'Choose Image' }));
@@ -155,7 +168,6 @@ describe('ImageField', () => {
   });
 
   it('closing the picker without selecting leaves the existing value untouched', async () => {
-    installFakeMediaApi();
     const { onChange } = renderField({ url: 'https://example.com/a.jpg', focalX: 0.2, focalY: 0.8 });
 
     fireEvent.click(screen.getByRole('button', { name: 'Choose Image' }));
@@ -165,5 +177,33 @@ describe('ImageField', () => {
     expect(screen.queryByRole('dialog', { name: 'Choose an image' })).toBeNull();
     expect(onChange).not.toHaveBeenCalled();
     expect((screen.getByLabelText('Poster') as HTMLInputElement).value).toBe('https://example.com/a.jpg');
+  });
+
+  it('shows no Remove button while the url is empty', () => {
+    renderField(undefined);
+
+    expect(screen.queryByRole('button', { name: 'Remove image' })).toBeNull();
+  });
+
+  it('Remove clears the url and resets the focal point to centred', () => {
+    const { onChange } = renderField({ url: 'https://example.com/a.jpg', focalX: 0.2, focalY: 0.8 });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove image' }));
+
+    expect(onChange).toHaveBeenCalledWith({ url: '', focalX: 0.5, focalY: 0.5 });
+  });
+
+  it('resolves a bare site-relative url against the current site before using it as the preview src', async () => {
+    renderField({ url: '/assets/placeholder.svg', focalX: 0.5, focalY: 0.5 });
+
+    const img = (await screen.findByRole('img')) as HTMLImageElement;
+    await waitFor(() => expect(img.src).toBe('http://site.example/assets/placeholder.svg'));
+  });
+
+  it('leaves an already-absolute url unresolved', async () => {
+    renderField({ url: 'https://cdn.example/a.jpg', focalX: 0.5, focalY: 0.5 });
+
+    const img = screen.getByRole('img') as HTMLImageElement;
+    await waitFor(() => expect(img.src).toBe('https://cdn.example/a.jpg'));
   });
 });

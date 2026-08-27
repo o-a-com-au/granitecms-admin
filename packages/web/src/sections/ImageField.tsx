@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MediaPickerModal } from '../media/MediaPickerModal.tsx';
 import type { MediaItem } from '../api/site-media.ts';
+import { useSites } from '../sites/useSites.ts';
 
 export interface ImageFieldValue {
   url: string;
@@ -25,9 +26,28 @@ export interface ImageFieldProps {
 export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
   const coerced = coerceImageValue(value);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // A picked-from-the-library url always arrives already absolute
+  // (the backend's own media list route resolves it against the real
+  // site before this component ever sees it), but a theme's own
+  // hand-authored default (e.g. "/assets/placeholder.svg") is a bare
+  // site-relative path - correct for the site's own renderer, but
+  // meaningless as an <img src> here, since this preview lives in the
+  // admin's own document, not the site's. Resolving it against the
+  // site's real origin (the same SiteListEntry.url the preview
+  // iframe's own <base href> fix uses - see sites.ts's fetchSitePreview)
+  // is what turns that into a working preview instead of a broken icon.
+  const { sites } = useSites();
+  const siteUrl = sites?.find((site) => site.id === siteId)?.url;
 
   function handleUrlChange(event: React.ChangeEvent<HTMLInputElement>): void {
     onChange({ ...coerced, url: event.target.value });
+  }
+
+  // Resets the focal point too, not just the url - a blank field
+  // starting with a stale off-centre focal point from a previous image
+  // would silently apply to whatever gets chosen next.
+  function handleRemove(): void {
+    onChange({ url: '', focalX: 0.5, focalY: 0.5 });
   }
 
   // Only the url changes - an existing focal point (from a previous
@@ -61,14 +81,24 @@ export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
         </button>
       </div>
       {coerced.url !== '' && (
-        <div className="image-field-preview">
-          <img src={coerced.url} alt="Click to set focal point" onClick={handleImageClick} draggable={false} />
-          <span
-            className="image-field-focal-marker"
-            aria-hidden="true"
-            style={{ left: `${coerced.focalX * 100}%`, top: `${coerced.focalY * 100}%` }}
-          />
-        </div>
+        <>
+          <div className="image-field-preview">
+            <img
+              src={resolveImageSrc(coerced.url, siteUrl)}
+              alt="Click to set focal point"
+              onClick={handleImageClick}
+              draggable={false}
+            />
+            <span
+              className="image-field-focal-marker"
+              aria-hidden="true"
+              style={{ left: `${coerced.focalX * 100}%`, top: `${coerced.focalY * 100}%` }}
+            />
+          </div>
+          <button type="button" className="image-field-remove" onClick={handleRemove}>
+            Remove image
+          </button>
+        </>
       )}
       {pickerOpen && (
         <MediaPickerModal siteId={siteId} onSelect={handlePickerSelect} onClose={() => setPickerOpen(false)} />
@@ -79,6 +109,25 @@ export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
 
 function clamp01(fraction: number): number {
   return Math.min(1, Math.max(0, fraction));
+}
+
+// Absolute (http(s):// or data:) urls pass through untouched - only a
+// bare site-relative path needs resolving, and only once siteUrl has
+// actually loaded (useSites() starts out null on first render; the
+// unresolved relative path is still a reasonable img src for that one
+// frame rather than blocking on it). A url that fails to parse against
+// siteUrl (malformed input mid-edit) falls back to the raw value
+// rather than throwing - still broken, but no worse than before this
+// existed, and never crashes the field.
+function resolveImageSrc(url: string, siteUrl: string | undefined): string {
+  if (/^(https?:)?\/\//i.test(url) || url.startsWith('data:') || !siteUrl) {
+    return url;
+  }
+  try {
+    return new URL(url, siteUrl).href;
+  } catch {
+    return url;
+  }
 }
 
 // Merges into whatever's already there rather than resetting - typing
