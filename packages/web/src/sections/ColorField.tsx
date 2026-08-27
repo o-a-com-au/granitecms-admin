@@ -107,11 +107,16 @@ function ColorSwatchGrid({ current, hasValue, swatches, labelledBy, onChange }: 
 function ColorHexRow({ current, hasValue, labelledBy, onChange }: VariantProps) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const previewRef = useRef<HTMLButtonElement>(null);
-  const [hexText, setHexText] = useState(current);
+  // Empty (not "#000000") while unset, so #000000 shows as a real
+  // placeholder hint rather than looking like an already-entered
+  // value - current itself stays "#000000" as a reasonable starting
+  // colour for the preview/popover, that's just not the same thing as
+  // what the text field should display.
+  const [hexText, setHexText] = useState(hasValue ? current : '');
 
   useEffect(() => {
-    setHexText(current);
-  }, [current]);
+    setHexText(hasValue ? current : '');
+  }, [current, hasValue]);
 
   function commitHexText(raw: string): void {
     if (raw.trim() === '') {
@@ -120,7 +125,7 @@ function ColorHexRow({ current, hasValue, labelledBy, onChange }: VariantProps) 
     }
     const normalized = normalizeHex(raw);
     if (normalized === null) {
-      setHexText(current);
+      setHexText(hasValue ? current : '');
       return;
     }
     onChange(normalized);
@@ -142,7 +147,7 @@ function ColorHexRow({ current, hasValue, labelledBy, onChange }: VariantProps) 
           type="text"
           className="colour-field-hex-input"
           value={hexText}
-          placeholder="#"
+          placeholder="#000000"
           spellCheck={false}
           aria-labelledby={labelledBy}
           onChange={(event) => setHexText(event.target.value)}

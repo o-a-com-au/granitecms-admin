@@ -117,6 +117,13 @@ describe('ColorField - hex row (no swatches configured)', () => {
     expect(preview().className).toContain('colour-field-preview--none');
   });
 
+  it('leaves the hex input empty (showing #000000 as a placeholder, not real text) when unset', () => {
+    render(<ColorField value={undefined} swatches={[]} labelledBy="x" onChange={vi.fn()} />);
+
+    expect(hexInput().value).toBe('');
+    expect(hexInput().placeholder).toBe('#000000');
+  });
+
   it('shows the real colour on the preview once a value is set', () => {
     render(<ColorField value="#c2410c" swatches={[]} labelledBy="x" onChange={vi.fn()} />);
 
