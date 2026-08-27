@@ -7,11 +7,19 @@ afterEach(() => {
 });
 
 describe('ColorField', () => {
+  function nativeColorInput(): HTMLInputElement {
+    return document.querySelector('input[type="color"]') as HTMLInputElement;
+  }
+
+  function hexInput(): HTMLInputElement {
+    return document.querySelector('.colour-field-hex-input') as HTMLInputElement;
+  }
+
   it('renders no swatch group when the list is empty', () => {
     render(<ColorField value="#c2410c" swatches={[]} onChange={vi.fn()} />);
 
     expect(screen.queryByRole('group')).toBeNull();
-    expect((screen.getByDisplayValue('#c2410c') as HTMLInputElement).type).toBe('color');
+    expect(nativeColorInput().value).toBe('#c2410c');
   });
 
   it('renders one button per swatch, marking the current value pressed', () => {
@@ -36,14 +44,14 @@ describe('ColorField', () => {
     const onChange = vi.fn();
     render(<ColorField value="#c2410c" swatches={['#c2410c', '#1d4ed8']} onChange={onChange} />);
 
-    fireEvent.change(screen.getByDisplayValue('#c2410c'), { target: { value: '#00ff00' } });
+    fireEvent.change(nativeColorInput(), { target: { value: '#00ff00' } });
     expect(onChange).toHaveBeenCalledWith('#00ff00');
   });
 
   it('defaults an absent/empty value to black for the native input', () => {
     render(<ColorField value={undefined} swatches={[]} onChange={vi.fn()} />);
 
-    expect(screen.getByDisplayValue('#000000')).toBeDefined();
+    expect(nativeColorInput().value).toBe('#000000');
   });
 
   it('shows no Clear button when no colour is set', () => {
@@ -57,6 +65,73 @@ describe('ColorField', () => {
     render(<ColorField value="#c2410c" swatches={[]} onChange={onChange} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+
+    expect(onChange).toHaveBeenCalledWith('');
+  });
+
+  it('shows the current value in the hex text input too', () => {
+    render(<ColorField value="#c2410c" swatches={[]} onChange={vi.fn()} />);
+
+    expect(hexInput().value).toBe('#c2410c');
+  });
+
+  it('typing in the hex input does not commit until blur', () => {
+    const onChange = vi.fn();
+    render(<ColorField value="#c2410c" swatches={[]} onChange={onChange} />);
+
+    fireEvent.change(hexInput(), { target: { value: '#1d4ed8' } });
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(hexInput().value).toBe('#1d4ed8');
+  });
+
+  it('blurring the hex input commits a valid 6-digit hex, normalised to lowercase', () => {
+    const onChange = vi.fn();
+    render(<ColorField value="#c2410c" swatches={[]} onChange={onChange} />);
+
+    fireEvent.change(hexInput(), { target: { value: '#1D4ED8' } });
+    fireEvent.blur(hexInput());
+
+    expect(onChange).toHaveBeenCalledWith('#1d4ed8');
+  });
+
+  it('accepts a 3-digit shorthand hex and expands it to 6 digits', () => {
+    const onChange = vi.fn();
+    render(<ColorField value="#c2410c" swatches={[]} onChange={onChange} />);
+
+    fireEvent.change(hexInput(), { target: { value: 'f0a' } });
+    fireEvent.blur(hexInput());
+
+    expect(onChange).toHaveBeenCalledWith('#ff00aa');
+  });
+
+  it('pressing Enter commits the hex input immediately, same as blur', () => {
+    const onChange = vi.fn();
+    render(<ColorField value="#c2410c" swatches={[]} onChange={onChange} />);
+
+    fireEvent.change(hexInput(), { target: { value: '#1d4ed8' } });
+    fireEvent.keyDown(hexInput(), { key: 'Enter' });
+
+    expect(onChange).toHaveBeenCalledWith('#1d4ed8');
+  });
+
+  it('blurring an invalid hex reverts the text back to the current value without calling onChange', () => {
+    const onChange = vi.fn();
+    render(<ColorField value="#c2410c" swatches={[]} onChange={onChange} />);
+
+    fireEvent.change(hexInput(), { target: { value: 'not-a-colour' } });
+    fireEvent.blur(hexInput());
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(hexInput().value).toBe('#c2410c');
+  });
+
+  it('clearing the hex input entirely and blurring clears the colour, same as the Clear button', () => {
+    const onChange = vi.fn();
+    render(<ColorField value="#c2410c" swatches={[]} onChange={onChange} />);
+
+    fireEvent.change(hexInput(), { target: { value: '' } });
+    fireEvent.blur(hexInput());
 
     expect(onChange).toHaveBeenCalledWith('');
   });

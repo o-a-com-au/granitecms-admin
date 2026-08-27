@@ -33,6 +33,12 @@
   gap: 0.5rem;
 }
 
+.colour-field-hex-input {
+  width: 6rem;
+  font-family: ui-monospace, monospace;
+  text-transform: lowercase;
+}
+
 .colour-field-clear {
   color: var(--colour-danger);
 }
