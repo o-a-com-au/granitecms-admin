@@ -105,7 +105,7 @@ describe('SectionSettingsForm', () => {
     });
   });
 
-  it('a fieldErrors entry for a property the schema no longer declares shows as its own callout, not silently dropped', () => {
+  it('a fieldErrors entry for a property the schema no longer declares shows as its own field-shaped row, humanised label included', () => {
     render(
       <SectionSettingsForm
         siteId="site-1"
@@ -117,13 +117,17 @@ describe('SectionSettingsForm', () => {
     );
 
     const alert = screen.getByRole('alert');
-    expect(alert.textContent).toContain('radioField');
+    // Humanised the same way every other field's label falls back when
+    // the schema gives it no title (fieldLabel/humanizeFieldKey) - not
+    // the raw camelCase property name.
+    expect(alert.textContent).toContain('Radio Field');
+    expect(alert.textContent).not.toContain('radioField');
     expect(alert.textContent).toContain('This field is no longer used by the current theme.');
-    // It's a callout, not a SchemaField - no input/label was created for it.
-    expect(screen.queryByLabelText(/radioField/i)).toBeNull();
+    // It's a row of its own, not a SchemaField - no editable input was created for it.
+    expect(screen.queryByRole('textbox', { name: /radio field/i })).toBeNull();
   });
 
-  it('the callout\'s Remove button strips just that key, leaving every other setting untouched', () => {
+  it('the row\'s Remove button strips just that key, leaving every other setting untouched', () => {
     const onChange = vi.fn();
     render(
       <SectionSettingsForm
@@ -135,7 +139,7 @@ describe('SectionSettingsForm', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove radioField' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Radio Field' }));
 
     expect(onChange).toHaveBeenCalledWith({ heading: 'Hi', columns: 2 });
   });

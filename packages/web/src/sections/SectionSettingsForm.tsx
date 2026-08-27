@@ -82,12 +82,19 @@ export function SectionSettingsForm({ siteId, schema, settings, onChange, fieldE
         />
       ))}
       {orphanedKeys.map((key) => (
-        <div className="orphaned-field-alert" role="alert" key={key}>
-          <p>
-            <strong>{key}</strong>: {fieldErrors?.[key]}
-          </p>
-          <button type="button" onClick={() => onChange(omitKey(settings, key))}>
-            Remove {key}
+        // Same "schema-field-label" wrapper every real field above uses
+        // (label on top, gap, muted-by-default styling) - reads as a
+        // field-shaped row in the same rhythm as the rest of the form,
+        // not a banner tacked on at the end - just one that can only be
+        // removed, never edited, since there's no schema left to edit
+        // it against. fieldLabel(undefined, key) reuses the exact same
+        // camelCase -> Title Case humanising every other field's label
+        // already falls back to when the schema gives it no title.
+        <div className="schema-field-label orphaned-field-alert" role="alert" key={key}>
+          <span>{fieldLabel(undefined, key)}</span>
+          <p>{fieldErrors?.[key]}</p>
+          <button type="button" onClick={() => onChange(omitKey(settings, key))} aria-label={`Remove ${fieldLabel(undefined, key)}`}>
+            Remove
           </button>
         </div>
       ))}
