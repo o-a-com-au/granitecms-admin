@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { SectionList } from './SectionList.tsx';
 import type { Instance } from './instance-types.ts';
-import { buildFieldErrorMap, canEditAsSections, parsePage } from './page-content.ts';
+import { buildFieldErrorMap, canEditAsSections, parsePage, stripUnknownSettings } from './page-content.ts';
 import { useThemeSchemas } from './useThemeSchemas.ts';
 import type { ValidationFieldError } from '../api/site-editor.ts';
 
@@ -104,7 +104,8 @@ export function PageSectionsEditor({
   const blockTypes = { schemas: themeSchemas.blocks, acceptsBlocks: themeSchemas.acceptsBlocks.blocks };
 
   function updateSections(sections: Instance[]): void {
-    setContent(JSON.stringify({ ...page, sections }, null, 2));
+    const cleaned = stripUnknownSettings(sections, sectionTypes, blockTypes);
+    setContent(JSON.stringify({ ...page, sections: cleaned }, null, 2));
   }
 
   return (

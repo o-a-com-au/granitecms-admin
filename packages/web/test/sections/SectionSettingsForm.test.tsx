@@ -105,29 +105,24 @@ describe('SectionSettingsForm', () => {
     });
   });
 
-  it('a settings property the schema no longer declares is never shown - it is silently dropped on the next edit', () => {
-    const onChange = vi.fn();
+  it('a settings property the schema no longer declares is never shown - nothing here references it or its error', () => {
     render(
       <SectionSettingsForm
         siteId="site-1"
         schema={HERO_SCHEMA}
         settings={{ heading: 'Hi', columns: 2, radioField: 'left' }}
-        onChange={onChange}
+        onChange={vi.fn()}
         fieldErrors={{ radioField: 'This field is no longer used by the current theme.' }}
       />,
     );
 
     // A content editor is never shown anything about it - no callout,
     // no alert, nothing referencing the stale property or its error.
+    // Cleaning it out of settings is page-content.ts's stripUnknownSettings'
+    // job (called once per page-wide edit, not per field here) - this
+    // component only ever renders what the schema still declares.
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.queryByText(/radioField|radio field/i)).toBeNull();
-
-    fireEvent.change(screen.getByLabelText('Heading'), { target: { value: 'Updated' } });
-
-    // Editing anything else in the section quietly cleans it up - the
-    // very next save the editor makes is already valid again, with no
-    // action or awareness required from them.
-    expect(onChange).toHaveBeenCalledWith({ heading: 'Updated', columns: 2 });
   });
 
   it('falls back to raw settings editing for an unknown type, without discarding the instance', () => {

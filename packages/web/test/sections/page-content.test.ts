@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildFieldErrorMap } from '../../src/sections/page-content.ts';
-import type { Instance } from '../../src/sections/instance-types.ts';
+import { buildFieldErrorMap, stripUnknownSettings } from '../../src/sections/page-content.ts';
+import type { Instance, ThemeTypeSchemas } from '../../src/sections/instance-types.ts';
 
 const SECTION_WITH_BLOCK: Instance[] = [
   {
@@ -76,5 +76,74 @@ describe('buildFieldErrorMap', () => {
     const map = buildFieldErrorMap(SECTION_WITH_BLOCK, [{ path: '/title', message: 'bad title', keyword: 'type' }]);
 
     expect(map).toEqual({});
+  });
+});
+
+describe('stripUnknownSettings', () => {
+  const STRICT_SECTION_TYPES: ThemeTypeSchemas = {
+    schemas: {
+      'field-test': {
+        type: 'object',
+        additionalProperties: false,
+        properties: { colorField: { type: 'string' } },
+      },
+    },
+    acceptsBlocks: {},
+  };
+  const STRICT_BLOCK_TYPES: ThemeTypeSchemas = {
+    schemas: {
+      button: {
+        type: 'object',
+        additionalProperties: false,
+        properties: { label: { type: 'string' } },
+      },
+    },
+    acceptsBlocks: {},
+  };
+  const NO_BLOCKS: ThemeTypeSchemas = { schemas: {}, acceptsBlocks: {} };
+
+  it('drops a settings key the schema no longer declares, for a schema that opted into additionalProperties: false', () => {
+    const sections: Instance[] = [
+      { id: 'sec-1', type: 'field-test', settings: { colorField: '#fff', radioField: 'left' } },
+    ];
+
+    const cleaned = stripUnknownSettings(sections, STRICT_SECTION_TYPES, NO_BLOCKS);
+
+    expect(cleaned[0]!.settings).toEqual({ colorField: '#fff' });
+  });
+
+  it('leaves settings completely untouched when the schema does not set additionalProperties: false', () => {
+    const permissive: ThemeTypeSchemas = {
+      schemas: { freeform: { type: 'object', properties: { known: { type: 'string' } } } },
+      acceptsBlocks: {},
+    };
+    const sections: Instance[] = [{ id: 'sec-1', type: 'freeform', settings: { known: 'a', extra: 'b' } }];
+
+    const cleaned = stripUnknownSettings(sections, permissive, NO_BLOCKS);
+
+    expect(cleaned[0]!.settings).toEqual({ known: 'a', extra: 'b' });
+  });
+
+  it('leaves settings untouched for an instance whose type the schemas do not recognise at all', () => {
+    const sections: Instance[] = [{ id: 'sec-1', type: 'unknown-type', settings: { anything: true } }];
+
+    const cleaned = stripUnknownSettings(sections, STRICT_SECTION_TYPES, NO_BLOCKS);
+
+    expect(cleaned[0]!.settings).toEqual({ anything: true });
+  });
+
+  it('recurses into nested blocks, validating each against the block schemas, not the section schemas', () => {
+    const sections: Instance[] = [
+      {
+        id: 'sec-1',
+        type: 'field-test',
+        settings: { colorField: '#fff' },
+        blocks: [{ id: 'blk-1', type: 'button', settings: { label: 'Click', oldSetting: 'left' } }],
+      },
+    ];
+
+    const cleaned = stripUnknownSettings(sections, STRICT_SECTION_TYPES, STRICT_BLOCK_TYPES);
+
+    expect(cleaned[0]!.blocks?.[0]!.settings).toEqual({ label: 'Click' });
   });
 });

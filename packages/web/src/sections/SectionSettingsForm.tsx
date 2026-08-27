@@ -42,23 +42,6 @@ function UnknownTypeFallback({ settings, onChange }: Pick<SectionSettingsFormPro
   );
 }
 
-// Drops any key the theme's current settings schema no longer
-// declares - the same shape additionalProperties: false would reject
-// on save (page-content.ts's friendlyFieldErrorMessage names this
-// exact case), left over once a theme's settings shape changes after
-// content was already authored against an older version of it (e.g.
-// this session's own radio -> select consolidation). Applied on every
-// edit, silently: the person editing content is a content editor, not
-// the developer who changed the theme, and a stale property they never
-// see and can't act on isn't a decision worth surfacing to them - it
-// only ever needs to disappear.
-function withOnlyKnownKeys(
-  settings: Record<string, unknown>,
-  properties: Record<string, Record<string, unknown>>,
-): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(settings).filter(([key]) => key in properties));
-}
-
 // I3, I5: one SchemaField per settings-schema property. A type the
 // theme no longer declares (e.g. content authored against an older
 // theme version) falls back to raw settings editing rather than
@@ -79,7 +62,7 @@ export function SectionSettingsForm({ siteId, schema, settings, onChange, fieldE
           label={fieldLabel(propertySchema, key)}
           schema={propertySchema}
           value={settings[key]}
-          onChange={(value) => onChange(withOnlyKnownKeys({ ...settings, [key]: value }, properties))}
+          onChange={(value) => onChange({ ...settings, [key]: value })}
           error={fieldErrors?.[key]}
         />
       ))}

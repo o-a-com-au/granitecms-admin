@@ -1,4 +1,4 @@
-import type { FieldErrorMap, Instance } from './instance-types.ts';
+import type { FieldErrorMap, Instance, ThemeTypeSchemas } from './instance-types.ts';
 import type { ValidationFieldError } from '../api/site-editor.ts';
 
 export interface ParsedPage {
@@ -138,6 +138,41 @@ function findBlockInstance(blocks: Instance[], id: string): { instance: Instance
     }
   }
   return null;
+}
+
+// Silently drops any settings key a schema no longer declares - but
+// only for a schema that explicitly opted into additionalProperties:
+// false. A schema without it permits extra keys by JSON Schema's own
+// default (a theme author's deliberate choice, e.g. a freeform "extra
+// data" bag some integration writes to), so those are left completely
+// untouched - stripping them would be deleting data the theme actually
+// allows, not fixing anything. Called from both updateSections
+// chokepoints (PageSectionsEditor.tsx, SectionFieldsPanel.tsx) rather
+// than per-field in SectionSettingsForm, so editing ANY instance on the
+// page cleans every instance's stale settings, not just the one being
+// edited - a marketing manager who edits a different section on the
+// same page still gets a page that saves cleanly. Recurses into blocks
+// the same way buildFieldErrorMap does, since a block's own settings
+// schema can go stale exactly the same way a section's can.
+export function stripUnknownSettings(
+  instances: Instance[],
+  sectionTypes: ThemeTypeSchemas,
+  blockTypes: ThemeTypeSchemas,
+  kind: 'section' | 'block' = 'section',
+): Instance[] {
+  const schemas = kind === 'section' ? sectionTypes.schemas : blockTypes.schemas;
+  return instances.map((instance) => {
+    const blocks = instance.blocks
+      ? stripUnknownSettings(instance.blocks, sectionTypes, blockTypes, 'block')
+      : instance.blocks;
+    const schema = schemas[instance.type] as { properties?: unknown; additionalProperties?: unknown } | undefined;
+    if (!schema || schema.additionalProperties !== false) {
+      return { ...instance, blocks };
+    }
+    const properties = (schema.properties ?? {}) as Record<string, unknown>;
+    const settings = Object.fromEntries(Object.entries(instance.settings).filter(([key]) => key in properties));
+    return { ...instance, settings, blocks };
+  });
 }
 
 // Mirrors findInstance's own recursive shape, replacing exactly the

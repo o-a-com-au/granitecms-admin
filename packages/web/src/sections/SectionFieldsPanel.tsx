@@ -2,7 +2,14 @@ import { useEffect, useRef } from 'react';
 import { SectionSettingsForm } from './SectionSettingsForm.tsx';
 import { TrashIcon } from './TrashIcon.tsx';
 import { schemaTitle, type Instance } from './instance-types.ts';
-import { buildFieldErrorMap, findInstance, parsePage, removeInstance, updateInstance } from './page-content.ts';
+import {
+  buildFieldErrorMap,
+  findInstance,
+  parsePage,
+  removeInstance,
+  stripUnknownSettings,
+  updateInstance,
+} from './page-content.ts';
 import { useThemeSchemas } from './useThemeSchemas.ts';
 import type { ValidationFieldError } from '../api/site-editor.ts';
 
@@ -89,7 +96,8 @@ export function SectionFieldsPanel({
   const fieldErrors = buildFieldErrorMap(page.sections, validationErrors);
 
   function updateSections(sections: Instance[]): void {
-    setContent(JSON.stringify({ ...page, sections }, null, 2));
+    const cleaned = stripUnknownSettings(sections, sectionTypes, blockTypes);
+    setContent(JSON.stringify({ ...page, sections: cleaned }, null, 2));
   }
 
   // Same immediate removal (no confirmation) as SectionList/BlockList's

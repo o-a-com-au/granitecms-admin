@@ -181,6 +181,40 @@ describe('SectionFieldsPanel', () => {
     expect(updated.sections[0]?.settings.heading).toBe('Changed');
   });
 
+  it('editing one section silently cleans a stale settings key on a DIFFERENT section on the same page', async () => {
+    installFakeThemeSchemasFetch({
+      sections: {
+        hero: { type: 'object', properties: { heading: { type: 'string' } } },
+        promo: { type: 'object', additionalProperties: false, properties: { text: { type: 'string' } } },
+      },
+      blocks: { button: { type: 'object', properties: { label: { type: 'string' } } } },
+      acceptsBlocks: { sections: { hero: true, promo: false }, blocks: { button: false } },
+    });
+    const setContent = vi.fn();
+    const page = JSON.parse(PAGE_WITH_SECTIONS) as { sections: unknown[] };
+    page.sections.push({ id: 'section-2', type: 'promo', settings: { text: 'Hi', oldField: 'stale' } });
+
+    render(
+      <SectionFieldsPanel
+        siteId="site-1"
+        content={JSON.stringify(page)}
+        setContent={setContent}
+        validationErrors={null}
+        selectedInstanceId="section-1"
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText('Heading')).toBeDefined());
+    fireEvent.change(screen.getByLabelText('Heading'), { target: { value: 'Changed' } });
+
+    const updated = JSON.parse(setContent.mock.calls[0]?.[0] as string) as {
+      sections: Array<{ id: string; settings: Record<string, unknown> }>;
+    };
+    const promoSection = updated.sections.find((section) => section.id === 'section-2');
+    expect(promoSection?.settings).toEqual({ text: 'Hi' });
+  });
+
   it('I5: a validation error against a section field reaches that section\'s own field', async () => {
     installFakeThemeSchemasFetch();
     render(
