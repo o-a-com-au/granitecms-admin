@@ -15,14 +15,16 @@ export interface ImageFieldProps {
   onChange: (value: ImageFieldValue) => void;
 }
 
-// A URL text input plus a "Choose Image" button opening the Media
-// library picker (MediaPickerModal), plus a click-to-set focal point
-// on whatever image ends up loaded. The text input stays too - both
-// remain valid ways to set the url. Deliberately not wrapped in its
-// own <label> - the outer SchemaField-provided <label> already covers
-// this field's own first focusable control (the text input), same as
-// the plain string field today, and a nested <label> would be invalid
-// HTML.
+// Preview (once a url is set) above a plain url text input, above the
+// action buttons - "Choose Image"/"Change Image" opens the Media
+// library picker (MediaPickerModal), and "Remove" (also only once a
+// url is set) clears it. The text input stays a valid way to set the
+// url directly too, e.g. a theme's own bundled asset path
+// (/assets/placeholder.svg) that was never uploaded through the media
+// library at all. Deliberately not wrapped in its own <label> - the
+// outer SchemaField-provided <label> already covers this field's own
+// first focusable control (the url input), same as the plain string
+// field today, and a nested <label> would be invalid HTML.
 export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
   const coerced = coerceImageValue(value);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -72,34 +74,36 @@ export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
     onChange({ ...coerced, focalX, focalY });
   }
 
+  const hasImage = coerced.url !== '';
+
   return (
     <div className="image-field">
-      <div className="image-field-url-row">
-        <input type="text" placeholder="https://" value={coerced.url} onChange={handleUrlChange} />
-        <button type="button" onClick={() => setPickerOpen(true)}>
-          Choose Image
-        </button>
-      </div>
-      {coerced.url !== '' && (
-        <>
-          <div className="image-field-preview">
-            <img
-              src={resolveImageSrc(coerced.url, siteUrl)}
-              alt="Click to set focal point"
-              onClick={handleImageClick}
-              draggable={false}
-            />
-            <span
-              className="image-field-focal-marker"
-              aria-hidden="true"
-              style={{ left: `${coerced.focalX * 100}%`, top: `${coerced.focalY * 100}%` }}
-            />
-          </div>
-          <button type="button" className="image-field-remove" onClick={handleRemove}>
-            Remove image
-          </button>
-        </>
+      {hasImage && (
+        <div className="image-field-preview">
+          <img
+            src={resolveImageSrc(coerced.url, siteUrl)}
+            alt="Click to set focal point"
+            onClick={handleImageClick}
+            draggable={false}
+          />
+          <span
+            className="image-field-focal-marker"
+            aria-hidden="true"
+            style={{ left: `${coerced.focalX * 100}%`, top: `${coerced.focalY * 100}%` }}
+          />
+        </div>
       )}
+      <input type="text" className="image-field-url-input" placeholder="https://" value={coerced.url} onChange={handleUrlChange} />
+      <div className="image-field-actions">
+        <button type="button" onClick={() => setPickerOpen(true)}>
+          {hasImage ? 'Change Image' : 'Choose Image'}
+        </button>
+        {hasImage && (
+          <button type="button" className="image-field-remove" onClick={handleRemove}>
+            Remove
+          </button>
+        )}
+      </div>
       {pickerOpen && (
         <MediaPickerModal siteId={siteId} onSelect={handlePickerSelect} onClose={() => setPickerOpen(false)} />
       )}

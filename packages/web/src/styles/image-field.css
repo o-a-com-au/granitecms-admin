@@ -1,5 +1,6 @@
-/* ImageField.tsx - a URL input plus a click-to-set focal point on the
-   image it loads. Own file, own classes, matching the app's
+/* ImageField.tsx - a preview (once a url is set) above a plain url
+   input above the action buttons, plus a click-to-set focal point on
+   the image itself. Own file, own classes, matching the app's
    established one-feature-per-stylesheet convention. */
 .image-field {
   display: flex;
@@ -7,27 +8,23 @@
   gap: 0.5rem;
 }
 
-.image-field-url-row {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.image-field-url-row input {
-  flex: 1;
-  min-width: 0;
+.image-field-url-input {
+  width: 100%;
 }
 
 .image-field-preview {
   position: relative;
-  display: inline-block;
-  max-width: 100%;
+  display: block;
+  width: 100%;
   line-height: 0;
 }
 
 .image-field-preview img {
   display: block;
-  max-width: 100%;
-  max-height: 16rem;
+  width: 100%;
+  max-height: 20rem;
+  object-fit: contain;
+  background: var(--colour-surface-hover);
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
   cursor: crosshair;
@@ -58,7 +55,15 @@
   pointer-events: none;
 }
 
+.image-field-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.image-field-actions button {
+  flex: 1;
+}
+
 .image-field-remove {
-  align-self: flex-start;
   color: var(--colour-danger);
 }
