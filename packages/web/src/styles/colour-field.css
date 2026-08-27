@@ -26,3 +26,13 @@
   outline: 2px solid var(--colour-primary);
   outline-offset: 1px;
 }
+
+.colour-field-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.colour-field-clear {
+  color: var(--colour-danger);
+}

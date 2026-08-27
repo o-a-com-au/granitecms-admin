@@ -12,7 +12,8 @@ export interface ColorFieldProps {
 // real, Ajv-enforced constraint, which would reject a genuinely custom
 // colour outright - swatches are only ever a suggestion.
 export function ColorField({ value, swatches, onChange }: ColorFieldProps) {
-  const current = typeof value === 'string' && value !== '' ? value : '#000000';
+  const hasValue = typeof value === 'string' && value !== '';
+  const current = hasValue ? (value as string) : '#000000';
 
   return (
     <div className="colour-field">
@@ -31,7 +32,18 @@ export function ColorField({ value, swatches, onChange }: ColorFieldProps) {
           ))}
         </div>
       )}
-      <input type="color" value={current} onChange={(event) => onChange(event.target.value)} />
+      <div className="colour-field-input-row">
+        <input type="color" value={current} onChange={(event) => onChange(event.target.value)} />
+        {/* The native input can never itself be blank (browsers coerce
+            an empty value to black), so clearing back to "no colour
+            set" needs its own explicit action - same gap ImageField
+            had before its own Remove button. */}
+        {hasValue && (
+          <button type="button" className="colour-field-clear" onClick={() => onChange('')}>
+            Clear
+          </button>
+        )}
+      </div>
     </div>
   );
 }

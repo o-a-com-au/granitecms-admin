@@ -45,4 +45,19 @@ describe('ColorField', () => {
 
     expect(screen.getByDisplayValue('#000000')).toBeDefined();
   });
+
+  it('shows no Clear button when no colour is set', () => {
+    render(<ColorField value={undefined} swatches={[]} onChange={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull();
+  });
+
+  it('Clear resets the value to empty once a colour is set', () => {
+    const onChange = vi.fn();
+    render(<ColorField value="#c2410c" swatches={[]} onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+
+    expect(onChange).toHaveBeenCalledWith('');
+  });
 });
