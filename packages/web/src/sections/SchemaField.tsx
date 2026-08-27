@@ -3,6 +3,7 @@ import { ColorField } from './ColorField.tsx';
 import { ImageField } from './ImageField.tsx';
 import { RangeField } from './RangeField.tsx';
 import { RichTextField } from './RichTextField.tsx';
+import { ToggleField } from './ToggleField.tsx';
 
 export interface SchemaFieldProps {
   siteId: string;
@@ -90,9 +91,10 @@ function RawJsonFallback({ value, onChange }: { value: unknown; onChange: (value
 // simplest mechanism that actually works (same reasoning as choosing
 // plain jsdiff over a diff-viewer library in Group H). format also
 // picks a richer widget for textarea/uri/date/color strings, for
-// radio (an enum rendered as radio buttons instead of a <select>), and
-// for range (a number with both minimum and maximum, rendered as a
-// slider plus a number box) - all six are UI hints only, same as
+// radio (an enum rendered as radio buttons instead of a <select>), for
+// range (a number with both minimum and maximum, rendered as a slider
+// plus a number box), and for toggle (a boolean rendered as a switch
+// instead of a plain checkbox) - all seven are UI hints only, same as
 // richtext/image: ajv runs with strict:false and no ajv-formats, so
 // none of these are validated server-side, and a theme author who
 // needs real validation still has pattern/minLength/etc. available.
@@ -153,6 +155,8 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
         ))}
       </select>
     );
+  } else if (format === 'toggle' && type === 'boolean') {
+    control = <ToggleField checked={Boolean(value)} onChange={onChange} />;
   } else if (type === 'boolean') {
     control = <input type="checkbox" checked={Boolean(value)} onChange={(event) => onChange(event.target.checked)} />;
   } else if (format === 'range' && (type === 'integer' || type === 'number') && isRangeSchema(schema)) {

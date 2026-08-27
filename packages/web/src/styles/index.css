@@ -30,6 +30,7 @@
 @import './image-field.css';
 @import './colour-field.css';
 @import './range-field.css';
+@import './toggle-field.css';
 @import './media-library.css';
 @import './redirects.css';
 @import './history-tab.css';

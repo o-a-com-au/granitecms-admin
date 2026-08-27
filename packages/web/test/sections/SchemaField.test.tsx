@@ -38,6 +38,22 @@ describe('SchemaField', () => {
     expect(onChange).toHaveBeenCalledWith(false);
   });
 
+  it('renders ToggleField for a boolean with format: "toggle" instead of a plain checkbox', () => {
+    const onChange = vi.fn();
+    render(<SchemaField siteId="site-1" label="Enabled" schema={{ type: 'boolean', format: 'toggle' }} value={false} onChange={onChange} />);
+
+    expect(document.querySelector('.toggle-field')).not.toBeNull();
+    fireEvent.click(screen.getByLabelText('Enabled'));
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
+  it('a format: "toggle" schema on a non-boolean type falls through to the raw JSON fallback, not ToggleField', () => {
+    render(<SchemaField siteId="site-1" label="Enabled" schema={{ type: 'string', format: 'toggle' }} value="x" onChange={vi.fn()} />);
+
+    expect(document.querySelector('.toggle-field')).toBeNull();
+    expect((screen.getByLabelText('Enabled') as HTMLInputElement).type).toBe('text');
+  });
+
   it('I3: renders a text input for a string field, respecting minLength/maxLength', () => {
     const onChange = vi.fn();
     render(<SchemaField siteId="site-1" label="Heading" schema={{ type: 'string', minLength: 1 }} value="Hello" onChange={onChange} />);
