@@ -42,8 +42,21 @@ function UnknownTypeFallback({ settings, onChange }: Pick<SectionSettingsFormPro
   );
 }
 
-function omitKey(settings: Record<string, unknown>, key: string): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(settings).filter(([settingsKey]) => settingsKey !== key));
+// Drops any key the theme's current settings schema no longer
+// declares - the same shape additionalProperties: false would reject
+// on save (page-content.ts's friendlyFieldErrorMessage names this
+// exact case), left over once a theme's settings shape changes after
+// content was already authored against an older version of it (e.g.
+// this session's own radio -> select consolidation). Applied on every
+// edit, silently: the person editing content is a content editor, not
+// the developer who changed the theme, and a stale property they never
+// see and can't act on isn't a decision worth surfacing to them - it
+// only ever needs to disappear.
+function withOnlyKnownKeys(
+  settings: Record<string, unknown>,
+  properties: Record<string, Record<string, unknown>>,
+): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(settings).filter(([key]) => key in properties));
 }
 
 // I3, I5: one SchemaField per settings-schema property. A type the
@@ -57,17 +70,6 @@ export function SectionSettingsForm({ siteId, schema, settings, onChange, fieldE
 
   const properties = (schema.properties ?? {}) as Record<string, Record<string, unknown>>;
 
-  // A fieldErrors key that doesn't match any property the schema still
-  // declares - in practice always additionalProperties (see page-
-  // content.ts's friendlyFieldErrorMessage), left over once a theme's
-  // settings shape changes after content was already authored against
-  // an older version of it. SchemaField has nothing to attach that
-  // error to any more, so without this branch it was a real, correctly
-  // detected error with no way to see or act on it - just an
-  // unexplained "has-error" dot on the section row (see SectionList's
-  // own hasError, driven by the exact same fieldErrors map).
-  const orphanedKeys = fieldErrors ? Object.keys(fieldErrors).filter((key) => !(key in properties)) : [];
-
   return (
     <div className="section-settings-form">
       {Object.entries(properties).map(([key, propertySchema]) => (
@@ -77,26 +79,9 @@ export function SectionSettingsForm({ siteId, schema, settings, onChange, fieldE
           label={fieldLabel(propertySchema, key)}
           schema={propertySchema}
           value={settings[key]}
-          onChange={(value) => onChange({ ...settings, [key]: value })}
+          onChange={(value) => onChange(withOnlyKnownKeys({ ...settings, [key]: value }, properties))}
           error={fieldErrors?.[key]}
         />
-      ))}
-      {orphanedKeys.map((key) => (
-        // Same "schema-field-label" wrapper every real field above uses
-        // (label on top, gap, muted-by-default styling) - reads as a
-        // field-shaped row in the same rhythm as the rest of the form,
-        // not a banner tacked on at the end - just one that can only be
-        // removed, never edited, since there's no schema left to edit
-        // it against. fieldLabel(undefined, key) reuses the exact same
-        // camelCase -> Title Case humanising every other field's label
-        // already falls back to when the schema gives it no title.
-        <div className="schema-field-label orphaned-field-alert" role="alert" key={key}>
-          <span>{fieldLabel(undefined, key)}</span>
-          <p>{fieldErrors?.[key]}</p>
-          <button type="button" onClick={() => onChange(omitKey(settings, key))} aria-label={`Remove ${fieldLabel(undefined, key)}`}>
-            Remove
-          </button>
-        </div>
       ))}
     </div>
   );

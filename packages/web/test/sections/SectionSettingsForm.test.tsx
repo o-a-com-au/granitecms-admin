@@ -105,29 +105,7 @@ describe('SectionSettingsForm', () => {
     });
   });
 
-  it('a fieldErrors entry for a property the schema no longer declares shows as its own field-shaped row, humanised label included', () => {
-    render(
-      <SectionSettingsForm
-        siteId="site-1"
-        schema={HERO_SCHEMA}
-        settings={{ heading: 'Hi', columns: 2, radioField: 'left' }}
-        onChange={vi.fn()}
-        fieldErrors={{ radioField: 'This field is no longer used by the current theme.' }}
-      />,
-    );
-
-    const alert = screen.getByRole('alert');
-    // Humanised the same way every other field's label falls back when
-    // the schema gives it no title (fieldLabel/humanizeFieldKey) - not
-    // the raw camelCase property name.
-    expect(alert.textContent).toContain('Radio Field');
-    expect(alert.textContent).not.toContain('radioField');
-    expect(alert.textContent).toContain('This field is no longer used by the current theme.');
-    // It's a row of its own, not a SchemaField - no editable input was created for it.
-    expect(screen.queryByRole('textbox', { name: /radio field/i })).toBeNull();
-  });
-
-  it('the row\'s Remove button strips just that key, leaving every other setting untouched', () => {
+  it('a settings property the schema no longer declares is never shown - it is silently dropped on the next edit', () => {
     const onChange = vi.fn();
     render(
       <SectionSettingsForm
@@ -139,9 +117,17 @@ describe('SectionSettingsForm', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Radio Field' }));
+    // A content editor is never shown anything about it - no callout,
+    // no alert, nothing referencing the stale property or its error.
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(/radioField|radio field/i)).toBeNull();
 
-    expect(onChange).toHaveBeenCalledWith({ heading: 'Hi', columns: 2 });
+    fireEvent.change(screen.getByLabelText('Heading'), { target: { value: 'Updated' } });
+
+    // Editing anything else in the section quietly cleans it up - the
+    // very next save the editor makes is already valid again, with no
+    // action or awareness required from them.
+    expect(onChange).toHaveBeenCalledWith({ heading: 'Updated', columns: 2 });
   });
 
   it('falls back to raw settings editing for an unknown type, without discarding the instance', () => {

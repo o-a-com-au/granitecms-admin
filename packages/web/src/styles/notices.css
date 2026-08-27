@@ -12,37 +12,3 @@
   max-width: 640px;
   margin: 0 0 1rem;
 }
-
-/* SectionSettingsForm's own row for a fieldErrors entry that no longer
-   matches any property in the theme's current settings schema (almost
-   always additionalProperties - see page-content.ts). Layered on top
-   of base.css's .schema-field-label (same label-on-top, gapped column
-   every real field already uses) so it reads as a field-shaped row in
-   the form rather than a banner tacked on the end - just one that can
-   only be removed, never edited, since there's no schema left to edit
-   it against. Danger-tinted throughout (base.css's p[role='alert']
-   red), unlike a normal field's muted label. */
-.orphaned-field-alert {
-  padding: 0.6rem 0.85rem;
-  border-radius: var(--radius-sm);
-  background: rgba(240, 104, 92, 0.12);
-  border: 1px solid rgba(240, 104, 92, 0.35);
-}
-
-.orphaned-field-alert span {
-  color: var(--colour-danger);
-  font-weight: 600;
-}
-
-.orphaned-field-alert p {
-  margin: 0;
-  color: var(--colour-danger);
-}
-
-.orphaned-field-alert button {
-  align-self: flex-start;
-  background: none;
-  border: 1px solid var(--colour-danger);
-  color: var(--colour-danger);
-  font-weight: 600;
-}
