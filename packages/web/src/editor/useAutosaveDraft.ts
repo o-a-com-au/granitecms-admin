@@ -139,6 +139,17 @@ export function useAutosaveDraft(
       // that was just created.
       setSource('draft');
 
+      // A prior failed attempt's errorMessage/validationErrors were
+      // never cleared on success - they lingered in state indefinitely,
+      // so buildFieldErrorMap (page-content.ts) kept mapping a long-
+      // since-fixed error onto whatever section now sits at that same
+      // array index (sections can reorder/change), lighting up a red
+      // dot on a section with no actual error and no matching field to
+      // show it against. A genuinely new failure re-sets both from the
+      // catch branch below regardless.
+      setErrorMessage(null);
+      setValidationErrors(null);
+
       if (pendingSaveRef.current) {
         void attemptSave();
       } else {
