@@ -1,31 +1,39 @@
 /* SelectField.tsx - a segmented-tab control for a short list of short
    labels (auto-decided, not themer-chosen); everything else stays a
-   plain <select>, which needs no styling of its own here. */
+   plain <select>, which needs no styling of its own here. Same
+   full-width segmented-pill look as .editor-tabs (editor-tabs.css) -
+   width: 100% plus flex: 1 per button divides evenly into however
+   many options there are (three options, three even thirds; two,
+   two even halves), rather than each tab only as wide as its own
+   label. */
 .select-field-tabs {
-  display: inline-flex;
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  gap: var(--space-xs);
+  padding: var(--space-xs);
   border: 1px solid var(--colour-border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  width: fit-content;
-  max-width: 100%;
+  border-radius: var(--radius-md);
+  background: var(--colour-surface);
 }
 
 .select-field-tabs button {
-  padding: 0.4rem 0.9rem;
+  flex: 1;
+  padding: 0.55rem 1rem;
   border: none;
-  border-right: 1px solid var(--colour-border);
-  border-radius: 0;
-  background: var(--colour-bg);
-  color: var(--colour-text);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--colour-muted);
+  font-size: 0.8rem;
+  font-weight: 400;
   cursor: pointer;
   white-space: nowrap;
-}
-
-.select-field-tabs button:last-child {
-  border-right: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .select-field-tabs button[aria-pressed='true'] {
-  background: var(--colour-primary);
-  color: #fff;
+  background: var(--colour-surface-hover);
+  color: var(--colour-text);
+  font-weight: 700;
 }
