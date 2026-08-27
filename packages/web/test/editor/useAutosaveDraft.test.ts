@@ -186,6 +186,27 @@ describe('useAutosaveDraft', () => {
     expect(result.current.errorMessage).toBeNull();
   });
 
+  it('Group I: reloadLatest also clears a prior validation error, not just the load-error path', async () => {
+    const api = installFakeEditorApi({
+      content: '{"a":1}',
+      etag: '"etag-1"',
+      source: 'draft',
+      forceValidationError: true,
+    });
+    const { result } = renderHook(() => useAutosaveDraft('site-1', 'pages/about.json', TEST_DEBOUNCE_MS));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    act(() => result.current.setContent('{"a":2}'));
+    await waitFor(() => expect(result.current.status).toBe('save-error'));
+    expect(result.current.validationErrors).not.toBeNull();
+
+    api.state.forceValidationError = false;
+    act(() => result.current.reloadLatest());
+
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(result.current.validationErrors).toBeNull();
+  });
+
   it('E5: reloadLatest discards local content and re-fetches', async () => {
     const api = installFakeEditorApi({ content: '{"a":1}', etag: '"etag-1"', source: 'draft' });
     const { result } = renderHook(() => useAutosaveDraft('site-1', 'pages/about.json', TEST_DEBOUNCE_MS));

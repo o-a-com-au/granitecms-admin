@@ -68,6 +68,12 @@ export function useAutosaveDraft(
   const load = useCallback(async () => {
     updateStatus('loading');
     setErrorMessage(null);
+    // Same staleness as attemptSave's success branch above: reloadLatest
+    // (Discard Changes, the conflict panel's own reload, SiteStatusPanel's
+    // Retry) all funnel through this same load(), and a validation error
+    // from before the reload has nothing to do with whatever content is
+    // about to replace it.
+    setValidationErrors(null);
     try {
       const result = await readSiteEditorContent(siteId, path);
       etagRef.current = result.etag;
