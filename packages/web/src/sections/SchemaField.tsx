@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { ColorField } from './ColorField.tsx';
 import { ImageField } from './ImageField.tsx';
+import { RangeField } from './RangeField.tsx';
 import { RichTextField } from './RichTextField.tsx';
 
 export interface SchemaFieldProps {
@@ -14,6 +15,18 @@ export interface SchemaFieldProps {
 
 function isEnumSchema(schema: Record<string, unknown>): schema is Record<string, unknown> & { enum: unknown[] } {
   return Array.isArray(schema.enum);
+}
+
+// Mirrors Shopify's own range setting: minimum/maximum are required
+// (reusing the standard JSON Schema keywords the plain number branch
+// already reads, not a new pair of custom ones), step/unit are not.
+// Missing either bound is a theme-authoring mistake, not something to
+// guess a fallback for - falls through to the plain number input
+// instead, same convention as every other mismatched format above.
+function isRangeSchema(
+  schema: Record<string, unknown>,
+): schema is Record<string, unknown> & { minimum: number; maximum: number } {
+  return typeof schema.minimum === 'number' && typeof schema.maximum === 'number';
 }
 
 // "swatches" is a plain array of hex strings, deliberately not real
@@ -76,12 +89,13 @@ function RawJsonFallback({ value, onChange }: { value: unknown; onChange: (value
 // warrants - matching this project's consistent preference for the
 // simplest mechanism that actually works (same reasoning as choosing
 // plain jsdiff over a diff-viewer library in Group H). format also
-// picks a richer widget for textarea/uri/date/color strings and for
-// radio (an enum rendered as radio buttons instead of a <select>) -
-// all five are UI hints only, same as richtext/image: ajv runs with
-// strict:false and no ajv-formats, so none of these are validated
-// server-side, and a theme author who needs real validation still has
-// pattern/minLength/etc. available.
+// picks a richer widget for textarea/uri/date/color strings, for
+// radio (an enum rendered as radio buttons instead of a <select>), and
+// for range (a number with both minimum and maximum, rendered as a
+// slider plus a number box) - all six are UI hints only, same as
+// richtext/image: ajv runs with strict:false and no ajv-formats, so
+// none of these are validated server-side, and a theme author who
+// needs real validation still has pattern/minLength/etc. available.
 export function SchemaField({ siteId, label, schema, value, onChange, error }: SchemaFieldProps) {
   const type = typeof schema.type === 'string' ? schema.type : undefined;
   const format = typeof schema.format === 'string' ? schema.format : undefined;
@@ -141,6 +155,17 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
     );
   } else if (type === 'boolean') {
     control = <input type="checkbox" checked={Boolean(value)} onChange={(event) => onChange(event.target.checked)} />;
+  } else if (format === 'range' && (type === 'integer' || type === 'number') && isRangeSchema(schema)) {
+    control = (
+      <RangeField
+        value={value}
+        minimum={schema.minimum}
+        maximum={schema.maximum}
+        step={typeof schema.step === 'number' ? schema.step : 1}
+        unit={typeof schema.unit === 'string' ? schema.unit : undefined}
+        onChange={onChange}
+      />
+    );
   } else if (type === 'integer' || type === 'number') {
     control = (
       <input

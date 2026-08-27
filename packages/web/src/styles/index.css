@@ -29,6 +29,7 @@
 @import './rich-text-field.css';
 @import './image-field.css';
 @import './colour-field.css';
+@import './range-field.css';
 @import './media-library.css';
 @import './redirects.css';
 @import './history-tab.css';

@@ -69,6 +69,30 @@ describe('SchemaField', () => {
     expect(onChange).toHaveBeenCalledWith(3);
   });
 
+  it('renders RangeField for a number with format: "range" plus minimum/maximum, not the plain number input', () => {
+    render(
+      <SchemaField
+        siteId="site-1"
+        label="Font size"
+        schema={{ type: 'integer', format: 'range', minimum: 12, maximum: 24, step: 2, unit: 'px' }}
+        value={16}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelector('input[type="range"]')).toBeDefined();
+    expect(screen.getByText('px')).toBeDefined();
+  });
+
+  it('a format: "range" schema missing minimum/maximum falls through to the plain number input', () => {
+    render(
+      <SchemaField siteId="site-1" label="Font size" schema={{ type: 'integer', format: 'range' }} value={16} onChange={vi.fn()} />,
+    );
+
+    expect(document.querySelector('input[type="range"]')).toBeNull();
+    expect((screen.getByLabelText('Font size') as HTMLInputElement).type).toBe('number');
+  });
+
   it('I3: falls back to a raw JSON textarea for an unrecognised schema shape, never dropping the field', () => {
     const onChange = vi.fn();
     render(<SchemaField siteId="site-1" label="Extra" schema={{ type: 'object' }} value={{ nested: true }} onChange={onChange} />);
