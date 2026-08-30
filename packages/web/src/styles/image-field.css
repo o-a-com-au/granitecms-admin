@@ -11,6 +11,27 @@
 .image-field-card {
   display: flex;
   flex-direction: column;
+  /* No visible border/background of its own - this only exists so the
+     :focus-within outline below (and any child's own border-radius
+     peeking past the card's edge) has a radius to follow, rather than
+     drawing a sharp-cornered box around a rounded-corner shape. */
+  border-radius: var(--radius-sm);
+}
+
+/* The url input's own default focus outline (base.css's plain
+   input:focus) reads oddly once there's an image above it - it only
+   ever highlighted the input's own box, leaving the image it belongs
+   to looking completely unrelated to the field that's actually active.
+   Moved the same outline treatment to the whole card via :has(), so
+   focusing the input highlights the image + input as the one field
+   they actually are. */
+.image-field-url-input:focus {
+  outline: none;
+}
+
+.image-field-card:has(.image-field-url-input:focus) {
+  outline: 2px solid var(--colour-primary);
+  outline-offset: -1px;
 }
 
 /* Once there's an image, the preview and url input read as one
