@@ -172,3 +172,12 @@
 .preview-viewport[data-device='mobile'] iframe {
   background: var(--colour-surface);
 }
+
+/* Tablet/mobile sit flush with the bottom of the screen (padding-bottom:
+   0 above) with nothing below to frame a rounded corner against, so
+   only the top two corners round to match the device-card treatment -
+   the bottom two stay square against the screen's own edge. */
+.preview-viewport[data-device='tablet'] iframe,
+.preview-viewport[data-device='mobile'] iframe {
+  border-radius: 10px 10px 0 0;
+}
