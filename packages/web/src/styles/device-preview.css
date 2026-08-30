@@ -99,6 +99,14 @@
   min-height: 640px;
   border: none;
   border-radius: 10px;
+  /* border-radius alone doesn't reliably clip an iframe's own embedded
+     document to the curve - it rounds the iframe's box, but the page
+     painted inside can still paint its own background flush to the
+     corner, showing through as a faint square "ghost" past the curve.
+     overflow: hidden forces the browser to actually clip that painted
+     content to the rounded box, not just the (already invisible) iframe
+     border/background layer. */
+  overflow: hidden;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
   opacity: 0;
   transition:
