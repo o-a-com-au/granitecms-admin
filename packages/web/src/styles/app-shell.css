@@ -19,6 +19,10 @@
   align-items: center;
   gap: 1.5rem;
   padding: var(--space-md) var(--space-lg);
+  background: var(--colour-surface);
+  box-shadow: var(--shadow-panel);
+  margin-bottom: var(--space-md);
+
 }
 
 .app-topbar-start {

@@ -145,8 +145,9 @@
   flex-direction: column;
   padding: var(--space-lg) var(--space-md);
   background: var(--colour-surface);
-  border: 1px solid var(--colour-border);
+  /*border: 1px solid var(--colour-border);*/
   border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-panel);
 }
 
 /* Fades in from the right on every Page/Sections/Fields tab switch.
@@ -264,9 +265,10 @@
   overflow: hidden;
   padding: 0;
   background: var(--colour-surface);
-  border: 1px solid var(--colour-border);
+  /* border: 1px solid var(--colour-border); */
   border-radius: var(--radius-sm);
   transform: translateX(calc(100% + var(--space-sm)));
+  box-shadow: var(--shadow-panel);
   opacity: 0;
   transition:
     transform 0.3s ease,

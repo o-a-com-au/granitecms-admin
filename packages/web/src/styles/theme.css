@@ -43,6 +43,7 @@
 
   --colour-primary: #3b6ef6;
   --colour-primary-hover: #2f5bd1;
+  --colour-primary-dark: #3767e8;
   --colour-ok: #3ecf6e;
   --colour-warning: #f5a623;
   --colour-danger: #f0685c;
@@ -83,11 +84,16 @@
   --colour-border: var(--grey-700);
   --colour-muted: var(--grey-500);
   --colour-text: var(--grey-200);
+  --colour-input-background: #000;
   --colour-table-header: var(--grey-900);
   --colour-table-background: var(--grey-850);
   --colour-table-row-divider: var(--grey-800);
   --colour-section: var(--grey-700);
   --colour-section-block: var(--grey-800);
+  --shadow-panel: 0 2px 3px rgba(0, 0, 0, 0.3);
+  --gradient-pill: linear-gradient(0deg, var(--grey-700), var(--grey-650));
+  --gradient-pill-active: linear-gradient(0deg, var(--colour-primary-dark), var(--colour-primary));
+  --gradient-viewport: linear-gradient(0deg, var(--grey-800), #000);
 }
 
 [data-theme='light'] {
@@ -98,9 +104,14 @@
   --colour-border: var(--grey-200);
   --colour-muted: var(--grey-500);
   --colour-text: var(--grey-700);
+  --colour-input-background: #fff;
   --colour-table-header: var(--grey-50);
   --colour-table-background: var(--grey-100);
   --colour-table-row-divider: var(--grey-200);
   --colour-section: var(--grey-100);
   --colour-section-block: var(--grey-50);
+  --shadow-panel: 0 2px 5px rgba(0, 0, 0, 0.1); 
+  --gradient-pill: linear-gradient(0deg, var(--grey-150), #fff);
+  --gradient-pill-active: linear-gradient(0deg, var(--colour-primary-dark), var(--colour-primary));
+  --gradient-viewport: linear-gradient(0deg, var(--grey-100), var(--grey-200));
 }

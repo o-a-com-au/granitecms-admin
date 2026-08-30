@@ -10,9 +10,10 @@
   display: flex;
   gap: var(--space-xs);
   padding: var(--space-xs);
-  border: 1px solid var(--colour-border);
+  /* border: 1px solid var(--colour-border); */
   border-radius: var(--radius-sm);
   background: var(--colour-surface);
+  box-shadow: var(--shadow-panel);
 }
 
 .editor-tabs[role='tablist'] button[role='tab'] {

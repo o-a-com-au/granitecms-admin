@@ -80,8 +80,9 @@
   padding: var(--space-xs) var(--space-md) var(--space-xs) var(--space-xs);
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
-  background: var(--colour-section);
+  background: var(--gradient-pill);
   cursor: pointer;
+  box-shadow: var(--shadow-panel);
 }
 
 .instance-row-main:hover,
@@ -102,7 +103,7 @@
    pointer or preview scroll moves on), so it stays obvious which row
    the panel on the right is actually showing. */
 .instance-row-main.is-selected {
-  background: var(--colour-primary);
+  background: var(--gradient-pill-active);
   border-color: var(--colour-primary);
   color: #fff;
 }

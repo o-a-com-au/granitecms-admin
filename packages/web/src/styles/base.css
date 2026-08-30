@@ -81,7 +81,7 @@ textarea {
   padding: 0.5rem 0.65rem;
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-xs);
-  background: var(--colour-bg);
+  background: var(--colour-input-background);
 }
 
 input:focus,

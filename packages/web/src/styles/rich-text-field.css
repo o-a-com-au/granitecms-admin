@@ -208,7 +208,7 @@
   /* Same background as base.css's own plain input/select/textarea
      rule - the typing surface should read as the same kind of control,
      even though the toolbar chrome above it stays --colour-surface. */
-  background: var(--colour-bg);
+  background: var(--colour-input-background);
   color: var(--colour-text);
 }
 

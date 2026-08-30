@@ -57,7 +57,8 @@
   border-top-right-radius: var(--radius-sm);
   transition: padding 0.3s ease;
   margin: 0 var(--space-sm) 0 var(--space-sm);
-  background: var(--colour-surface);
+  background: var(--gradient-viewport);
+  /* box-shadow: var(--shadow-panel); */
 }
 
 /* Dark mode only - the browser's own default scrollbar is a light-
