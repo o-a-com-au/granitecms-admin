@@ -974,15 +974,13 @@ describe('PageEditorPage', () => {
     expect(Boolean(position & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
   });
 
-  it('the sidebar stays collapsed (full-width preview) briefly after the first load, then reveals itself', async () => {
+  it('the sidebar reveals itself as soon as content actually loads, with no artificial delay', async () => {
     installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
     renderPage();
 
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
     const sidebar = document.querySelector('.editor-sidebar') as HTMLElement;
-    expect(sidebar.className).not.toContain('is-revealed');
-
-    await waitFor(() => expect(sidebar.className).toContain('is-revealed'), { timeout: 1500 });
+    expect(sidebar.className).toContain('is-revealed');
   });
 
   it('once revealed, switching to a different page keeps the sidebar in place rather than collapsing it again', async () => {

@@ -503,24 +503,20 @@ export function PageEditorPage() {
   const hasPendingChanges = source === 'draft' || status !== 'ready';
 
   // The very first load of this editor session shows the preview at
-  // full width, sidebar-less - once real content actually arrives, a
-  // deliberate 500ms beat lets the loaded page register on its own
-  // before the sidebar slides in, rather than the two arriving in the
-  // same instant. Never resets back to false afterwards, including
-  // across a later path change (picking a different page from the
-  // Sections/Page Meta tabs, or the preview's own in-page links) - once
-  // revealed, the sidebar stays put; only its own tab content and the
-  // preview swap per-page from then on, the same way any other already-
-  // open editor would. A fresh mount (leaving the editor entirely and
-  // coming back) naturally resets this, which is exactly "first load"
-  // again.
+  // full width, sidebar-less - the sidebar reveals itself the instant
+  // real content actually arrives, with no artificial delay. Never
+  // resets back to false afterwards, including across a later path
+  // change (picking a different page from the Sections/Page Meta tabs,
+  // or the preview's own in-page links) - once revealed, the sidebar
+  // stays put; only its own tab content and the preview swap per-page
+  // from then on, the same way any other already-open editor would. A
+  // fresh mount (leaving the editor entirely and coming back) naturally
+  // resets this, which is exactly "first load" again.
   const [sidebarRevealed, setSidebarRevealed] = useState(false);
   useEffect(() => {
-    if (!contentLoaded || sidebarRevealed) {
-      return;
+    if (contentLoaded && !sidebarRevealed) {
+      setSidebarRevealed(true);
     }
-    const timer = setTimeout(() => setSidebarRevealed(true), 500);
-    return () => clearTimeout(timer);
   }, [contentLoaded, sidebarRevealed]);
 
   // validationErrors present means this specific failure already has a
