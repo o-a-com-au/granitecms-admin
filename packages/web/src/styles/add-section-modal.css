@@ -6,13 +6,13 @@
    list is expected to be much shorter than a real media library, so a
    fixed height (and the scroll it would imply) isn't needed here. */
 .add-section-modal {
-  width: min(90vw, 640px);
+  width: min(90vw, 960px);
   max-height: 85vh;
   display: flex;
   flex-direction: column;
   padding: var(--space-lg);
   border-radius: var(--radius-sm);
-  background: var(--colour-surface);
+  background: black;
   border: 1px solid var(--colour-border);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
 }
@@ -43,9 +43,21 @@ button.add-section-modal-close {
 
 .add-section-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(5, 1fr);
   gap: 1rem;
   overflow-y: auto;
+}
+
+/* Five fixed columns only makes sense at the modal's own desktop width
+   (min(90vw, 960px) above) - on a narrow viewport that same 90vw
+   shrinks to a few hundred px, where five columns would squeeze each
+   card down to nothing. Falls back to auto-fill below the app's usual
+   720px breakpoint instead, same as the modal's own width already
+   implicitly does. */
+@media (max-width: 720px) {
+  .add-section-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
 }
 
 /* button.add-section-item, not the bare class: base.css's own
