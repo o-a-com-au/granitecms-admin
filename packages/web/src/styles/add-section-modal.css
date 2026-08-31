@@ -2,12 +2,16 @@
    context-menu-style "Add Section" dropdown. Sizing/grid conventions
    mirror media-library.css's own .media-picker-modal/.media-library-
    grid (the closest existing "pick one of several visual cards from a
-   modal" pattern in this app), width capped rather than height - this
-   list is expected to be much shorter than a real media library, so a
-   fixed height (and the scroll it would imply) isn't needed here. */
+   modal" pattern in this app). A fixed height, not just a cap - with
+   the search bar now able to filter the grid down to one card or none,
+   max-height alone let the whole modal shrink and grow as the result
+   count changed, which read as the dialog itself flickering size while
+   typing. Fixed height + .add-section-grid's own flex: 1/overflow-y
+   below means only the grid scrolls; the modal's own footprint never
+   moves. */
 .add-section-modal {
   width: min(90vw, 960px);
-  max-height: 85vh;
+  height: min(85vh, 640px);
   display: flex;
   flex-direction: column;
   padding: var(--space-lg);
@@ -54,6 +58,15 @@ button.add-section-modal-close {
 }
 
 .add-section-search {
+  /* Overrides .content-search's own flex: 1 (pages-list.css) - harmless
+     there and everywhere else that class is used so far, since none of
+     those parents had a defined height for "flex: 1" to actually claim
+     space against. .add-section-modal now does (height: min(85vh,
+     640px) above), so without this override the search bar competed
+     with .add-section-grid's own flex: 1 for the modal's leftover
+     vertical space instead of staying a single input row - found live,
+     it rendered as a tall black rectangle instead of a search field. */
+  flex: none;
   width: 100%;
   margin-bottom: var(--space-md);
 }
@@ -66,7 +79,15 @@ button.add-section-modal-close {
 .add-section-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
+  align-content: start;
   gap: 1rem;
+  /* flex: 1 (fill the modal's own remaining fixed height) + min-height:
+     0 (the standard flex-scroll fix - a flex item's default min-height
+     is auto, which lets it grow past its parent instead of actually
+     scrolling) - same convention as .editor-page/.editor-tab-content's
+     own overflow-y: auto columns elsewhere in this app. */
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 

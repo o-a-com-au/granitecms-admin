@@ -180,6 +180,17 @@
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
   padding: 0.6rem;
   z-index: 20;
+  /* Same fade-up every centred modal uses (modal.css's own
+     popup-fade-up) - not a .modal-overlay child (anchored under the
+     toolbar's Link button, not centred), so it references the shared
+     keyframe directly. */
+  animation: popup-fade-up 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .richtext-link-popover {
+    animation: none;
+  }
 }
 
 .richtext-link-popover input {

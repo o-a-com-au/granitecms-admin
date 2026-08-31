@@ -141,6 +141,22 @@ button.colour-field-preview--none:hover {
   border-radius: var(--radius-sm);
   background: var(--colour-surface);
   box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.4);
+  /* Same fade-up every centred modal uses (modal.css's own
+     popup-fade-up) - this popover isn't a .modal-overlay child (it's
+     anchored near the swatch/button that opened it, not centred), so
+     it references the shared keyframe directly rather than being
+     covered by that file's own selector. Safe alongside the two-pass
+     position measurement above: both the invisible measuring render
+     and the real, positioned one commit before the browser's first
+     paint, so the animation's visible start lines up with the popover
+     already being in its final place, not the hidden 0,0 one. */
+  animation: popup-fade-up 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .colour-picker-popover {
+    animation: none;
+  }
 }
 
 /* Explicit 200px, matching react-colorful's own hardcoded

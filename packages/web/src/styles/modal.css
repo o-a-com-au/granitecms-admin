@@ -41,3 +41,37 @@
   justify-content: flex-end;
   gap: var(--space-sm);
 }
+
+/* Every dialog/alertdialog this app opens as a centred overlay
+   (ConfirmDialog, UnsavedChangesPrompt, MediaPickerModal,
+   AddSectionModal, RedirectFormModal, NewPageModal, RichTextField's own
+   enlarge modal) is a direct child of .modal-overlay, so one rule here
+   covers all of them rather than repeating the same animation in each
+   component's own stylesheet - a popup/modal appearing should always
+   read the same way across the app. colour-field.css's
+   .colour-picker-popover and rich-text-field.css's
+   .richtext-link-popover aren't inside .modal-overlay (both are
+   anchored near a trigger, not centred), so they reuse this same
+   keyframe directly rather than being covered by this selector. */
+.modal-overlay > [role='dialog'],
+.modal-overlay > [role='alertdialog'] {
+  animation: popup-fade-up 0.2s ease-out;
+}
+
+@keyframes popup-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay > [role='dialog'],
+  .modal-overlay > [role='alertdialog'] {
+    animation: none;
+  }
+}
