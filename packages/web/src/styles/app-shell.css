@@ -67,14 +67,13 @@
   color: var(--colour-text);
 }
 
-/* The design system's own fixed-palette icons can't shift colour on
-   their own via currentColor (icons/index.tsx's own comment) - a
-   background box behind the whole icon+label is the active indicator
-   instead, same convention the device toggle already uses. */
+/* No background box any more (deliberately removed) - just the label
+   text colour change. The design system's own fixed-palette icons
+   can't shift colour themselves via currentColor (icons/index.tsx's
+   own comment), so the icon looks the same active or not; only the
+   label distinguishes it now. */
 [aria-current='page'].nav-rail-item {
-  background: var(--colour-surface-hover);
   color: var(--colour-text);
-  border-radius: var(--radius-sm);
 }
 
 .nav-rail-item[aria-disabled='true'] {
