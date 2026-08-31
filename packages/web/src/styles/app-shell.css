@@ -414,16 +414,52 @@
   flex-direction: column;
 }
 
-/* The Pages hub (PagesHubPage.tsx) manages its own internal scroll
-   regions the same way the editor does (tabbed list panel + preview
-   viewport, each scrolling independently) - same override as
-   .editor-page above. */
+/* The Pages hub (PagesHubPage.tsx) now only ever contains its own
+   tabbed list panel - the preview viewport it used to sit beside moved
+   out to .shared-preview-region below, a sibling of .app-content rather
+   than something inside it. flex: 0 0 auto (not the base rule's flex:
+   1) is what stops .app-content stretching to fill the row on its
+   own now that there's no longer a second flex child inside it to
+   share that space with - .shared-preview-region's own flex: 1 claims
+   the rest instead. */
 .app-content:has(.pages-hub) {
+  flex: 0 0 auto;
   max-width: none;
   padding: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* The one persistent live-preview viewport (PreviewContext.tsx,
+   AppShell.tsx's own SharedPreviewRegion), a sibling of .app-content in
+   the same row rather than something any one route owns - this is what
+   lets it survive navigating between Editor/Pages/Media without
+   reloading. Structurally the same "viewport + fields panel" pairing
+   editor-layout.css's .editor-preview-full/.editor-fields-panel already
+   have, just hoisted up a level so a route swap underneath (.app-content)
+   never touches it. */
+.shared-preview-region {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+
+.preview-viewport-wrap {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.shared-preview-region .preview-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--colour-muted);
 }
 
 /* The first-run onboarding screen (ManageSitesPage.tsx, only reachable

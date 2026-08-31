@@ -1,9 +1,14 @@
 /* PagesHubPage.tsx - Pages/Menus/Redirects consolidated into one
    tabbed left panel (reusing editor-layout.css's own .editor-tabs/
    .editor-sidebar-top/.editor-tab-content/.editor-tab-panel primitives
-   for the tab strip itself) plus a live preview viewport, replacing
-   three separate full-width .list-page routes. No right-hand fields
-   panel - editing a page's own settings stays the Editor's job. */
+   for the tab strip itself), replacing three separate full-width
+   .list-page routes. The live preview viewport is AppShell's shared
+   one now (app-shell.css's .shared-preview-region), not rendered here
+   at all - .pages-hub only ever contains .pages-hub-panel, sized to
+   the sidebar width; app-shell.css's own .app-content:has(.pages-hub)
+   override is what stops .app-content claiming the rest of the row
+   instead. No right-hand fields panel - editing a page's own settings
+   stays the Editor's job. */
 .pages-hub {
   display: flex;
   flex: 1;
@@ -17,26 +22,6 @@
   min-height: 0;
   margin: var(--space-sm);
   margin-right: 0;
-}
-
-.pages-hub-preview {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.pages-hub-preview .preview-viewport {
-  flex: 1;
-}
-
-.pages-hub-preview-empty {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--colour-muted);
-  margin: var(--space-sm);
 }
 
 .pages-hub-tab {
