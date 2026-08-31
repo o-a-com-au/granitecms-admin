@@ -3,6 +3,7 @@ import { useParams } from 'react-router';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 import { usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
 import { usePreview, usePreviewVisible } from '../layout/PreviewContext.tsx';
+import { useSectionClickToEdit } from '../editor/useSectionClickToEdit.ts';
 import { writeLastEditorLocation } from '../sites/currentSite.ts';
 import { PagesTabPanel, type PreviewablePage } from './PagesTabPanel.tsx';
 import { MenusTabPanel } from './MenusTabPanel.tsx';
@@ -24,8 +25,11 @@ type HubTab = 'pages' | 'menus' | 'redirects';
 // page's own settings stays the Editor's job, this is a
 // browse-and-preview surface. Selecting a page in the Pages tab
 // previews it in the shared viewport rather than navigating away
-// immediately; each row's own name link still goes straight to the
-// full Editor, unchanged from before.
+// immediately - each row's own Edit button is the one that goes
+// straight to the full Editor now (direct request); the row's own
+// title just previews instead. Hovering/clicking a section directly in
+// that preview (useSectionClickToEdit) is the fast path into actually
+// editing one, without needing to open the Editor and find it again.
 export function PagesHubPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
   const [tab, setTab] = useState<HubTab>('pages');
@@ -36,6 +40,7 @@ export function PagesHubPage() {
   // readLastEditorLocation record PageEditorPage.tsx writes to) - this
   // page just needs to ask for it to be shown at all.
   usePreviewVisible(true);
+  useSectionClickToEdit(siteId);
   // useMemo, not a bare JSX expression - usePageDeviceToggle's own
   // effect (PageActionsContext.tsx's createChromeSlot) depends on this
   // node by reference. A fresh element every render re-registers on

@@ -54,15 +54,26 @@ function renderHub() {
   // behaviour differed just enough that it failed to reproduce the
   // device-toggle render loop this harness exists to catch, even
   // against the genuinely broken source.
+  //
+  // A real /editor route (a plain stub, not PageEditorPage itself) so
+  // useSectionClickToEdit's own navigate() call lands somewhere
+  // observable via router.state.location - PagesHubPage itself doesn't
+  // otherwise render anything of the Editor.
   const router = createMemoryRouter(
-    [{ path: '/sites/:siteId/content', element: <PagesHubPage /> }],
+    [
+      { path: '/sites/:siteId/content', element: <PagesHubPage /> },
+      { path: '/sites/:siteId/editor', element: <div>editor stub</div> },
+    ],
     { initialEntries: ['/sites/site-1/content'] },
   );
-  return render(
-    <Host>
-      <RouterProvider router={router} />
-    </Host>,
-  );
+  return {
+    router,
+    ...render(
+      <Host>
+        <RouterProvider router={router} />
+      </Host>,
+    ),
+  };
 }
 
 afterEach(() => {
@@ -76,7 +87,7 @@ describe('PagesHubPage', () => {
 
     renderHub();
 
-    await waitFor(() => expect(screen.getByRole('link', { name: 'About' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
     expect(screen.getByText('No live preview available for this content type.')).toBeDefined();
   });
 
@@ -94,16 +105,69 @@ describe('PagesHubPage', () => {
     expect(screen.getByTitle('Live preview').getAttribute('src')).toContain('/api/sites/site-1/preview/about');
   });
 
-  it('clicking a page\'s Preview button also updates the shared Editor location, so switching Pages -> Editor opens that same page', async () => {
+  it('clicking a page\'s own title also updates the shared Editor location, so switching Pages -> Editor opens that same page', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     installFakeContentApi();
 
     renderHub();
-    await waitFor(() => expect(screen.getByRole('link', { name: 'About' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Preview About' }));
+    fireEvent.click(screen.getByRole('button', { name: 'About' }));
 
     await waitFor(() => expect(screen.getByTitle('Live preview')).toBeDefined());
     expect(readLastEditorLocation('site-1')).toBe('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+  });
+
+  describe('useSectionClickToEdit - hovering/clicking a section in the preview', () => {
+    // Same jsdom-writes-directly-into-the-iframe-document technique
+    // PageEditorPage.test.tsx's own writeIframeDocWithLink uses - jsdom
+    // never actually navigates the iframe to fetch a real response, so
+    // this stands in for what the real preview response would render.
+    function writeSectionIntoIframe(iframe: HTMLIFrameElement, sectionId: string): HTMLElement {
+      const doc = iframe.contentDocument as Document;
+      doc.open();
+      doc.write('<body></body>');
+      doc.close();
+      const section = doc.createElement('div');
+      section.setAttribute('data-section-id', sectionId);
+      section.textContent = 'Hero section';
+      doc.body.append(section);
+      fireEvent.load(iframe);
+      return section;
+    }
+
+    async function previewAboutAndGetSection(sectionId: string) {
+      vi.stubGlobal('localStorage', createFakeStorage());
+      installFakeContentApi();
+      const { router } = renderHub();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+
+      fireEvent.click(screen.getByRole('button', { name: 'About' }));
+      const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
+      const section = writeSectionIntoIframe(iframe, sectionId);
+      return { router, section };
+    }
+
+    it('hovering a section in the preview outlines it', async () => {
+      const { section } = await previewAboutAndGetSection('hero');
+
+      fireEvent.mouseOver(section);
+      expect(section.style.outline).not.toBe('');
+
+      fireEvent.mouseOut(section);
+      expect(section.style.outline).toBe('');
+    });
+
+    it('clicking a section in the preview navigates straight to the Editor for this page, with that section selected', async () => {
+      const { router, section } = await previewAboutAndGetSection('hero');
+
+      fireEvent.click(section);
+
+      await waitFor(() => expect(router.state.location.pathname).toBe('/sites/site-1/editor'));
+      const params = new URLSearchParams(router.state.location.search);
+      expect(params.get('path')).toBe('pages/about.json');
+      expect(params.get('url')).toBe('/about');
+      expect(params.get('section')).toBe('hero');
+    });
   });
 });

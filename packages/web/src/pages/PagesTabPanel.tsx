@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { listSiteContent, SiteContentError } from '../api/site-content.ts';
 import type { ContentListEntry } from '../api/site-content.ts';
 import { isMenuPath } from './deriveMenuName.ts';
@@ -24,11 +24,11 @@ export interface PagesTabPanelProps {
   onPreview: (page: PreviewablePage | null) => void;
 }
 
-// A plain "eye" glyph for the row-level Preview affordance - same
+// A plain pencil glyph for the row-level Edit affordance - same
 // "generic currentColor utility icon" convention as AppShell.tsx's own
 // ExternalLinkIcon/GlobeIcon, not one of icons/index.tsx's dedicated,
 // fixed-palette design icons.
-function PreviewIcon() {
+function EditIcon() {
   return (
     <svg
       width="100%"
@@ -41,8 +41,7 @@ function PreviewIcon() {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
+      <path d="M17 3a2.83 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
     </svg>
   );
 }
@@ -164,12 +163,30 @@ interface PagesHubTreeRowProps {
 
 // The real row (PageTreeRow above is dead scaffolding - kept out of the
 // exported surface, removed once this settles).
+//
+// Default click behaviour is now "just preview it" (load it into the
+// shared viewport, staying right here on Pages hub), not "go straight
+// to the editor" - direct request, so browsing pages and actually
+// committing to edit one are two deliberately separate actions. The
+// Edit button (pencil, was the eye/Preview icon) is the one that
+// navigates. A page with no real url (nothing to preview) falls back
+// to going straight to the editor on click, same as the button does -
+// there's nothing useful a "preview" click could do there.
 function PagesHubTreeRow({ siteId, node, depth, collapsed, onToggle, onPreview }: PagesHubTreeRowProps) {
+  const navigate = useNavigate();
   const { entry } = node;
   const hasChildren = node.children.length > 0;
   const editorHref = `/sites/${siteId}/editor?path=${encodeURIComponent(entry.path)}${
     entry.url !== null ? `&url=${encodeURIComponent(entry.url)}` : ''
   }`;
+
+  function handleTitleClick(): void {
+    if (entry.url !== null) {
+      onPreview({ path: entry.path, url: entry.url });
+    } else {
+      navigate(editorHref);
+    }
+  }
 
   return (
     <li className="instance-row">
@@ -188,24 +205,17 @@ function PagesHubTreeRow({ siteId, node, depth, collapsed, onToggle, onPreview }
           ) : (
             <span className="page-tree-toggle-spacer" aria-hidden="true" />
           )}
-          <Link
-            to={editorHref}
-            state={{ hasDraft: entry.hasDraft, published: entry.published }}
-            title={entry.name || entry.path}
-          >
+          <button type="button" className="page-tree-title" title={entry.name || entry.path} onClick={handleTitleClick}>
             {entry.name || entry.path}
-          </Link>
-        </span>
-        {entry.url !== null && (
-          <button
-            type="button"
-            className="instance-row-remove pages-hub-preview-button"
-            aria-label={`Preview ${entry.name || entry.path}`}
-            onClick={() => onPreview(entry.url !== null ? { path: entry.path, url: entry.url } : null)}
-          >
-            <PreviewIcon />
           </button>
-        )}
+        </span>
+        <Link
+          to={editorHref}
+          className="instance-row-remove pages-hub-preview-button"
+          aria-label={`Edit ${entry.name || entry.path}`}
+        >
+          <EditIcon />
+        </Link>
       </div>
     </li>
   );

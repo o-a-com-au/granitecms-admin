@@ -975,8 +975,14 @@ describe('PageEditorPage', () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
+    // The reveal is still its own effect reacting to contentLoaded, one
+    // tick behind the render that already shows "Content" - a plain
+    // synchronous assertion right after raced it directly (confirmed
+    // live: ~1 in 2 runs failed). waitFor here, not a longer artificial
+    // delay - there's no delay to wait OUT any more, just a genuine
+    // render tick to let settle.
     const sidebar = document.querySelector('.editor-sidebar') as HTMLElement;
-    expect(sidebar.className).toContain('is-revealed');
+    await waitFor(() => expect(sidebar.className).toContain('is-revealed'));
   });
 
   it('once revealed, switching to a different page keeps the sidebar in place rather than collapsing it again', async () => {
@@ -1112,6 +1118,23 @@ describe('PageEditorPage', () => {
     // Still there, untouched - the Sections list and the Fields panel
     // are independent now, not two states of the one column.
     expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined();
+  });
+
+  it('a ?section= query param (from Pages hub/Media\'s own useSectionClickToEdit) opens straight into that section\'s Fields panel, then strips itself from the URL', async () => {
+    installFakeEditorApi({
+      content: JSON.stringify({
+        title: 'Hi',
+        published: true,
+        sections: [{ id: 'a', type: 'hero', settings: { heading: 'Hi there' } }],
+      }),
+      etag: '"etag-1"',
+      source: 'draft',
+    });
+    const { router } = renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout&section=a');
+
+    await waitFor(() => expect((screen.getByLabelText('Heading') as HTMLInputElement).value).toBe('Hi there'));
+    expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined();
+    await waitFor(() => expect(new URLSearchParams(router.state.location.search).has('section')).toBe(false));
   });
 
   it('clicking a section directly in the preview switches the left column to the Sections tab', async () => {

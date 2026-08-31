@@ -421,6 +421,27 @@ export function PageEditorPage() {
     node.classList.add('tab-fade-in');
   }, [effectiveViewMode, isContentPlaceholder]);
 
+  // A section id arriving via the URL (useSectionClickToEdit.ts, from
+  // Pages hub/Media's own "click a section in the preview" interaction)
+  // means "open straight into editing this one" - consumed once
+  // content has actually loaded (selecting an instance before the
+  // document has even loaded would silently no-op) and immediately
+  // stripped from the URL afterwards, so it can't re-fire on a later
+  // reload/back-navigation and doesn't linger as a stale, meaningless
+  // query param once acted on. handleEditInstance itself already
+  // switches to the Sections tab, so Page Meta/History both correctly
+  // give way to it too.
+  useEffect(() => {
+    const sectionId = searchParams.get('section');
+    if (sectionId === null || isContentPlaceholder || !sectionsAvailable) {
+      return;
+    }
+    handleEditInstance(sectionId);
+    const next = new URLSearchParams(searchParams);
+    next.delete('section');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, isContentPlaceholder, sectionsAvailable]);
+
   // Selecting an instance no longer switches the left column to a
   // "Fields" mode in place - the revised layout (docs/designs/Revised-
   // Page-Edit--Section-Edit.png) shows the Sections list and the

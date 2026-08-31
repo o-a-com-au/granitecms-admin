@@ -77,8 +77,8 @@ describe('PagesTabPanel', () => {
 
     renderPanel();
 
-    await waitFor(() => expect(screen.getByRole('link', { name: 'About' })).toBeDefined());
-    expect(screen.getByRole('link', { name: 'Contact' })).toBeDefined();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+    expect(screen.getByRole('button', { name: 'Contact' })).toBeDefined();
     expect(screen.queryByText('Live')).toBeNull();
     expect(screen.queryByText('Page')).toBeNull();
   });
@@ -91,23 +91,23 @@ describe('PagesTabPanel', () => {
     await waitFor(() => expect(screen.getByText('No pages found.')).toBeDefined());
   });
 
-  it('each row links straight to the editor route, unchanged from before', async () => {
+  it('each row\'s Edit button links straight to the editor route', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE]), { status: 200 })));
 
     renderPanel();
 
-    const link = await screen.findByRole('link', { name: 'About' });
+    const link = await screen.findByRole('link', { name: 'Edit About' });
     expect(link.getAttribute('href')).toBe('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
   });
 
-  it('clicking a row\'s Preview button calls onPreview with that page\'s own path and url, without navigating away', async () => {
+  it('clicking a row\'s own title calls onPreview with that page\'s own path and url, without navigating away', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE]), { status: 200 })));
     const onPreview = vi.fn();
 
     renderPanel(onPreview);
-    await waitFor(() => expect(screen.getByRole('link', { name: 'About' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Preview About' }));
+    fireEvent.click(screen.getByRole('button', { name: 'About' }));
 
     expect(onPreview).toHaveBeenCalledWith({ path: 'pages/about.json', url: '/about' });
   });
@@ -117,8 +117,8 @@ describe('PagesTabPanel', () => {
 
     renderPanel();
 
-    await waitFor(() => expect(screen.getByRole('link', { name: 'About' })).toBeDefined());
-    expect(screen.queryByRole('link', { name: 'Main menu' })).toBeNull();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+    expect(screen.queryByRole('button', { name: 'Main menu' })).toBeNull();
   });
 
   it('shows an "unreachable" message when the site cannot be reached', async () => {
@@ -134,14 +134,14 @@ describe('PagesTabPanel', () => {
 
     renderPanel();
 
-    await waitFor(() => expect(screen.getByRole('link', { name: 'About' })).toBeDefined());
-    await waitFor(() => expect(screen.queryByRole('link', { name: 'Team' })).toBeNull());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Team' })).toBeNull());
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand About' }));
-    expect(screen.getByRole('link', { name: 'Team' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Team' })).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: 'Collapse About' }));
-    expect(screen.queryByRole('link', { name: 'Team' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Team' })).toBeNull();
   });
 
   it('the "Add Page" link opens the New Page modal', async () => {
@@ -158,7 +158,7 @@ describe('PagesTabPanel', () => {
 
     renderPanel();
 
-    await waitFor(() => expect(screen.getByRole('link', { name: 'About' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
     fireEvent.click(screen.getByRole('button', { name: 'Add Page' }));
 
     expect(screen.getByRole('heading', { name: 'New Page' })).toBeDefined();
