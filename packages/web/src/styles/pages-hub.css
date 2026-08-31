@@ -64,20 +64,23 @@
    (instance-rows.css) as-is, but neither carries a <strong> label the
    way a section/block row does - .page-tree-title fills that "label
    takes the remaining space, actions push to the right" role for both
-   Pages' and Menus' own row title button (same class, same shape,
-   reused rather than duplicated - Menus rows have exactly one action,
-   same as a Pages row whose entry.url is null, so the title button
-   falls back to navigating straight there too, same as PagesTabPanel's
-   own Edit link does for that case).
+   Pages' and Menus' own row title (same class, same shape, reused
+   rather than duplicated).
+   A plain, non-interactive <span>, not a <button>/<a> of its own -
+   .instance-row-main itself is the real click target (role="button",
+   onClick - PagesHubTreeRow/MenuHubRow), matching SectionList.tsx's
+   own SectionRow, where clicking anywhere on the pill opens it rather
+   than only a button-ised label inside it. Was a real <button> until
+   reported directly that Pages/Menus rows only responded to a click
+   directly on the label text, unlike Sections/Blocks.
    A named class, not a bare `a` element selector - Pages hub's own
    Edit action (PagesTabPanel.tsx/MenusTabPanel.tsx) is also an <a>
    inside .instance-row-main, and a bare `a` selector here silently
    caught it too: this file loads after instance-rows.css with equal
    specificity, so its flex: 1 won over the Edit link's own flex: 0 0
-   auto/fixed width, stretching the icon across the whole row -
-   reported directly, confirmed live via the anchor's computed style
-   (flex: 1 1 0%, width: 131px instead of the intended 28px). */
+   auto/fixed width, stretching the icon across the whole row. */
 .instance-row-main .page-tree-title {
+  display: block;
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -86,20 +89,6 @@
   color: var(--colour-text);
   font-weight: 600;
   font-size: 0.85rem;
-  text-decoration: none;
-}
-
-/* Button-specific resets .page-tree-title needs that a plain <a> never
-   did - text-align: left so a wide button doesn't centre the title,
-   the rest just neutralising default button chrome. */
-.page-tree-title {
-  display: block;
-  padding: 0;
-  border: none;
-  background: none;
-  text-align: left;
-  font-family: inherit;
-  cursor: pointer;
 }
 
 .redirects-tab-row-label {

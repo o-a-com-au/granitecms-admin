@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { listSiteContent, SiteContentError } from '../api/site-content.ts';
 import type { ContentListEntry } from '../api/site-content.ts';
@@ -167,9 +167,32 @@ function PagesHubTreeRow({ siteId, node, depth, collapsed, onToggle, onPreview }
     }
   }
 
+  function handleRowKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleTitleClick();
+    }
+  }
+
+  function handleToggleClick(event: MouseEvent): void {
+    event.stopPropagation();
+    onToggle(entry.path);
+  }
+
+  function handleEditLinkClick(event: MouseEvent): void {
+    event.stopPropagation();
+  }
+
   return (
     <li className="instance-row">
-      <div className="instance-row-main">
+      <div
+        className="instance-row-main"
+        role="button"
+        tabIndex={0}
+        aria-label={entry.name || entry.path}
+        onClick={handleTitleClick}
+        onKeyDown={handleRowKeyDown}
+      >
         <span className="page-tree-cell" style={{ paddingLeft: `${depth * 1.5}rem` }}>
           {hasChildren ? (
             <button
@@ -177,18 +200,18 @@ function PagesHubTreeRow({ siteId, node, depth, collapsed, onToggle, onPreview }
               className="page-tree-toggle"
               aria-expanded={!collapsed}
               aria-label={collapsed ? `Expand ${entry.name || entry.path}` : `Collapse ${entry.name || entry.path}`}
-              onClick={() => onToggle(entry.path)}
+              onClick={handleToggleClick}
             >
               {collapsed ? '›' : '⌄'}
             </button>
           ) : (
             <span className="page-tree-toggle-spacer" aria-hidden="true" />
           )}
-          <button type="button" className="page-tree-title" title={entry.name || entry.path} onClick={handleTitleClick}>
+          <span className="page-tree-title" title={entry.name || entry.path}>
             {entry.name || entry.path}
-          </button>
+          </span>
         </span>
-        <Link to={editorHref} className="instance-row-remove" aria-label={`Edit ${entry.name || entry.path}`}>
+        <Link to={editorHref} className="instance-row-remove" aria-label={`Edit ${entry.name || entry.path}`} onClick={handleEditLinkClick}>
           <EditIcon />
         </Link>
       </div>
