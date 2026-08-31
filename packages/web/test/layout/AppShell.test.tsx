@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router';
@@ -5,6 +6,7 @@ import { AuthProvider } from '../../src/auth/AuthContext.tsx';
 import { ThemeProvider } from '../../src/theme/ThemeContext.tsx';
 import { AppShell } from '../../src/layout/AppShell.tsx';
 import { usePagePath } from '../../src/layout/PageActionsContext.tsx';
+import { usePreview, usePreviewVisible } from '../../src/layout/PreviewContext.tsx';
 import { defaultEditorHref, readLastSiteId } from '../../src/sites/currentSite.ts';
 import { createFakeStorage } from '../helpers/fakeStorage.ts';
 
@@ -227,6 +229,36 @@ function renderShellWithPagePath(initialEntry: string, path: string | null) {
           <Routes>
             <Route element={<AppShell />}>
               <Route path="/sites/:siteId/editor" element={<PagePathStub path={path} />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>
+    </ThemeProvider>,
+  );
+}
+
+// Stands in for a route that wants the shared viewport (PageEditorPage,
+// PagesHubPage, MediaLibraryPage) - registers visibility and a URL to
+// preview, without dragging in any of those pages' own fetching/state.
+function PreviewProbe({ url }: { url: string | null }) {
+  usePreviewVisible(true);
+  const { setPreview } = usePreview();
+  useEffect(() => {
+    setPreview({ url });
+  }, [setPreview, url]);
+  return <div>probe content</div>;
+}
+
+function renderShellWithPreviewProbe(initialEntry: string, url: string | null) {
+  installFakeApi();
+  return render(
+    <ThemeProvider>
+      <AuthProvider>
+        <MemoryRouter initialEntries={[initialEntry]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/sites/:siteId/content" element={<PreviewProbe url={url} />} />
+              <Route path="/settings" element={<div>settings content</div>} />
             </Route>
           </Routes>
         </MemoryRouter>
@@ -632,5 +664,22 @@ describe('AppShell', () => {
     await waitFor(() => expect(screen.getByText('editor content')).toBeDefined());
 
     expect(screen.getByText('localhost:3891', { selector: '.app-address-bar-label' })).toBeDefined();
+  });
+});
+
+describe('AppShell shared preview region', () => {
+  it('renders the shared viewport once a route registers itself visible, showing the URL it pushed', async () => {
+    renderShellWithPreviewProbe('/sites/site-1/content', '/about');
+
+    await waitFor(() => expect(screen.getByText('probe content')).toBeDefined());
+    await waitFor(() => expect(screen.getByTitle('Live preview')).toBeDefined());
+    expect(screen.getByTitle('Live preview').getAttribute('src')).toContain('/api/sites/site-1/preview/about');
+  });
+
+  it('stays hidden on a route that never asks for it', async () => {
+    renderShellWithPreviewProbe('/settings', null);
+
+    await waitFor(() => expect(screen.getByText('settings content')).toBeDefined());
+    expect(screen.queryByTitle('Live preview')).toBeNull();
   });
 });

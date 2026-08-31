@@ -74,3 +74,17 @@ export function defaultEditorHref(siteId: string): string {
 export function resolveEditorHref(siteId: string): string {
   return readLastEditorLocation(siteId) ?? defaultEditorHref(siteId);
 }
+
+// Pulls just the "url" query param back out of a stored editor location
+// (see readLastEditorLocation above) - the persistent preview viewport
+// (PreviewContext.tsx) and PagesHubPage both need "what page was last
+// open" but only care about its previewable URL, not the full editor
+// route.
+export function readLastPreviewUrl(siteId: string): string | null {
+  const pathAndSearch = readLastEditorLocation(siteId);
+  const queryIndex = pathAndSearch?.indexOf('?') ?? -1;
+  if (pathAndSearch === null || queryIndex === -1) {
+    return null;
+  }
+  return new URLSearchParams(pathAndSearch.slice(queryIndex)).get('url');
+}
