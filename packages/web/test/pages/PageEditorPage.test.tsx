@@ -441,7 +441,7 @@ describe('PageEditorPage', () => {
     renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
 
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
-    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
     expect(iframe.src).toContain('/api/sites/site-1/preview/about?t=');
   });
 
@@ -462,7 +462,7 @@ describe('PageEditorPage', () => {
     const toggle = document.querySelector('.app-topbar-device-toggle') as HTMLElement;
     expect(toggle.querySelector('[role="group"]')).toBeDefined();
 
-    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
     expect(iframe.style.width).toBe('100%');
 
     fireEvent.click(screen.getByRole('button', { name: 'Mobile preview' }));
@@ -625,7 +625,7 @@ describe('PageEditorPage', () => {
     // jsdom never actually navigates the iframe to its real src, so the
     // real site's rendered HTML (which does carry data-section-id, per
     // every theme template) is stood in for here directly.
-    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
     const doc = iframe.contentDocument as Document;
     // jsdom never navigates the iframe, so its document has no <body>
     // yet (unlike a real browser's about:blank) - write one in.
@@ -670,7 +670,7 @@ describe('PageEditorPage', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add Section' })).toBeDefined());
 
-    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
     const doc = iframe.contentDocument as Document;
     doc.open();
     doc.write('<body></body>');
@@ -717,7 +717,7 @@ describe('PageEditorPage', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add Section' })).toBeDefined());
 
-    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
     const doc = iframe.contentDocument as Document;
     doc.open();
     doc.write('<body></body>');
@@ -791,7 +791,7 @@ describe('PageEditorPage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add Section' })).toBeDefined());
     await waitForContentIndexLoaded(api.fetchMock);
 
-    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
     const { link } = writeIframeDocWithLink(iframe, '/docs');
 
     fireEvent.click(link);
@@ -820,7 +820,7 @@ describe('PageEditorPage', () => {
       await waitForActions();
       await waitForContentIndexLoaded(api.fetchMock);
 
-      const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+      const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
       const { link } = writeIframeDocWithLink(iframe, '/docs');
       const originalSrc = iframe.src;
 
@@ -839,7 +839,7 @@ describe('PageEditorPage', () => {
       await waitForActions();
       await waitForContentIndexLoaded(api.fetchMock);
 
-      const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+      const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
       const { link } = writeIframeDocWithLink(iframe, '/docs');
 
       fireEvent.click(link);
@@ -859,7 +859,7 @@ describe('PageEditorPage', () => {
       await waitForActions();
       await waitForContentIndexLoaded(api.fetchMock);
 
-      const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+      const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
       const { link } = writeIframeDocWithLink(iframe, '/docs');
 
       fireEvent.click(link);
@@ -905,7 +905,7 @@ describe('PageEditorPage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add Section' })).toBeDefined());
     await waitForContentIndexLoaded(api.fetchMock);
 
-    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
     const { link } = writeIframeDocWithLink(iframe, 'https://example.com/pricing');
     const originalSrc = iframe.src;
 
@@ -1096,7 +1096,7 @@ describe('PageEditorPage', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Page Meta' }));
     await waitFor(() => expect(screen.getByLabelText('Page title')).toBeDefined());
 
-    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
     const doc = iframe.contentDocument as Document;
     doc.open();
     doc.write('<body></body>');
@@ -1190,8 +1190,7 @@ describe('PageEditorPage', () => {
     });
     renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
 
-    await waitFor(() => expect(screen.getByTitle('Live preview')).toBeDefined());
-    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
     expect(iframe.src).toContain('/api/sites/site-1/preview/about?t=');
 
     fireEvent.click(screen.getByRole('tab', { name: 'History' }));
@@ -1210,8 +1209,7 @@ describe('PageEditorPage', () => {
       historyCommits: [HISTORY_COMMIT],
     });
     renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
-    await waitFor(() => expect(screen.getByTitle('Live preview')).toBeDefined());
-    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
 
     fireEvent.click(screen.getByRole('tab', { name: 'History' }));
     await waitFor(() => expect(screen.getByText(formatCommitTimestamp(HISTORY_COMMIT.date))).toBeDefined());
@@ -1231,8 +1229,7 @@ describe('PageEditorPage', () => {
       historyCommits: [HISTORY_COMMIT],
     });
     renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
-    await waitFor(() => expect(screen.getByTitle('Live preview')).toBeDefined());
-    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
 
     fireEvent.click(screen.getByRole('tab', { name: 'History' }));
     await waitFor(() => expect(screen.getByText(formatCommitTimestamp(HISTORY_COMMIT.date))).toBeDefined());
@@ -1282,7 +1279,7 @@ describe('PageEditorPage', () => {
     await waitFor(() => expect(screen.getByText(formatCommitTimestamp(HISTORY_COMMIT.date))).toBeDefined());
     fireEvent.click(screen.getByRole('button', { name: `Preview version from ${formatCommitTimestamp(HISTORY_COMMIT.date)}` }));
 
-    const iframe = screen.getByTitle('Live preview') as HTMLIFrameElement;
+    const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
     await waitFor(() => expect(iframe.src).toContain('/preview-revision/abc123/about'));
     const doc = iframe.contentDocument as Document;
     doc.open();
