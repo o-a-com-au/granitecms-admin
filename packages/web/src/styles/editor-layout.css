@@ -36,7 +36,7 @@
    themselves too, so scrolling a long tab's content also scrolled the
    Page/Sections/Fields tabs out of view.
 
-   position: absolute + transform: translateX, not a width: 0 -> full
+   position: absolute + transform: translateY, not a width: 0 -> full
    animation - animating width made the content look like it was being
    wiped/revealed by an expanding box, not genuinely moving. .editor-
    shell's own position: relative (above) is what this resolves against
@@ -46,7 +46,16 @@
    its own already-reserved column (app-shell.css's .app-content:has
    (.editor-page) sizes that column to fit this exactly, whether
    revealed or not - unlike before, .app-content's own width no longer
-   depends on this element's reveal state at all). */
+   depends on this element's reveal state at all).
+
+   A transition toggled by .is-revealed (below), not a mount-triggered
+   @keyframes animation like pages-hub.css's/media-library.css's own
+   list-page-fade-up - this element is always mounted (see the class
+   doc comment above), reused across page switches within the Editor
+   rather than remounting fresh the way those two panels do, so there's
+   no natural "mount" moment for an animation to hook. Same distance/
+   easing as list-page-fade-up (12px, ease-out) regardless, so the two
+   read as the same fade-up treatment despite the different mechanism. */
 .editor-sidebar {
   position: absolute;
   top: 0;
@@ -56,18 +65,18 @@
   margin: var(--space-sm);
   margin-top: 0;
   margin-right: 0;
-  transform: translateX(calc(-100% - var(--space-sm)));
+  transform: translateY(12px);
   opacity: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
   transition:
-    transform 0.3s ease,
-    opacity 0.3s ease;
+    transform 0.3s ease-out,
+    opacity 0.3s ease-out;
 }
 
 .editor-sidebar.is-revealed {
-  transform: translateX(0);
+  transform: translateY(0);
   opacity: 1;
 }
 
@@ -192,12 +201,17 @@
    Always mounted while the shared region itself is (see AppShell.tsx),
    same convention as .editor-sidebar above.
 
-   position: absolute + transform: translateX (mirrored from
-   .editor-sidebar's own - this is the same off-canvas slide, just
-   sliding in from the right instead of the left) - a width: 0 -> full
-   animation made this look like it was growing into place rather than
-   genuinely sliding in, same issue the sidebar had before it moved to
-   this same technique. Resolves against .shared-preview-region's own
+   position: absolute + transform: translateX - the same off-canvas
+   slide-toggled-by-class technique .editor-sidebar itself used before
+   its own reveal switched to a vertical fade-up (see that rule's own
+   comment); a width: 0 -> full animation made this look like it was
+   growing into place rather than genuinely sliding in, same issue the
+   sidebar had before it moved to this same technique. Deliberately
+   still horizontal, not matched to the sidebar's newer vertical style -
+   this panel slides in from the right beside the preview it's pushing,
+   which reads as a lateral entrance, not a top-level "screen changed"
+   moment the way the sidebar's own reveal (and Pages hub/Media's own
+   fade-up) are. Resolves against .shared-preview-region's own
    position: relative now, not .editor-shell (a completely different
    element, in a completely different part of the tree) - the box that
    ends up there is equivalent either way, since this and the preview it
