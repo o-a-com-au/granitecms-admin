@@ -119,6 +119,16 @@ button.add-section-item {
   cursor: pointer;
 }
 
+/* Same specificity-tie reasoning again, this time against
+   button[type='button']:hover (base.css) - without this, hovering a
+   card filled its whole row-height box with --colour-surface-hover,
+   which read as a generic button press rather than "this card is
+   selectable" (already shown by the thumb's own border turning blue
+   below). */
+button.add-section-item:hover {
+  background: none;
+}
+
 /* The placeholder itself - a plain tinted box standing in for real
    per-type artwork, matching media-library.css's own thumb sizing
    convention (square, rounded, bordered) so swapping this for a real
