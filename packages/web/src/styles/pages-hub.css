@@ -22,6 +22,19 @@
   min-height: 0;
   margin: var(--space-sm);
   margin-right: 0;
+  /* Fades in on every fresh mount - PagesHubPage remounts in full on
+     every route switch into it (no PageEditorPage.tsx-style persistence
+     across navigations to replay a fade via JS instead), same reasoning
+     pages-list.css's own .list-page-inner documents for its own
+     identical animation - reusing that keyframe by name rather than
+     redeclaring an equivalent one here. */
+  animation: list-page-fade-up 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pages-hub-panel {
+    animation: none;
+  }
 }
 
 .pages-hub-tab {

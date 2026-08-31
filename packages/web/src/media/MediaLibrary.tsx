@@ -8,7 +8,7 @@ import { buildLoadErrorActions, loadErrorMessage } from '../sites/site-load-erro
 
 export interface MediaLibraryProps {
   siteId: string;
-  mode: 'browse' | 'picker';
+  mode: 'panel' | 'picker';
   // Controlled selection, picker mode only - the full MediaItem (not
   // just its name) so MediaPickerModal never needs a second, redundant
   // GET /media call to resolve what was clicked.
@@ -133,14 +133,14 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange 
 
   const filteredItems = items.filter((item) => matchesSearch(item, search));
 
-  // The full-width panel treatment only applies to the top-level Media
-  // screen (mode: 'browse') - MediaPickerModal's own mode: 'picker'
-  // usage is a small modal, not a full screen, so it keeps its
-  // existing flat inline-error behaviour below instead.
-  if (mode === 'browse' && loading) {
+  // The full-swap loading/error treatment only applies to the panel
+  // (mode: 'panel', MediaLibraryPage's own left panel) - MediaPickerModal's
+  // mode: 'picker' usage is a small modal, not a full screen, so it
+  // keeps its existing flat inline-error behaviour below instead.
+  if (mode === 'panel' && loading) {
     return <TopLoadingBar active />;
   }
-  if (mode === 'browse' && loadError) {
+  if (mode === 'panel' && loadError) {
     return (
       <SiteStatusPanel
         variant="problem"
@@ -150,9 +150,16 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange 
     );
   }
 
+  // Selectable in both modes now - panel mode previews the pick large in
+  // the shared viewport (MediaLibraryPage.tsx), picker mode reports it
+  // up to MediaPickerModal for the caller to use. Only the top-level
+  // "browse without a picker" case (never actually happens now that
+  // panel mode always supplies onSelectedItemChange, but the prop stays
+  // optional for defensiveness) is a true no-op.
+  const isSelectable = mode === 'panel' || mode === 'picker';
+
   return (
-    <div className={mode === 'browse' ? 'list-page-inner media-library-page-inner' : 'media-library'}>
-      {mode === 'browse' && <h1>Media</h1>}
+    <div className="media-library">
       <div className="media-library-toolbar">
         <input
           type="search"
@@ -201,14 +208,14 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange 
         {filteredItems.length > 0 && (
           <ul className="media-library-grid">
             {filteredItems.map((item) => {
-              const isSelected = mode === 'picker' && selectedItem?.name === item.name;
+              const isSelected = isSelectable && selectedItem?.name === item.name;
               return (
                 <li key={item.name} className={`media-library-item${isSelected ? ' is-selected' : ''}`}>
                   <button
                     type="button"
                     className="media-library-item-thumb"
                     onClick={() => {
-                      if (mode === 'picker') {
+                      if (isSelectable) {
                         onSelectedItemChange?.(item);
                       }
                     }}

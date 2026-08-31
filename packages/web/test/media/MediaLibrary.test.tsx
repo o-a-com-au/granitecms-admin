@@ -48,7 +48,7 @@ afterEach(() => {
 describe('MediaLibrary', () => {
   it('lists media items returned from the site', async () => {
     installFakeApi();
-    render(<MediaLibrary siteId="site-1" mode="browse" />);
+    render(<MediaLibrary siteId="site-1" mode="panel" />);
 
     await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
     expect(screen.getByText('beta.png')).toBeDefined();
@@ -56,7 +56,7 @@ describe('MediaLibrary', () => {
 
   it('filters the grid by the search box, client-side', async () => {
     installFakeApi();
-    render(<MediaLibrary siteId="site-1" mode="browse" />);
+    render(<MediaLibrary siteId="site-1" mode="panel" />);
     await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
 
     fireEvent.change(screen.getByPlaceholderText('Search media'), { target: { value: 'beta' } });
@@ -67,7 +67,7 @@ describe('MediaLibrary', () => {
 
   it('uploading a valid file POSTs it and refreshes the list', async () => {
     const { calls } = installFakeApi();
-    render(<MediaLibrary siteId="site-1" mode="browse" />);
+    render(<MediaLibrary siteId="site-1" mode="panel" />);
     await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
 
     const file = new File(['hello'], 'gamma.jpg', { type: 'image/jpeg' });
@@ -81,7 +81,7 @@ describe('MediaLibrary', () => {
 
   it('rejects an unsupported file type client-side, without ever calling the API', async () => {
     const { calls } = installFakeApi();
-    render(<MediaLibrary siteId="site-1" mode="browse" />);
+    render(<MediaLibrary siteId="site-1" mode="panel" />);
     await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
 
     const file = new File(['hello'], 'notes.txt', { type: 'text/plain' });
@@ -94,7 +94,7 @@ describe('MediaLibrary', () => {
 
   it('rejects an oversized file client-side, without ever calling the API', async () => {
     const { calls } = installFakeApi();
-    render(<MediaLibrary siteId="site-1" mode="browse" />);
+    render(<MediaLibrary siteId="site-1" mode="panel" />);
     await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
 
     const big = new File([new Uint8Array(2000)], 'huge.jpg', { type: 'image/jpeg' });
@@ -107,7 +107,7 @@ describe('MediaLibrary', () => {
 
   it('drag-enter onto a child element then leaving it does not flicker the highlight off', async () => {
     installFakeApi();
-    const { container } = render(<MediaLibrary siteId="site-1" mode="browse" />);
+    const { container } = render(<MediaLibrary siteId="site-1" mode="panel" />);
     await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
 
     const dropzone = container.querySelector('.media-library-dropzone') as HTMLElement;
@@ -126,7 +126,7 @@ describe('MediaLibrary', () => {
 
   it('deleting a card calls delete with the right name and refreshes the list', async () => {
     const { calls } = installFakeApi();
-    render(<MediaLibrary siteId="site-1" mode="browse" />);
+    render(<MediaLibrary siteId="site-1" mode="panel" />);
     await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete alpha.jpg' }));
@@ -165,12 +165,38 @@ describe('MediaLibrary', () => {
     expect(onSelectedItemChange).toHaveBeenCalledTimes(2);
   });
 
-  it('browse mode: clicking a thumbnail does nothing (no selection prop supplied)', async () => {
+  it('panel mode with no selection prop supplied: clicking a thumbnail does nothing (defensive only - MediaLibraryPage always supplies one)', async () => {
     installFakeApi();
-    render(<MediaLibrary siteId="site-1" mode="browse" />);
+    render(<MediaLibrary siteId="site-1" mode="panel" />);
     await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
 
     // No onSelectedItemChange passed - clicking must not throw.
     expect(() => fireEvent.click(screen.getByAltText('alpha.jpg'))).not.toThrow();
+  });
+
+  it('panel mode: clicking a thumbnail reports it via onSelectedItemChange, for the shared viewport to preview it large', async () => {
+    installFakeApi();
+    const onSelectedItemChange = vi.fn();
+    render(<MediaLibrary siteId="site-1" mode="panel" selectedItem={null} onSelectedItemChange={onSelectedItemChange} />);
+    await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
+
+    fireEvent.click(screen.getByAltText('alpha.jpg'));
+
+    expect(onSelectedItemChange).toHaveBeenCalledTimes(1);
+    expect(onSelectedItemChange).toHaveBeenCalledWith(ITEMS[0]);
+  });
+
+  it('panel mode: the currently previewed item is highlighted, same as picker mode', async () => {
+    installFakeApi();
+    const { rerender } = render(
+      <MediaLibrary siteId="site-1" mode="panel" selectedItem={ITEMS[0]} onSelectedItemChange={vi.fn()} />,
+    );
+    await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
+
+    expect(screen.getByAltText('alpha.jpg').closest('.media-library-item')?.className).toContain('is-selected');
+    expect(screen.getByAltText('beta.png').closest('.media-library-item')?.className).not.toContain('is-selected');
+
+    rerender(<MediaLibrary siteId="site-1" mode="panel" selectedItem={null} onSelectedItemChange={vi.fn()} />);
+    expect(screen.getByAltText('alpha.jpg').closest('.media-library-item')?.className).not.toContain('is-selected');
   });
 });

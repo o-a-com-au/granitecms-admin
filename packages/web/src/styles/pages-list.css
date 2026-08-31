@@ -32,13 +32,16 @@
   max-width: 900px;
   margin: 0 auto;
   padding: 5rem 1.5rem 4rem;
-  /* Every consumer (ContentBrowserPage, MenusPage, MediaLibraryPage,
-     RedirectsPage, SettingsLayout) renders its own .list-page-inner
-     fresh on mount, at a distinct route each - a plain CSS animation
-     here is enough to fade it in on every navigation into one of
-     these pages, no PageEditorPage.tsx-style JS replay trick needed
-     (that one exists only because its tab panel persists across
-     switches instead of remounting). */
+  /* Every consumer (ContentBrowserPage, MenusPage, RedirectsPage,
+     SettingsLayout) renders its own .list-page-inner fresh on mount, at
+     a distinct route each - a plain CSS animation here is enough to
+     fade it in on every navigation into one of these pages, no
+     PageEditorPage.tsx-style JS replay trick needed (that one exists
+     only because its tab panel persists across switches instead of
+     remounting). Pages hub/Media's own left panels (pages-hub.css's
+     .pages-hub-panel, media-library.css's .media-hub-panel) reuse this
+     same keyframe by name for the identical reason, despite not being
+     .list-page-inner themselves any more. */
   animation: list-page-fade-up 0.3s ease-out;
 }
 
@@ -57,13 +60,6 @@
   .list-page-inner {
     animation: none;
   }
-}
-
-/* MediaLibraryPage's own override - the 900px cap above was tuned for
-   a table, not a photo grid. A starting point to sanity-check
-   visually, not a final number. */
-.media-library-page-inner {
-  max-width: 1200px;
 }
 
 .list-table {
