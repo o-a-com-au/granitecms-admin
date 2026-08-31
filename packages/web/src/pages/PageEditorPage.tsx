@@ -619,25 +619,46 @@ export function PageEditorPage() {
   // case above.
   const showActions = contentLoaded && hasPendingChanges && !mobilePreviewOpen && historyPreviewRef === null;
 
-  usePageActions(
-    showActions ? (
-      <>
-        <button type="button" onClick={() => void handleDiscard()} disabled={actionBusy || status === 'saving'}>
-          Discard Changes
-        </button>
-        <button
-          type="button"
-          className="button-primary"
-          onClick={() => void handlePublish()}
-          disabled={
-            actionBusy || status === 'dirty' || status === 'saving' || status === 'save-error' || status === 'conflict'
-          }
-        >
-          Save Changes
-        </button>
-      </>
-    ) : null,
+  // useDraftPublishActions returns plain (non-useCallback) functions,
+  // fresh every render - refs kept current every render, same technique
+  // as previewUrlRef/contentIndexRef above, let handleDiscardClick/
+  // handlePublishClick below stay referentially stable (empty deps)
+  // while still always calling the latest closure.
+  const handleDiscardRef = useRef(handleDiscard);
+  handleDiscardRef.current = handleDiscard;
+  const handlePublishRef = useRef(handlePublish);
+  handlePublishRef.current = handlePublish;
+  const handleDiscardClick = useCallback(() => void handleDiscardRef.current(), []);
+  const handlePublishClick = useCallback(() => void handlePublishRef.current(), []);
+
+  // useMemo, not a bare JSX expression - usePageActions' own effect
+  // depends on this node by reference, same reasoning as
+  // deviceToggleNode below: a fresh element every render re-registers
+  // on every render, which is what caused the infinite render loop
+  // under AppShell's real provider nesting (see deviceToggleNode's own
+  // comment for the full explanation).
+  const pageActionsNode = useMemo(
+    () =>
+      showActions ? (
+        <>
+          <button type="button" onClick={handleDiscardClick} disabled={actionBusy || status === 'saving'}>
+            Discard Changes
+          </button>
+          <button
+            type="button"
+            className="button-primary"
+            onClick={handlePublishClick}
+            disabled={
+              actionBusy || status === 'dirty' || status === 'saving' || status === 'save-error' || status === 'conflict'
+            }
+          >
+            Save Changes
+          </button>
+        </>
+      ) : null,
+    [showActions, actionBusy, status, handleDiscardClick, handlePublishClick],
   );
+  usePageActions(pageActionsNode);
 
   // The device-size toggle - lives in AppShell's own top bar now, not
   // PreviewFrame's (docs/designs/Revised-Page-Edit--Section-Edit.png
@@ -648,7 +669,24 @@ export function PageEditorPage() {
   // even with nothing to save. previewUrl === null (no live preview
   // for this content type) is the one case with genuinely nothing for
   // it to control.
-  usePageDeviceToggle(previewUrl !== null ? <DeviceToggle device={device} onChange={setDevice} /> : null);
+  //
+  // useMemo, not a bare JSX expression - usePageDeviceToggle's own
+  // effect (PageActionsContext.tsx's createChromeSlot) depends on this
+  // node by reference, same reasoning as fieldsPanelNode/previewBodyNode
+  // above: a fresh element every render re-registers on every render,
+  // which pushes a new node into AppShell's own chrome-slot state,
+  // forcing AppShell to re-render and recreate this same subtree again -
+  // a genuine infinite render loop under AppShell's real provider
+  // nesting (PreviewProvider outermost, wrapping this page), not just
+  // wasted work. The existing test harness's own inverted provider
+  // nesting order happened to mask this via React's same-children-
+  // reference bail-out, which is why it went uncaught until AppShell's
+  // real nesting was exercised directly.
+  const deviceToggleNode = useMemo(
+    () => (previewUrl !== null ? <DeviceToggle device={device} onChange={setDevice} /> : null),
+    [previewUrl, device, setDevice],
+  );
+  usePageDeviceToggle(deviceToggleNode);
 
   // AppShell's own logo/wordmark slot (see AppShell.tsx and
   // PageActionsContext.tsx's usePagePath) shows this page's real
