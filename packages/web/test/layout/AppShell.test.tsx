@@ -682,4 +682,80 @@ describe('AppShell shared preview region', () => {
     await waitFor(() => expect(screen.getByText('settings content')).toBeDefined());
     expect(screen.queryByTitle('Live preview')).toBeNull();
   });
+
+  // toSiteLoadError (AppShell.tsx) drives this from the site registry
+  // itself, not from any one route's own content fetch - so it applies
+  // uniformly whether the mounted route is PreviewProbe here, or the
+  // real PageEditorPage/PagesHubPage/MediaLibraryPage. Regression cases
+  // for the bug found live 2026-08-31: a site removed out from under an
+  // open tab showed a raw JSON 404 inside the iframe instead of the
+  // same graceful panel every other site-scoped screen already had.
+  it('shows a graceful "site not found" panel instead of the iframe when the current site is no longer registered', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/api/auth/me') {
+          return new Response(JSON.stringify({ id: 'admin', username: 'admin' }), { status: 200 });
+        }
+        if (url === '/api/sites') {
+          return new Response(JSON.stringify([]), { status: 200 });
+        }
+        throw new Error(`unhandled fetch in test: ${url}`);
+      }),
+    );
+    render(
+      <ThemeProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/sites/site-1/content']}>
+            <Routes>
+              <Route element={<AppShell />}>
+                <Route path="/sites/:siteId/content" element={<PreviewProbe url="/about" />} />
+              </Route>
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('probe content')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('This site could not be found. It may have been removed.')).toBeDefined());
+    expect(screen.queryByTitle('Live preview')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Manage Sites' })).toBeDefined();
+  });
+
+  it('shows a graceful "unreachable" panel (with Retry) instead of the iframe when the site itself is down', async () => {
+    const unreachableSite = { ...SITE, status: { state: 'unreachable', message: 'Could not reach the site' } };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/api/auth/me') {
+          return new Response(JSON.stringify({ id: 'admin', username: 'admin' }), { status: 200 });
+        }
+        if (url === '/api/sites') {
+          return new Response(JSON.stringify([unreachableSite]), { status: 200 });
+        }
+        throw new Error(`unhandled fetch in test: ${url}`);
+      }),
+    );
+    render(
+      <ThemeProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/sites/site-1/content']}>
+            <Routes>
+              <Route element={<AppShell />}>
+                <Route path="/sites/:siteId/content" element={<PreviewProbe url="/about" />} />
+              </Route>
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('probe content')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('This site is unreachable right now.')).toBeDefined());
+    expect(screen.queryByTitle('Live preview')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeDefined();
+  });
 });

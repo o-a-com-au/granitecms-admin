@@ -1,6 +1,7 @@
 import type { SiteStatusAction } from '../site-status/SiteStatusPanel.tsx';
 import { SITE_NOT_FOUND_MESSAGE } from '../site-status/placeholder-status.ts';
 import { SiteEditorError } from '../api/site-editor.ts';
+import type { SiteListEntry } from '../api/sites.ts';
 
 export interface LoadError {
   reason: 'unreachable' | 'unauthorized' | 'site-not-found' | 'error';
@@ -18,6 +19,30 @@ export function toLoadError(err: unknown): LoadError {
     return { reason: err.reason, message: err.message };
   }
   return { reason: 'error', message: err instanceof Error ? err.message : 'Something went wrong' };
+}
+
+// Derives the same LoadError shape from the site REGISTRY itself
+// (useSites.ts's own list, already fetched by AppShell for the site
+// switcher popover), rather than from a specific content/list fetch
+// failing - this is what lets AppShell drive a graceful SiteStatusPanel
+// in the shared preview viewport (PreviewContext.tsx's
+// SharedPreviewRegion) for every route that shows it, not just the ones
+// that happen to fetch site-scoped content themselves. null while
+// `sites` is still loading (nothing to show yet) or once a real,
+// healthy site is found - both cases fall through to whatever the
+// caller would normally render.
+export function toSiteLoadError(sites: SiteListEntry[] | null, siteId: string): LoadError | null {
+  if (sites === null || siteId === '') {
+    return null;
+  }
+  const site = sites.find((entry) => entry.id === siteId);
+  if (!site) {
+    return { reason: 'site-not-found', message: SITE_NOT_FOUND_MESSAGE };
+  }
+  if (site.status.state === 'ok') {
+    return null;
+  }
+  return { reason: site.status.state, message: site.status.message };
 }
 
 export function loadErrorMessage(error: LoadError): string {

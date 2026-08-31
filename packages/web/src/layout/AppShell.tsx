@@ -10,6 +10,7 @@ import { PageActionsProvider, PageDeviceToggleProvider, PagePathProvider } from 
 import { PreviewProvider, SharedPreviewRegion } from './PreviewContext.tsx';
 import { useSites } from '../sites/useSites.ts';
 import { readLastSiteId, resolveEditorHref, writeLastSiteId } from '../sites/currentSite.ts';
+import { toSiteLoadError } from '../sites/site-load-error.ts';
 
 // Bumped by hand alongside any release worth surfacing in the brand
 // mark - not derived from package.json, whose own version has stayed
@@ -212,6 +213,16 @@ export function AppShell() {
       ? resolveEditorHref(effectiveSiteId)
       : undefined;
 
+  // Derived from the site registry itself (sites, above), not from any
+  // one route's own content fetch - this is what lets the shared
+  // preview viewport show a graceful "site not found"/"unreachable"/
+  // "unauthorized" panel (SharedPreviewRegion's own siteError prop)
+  // regardless of which route (Editor/Pages hub/Media) happens to be
+  // showing it, rather than each of them needing to duplicate this
+  // check to get the same treatment PageEditorPage's own content-fetch
+  // errors already had via usePreviewBody.
+  const siteError = toSiteLoadError(sites, effectiveSiteId ?? '');
+
   async function handleLogout(): Promise<void> {
     setAccountOpen(false);
     await logout();
@@ -385,7 +396,7 @@ export function AppShell() {
                 </PageDeviceToggleProvider>
               </PageActionsProvider>
             </div>
-            <SharedPreviewRegion siteId={effectiveSiteId ?? ''} />
+            <SharedPreviewRegion siteId={effectiveSiteId ?? ''} siteError={siteError} onRetrySite={refreshSites} />
           </PreviewProvider>
         </div>
       </div>

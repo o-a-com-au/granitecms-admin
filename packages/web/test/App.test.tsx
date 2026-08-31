@@ -81,10 +81,17 @@ describe('App', () => {
         // site-1 has to genuinely exist here for the redirect to land.
         if (url === '/api/sites') {
           // A real SiteListEntry needs a url (AppShell's own top-bar
-          // wordmark reads it to show the current site's address) -
+          // wordmark reads it to show the current site's address) and a
+          // status (AppShell's own toSiteLoadError reads .status.state
+          // to drive the shared viewport's graceful error panel) -
           // { id: 'site-1' } alone used to be enough here since nothing
           // read any other field, but is no longer a realistic fixture.
-          return new Response(JSON.stringify([{ id: 'site-1', url: 'http://localhost:3891' }]), { status: 200 });
+          return new Response(
+            JSON.stringify([
+              { id: 'site-1', url: 'http://localhost:3891', status: { state: 'ok', agentVersion: '0.1.0', contentSchemaVersion: 1, sqliteDriver: 'node:sqlite' } },
+            ]),
+            { status: 200 },
+          );
         }
         // Anything else (the editor's own content fetch) is deliberately
         // left unmocked - this test is about routing, not content-

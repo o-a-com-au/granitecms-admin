@@ -3,6 +3,8 @@ import type { DeviceTier } from '../editor/DeviceToggle.tsx';
 import type { EditorStatus } from '../editor/useAutosaveDraft.ts';
 import { PreviewFrame } from '../editor/PreviewFrame.tsx';
 import { readLastPreviewUrl } from '../sites/currentSite.ts';
+import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
+import { buildLoadErrorActions, loadErrorMessage, type LoadError } from '../sites/site-load-error.ts';
 
 // The one persistent live-preview viewport, owned by AppShell (the one
 // component guaranteed never to remount on in-app navigation) instead
@@ -248,7 +250,23 @@ export function usePreviewFrameHandlers(handlers: PreviewFrameHandlers | null): 
 // Settings and any other non-preview route simply never does, so this
 // stays hidden there without needing to know anything about the
 // current route itself.
-export function SharedPreviewRegion({ siteId }: { siteId: string }) {
+export function SharedPreviewRegion({
+  siteId,
+  siteError = null,
+  onRetrySite,
+}: {
+  siteId: string;
+  // The site registry's own view of this site (AppShell.tsx's
+  // toSiteLoadError) - independent of whichever route is currently
+  // showing this region, so "the site itself was removed/is
+  // unreachable/rejected its token" shows the same graceful panel
+  // (below) everywhere, not just where a route happens to run its own
+  // content fetch (PageEditorPage's own previewBody, still checked
+  // first - a route-specific placeholder is more specific than this
+  // generic fallback and always wins when present).
+  siteError?: LoadError | null;
+  onRetrySite?: () => void;
+}) {
   const {
     visible,
     previewUrl,
@@ -270,18 +288,25 @@ export function SharedPreviewRegion({ siteId }: { siteId: string }) {
   return (
     <div className={`shared-preview-region${mobileOpen ? ' is-open-mobile' : ''}`}>
       <div className={`preview-viewport-wrap${fieldsPanel !== null ? ' has-fields-panel' : ''}`}>
-        {previewBody ?? (
-          <PreviewFrame
-            siteId={siteId}
-            url={previewUrl}
-            status={status}
-            device={device}
-            revisionRef={revisionRef}
-            iframeRef={iframeRef}
-            onFrameLoad={frameHandlers.onFrameLoad}
-            onFrameMouseLeave={frameHandlers.onFrameMouseLeave}
-          />
-        )}
+        {previewBody ??
+          (siteError ? (
+            <SiteStatusPanel
+              variant="problem"
+              message={loadErrorMessage(siteError)}
+              actions={buildLoadErrorActions(siteError, siteId, () => onRetrySite?.())}
+            />
+          ) : (
+            <PreviewFrame
+              siteId={siteId}
+              url={previewUrl}
+              status={status}
+              device={device}
+              revisionRef={revisionRef}
+              iframeRef={iframeRef}
+              onFrameLoad={frameHandlers.onFrameLoad}
+              onFrameMouseLeave={frameHandlers.onFrameMouseLeave}
+            />
+          ))}
         {previewOverlay}
       </div>
       {/* Always mounted while the region itself is, same convention as
