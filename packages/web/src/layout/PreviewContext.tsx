@@ -49,7 +49,8 @@ interface PreviewContextValue {
   frameHandlers: PreviewFrameHandlers;
   setFrameHandlers: (handlers: PreviewFrameHandlers) => void;
   visible: boolean;
-  setVisible: (visible: boolean) => void;
+  showPreview: () => void;
+  scheduleHidePreview: () => void;
   mobileOpen: boolean;
   setMobileOpen: (open: boolean) => void;
   fieldsPanel: ReactNode;
@@ -100,6 +101,21 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
   const [previewOverlay, setPreviewOverlay] = useState<ReactNode>(null);
   const [previewBody, setPreviewBody] = useState<ReactNode>(null);
   const previousSiteIdRef = useRef(siteId);
+  // Any route showing the shared viewport unmounts before the NEXT one
+  // that also wants it visible has mounted (confirmed live via a mount/
+  // unmount trace: switching Pages hub -> Editor genuinely unmounted
+  // and remounted PreviewFrame, visible as the iframe fading out and
+  // back in even though its own src never changed) - react-router's
+  // navigation doesn't batch the outgoing route's cleanup and the
+  // incoming route's own effect into one commit the way two effects on
+  // the SAME component would be. Deferring the hide by a beat, and
+  // letting a same-tick-ish show cancel it outright (showPreview/
+  // scheduleHidePreview below), means switching between two routes that
+  // both want the viewport visible never actually toggles `visible`
+  // through false at all - only a genuine "nothing here wants it"
+  // transition (e.g. to Settings) still hides it, just delayed by an
+  // imperceptible amount.
+  const pendingHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (siteId && siteId !== previousSiteIdRef.current) {
@@ -107,6 +123,30 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
     }
     previousSiteIdRef.current = siteId;
   }, [siteId]);
+
+  useEffect(
+    () => () => {
+      if (pendingHideTimerRef.current !== null) {
+        clearTimeout(pendingHideTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const showPreview = useCallback(() => {
+    if (pendingHideTimerRef.current !== null) {
+      clearTimeout(pendingHideTimerRef.current);
+      pendingHideTimerRef.current = null;
+    }
+    setVisible(true);
+  }, []);
+
+  const scheduleHidePreview = useCallback(() => {
+    pendingHideTimerRef.current = setTimeout(() => {
+      pendingHideTimerRef.current = null;
+      setVisible(false);
+    }, 100);
+  }, []);
 
   const setPreview = useCallback((next: Partial<PreviewConfig>) => {
     if ('url' in next) {
@@ -132,7 +172,8 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
       frameHandlers,
       setFrameHandlers,
       visible,
-      setVisible,
+      showPreview,
+      scheduleHidePreview,
       mobileOpen,
       setMobileOpen,
       fieldsPanel,
@@ -150,6 +191,8 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
       device,
       frameHandlers,
       visible,
+      showPreview,
+      scheduleHidePreview,
       mobileOpen,
       fieldsPanel,
       previewOverlay,
@@ -161,16 +204,23 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
 }
 
 // Registers `visible` for as long as the calling route stays mounted,
-// resetting to false on unmount - only Editor/Pages/Media ever call
-// this, so the shared viewport naturally hides itself on routes with
-// nothing to preview (e.g. Settings) without those routes needing to
-// know anything about the viewport at all.
+// scheduling a hide on unmount - only Editor/Pages/Media ever call
+// this (always with true), so the shared viewport naturally hides
+// itself on routes with nothing to preview (e.g. Settings) without
+// those routes needing to know anything about the viewport at all.
+// showPreview/scheduleHidePreview (not a raw setVisible) is what makes
+// switching directly between two such routes never actually hide the
+// viewport in between - see PreviewProvider's own comment on
+// pendingHideTimerRef for why that matters.
 export function usePreviewVisible(visible: boolean): void {
-  const { setVisible } = usePreviewContextValue();
+  const { showPreview, scheduleHidePreview } = usePreviewContextValue();
   useEffect(() => {
-    setVisible(visible);
-    return () => setVisible(false);
-  }, [setVisible, visible]);
+    if (!visible) {
+      return;
+    }
+    showPreview();
+    return () => scheduleHidePreview();
+  }, [showPreview, scheduleHidePreview, visible]);
 }
 
 // PageEditorPage-only: pushes its <SectionFieldsPanel> up to render as
