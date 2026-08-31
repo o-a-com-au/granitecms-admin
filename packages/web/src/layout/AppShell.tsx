@@ -6,8 +6,8 @@ import { useTheme } from '../theme/ThemeContext.tsx';
 import { IconSprite } from '../icons/index.tsx';
 import { GraniteLogo } from './GraniteLogo.tsx';
 import { IconRail } from './IconRail.tsx';
-import { PageActionsProvider, PageDeviceToggleProvider, PagePathProvider } from './PageActionsContext.tsx';
-import { PreviewProvider, SharedPreviewRegion } from './PreviewContext.tsx';
+import { PageActionsProvider, PageDeviceToggleProvider } from './PageActionsContext.tsx';
+import { PreviewProvider, SharedPreviewRegion, usePreview } from './PreviewContext.tsx';
 import { useSites } from '../sites/useSites.ts';
 import { readLastSiteId, resolveEditorHref, writeLastSiteId } from '../sites/currentSite.ts';
 import { toSiteLoadError } from '../sites/site-load-error.ts';
@@ -109,7 +109,23 @@ function GlobeIcon() {
 // it (verified directly against the installed react-router source),
 // so this layout route sees the same siteId the leaf routes below it
 // already read, with no extra plumbing.
+// Split from AppShellContent below purely so that component can call
+// usePreview() - a context consumer must be a descendant of its own
+// Provider, not the same component that renders it. effectiveSiteId is
+// computed here AND independently again in AppShellContent (a plain
+// useParams()+readLastSiteId() read, cheap enough to not bother
+// threading through as a prop).
 export function AppShell() {
+  const { siteId } = useParams<{ siteId?: string }>();
+  const effectiveSiteId = siteId ?? readLastSiteId();
+  return (
+    <PreviewProvider siteId={effectiveSiteId ?? ''}>
+      <AppShellContent />
+    </PreviewProvider>
+  );
+}
+
+function AppShellContent() {
   const { siteId } = useParams<{ siteId?: string }>();
   const location = useLocation();
   const navigate = useNavigate();
@@ -119,8 +135,17 @@ export function AppShell() {
   const accountRef = useRef<HTMLDivElement>(null);
   const [pageActions, setPageActions] = useState<ReactNode>(null);
   const [deviceToggle, setDeviceToggle] = useState<ReactNode>(null);
-  const [pagePath, setPagePath] = useState<ReactNode>(null);
   const { sites, error: sitesError, refresh: refreshSites } = useSites();
+  // The address bar's own page-path comes from the same persistent
+  // previewUrl the shared viewport itself shows (PreviewContext.tsx) -
+  // not a separate chrome-slot that only PageEditorPage ever populated
+  // and cleared on unmount (the old usePagePath/PagePathProvider). That
+  // meant switching to Pages hub or Media reset the address bar back to
+  // the bare domain even though the SAME page was still being previewed
+  // right below it - confirmed live, reported directly. Reading the
+  // same previewUrl SharedPreviewRegion already reads means the address
+  // bar and the viewport can never show two different pages.
+  const { previewUrl } = usePreview();
 
   // Dismiss on an outside click - the popover has no backdrop of its
   // own (docs/design/Account Logout.png shows it floating directly
@@ -193,9 +218,8 @@ export function AppShell() {
   // showing some other site's address next to unrelated content would
   // be misleading rather than helpful.
   const currentSite = siteId ? (sites?.find((site) => site.id === siteId) ?? null) : null;
-  const pagePathStr = typeof pagePath === 'string' ? pagePath : null;
-  const siteAddressLabel = currentSite ? joinDomainAndPath(hostLabelFor(currentSite.url), pagePathStr) : null;
-  const siteLiveHref = currentSite ? joinDomainAndPath(currentSite.url, pagePathStr) : null;
+  const siteAddressLabel = currentSite ? joinDomainAndPath(hostLabelFor(currentSite.url), previewUrl) : null;
+  const siteLiveHref = currentSite ? joinDomainAndPath(currentSite.url, previewUrl) : null;
 
   const editorTo = siteId ? `/sites/${siteId}/editor` : undefined;
   const isEditingPage = location.pathname === editorTo;
@@ -259,10 +283,11 @@ export function AppShell() {
             </Link>
           </div>
           {/* The new address bar - a static display of the current
-              page's address (site domain + path, from the same
-              usePagePath chrome slot the old logo-slot label already
-              read) plus the device-size toggle, replacing the old
-              nav-links span. Not yet clickable/searchable - that's a
+              page's address (site domain + path, from the same shared
+              previewUrl the preview viewport itself shows - see
+              AppShellContent's own comment above) plus the device-size
+              toggle, replacing the old nav-links span. Not yet
+              clickable/searchable - that's a
               deliberately later enhancement, hence the title hint. */}
           <div className="app-topbar-address-bar" title={siteAddressLabel ?? undefined}>
             <span className="app-address-bar-icon" aria-hidden="true">
@@ -386,18 +411,14 @@ export function AppShell() {
               isOnMedia={location.pathname === mediaTo}
             />
           )}
-          <PreviewProvider siteId={effectiveSiteId ?? ''}>
-            <div className="app-content">
-              <PageActionsProvider setActions={setPageActions}>
-                <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>
-                  <PagePathProvider setPagePath={setPagePath}>
-                    <Outlet />
-                  </PagePathProvider>
-                </PageDeviceToggleProvider>
-              </PageActionsProvider>
-            </div>
-            <SharedPreviewRegion siteId={effectiveSiteId ?? ''} siteError={siteError} onRetrySite={refreshSites} />
-          </PreviewProvider>
+          <div className="app-content">
+            <PageActionsProvider setActions={setPageActions}>
+              <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>
+                <Outlet />
+              </PageDeviceToggleProvider>
+            </PageActionsProvider>
+          </div>
+          <SharedPreviewRegion siteId={effectiveSiteId ?? ''} siteError={siteError} onRetrySite={refreshSites} />
         </div>
       </div>
     </>

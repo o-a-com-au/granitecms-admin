@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { createMemoryRouter, Link, RouterProvider } from 'react-router';
 import { PageEditorPage } from '../../src/pages/PageEditorPage.tsx';
 import { ToastProvider } from '../../src/toast/ToastContext.tsx';
-import { PageActionsProvider, PageDeviceToggleProvider, PagePathProvider } from '../../src/layout/PageActionsContext.tsx';
+import { PageActionsProvider, PageDeviceToggleProvider } from '../../src/layout/PageActionsContext.tsx';
 import { PreviewProvider, SharedPreviewRegion } from '../../src/layout/PreviewContext.tsx';
 import { formatCommitTimestamp } from '../../src/history/PageHistoryTab.tsx';
 import { readLastEditorLocation, writeLastEditorLocation } from '../../src/sites/currentSite.ts';
@@ -12,45 +12,41 @@ import { createFakeStorage } from '../helpers/fakeStorage.ts';
 import { createFakeDataTransfer } from '../helpers/fakeDataTransfer.ts';
 
 // Stands in for AppShell itself - PageEditorPage pushes Discard/Save
-// Changes, the device-size toggle, and the page path into AppShell's
-// own top-bar/logo slots (usePageActions/usePageDeviceToggle/
-// usePagePath) and drives the live preview via the shared PreviewContext
-// rather than rendering any of it itself, so a bare render() with no
-// provider would silently drop all four (each hook no-ops without its
-// own provider, and the shared viewport wouldn't render at all).
-// SharedPreviewRegion here is the exact same component AppShell.tsx
-// renders in the real app - not a hand-rolled stand-in - so these tests
-// exercise the real iframe/fields-panel/mobile-overlay wiring, not an
-// approximation of it.
+// Changes and the device-size toggle into AppShell's own top-bar slots
+// (usePageActions/usePageDeviceToggle) and drives the live preview
+// (including the address bar's own page path, read directly from the
+// same shared previewUrl - see AppShell.tsx) via the shared
+// PreviewContext rather than rendering any of it itself, so a bare
+// render() with no provider would silently drop all three (each hook
+// no-ops without its own provider, and the shared viewport wouldn't
+// render at all). SharedPreviewRegion here is the exact same component
+// AppShell.tsx renders in the real app - not a hand-rolled stand-in -
+// so these tests exercise the real iframe/fields-panel/mobile-overlay
+// wiring, not an approximation of it.
 //
 // Provider nesting matches AppShell.tsx's own exactly (PreviewProvider
-// OUTERMOST, wrapping PageActionsProvider/PageDeviceToggleProvider/
-// PagePathProvider) - not an arbitrary choice. An earlier, inverted
-// nesting here (PreviewProvider innermost) masked a real infinite-
-// render-loop bug in PageEditorPage.tsx's own usePageActions/
-// usePageDeviceToggle calls (both fed a fresh, unmemoized JSX element
-// every render - see deviceToggleNode/pageActionsNode's own comments in
-// PageEditorPage.tsx): React's same-children-reference bail-out
-// happened to short-circuit the resulting update cascade under that
-// inverted nesting, but not under AppShell's real one, so the loop
-// (confirmed live: switching Editor <-> Pages hub reloaded the shared
-// preview iframe repeatedly) went uncaught by this entire file until
-// nesting was corrected to match production and the loop reproduced
-// directly.
+// OUTERMOST, wrapping PageActionsProvider/PageDeviceToggleProvider) -
+// not an arbitrary choice. An earlier, inverted nesting here
+// (PreviewProvider innermost) masked a real infinite-render-loop bug in
+// PageEditorPage.tsx's own usePageActions/usePageDeviceToggle calls
+// (both fed a fresh, unmemoized JSX element every render - see
+// deviceToggleNode/pageActionsNode's own comments in PageEditorPage.tsx):
+// React's same-children-reference bail-out happened to short-circuit
+// the resulting update cascade under that inverted nesting, but not
+// under AppShell's real one, so the loop (confirmed live: switching
+// Editor <-> Pages hub reloaded the shared preview iframe repeatedly)
+// went uncaught by this entire file until nesting was corrected to
+// match production and the loop reproduced directly.
 function TestPageActionsHost({ children }: { children: ReactNode }) {
   const [actions, setActions] = useState<ReactNode>(null);
   const [deviceToggle, setDeviceToggle] = useState<ReactNode>(null);
-  const [pagePath, setPagePath] = useState<ReactNode>(null);
   return (
     <PreviewProvider siteId="site-1">
       <PageActionsProvider setActions={setActions}>
         <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>
-          <PagePathProvider setPagePath={setPagePath}>
-            <div className="app-topbar-device-toggle">{deviceToggle}</div>
-            <div className="app-topbar-actions">{actions}</div>
-            <div className="app-page-path">{pagePath}</div>
-            {children}
-          </PagePathProvider>
+          <div className="app-topbar-device-toggle">{deviceToggle}</div>
+          <div className="app-topbar-actions">{actions}</div>
+          {children}
         </PageDeviceToggleProvider>
       </PageActionsProvider>
       <SharedPreviewRegion siteId="site-1" />

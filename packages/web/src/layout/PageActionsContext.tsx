@@ -66,24 +66,3 @@ export function PageDeviceToggleProvider({
 }
 
 export const usePageDeviceToggle = pageDeviceToggleSlot.useSlot;
-
-// The content path (e.g. "/what-we-stand-for") of whichever page is
-// currently open in PageEditorPage, so AppShell's own logo/wordmark
-// slot (see AppShell.tsx) can show that page's real address instead of
-// the plain "GRANITE 2.3" brand mark. A plain string fits the existing
-// ReactNode-typed slot without needing its own separate context - only
-// PageEditorPage ever registers one, so every other route naturally
-// falls back to the brand mark by never calling this at all.
-const pagePathSlot = createChromeSlot();
-
-export function PagePathProvider({
-  setPagePath,
-  children,
-}: {
-  setPagePath: (node: ReactNode | null) => void;
-  children: ReactNode;
-}) {
-  return <pagePathSlot.Provider setNode={setPagePath}>{children}</pagePathSlot.Provider>;
-}
-
-export const usePagePath = pagePathSlot.useSlot;

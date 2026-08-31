@@ -5,7 +5,6 @@ import { MemoryRouter, Route, Routes, useNavigate } from 'react-router';
 import { AuthProvider } from '../../src/auth/AuthContext.tsx';
 import { ThemeProvider } from '../../src/theme/ThemeContext.tsx';
 import { AppShell } from '../../src/layout/AppShell.tsx';
-import { usePagePath } from '../../src/layout/PageActionsContext.tsx';
 import { usePreview, usePreviewVisible } from '../../src/layout/PreviewContext.tsx';
 import { defaultEditorHref, readLastSiteId } from '../../src/sites/currentSite.ts';
 import { createFakeStorage } from '../helpers/fakeStorage.ts';
@@ -211,12 +210,17 @@ function installFakeApiWithClientProfile() {
   return fetchMock;
 }
 
-// Stands in for PageEditorPage's own usePagePath(previewUrl) call - a
-// real page editor route drags in far more fetching/state than these
-// wordmark tests care about, so this registers the one thing that
-// actually matters to AppShell's own slot.
+// Stands in for PageEditorPage's own setPreview({ url: previewUrl })
+// call - a real page editor route drags in far more fetching/state
+// than these wordmark tests care about, so this registers the one
+// thing that actually matters to AppShell's own address bar (which now
+// reads the same shared previewUrl the preview viewport itself shows,
+// not a separate chrome slot).
 function PagePathStub({ path }: { path: string | null }) {
-  usePagePath(path);
+  const { setPreview } = usePreview();
+  useEffect(() => {
+    setPreview({ url: path });
+  }, [setPreview, path]);
   return <div>editor content</div>;
 }
 

@@ -15,7 +15,7 @@ import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
 import { UnsavedChangesPrompt } from '../editor/UnsavedChangesPrompt.tsx';
 import { PageHistoryTab } from '../history/PageHistoryTab.tsx';
 import { writeLastEditorLocation } from '../sites/currentSite.ts';
-import { usePageActions, usePageDeviceToggle, usePagePath } from '../layout/PageActionsContext.tsx';
+import { usePageActions, usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 import {
   usePreview,
@@ -683,13 +683,6 @@ export function PageEditorPage() {
     [previewUrl, device, setDevice],
   );
   usePageDeviceToggle(deviceToggleNode);
-
-  // AppShell's own logo/wordmark slot (see AppShell.tsx and
-  // PageActionsContext.tsx's usePagePath) shows this page's real
-  // address in place of the plain brand mark while it's open - null
-  // (no live preview for this content type) falls back to that brand
-  // mark, same as usePageDeviceToggle above.
-  usePagePath(previewUrl);
 
   // Asks AppShell for the shared viewport for as long as this page is
   // mounted - Editor/Pages hub/Media are the only routes that ever call
