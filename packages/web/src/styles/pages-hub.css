@@ -15,8 +15,20 @@
   min-height: 0;
 }
 
+/* min-width: 0 - a flex item's automatic minimum width (the initial
+   min-width: auto) is its content's own max-content size, which for any
+   nested white-space: nowrap text (the row titles, deep inside) is that
+   text's full unwrapped width. Without this, a long enough title forced
+   the WHOLE PANEL wider than its own flex: 0 0 320px basis to
+   accommodate it, rather than the title truncating within a genuinely
+   fixed-width panel - confirmed live: .pages-hub-panel's own measured
+   width grew in lockstep with a title's own text width, and no amount
+   of min-width: 0/overflow: hidden further down the tree (.page-tree-
+   cell, the title link itself) fixed it, because the panel itself was
+   never actually bound to 320px to truncate within in the first place. */
 .pages-hub-panel {
   flex: 0 0 var(--editor-sidebar-width);
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;

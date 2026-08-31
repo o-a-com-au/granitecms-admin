@@ -18,8 +18,14 @@
   min-height: 0;
 }
 
+/* min-width: 0 - same fix as pages-hub.css's own .pages-hub-panel, and
+   the same reasoning: without it, this flex item's automatic minimum
+   width is governed by its deepest non-wrapping content (a long
+   filename, say), letting the whole panel grow past its own flex basis
+   instead of that content truncating within a genuinely fixed width. */
 .media-hub-panel {
   flex: 0 0 calc(var(--editor-sidebar-width) * 1.5);
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;

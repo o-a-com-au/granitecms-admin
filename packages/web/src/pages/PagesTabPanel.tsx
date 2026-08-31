@@ -188,7 +188,11 @@ function PagesHubTreeRow({ siteId, node, depth, collapsed, onToggle, onPreview }
           ) : (
             <span className="page-tree-toggle-spacer" aria-hidden="true" />
           )}
-          <Link to={editorHref} state={{ hasDraft: entry.hasDraft, published: entry.published }}>
+          <Link
+            to={editorHref}
+            state={{ hasDraft: entry.hasDraft, published: entry.published }}
+            title={entry.name || entry.path}
+          >
             {entry.name || entry.path}
           </Link>
         </span>
