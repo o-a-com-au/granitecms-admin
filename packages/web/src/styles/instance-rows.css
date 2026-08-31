@@ -213,8 +213,16 @@ button.instance-row-chevron:hover {
    remove affordance shouldn't compete for attention on every row at
    rest. opacity (not display/visibility) keeps it in the tab order,
    with its own :focus-visible reveal so keyboard users aren't
-   dependent on a mouse hover to find it. */
-button.instance-row-remove {
+   dependent on a mouse hover to find it.
+   a.instance-row-remove alongside button.instance-row-remove - Pages
+   hub's own Edit action (PagesTabPanel.tsx) reuses this same class on
+   a <Link>, not a <button>, since it navigates rather than performing
+   an in-place action. Without the anchor selector, this file's own
+   sizing never applied to it at all: the icon's SVG (width/height:
+   100%) had no constrained box to fill and ballooned to the size of
+   the row itself, which also silently ate title clicks underneath it. */
+button.instance-row-remove,
+a.instance-row-remove {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -230,12 +238,16 @@ button.instance-row-remove {
 }
 
 .instance-row-main:hover button.instance-row-remove,
+.instance-row-main:hover a.instance-row-remove,
 button.instance-row-remove:hover,
-button.instance-row-remove:focus-visible {
+a.instance-row-remove:hover,
+button.instance-row-remove:focus-visible,
+a.instance-row-remove:focus-visible {
   opacity: 1;
 }
 
-button.instance-row-remove:hover {
+button.instance-row-remove:hover,
+a.instance-row-remove:hover {
   background: none;
   color: #fff;
   border-color: transparent;

@@ -209,11 +209,7 @@ function PagesHubTreeRow({ siteId, node, depth, collapsed, onToggle, onPreview }
             {entry.name || entry.path}
           </button>
         </span>
-        <Link
-          to={editorHref}
-          className="instance-row-remove pages-hub-preview-button"
-          aria-label={`Edit ${entry.name || entry.path}`}
-        >
+        <Link to={editorHref} className="instance-row-remove" aria-label={`Edit ${entry.name || entry.path}`}>
           <EditIcon />
         </Link>
       </div>
