@@ -21,25 +21,25 @@
      other file needs to change. */
 :root {
 
-  --grey-50: #f3f3f3;
-  --grey-100: #e8e8e8;
-  --grey-150: #dedede;
-  --grey-200: #d4d4d4;
-  --grey-250: #c5c5c5;
-  --grey-300: #b6b6b6;
-  --grey-350: #a8a8a8;
-  --grey-400: #999999;
-  --grey-450: #8a8a8a;
-  --grey-500: #7b7b7b;
-  --grey-550: #6b6b6b;
-  --grey-600: #5b5b5b;
-  --grey-650: #4f4f4f;
-  --grey-700: #424242;
-  --grey-750: #373737;
-  --grey-800: #2b2b2b;
-  --grey-850: #242424;
-  --grey-900: #1c1c1c;
-  --grey-950: #0d0d0d;
+  --grey-50: #f2f3f4;
+  --grey-100: #e7e8e9;
+  --grey-150: #dcdfe0;
+  --grey-200: #d2d5d6;
+  --grey-250: #c3c6c7;
+  --grey-300: #b4b7b8;
+  --grey-350: #a6a9aa;
+  --grey-400: #979a9b;
+  --grey-450: #888b8c;
+  --grey-500: #797c7d;
+  --grey-550: #696c6d;
+  --grey-600: #595c5d;
+  --grey-650: #4d5051;
+  --grey-700: #404344;
+  --grey-750: #353839;
+  --grey-800: #292c2d;
+  --grey-850: #222526;
+  --grey-900: #1b1d1d;
+  --grey-950: #0c0d0e;
 
   --colour-primary: #3b6ef6;
   --colour-primary-hover: #2f5bd1;
@@ -82,6 +82,7 @@
   --colour-surface: var(--grey-800);
   --colour-surface-hover: var(--grey-600);
   --colour-border: var(--grey-700);
+  --colour-tab-border: var(--grey-500);
   --colour-muted: var(--grey-500);
   --colour-text: var(--grey-200);
   --colour-input-background: #000;
@@ -102,6 +103,7 @@
   --colour-surface: #fff;
   --colour-surface-hover: var(--grey-100);
   --colour-border: var(--grey-200);
+  --colour-tab-border: var(--grey-100);
   --colour-muted: var(--grey-500);
   --colour-text: var(--grey-700);
   --colour-input-background: #fff;

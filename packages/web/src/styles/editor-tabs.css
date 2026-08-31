@@ -9,8 +9,7 @@
 .editor-tabs {
   display: flex;
   gap: var(--space-xs);
-  padding: var(--space-xs);
-  /* border: 1px solid var(--colour-border); */
+  /* padding: var(--space-xs); */
   border-radius: var(--radius-sm);
   background: var(--colour-surface);
   box-shadow: var(--shadow-panel);
@@ -28,7 +27,7 @@
   background: none;
   color: var(--colour-muted);
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .editor-tabs[role='tablist'] button[role='tab']:hover:not(:disabled) {
@@ -38,6 +37,7 @@
 .editor-tabs[role='tablist'] button[role='tab'][aria-selected='true'] {
   background: var(--colour-surface-hover);
   color: var(--colour-text);
+  border: 1px solid var(--colour-tab-border);
 }
 
 .editor-tabs[role='tablist'] button[role='tab']:disabled {
