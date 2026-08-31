@@ -470,7 +470,7 @@ describe('PageEditorPage', () => {
     renderPage('/sites/site-1/editor?path=menus%2Fmain.json');
 
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
-    expect(screen.getByText('No live preview available for this content type.')).toBeDefined();
+    expect(await screen.findByText('No live preview available for this content type.')).toBeDefined();
     expect(screen.queryByTitle('Live preview')).toBeNull();
   });
 
