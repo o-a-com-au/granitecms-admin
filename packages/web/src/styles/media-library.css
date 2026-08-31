@@ -35,28 +35,80 @@
   }
 }
 
-/* The shared viewport's own body while a media item is selected
-   (MediaLibraryPage.tsx's usePreviewBody) - a plain large image instead
-   of the standard site iframe, since there's no page to navigate to.
-   Same flex-fill role as PreviewFrame's own .preview-pane, and the same
-   "contain, don't crop or stretch" treatment .media-library-item-thumb
-   gives its own small thumbnail, just centred rather than cover-cropped
-   to a square now that there's room to show the whole image. */
-.media-preview-body {
+/* MediaImagePreviewModal.tsx - clicking a thumbnail in the panel opens
+   this popup rather than pushing the image into the shared preview
+   viewport (that viewport is for a site page, not a media file - the
+   two were easy to confuse when this used it). A sibling of
+   .media-picker-modal below, same overlay/portal convention, sized the
+   same way, but its own class rather than reusing that one - the
+   picker's own h2/.media-picker-modal-body/.modal-actions shape
+   doesn't fit a close-button-plus-image layout with no Cancel/Select
+   pair to align. */
+.media-image-preview-modal {
+  width: min(90vw, 960px);
+  height: min(85vh, 720px);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-lg);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+}
+
+.media-image-preview-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex: 0 0 auto;
+  margin-bottom: var(--space-sm);
+}
+
+.media-image-preview-modal-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-image-preview-modal-close {
+  flex: 0 0 auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--colour-muted);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.media-image-preview-modal-close:hover {
+  background: var(--colour-surface-hover);
+  color: var(--colour-text);
+}
+
+/* Same "contain, don't crop or stretch" treatment
+   .media-library-item-thumb gives its own small thumbnail, just
+   centred rather than cover-cropped to a square now that there's room
+   to show the whole image. */
+.media-image-preview-modal-body {
   flex: 1;
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-lg);
   background: var(--colour-surface-hover);
+  border-radius: var(--radius-sm);
 }
 
-.media-preview-body img {
+.media-image-preview-modal-body img {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  border-radius: var(--radius-sm);
 }
 
 .media-library-toolbar {

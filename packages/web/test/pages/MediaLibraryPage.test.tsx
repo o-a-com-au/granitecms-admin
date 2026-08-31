@@ -9,11 +9,11 @@ afterEach(() => {
 });
 
 // PreviewProvider/SharedPreviewRegion stand in for AppShell itself -
-// MediaLibraryPage drives the live preview via the shared PreviewContext
-// rather than rendering any of it itself (usePreviewVisible/
-// usePreviewBody, PreviewContext.tsx), so a bare render() with no
+// MediaLibraryPage still asks for the shared viewport to stay visible
+// (usePreviewVisible, PreviewContext.tsx), so a bare render() with no
 // provider would throw. SharedPreviewRegion here is the exact same
-// component AppShell.tsx renders in the real app.
+// component AppShell.tsx renders in the real app - kept in this harness
+// to prove opening the image popup below doesn't disturb it.
 function renderPage() {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     expect(input.toString()).toBe('/api/sites/site-1/media');
@@ -47,17 +47,20 @@ describe('MediaLibraryPage', () => {
     expect(screen.getByText('photo.jpg')).toBeDefined();
   });
 
-  it('clicking a media item previews it large in the shared viewport instead of the site iframe', async () => {
+  it('clicking a media item opens it in a popup, leaving the shared viewport (no live page here) alone', async () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('photo.jpg')).toBeDefined());
 
-    expect(document.querySelector('.media-preview-body')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
 
     fireEvent.click(screen.getByAltText('photo.jpg'));
 
-    await waitFor(() => expect(document.querySelector('.media-preview-body')).not.toBeNull());
-    const preview = document.querySelector('.media-preview-body img') as HTMLImageElement;
+    const dialog = await screen.findByRole('dialog');
+    const preview = dialog.querySelector('.media-image-preview-modal-body img') as HTMLImageElement;
     expect(preview.src).toBe('http://x/media/photo.jpg');
     expect(screen.queryByTitle('Live preview')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
