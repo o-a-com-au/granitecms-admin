@@ -10,10 +10,8 @@ import { PasswordSecurityPage } from './pages/settings/PasswordSecurityPage.tsx'
 import { SubscriptionPage } from './pages/settings/SubscriptionPage.tsx';
 import { ManageSitesPage } from './pages/settings/ManageSitesPage.tsx';
 import { ManageSitePage } from './pages/settings/ManageSitePage.tsx';
-import { ContentBrowserPage } from './pages/ContentBrowserPage.tsx';
-import { MenusPage } from './pages/MenusPage.tsx';
+import { PagesHubPage } from './pages/PagesHubPage.tsx';
 import { MediaLibraryPage } from './pages/MediaLibraryPage.tsx';
-import { RedirectsPage } from './pages/RedirectsPage.tsx';
 import { MenuEditorPage } from './pages/MenuEditorPage.tsx';
 import { PageEditorPage } from './pages/PageEditorPage.tsx';
 import { RequireAuth } from './auth/RequireAuth.tsx';
@@ -67,10 +65,8 @@ export const routes: RouteObject[] = [
               },
             ],
           },
-          { path: '/sites/:siteId/content', element: <ContentBrowserPage /> },
-          { path: '/sites/:siteId/menus', element: <MenusPage /> },
+          { path: '/sites/:siteId/content', element: <PagesHubPage /> },
           { path: '/sites/:siteId/media', element: <MediaLibraryPage /> },
-          { path: '/sites/:siteId/redirects', element: <RedirectsPage /> },
           { path: '/sites/:siteId/menus/edit', element: <MenuEditorPage /> },
           { path: '/sites/:siteId/editor', element: <PageEditorPage /> },
         ],

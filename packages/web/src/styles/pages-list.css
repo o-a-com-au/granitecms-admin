@@ -59,17 +59,6 @@
   }
 }
 
-/* Shared heading-plus-primary-action row - RedirectsPage.tsx's own
-   .redirects-header precedent, generalised here since ContentBrowserPage's
-   own "+ New Page" button (Group Q) needs the identical layout and
-   there's nothing page-specific about it. */
-.list-page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-}
-
 /* MediaLibraryPage's own override - the 900px cap above was tuned for
    a table, not a photo grid. A starting point to sanity-check
    visually, not a final number. */
@@ -122,19 +111,6 @@
   color: var(--colour-muted);
 }
 
-/* Phone (docs/designs/Phone-Pages.png): Type/Status/Changed drop out,
-   leaving just the clickable Name column - scoped to .pages-list-table
-   specifically (ContentBrowserPage.tsx's own extra class alongside the
-   shared .list-table), not the bare .list-table selector this file
-   opens with, since the Menus list reuses that same class for its own
-   two columns and was asked to stay exactly as it is. */
-@media (max-width: 720px) {
-  .pages-list-table th:not(:first-child),
-  .pages-list-table td:not(:first-child) {
-    display: none;
-  }
-}
-
 /* The Pages tree's Name cell (docs/design/Pages.png's chevron on
    "Home"). button.page-tree-toggle is flat and icon-only, like
    button.instance-row-chevron elsewhere in the app, not the generic
@@ -174,51 +150,7 @@ button.page-tree-toggle:hover {
   color: var(--colour-text);
 }
 
-/* Pages list toolbar (docs/design/Pages.png) - a wide search field
-   plus a segmented All/Live/Unpublished filter, replacing the old
-   bare Type-text-input/draft-status-dropdown form. */
-.content-toolbar {
-  display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
 .content-search {
   flex: 1;
   padding: 0.7rem 1rem;
-}
-
-/* One bordered/filled segmented control (docs/design/Pages.png),
-   confirmed by sampling the mockup directly - the outer group carries
-   the single border and surface fill, not each button its own; only
-   the pressed segment gets an inset pill (--colour-surface-hover),
-   the other two sit as plain muted text with no box of their own. */
-.filter-tabs {
-  display: flex;
-  gap: 0.25rem;
-  flex: 0 0 auto;
-  padding: 0.25rem;
-  border: 1px solid var(--colour-border);
-  border-radius: var(--radius-sm);
-  background: var(--colour-surface);
-}
-
-.filter-tabs button {
-  padding: 0.45rem 0.9rem;
-  border: none;
-  border-radius: var(--radius-xs);
-  background: none;
-  color: var(--colour-muted);
-  font-size: 0.85rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.filter-tabs button:hover {
-  color: var(--colour-text);
-}
-
-.filter-tabs button[aria-pressed='true'] {
-  background: var(--colour-surface-hover);
-  color: var(--colour-text);
 }

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { RedirectsPage } from '../../src/pages/RedirectsPage.tsx';
+import { RedirectsTabPanel } from '../../src/pages/RedirectsTabPanel.tsx';
 
 const ENTRY = { from: '/old', to: '/new', note: 'moved page' };
 
@@ -40,11 +40,11 @@ function installFakeApi(initialEntries: Array<{ from: string; to: string; note?:
   return { fetchMock, calls };
 }
 
-function renderPage() {
+function renderPanel() {
   return render(
-    <MemoryRouter initialEntries={['/sites/site-1/redirects']}>
+    <MemoryRouter initialEntries={['/sites/site-1/content']}>
       <Routes>
-        <Route path="/sites/:siteId/redirects" element={<RedirectsPage />} />
+        <Route path="/sites/:siteId/content" element={<RedirectsTabPanel siteId="site-1" />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -55,29 +55,29 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('RedirectsPage', () => {
-  it('lists redirects returned from the site', async () => {
+describe('RedirectsTabPanel', () => {
+  it('lists From/To as one row - Note is dropped, no room for a third column in this narrow panel', async () => {
     installFakeApi();
-    renderPage();
+    renderPanel();
 
     await waitFor(() => expect(screen.getByText('/old')).toBeDefined());
     expect(screen.getByText('/new')).toBeDefined();
-    expect(screen.getByText('moved page')).toBeDefined();
+    expect(screen.queryByText('moved page')).toBeNull();
   });
 
   it('shows an empty state when there are no redirects', async () => {
     installFakeApi([]);
-    renderPage();
+    renderPanel();
 
     await waitFor(() => expect(screen.getByText('No redirects yet.')).toBeDefined());
   });
 
   it('Add Redirect opens the form, and saving refreshes the list', async () => {
     installFakeApi([]);
-    renderPage();
+    renderPanel();
     await waitFor(() => expect(screen.getByText('No redirects yet.')).toBeDefined());
 
-    fireEvent.click(screen.getByRole('button', { name: '+ Add Redirect' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Redirect' }));
     expect(screen.getByRole('heading', { name: 'Add Redirect' })).toBeDefined();
 
     fireEvent.change(screen.getByLabelText('From'), { target: { value: '/old' } });
@@ -88,12 +88,12 @@ describe('RedirectsPage', () => {
     expect(screen.queryByRole('heading', { name: 'Add Redirect' })).toBeNull();
   });
 
-  it('Edit opens the form pre-filled, and saving refreshes the list', async () => {
+  it('the row\'s edit icon opens the form pre-filled, and saving refreshes the list', async () => {
     installFakeApi();
-    renderPage();
+    renderPanel();
     await waitFor(() => expect(screen.getByText('/old')).toBeDefined());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit redirect from /old' }));
     expect((screen.getByLabelText('To') as HTMLInputElement).value).toBe('/new');
 
     fireEvent.change(screen.getByLabelText('To'), { target: { value: '/newer' } });
@@ -104,7 +104,7 @@ describe('RedirectsPage', () => {
 
   it('deletes a redirect with no confirmation step', async () => {
     const { calls } = installFakeApi();
-    renderPage();
+    renderPanel();
     await waitFor(() => expect(screen.getByText('/old')).toBeDefined());
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete redirect from /old' }));

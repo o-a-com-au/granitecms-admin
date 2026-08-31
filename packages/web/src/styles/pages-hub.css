@@ -1,0 +1,89 @@
+/* PagesHubPage.tsx - Pages/Menus/Redirects consolidated into one
+   tabbed left panel (reusing editor-layout.css's own .editor-tabs/
+   .editor-sidebar-top/.editor-tab-content/.editor-tab-panel primitives
+   for the tab strip itself) plus a live preview viewport, replacing
+   three separate full-width .list-page routes. No right-hand fields
+   panel - editing a page's own settings stays the Editor's job. */
+.pages-hub {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.pages-hub-panel {
+  flex: 0 0 var(--editor-sidebar-width);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: var(--space-sm);
+  margin-right: 0;
+}
+
+.pages-hub-preview {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pages-hub-preview .preview-viewport {
+  flex: 1;
+}
+
+.pages-hub-preview-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--colour-muted);
+  margin: var(--space-sm);
+}
+
+.pages-hub-tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.pages-hub-tab .content-search {
+  width: 100%;
+}
+
+/* The page-tree/menu-list rows reuse .instance-row/.instance-row-main
+   (instance-rows.css) as-is, but neither carries a <strong> label the
+   way a section/block row does - this fills the same "label takes the
+   remaining space, actions push to the right" role for a plain <a>. */
+.instance-row-main a {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--colour-text);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.redirects-tab-row-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  overflow: hidden;
+}
+
+.redirects-tab-row-label strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.redirects-tab-row-to {
+  color: var(--colour-muted);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
