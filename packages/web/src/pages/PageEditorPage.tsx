@@ -751,17 +751,29 @@ export function PageEditorPage() {
   );
   usePreviewOverlay(previewOverlayNode);
 
-  // While this page's own content is still loading or failed to load,
-  // it has a placeholder to show in the shared viewport instead of the
-  // standard PreviewFrame - unlike Pages hub/Media, which only ever
-  // have a real url or nothing (PreviewFrame's own built-in empty
-  // state), this reflects Editor's own fetch status specifically.
+  // Once this page's content fetch genuinely fails (not-found/
+  // unreachable/etc.), it has a placeholder to show in the shared
+  // viewport instead of the standard PreviewFrame - unlike Pages hub/
+  // Media, which only ever have a real url or nothing (PreviewFrame's
+  // own built-in empty state), this reflects Editor's own fetch status
+  // specifically.
+  //
+  // Deliberately NOT overridden for status === 'loading' - that's the
+  // state on every single mount of this component, including revisiting
+  // a page whose preview is already showing correctly in the shared
+  // viewport (useAutosaveDraft always refetches fresh; it never trusts
+  // that a previous instance already loaded this same path). Swapping
+  // in a placeholder for that brief moment unmounted PreviewFrame and
+  // remounted it once the fetch resolved - confirmed live as a visible
+  // fade-out/fade-in of the preview iframe on every Pages hub -> Editor
+  // switch, even though the URL it ends up showing never actually
+  // changes. The iframe has its own real url from the route's query
+  // string immediately (previewUrl, above) - it was never actually
+  // blocked on this fetch to begin with.
   const previewBodyNode = useMemo(
     () =>
       isContentPlaceholder ? (
-        status === 'loading' ? (
-          <TopLoadingBar active />
-        ) : (
+        status === 'loading' ? null : (
           <SiteStatusPanel {...buildPlaceholderPanelProps(status, { errorMessage, siteId, onRetry: reloadLatest })} />
         )
       ) : null,
@@ -836,11 +848,16 @@ export function PageEditorPage() {
 
             {/* Once revealed, the sidebar stays put across a later page
                 change - only this inner content area blanks while that
-                specific page's own content is (re)loading, the same
-                TopLoadingBar pushed via usePreviewBody above covering
-                the shared viewport's own reload at the same time. */}
+                specific page's own content is (re)loading. TopLoadingBar
+                lives here now, not in the shared viewport (previewBodyNode
+                above) - the iframe was never actually blocked on this
+                fetch, only this panel's own Page Meta/Sections/History
+                content is. Its own built-in 300ms delay means a fast
+                local load (the common case) never shows it at all. */}
             <div className="editor-tab-content">
-              {isContentPlaceholder ? null : (
+              {isContentPlaceholder ? (
+                status === 'loading' && <TopLoadingBar active />
+              ) : (
                 <div className="editor-tab-panel" ref={tabPanelRef}>
                   {effectiveViewMode === 'metafields' && (
                     <PageMetadataPanel

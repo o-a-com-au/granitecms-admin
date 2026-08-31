@@ -465,6 +465,27 @@ describe('PageEditorPage', () => {
     expect(iframe.src).toContain('/api/sites/site-1/preview/about?t=');
   });
 
+  // Regression: PageEditorPage always starts at status 'loading' on
+  // every mount (useAutosaveDraft refetches fresh every time, even
+  // revisiting a page whose preview is already showing correctly) -
+  // previewBodyNode used to swap in a loading placeholder over the
+  // shared viewport for that whole window, unmounting PreviewFrame and
+  // remounting it once the fetch resolved. Confirmed live: switching
+  // Pages hub -> Editor for the exact same page visibly faded the
+  // iframe out and back in, even though the URL it ended up showing
+  // never changed. The iframe has its own real url from the route's
+  // query string immediately - it was never actually blocked on this
+  // fetch, so the assertion below is made BEFORE awaiting anything,
+  // catching the 'loading' window directly rather than only checking
+  // after it has already resolved.
+  it('the preview iframe is already there on the very first render, before the content fetch resolves', () => {
+    installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+
+    expect(screen.getByTitle('Live preview')).toBeDefined();
+    expect(document.querySelector('.top-loading-bar')).toBeNull();
+  });
+
   it('shows a fallback message instead of an iframe when there is no url (e.g. a menu)', async () => {
     installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
     renderPage('/sites/site-1/editor?path=menus%2Fmain.json');
