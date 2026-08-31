@@ -1,10 +1,21 @@
 /* App shell: a persistent top bar spanning the full width, with a left
    icon rail (IconRail.tsx) below it running alongside .app-content -
-   not the full height of the screen, just the space under the bar. */
+   not the full height of the screen, just the space under the bar.
+
+   overflow-x: hidden - editor-layout.css's .editor-fields-panel sits
+   translateX()'d off-canvas to the right whenever it's closed (always,
+   on every route but Editor with a section selected), and a transformed
+   element's POST-transform box still contributes to an ancestor's
+   scrollable overflow even though it's painted off-screen. Without
+   this, that added up to a genuine, permanent horizontal scrollbar on
+   the whole document - confirmed live via html.scrollWidth exceeding
+   clientWidth by exactly --editor-sidebar-width on every route, not
+   just Editor. */
 .app-shell {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  overflow-x: hidden;
 }
 
 /* The row everything but the top bar lives in - the rail on the left,
