@@ -117,10 +117,21 @@
    leaf row's title lines up under an expandable sibling's title at
    the same depth, rather than sitting flush against the indent with
    no toggle to fill the gap. */
+/* flex: 1; min-width: 0 - without this, the cell sizes to its content's
+   natural width (its default flex-basis: auto) rather than shrinking to
+   fit .instance-row-main's own available space, which meant the Link
+   inside it (pages-hub.css's .instance-row-main a, overflow: hidden;
+   text-overflow: ellipsis) never actually had a bounded width to
+   truncate against - a long page title just overflowed the row and the
+   panel entirely instead of ellipsising. Confirmed live: "Granite CMS -
+   Solid foundations for client sites." bled past the panel's own right
+   edge. */
 .page-tree-cell {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
 }
 
 button.page-tree-toggle,
