@@ -62,12 +62,21 @@
 
 /* The page-tree/menu-list rows reuse .instance-row/.instance-row-main
    (instance-rows.css) as-is, but neither carries a <strong> label the
-   way a section/block row does - this fills the same "label takes the
-   remaining space, actions push to the right" role for a plain <a>
-   (Menus' own row title, still a real navigation link) or button
-   (.page-tree-title, Pages' own row title - a plain button now, not a
-   link, since its default click previews rather than navigates). */
-.instance-row-main a,
+   way a section/block row does - .page-tree-title fills that "label
+   takes the remaining space, actions push to the right" role for both
+   Pages' and Menus' own row title button (same class, same shape,
+   reused rather than duplicated - Menus rows have exactly one action,
+   same as a Pages row whose entry.url is null, so the title button
+   falls back to navigating straight there too, same as PagesTabPanel's
+   own Edit link does for that case).
+   A named class, not a bare `a` element selector - Pages hub's own
+   Edit action (PagesTabPanel.tsx/MenusTabPanel.tsx) is also an <a>
+   inside .instance-row-main, and a bare `a` selector here silently
+   caught it too: this file loads after instance-rows.css with equal
+   specificity, so its flex: 1 won over the Edit link's own flex: 0 0
+   auto/fixed width, stretching the icon across the whole row -
+   reported directly, confirmed live via the anchor's computed style
+   (flex: 1 1 0%, width: 131px instead of the intended 28px). */
 .instance-row-main .page-tree-title {
   flex: 1;
   min-width: 0;

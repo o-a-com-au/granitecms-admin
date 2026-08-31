@@ -6,6 +6,7 @@ import { isMenuPath } from './deriveMenuName.ts';
 import { buildPageTree, flattenVisibleTree, type PageTreeNode } from './pageTree.ts';
 import { NewPageModal } from './NewPageModal.tsx';
 import { AddIcon } from '../sections/AddIcon.tsx';
+import { EditIcon } from '../sections/EditIcon.tsx';
 import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
 import { buildLoadErrorActions, loadErrorMessage, type LoadError } from '../sites/site-load-error.ts';
@@ -22,28 +23,6 @@ export interface PreviewablePage {
 export interface PagesTabPanelProps {
   siteId: string;
   onPreview: (page: PreviewablePage | null) => void;
-}
-
-// A plain pencil glyph for the row-level Edit affordance - same
-// "generic currentColor utility icon" convention as AppShell.tsx's own
-// ExternalLinkIcon/GlobeIcon, not one of icons/index.tsx's dedicated,
-// fixed-palette design icons.
-function EditIcon() {
-  return (
-    <svg
-      width="100%"
-      height="100%"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M17 3a2.83 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-    </svg>
-  );
 }
 
 function collectParentPaths(nodes: PageTreeNode[], into: Set<string>): void {

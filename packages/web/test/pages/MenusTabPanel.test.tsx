@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes } from 'react-router';
 import { MenusTabPanel } from '../../src/pages/MenusTabPanel.tsx';
 
 const PAGE_ENTRY = { path: 'pages/about.json', title: 'About', type: 'page', published: true, hasDraft: false, url: '/about' };
@@ -51,14 +51,28 @@ describe('MenusTabPanel', () => {
     expect(screen.queryByText('About')).toBeNull();
   });
 
-  it('each row links into the dedicated menu editor, not the page editor', async () => {
+  it("each row's Edit link points into the dedicated menu editor, not the page editor", async () => {
     installFakeContentApi([MAIN_MENU_ENTRY]);
 
     renderPanel();
 
     await waitFor(() => expect(screen.getByText('Main')).toBeDefined());
-    const link = screen.getByRole('link', { name: 'Main' });
+    const link = screen.getByRole('link', { name: 'Edit Main' });
     expect(link.getAttribute('href')).toBe('/sites/site-1/menus/edit?path=menus%2Fmain.json');
+  });
+
+  it("clicking a row's own title also navigates into the dedicated menu editor - a menu has nothing to preview, so its title button falls back to navigating directly, same as a Pages row with no url", async () => {
+    installFakeContentApi([MAIN_MENU_ENTRY]);
+
+    const router = createMemoryRouter([{ path: '/sites/:siteId/content', element: <MenusTabPanel siteId="site-1" /> }], {
+      initialEntries: ['/sites/site-1/content'],
+    });
+    render(<RouterProvider router={router} />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Main' })).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Main' }));
+
+    expect(router.state.location.pathname + router.state.location.search).toBe('/sites/site-1/menus/edit?path=menus%2Fmain.json');
   });
 
   it('derives a readable name from the filename', async () => {
