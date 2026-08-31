@@ -150,7 +150,7 @@ button.colour-field-preview--none:hover {
      and the real, positioned one commit before the browser's first
      paint, so the animation's visible start lines up with the popover
      already being in its final place, not the hidden 0,0 one. */
-  animation: popup-fade-up 0.2s ease-out;
+  animation: popup-fade-up 0.25s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {

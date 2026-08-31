@@ -184,7 +184,7 @@
      popup-fade-up) - not a .modal-overlay child (anchored under the
      toolbar's Link button, not centred), so it references the shared
      keyframe directly. */
-  animation: popup-fade-up 0.2s ease-out;
+  animation: popup-fade-up 0.25s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {

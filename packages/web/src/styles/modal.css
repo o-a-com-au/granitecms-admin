@@ -55,17 +55,17 @@
    keyframe directly rather than being covered by this selector. */
 .modal-overlay > [role='dialog'],
 .modal-overlay > [role='alertdialog'] {
-  animation: popup-fade-up 0.2s ease-out;
+  animation: popup-fade-up 0.25s ease-out;
 }
 
 @keyframes popup-fade-up {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(12px) scale(0.8);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
