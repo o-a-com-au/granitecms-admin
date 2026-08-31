@@ -72,6 +72,7 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
 
   return (
     <div className="pages-hub-tab">
+      <h2 className="panel-heading">Menus</h2>
       {menus.length === 0 ? (
         <p>No menus found.</p>
       ) : (

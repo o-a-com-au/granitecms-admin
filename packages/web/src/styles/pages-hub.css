@@ -21,6 +21,7 @@
   flex-direction: column;
   min-height: 0;
   margin: var(--space-sm);
+  margin-top: 0;
   margin-right: 0;
   /* Fades in on every fresh mount - PagesHubPage remounts in full on
      every route switch into it (no PageEditorPage.tsx-style persistence
@@ -37,14 +38,14 @@
   }
 }
 
+/* Same heading-to-content rhythm as editor-tabs.css's own .sections-
+   panel/.fields-panel - each of Pages/Menus/Redirects now opens with a
+   .panel-heading (PagesTabPanel.tsx etc.), same convention as Sections/
+   History, so the gap beneath it should match too. */
 .pages-hub-tab {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.pages-hub-tab .content-search {
-  width: 100%;
+  gap: 1.25rem;
 }
 
 /* The page-tree/menu-list rows reuse .instance-row/.instance-row-main

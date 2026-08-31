@@ -8,8 +8,10 @@
    pages-hub.css's .pages-hub/.pages-hub-panel - see that file's own
    comments for why the sizing/fade/scroll responsibilities split the
    way they do between app-shell.css, here, and editor-layout.css's
-   shared .editor-sidebar-top/.editor-tab-content/.editor-tab-panel
-   primitives (reused here as-is, same as Pages hub). */
+   shared .editor-tab-content/.editor-tab-panel primitives (reused here
+   as-is, same as Pages hub) - unlike Pages hub, there's no tab strip
+   here (a single destination, no .editor-sidebar-top), so its own
+   .panel-heading sits directly inside .editor-tab-panel instead. */
 .media-hub {
   display: flex;
   flex: 1;
@@ -22,6 +24,7 @@
   flex-direction: column;
   min-height: 0;
   margin: var(--space-sm);
+  margin-top: 0;
   margin-right: 0;
   /* Fades in on every fresh mount - see pages-hub.css's own
      .pages-hub-panel for the identical reasoning (reusing the same
@@ -33,6 +36,13 @@
   .media-hub-panel {
     animation: none;
   }
+}
+
+/* Same heading-to-content rhythm as editor-tabs.css's own .sections-
+   panel/.fields-panel and pages-hub.css's own .pages-hub-tab - Media's
+   own .panel-heading needs the identical gap before its content. */
+.media-hub-tab {
+  gap: 1.25rem;
 }
 
 /* MediaImagePreviewModal.tsx - clicking a thumbnail in the panel opens

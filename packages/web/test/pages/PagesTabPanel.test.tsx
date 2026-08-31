@@ -91,18 +91,6 @@ describe('PagesTabPanel', () => {
     await waitFor(() => expect(screen.getByText('No pages found.')).toBeDefined());
   });
 
-  it('searches by name, title, or path, client-side against the already-fetched list', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE, ENTRY_TWO]), { status: 200 })));
-
-    renderPanel();
-    await waitFor(() => expect(screen.getByRole('link', { name: 'About' })).toBeDefined());
-
-    fireEvent.change(screen.getByPlaceholderText('Search pages'), { target: { value: 'contact' } });
-
-    expect(screen.queryByRole('link', { name: 'About' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Contact' })).toBeDefined();
-  });
-
   it('each row links straight to the editor route, unchanged from before', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE]), { status: 200 })));
 

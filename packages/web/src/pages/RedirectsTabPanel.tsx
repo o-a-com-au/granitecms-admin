@@ -55,6 +55,7 @@ export function RedirectsTabPanel({ siteId }: RedirectsTabPanelProps) {
 
   return (
     <div className="pages-hub-tab">
+      <h2 className="panel-heading">Redirects</h2>
       {deleteError && <p role="alert">{deleteError}</p>}
       {entries.length === 0 ? (
         <p>No redirects yet.</p>

@@ -56,17 +56,7 @@ function collectParentPaths(nodes: PageTreeNode[], into: Set<string>): void {
   }
 }
 
-function matchesSearch(entry: ContentListEntry, query: string): boolean {
-  if (query.trim() === '') {
-    return true;
-  }
-  const needle = query.trim().toLowerCase();
-  return entry.name.toLowerCase().includes(needle) || entry.title.toLowerCase().includes(needle) || entry.path.toLowerCase().includes(needle);
-}
-
-
 export function PagesTabPanel({ siteId, onPreview }: PagesTabPanelProps) {
-  const [search, setSearch] = useState('');
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
   const [newPageModalOpen, setNewPageModalOpen] = useState(false);
   const [entries, setEntries] = useState<ContentListEntry[] | null>(null);
@@ -123,7 +113,7 @@ export function PagesTabPanel({ siteId, onPreview }: PagesTabPanelProps) {
     });
   }
 
-  const pages = entries?.filter((entry) => !isMenuPath(entry.path)).filter((entry) => matchesSearch(entry, search)) ?? null;
+  const pages = entries?.filter((entry) => !isMenuPath(entry.path)) ?? null;
   const rows = pages !== null ? flattenVisibleTree(buildPageTree(pages), collapsedPaths) : null;
 
   if (error) {
@@ -136,13 +126,7 @@ export function PagesTabPanel({ siteId, onPreview }: PagesTabPanelProps) {
 
   return (
     <div className="pages-hub-tab">
-      <input
-        type="search"
-        className="content-search"
-        placeholder="Search pages"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-      />
+      <h2 className="panel-heading">Pages</h2>
       {rows !== null && rows.length === 0 ? (
         <p>No pages found.</p>
       ) : (
