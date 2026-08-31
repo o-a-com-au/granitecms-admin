@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 import { usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
@@ -36,7 +36,16 @@ export function PagesHubPage() {
   // readLastEditorLocation record PageEditorPage.tsx writes to) - this
   // page just needs to ask for it to be shown at all.
   usePreviewVisible(true);
-  usePageDeviceToggle(<DeviceToggle device={device} onChange={setDevice} />);
+  // useMemo, not a bare JSX expression - usePageDeviceToggle's own
+  // effect (PageActionsContext.tsx's createChromeSlot) depends on this
+  // node by reference. A fresh element every render re-registers on
+  // every render, which is exactly what caused PageEditorPage's own
+  // infinite render loop under AppShell's real provider nesting (see
+  // PageEditorPage.tsx's deviceToggleNode for the full explanation) -
+  // this call site had the identical bug, just triggered while Pages
+  // hub itself is the mounted route instead of Editor.
+  const deviceToggleNode = useMemo(() => <DeviceToggle device={device} onChange={setDevice} />, [device, setDevice]);
+  usePageDeviceToggle(deviceToggleNode);
 
   // The reverse direction: previewing a page here also updates the
   // shared record, so switching Pages -> Editor opens this same page
