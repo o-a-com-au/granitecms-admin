@@ -47,8 +47,8 @@ function IconRailItem({ label, to, active, icon }: IconRailItemProps) {
 export function IconRail({ editorTo, isEditingPage, contentTo, isOnContent, mediaTo, isOnMedia }: IconRailProps) {
   return (
     <nav className="app-sidebar" aria-label="Primary">
-      <IconRailItem label="Editor" to={editorTo} active={isEditingPage} icon={<EditorIcon />} />
       <IconRailItem label="Pages" to={contentTo} active={isOnContent} icon={<PagesIcon />} />
+      <IconRailItem label="Editor" to={editorTo} active={isEditingPage} icon={<EditorIcon />} />
       <IconRailItem label="Media" to={mediaTo} active={isOnMedia} icon={<MediaIcon />} />
     </nav>
   );

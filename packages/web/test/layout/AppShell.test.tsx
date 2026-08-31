@@ -313,7 +313,7 @@ describe('AppShell', () => {
     expect(editorLink.getAttribute('aria-current')).toBeNull();
   });
 
-  it('shows "Editor" as the active, first item when a page is open in the editor', async () => {
+  it('shows "Editor" as the active item when a page is open in the editor, after Pages in the rail order', async () => {
     installFakeApi();
     renderShell('/sites/site-1/editor?path=pages%2Findex.json&url=%2F');
 
@@ -325,9 +325,10 @@ describe('AppShell', () => {
     // Scoped to the primary nav, not screen.getAllByRole('link') - the
     // logo is also a link and precedes it in the DOM, which would
     // otherwise make this assertion pass or fail for the wrong reason.
+    // Pages first, then Editor, then Media - IconRail.tsx's own order.
     const nav = screen.getByRole('navigation', { name: 'Primary' });
     const items = within(nav).getAllByRole('link').map((el) => el.textContent);
-    expect(items.at(0)).toBe('Editor');
+    expect(items).toEqual(['Pages', 'Editor', 'Media']);
   });
 
   it('disables Pages, Media, and Editor too when no site is known at all (a genuine first-ever visit)', async () => {
