@@ -3,11 +3,25 @@ import { useParams } from 'react-router';
 import { PreviewFrame } from '../editor/PreviewFrame.tsx';
 import { DeviceToggle, type DeviceTier } from '../editor/DeviceToggle.tsx';
 import { usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
-import { PagesTabPanel } from './PagesTabPanel.tsx';
+import { readLastEditorLocation, writeLastEditorLocation } from '../sites/currentSite.ts';
+import { PagesTabPanel, type PreviewablePage } from './PagesTabPanel.tsx';
 import { MenusTabPanel } from './MenusTabPanel.tsx';
 import { RedirectsTabPanel } from './RedirectsTabPanel.tsx';
 
 type HubTab = 'pages' | 'menus' | 'redirects';
+
+// The Editor and this hub share one "current page" - readLastEditorLocation
+// is the same record PageEditorPage.tsx already writes to on every load
+// (currentSite.ts), keyed by siteId, storing the editor route's own
+// pathname+search. Pulled apart here just far enough to read back the
+// "url" query param PreviewFrame needs - not a second, competing store.
+function extractPreviewUrl(pathAndSearch: string | null): string | null {
+  const queryIndex = pathAndSearch?.indexOf('?') ?? -1;
+  if (pathAndSearch === null || queryIndex === -1) {
+    return null;
+  }
+  return new URLSearchParams(pathAndSearch.slice(queryIndex)).get('url');
+}
 
 // The old top-level Pages/Menus/Redirects destinations (each its own
 // full-width .list-page route) become one hub: a narrow tabbed left
@@ -26,10 +40,27 @@ type HubTab = 'pages' | 'menus' | 'redirects';
 export function PagesHubPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
   const [tab, setTab] = useState<HubTab>('pages');
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // Seeded from whatever page the Editor was last open on for this
+  // site, so switching Editor -> Pages shows the same page instead of
+  // resetting to the empty state - the whole point of this being the
+  // same shared record, not a fresh one.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(() => extractPreviewUrl(readLastEditorLocation(siteId)));
   const [device, setDevice] = useState<DeviceTier>('desktop');
 
   usePageDeviceToggle(<DeviceToggle device={device} onChange={setDevice} />);
+
+  // The reverse direction: previewing a page here also updates the
+  // shared record, so switching Pages -> Editor opens this same page
+  // instead of whatever was last actually edited.
+  function handlePreview(page: PreviewablePage | null): void {
+    if (page === null) {
+      setPreviewUrl(null);
+      return;
+    }
+    setPreviewUrl(page.url);
+    const params = new URLSearchParams({ path: page.path, url: page.url });
+    writeLastEditorLocation(siteId, `/sites/${siteId}/editor?${params.toString()}`);
+  }
 
   return (
     <div className="pages-hub">
@@ -49,7 +80,7 @@ export function PagesHubPage() {
         </div>
         <div className="editor-tab-content">
           <div className="editor-tab-panel">
-            {tab === 'pages' && <PagesTabPanel siteId={siteId} onPreview={setPreviewUrl} />}
+            {tab === 'pages' && <PagesTabPanel siteId={siteId} onPreview={handlePreview} />}
             {tab === 'menus' && <MenusTabPanel siteId={siteId} />}
             {tab === 'redirects' && <RedirectsTabPanel siteId={siteId} />}
           </div>

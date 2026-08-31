@@ -112,7 +112,7 @@ describe('PagesTabPanel', () => {
     expect(link.getAttribute('href')).toBe('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
   });
 
-  it('clicking a row\'s Preview button calls onPreview with that page\'s own url, without navigating away', async () => {
+  it('clicking a row\'s Preview button calls onPreview with that page\'s own path and url, without navigating away', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE]), { status: 200 })));
     const onPreview = vi.fn();
 
@@ -121,7 +121,7 @@ describe('PagesTabPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Preview About' }));
 
-    expect(onPreview).toHaveBeenCalledWith('/about');
+    expect(onPreview).toHaveBeenCalledWith({ path: 'pages/about.json', url: '/about' });
   });
 
   it('excludes menus entirely - they live in the Menus tab instead', async () => {

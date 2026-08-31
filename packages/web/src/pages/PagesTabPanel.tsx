@@ -10,9 +10,18 @@ import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
 import { buildLoadErrorActions, loadErrorMessage, type LoadError } from '../sites/site-load-error.ts';
 
+// Just enough of a ContentListEntry for PagesHubPage to build an editor
+// href from - path and url travel together so the same page can be
+// remembered as "the current one" (currentSite.ts's shared editor
+// location record), not just previewed here with no way back to it.
+export interface PreviewablePage {
+  path: string;
+  url: string;
+}
+
 export interface PagesTabPanelProps {
   siteId: string;
-  onPreview: (url: string | null) => void;
+  onPreview: (page: PreviewablePage | null) => void;
 }
 
 // A plain "eye" glyph for the row-level Preview affordance - same
@@ -166,7 +175,7 @@ interface PagesHubTreeRowProps {
   depth: number;
   collapsed: boolean;
   onToggle: (path: string) => void;
-  onPreview: (url: string | null) => void;
+  onPreview: (page: PreviewablePage | null) => void;
 }
 
 // The real row (PageTreeRow above is dead scaffolding - kept out of the
@@ -204,7 +213,7 @@ function PagesHubTreeRow({ siteId, node, depth, collapsed, onToggle, onPreview }
             type="button"
             className="instance-row-remove pages-hub-preview-button"
             aria-label={`Preview ${entry.name || entry.path}`}
-            onClick={() => onPreview(entry.url)}
+            onClick={() => onPreview(entry.url !== null ? { path: entry.path, url: entry.url } : null)}
           >
             <PreviewIcon />
           </button>
