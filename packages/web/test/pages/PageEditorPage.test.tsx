@@ -5,25 +5,34 @@ import { createMemoryRouter, Link, RouterProvider } from 'react-router';
 import { PageEditorPage } from '../../src/pages/PageEditorPage.tsx';
 import { ToastProvider } from '../../src/toast/ToastContext.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider } from '../../src/layout/PageActionsContext.tsx';
+import { PreviewProvider, SharedPreviewRegion } from '../../src/layout/PreviewContext.tsx';
 import { formatCommitTimestamp } from '../../src/history/PageHistoryTab.tsx';
 import { readLastEditorLocation, writeLastEditorLocation } from '../../src/sites/currentSite.ts';
 import { createFakeStorage } from '../helpers/fakeStorage.ts';
 import { createFakeDataTransfer } from '../helpers/fakeDataTransfer.ts';
 
-// Stands in for AppShell's own top-bar slots - PageEditorPage pushes
-// Discard/Save Changes and the device-size toggle into them via
-// usePageActions/usePageDeviceToggle rather than rendering either
-// itself, so a bare render() with no providers would silently drop
-// both (each hook no-ops without its own provider).
+// Stands in for AppShell itself - PageEditorPage pushes Discard/Save
+// Changes and the device-size toggle into AppShell's own top-bar slots
+// (usePageActions/usePageDeviceToggle) and drives the live preview via
+// the shared PreviewContext rather than rendering any of it itself, so
+// a bare render() with no providers would silently drop all three (each
+// hook no-ops without its own provider, and the shared viewport
+// wouldn't render at all). SharedPreviewRegion here is the exact same
+// component AppShell.tsx renders in the real app - not a hand-rolled
+// stand-in - so these tests exercise the real iframe/fields-panel/
+// mobile-overlay wiring, not an approximation of it.
 function TestPageActionsHost({ children }: { children: ReactNode }) {
   const [actions, setActions] = useState<ReactNode>(null);
   const [deviceToggle, setDeviceToggle] = useState<ReactNode>(null);
   return (
     <PageActionsProvider setActions={setActions}>
       <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>
-        <div className="app-topbar-device-toggle">{deviceToggle}</div>
-        <div className="app-topbar-actions">{actions}</div>
-        {children}
+        <PreviewProvider siteId="site-1">
+          <div className="app-topbar-device-toggle">{deviceToggle}</div>
+          <div className="app-topbar-actions">{actions}</div>
+          {children}
+          <SharedPreviewRegion siteId="site-1" />
+        </PreviewProvider>
       </PageDeviceToggleProvider>
     </PageActionsProvider>
   );
@@ -912,9 +921,14 @@ describe('PageEditorPage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
 
-    const shell = screen.getByLabelText('Content').closest('.editor-shell') as HTMLElement;
-    const sidebar = shell.querySelector('.editor-sidebar') as Node;
-    const preview = shell.querySelector('.editor-preview-full') as Node;
+    // The preview is no longer inside .editor-shell at all - it's
+    // SharedPreviewRegion, rendered as a sibling by TestPageActionsHost
+    // (standing in for AppShell) after {children} - so the panel-left/
+    // preview-right check is now a document-order check between the
+    // two top-level regions, not a within-editor-shell one.
+    const sidebar = document.querySelector('.editor-sidebar') as Node;
+    await waitFor(() => expect(document.querySelector('.shared-preview-region')).not.toBeNull());
+    const preview = document.querySelector('.shared-preview-region') as Node;
     const position = sidebar.compareDocumentPosition(preview);
     expect(Boolean(position & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
   });
@@ -978,7 +992,9 @@ describe('PageEditorPage', () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit hero' })).toBeDefined());
-    const preview = document.querySelector('.editor-preview-full') as HTMLElement;
+    // has-fields-panel now lives on SharedPreviewRegion's own
+    // .preview-viewport-wrap, not a class PageEditorPage renders itself.
+    const preview = document.querySelector('.preview-viewport-wrap') as HTMLElement;
     expect(preview.className).not.toContain('has-fields-panel');
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit hero' }));

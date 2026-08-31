@@ -1,15 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useBlocker, useLocation, useParams, useSearchParams } from 'react-router';
 import { listSiteContent } from '../api/site-content.ts';
 import { useAutosaveDraft } from '../editor/useAutosaveDraft.ts';
 import { useDraftPublishActions } from '../editor/useDraftPublishActions.ts';
 import { backfillPageName, derivePageLabel } from './derivePageLabel.ts';
-import { PreviewFrame } from '../editor/PreviewFrame.tsx';
 import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
 import { isPlaceholderStatus, buildPlaceholderPanelProps } from '../site-status/placeholder-status.ts';
 import { useToast } from '../toast/ToastContext.tsx';
-import { type DeviceTier } from '../editor/DeviceToggle.tsx';
 import { canEditAsSections, PageSectionsEditor } from '../sections/PageSectionsEditor.tsx';
 import { SectionFieldsPanel } from '../sections/SectionFieldsPanel.tsx';
 import { PageMetadataPanel } from '../editor/PageMetadataPanel.tsx';
@@ -19,6 +17,15 @@ import { PageHistoryTab } from '../history/PageHistoryTab.tsx';
 import { writeLastEditorLocation } from '../sites/currentSite.ts';
 import { usePageActions, usePageDeviceToggle, usePagePath } from '../layout/PageActionsContext.tsx';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
+import {
+  usePreview,
+  usePreviewVisible,
+  useFieldsPanel,
+  useMobilePreviewOpen,
+  usePreviewOverlay,
+  usePreviewBody,
+  usePreviewFrameHandlers,
+} from '../layout/PreviewContext.tsx';
 
 // Group I: the structured section/block editor (PageSectionsEditor) is
 // the default view, driving the exact same useAutosaveDraft hook Group
@@ -53,12 +60,15 @@ export function PageEditorPage() {
   useEffect(() => {
     setSelectedInstanceId(null);
   }, [path]);
-  const [device, setDevice] = useState<DeviceTier>('desktop');
+  // The live preview itself is AppShell's shared, persistent viewport
+  // now (PreviewContext.tsx), not owned here - device/iframeRef/
+  // setPreview all come from that one shared instance, so switching
+  // away to Pages hub or Media never reloads it.
+  const { device, setDevice, iframeRef, setPreview } = usePreview();
   // Phone only (docs/designs/Phone-Preview.png) - desktop always shows
   // the preview alongside both side panels, so this toggle has nothing
   // to do there; see .editor-mobile-preview-toggle's own CSS.
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
-  const previewIframeRef = useRef<HTMLIFrameElement>(null);
   const highlightedElementRef = useRef<HTMLElement | null>(null);
   // Single source of truth for "which section counts as highlighted
   // right now" - set by either direction (hovering a row here, or
@@ -118,7 +128,7 @@ export function PageEditorPage() {
   }, [siteId]);
 
   function findSectionElement(id: string): HTMLElement | undefined {
-    const doc = previewIframeRef.current?.contentDocument;
+    const doc = iframeRef.current?.contentDocument;
     return doc
       ? Array.from(doc.querySelectorAll<HTMLElement>('[data-section-id]')).find(
           (element) => element.dataset.sectionId === id,
@@ -186,8 +196,16 @@ export function PageEditorPage() {
   // the iframe fully re-navigates (a plain src reassignment) on every
   // completed autosave, discarding its old document and any listeners
   // on it entirely.
-  function handlePreviewFrameLoad(): void {
-    const doc = previewIframeRef.current?.contentDocument;
+  //
+  // Wrapped in useCallback (keyed on historyPreviewRef, the only real
+  // state its own body reads directly) so the object usePreviewFrameHandlers
+  // registers below stays referentially stable across unrelated renders -
+  // without this, a fresh object every render would re-register on every
+  // render of this component (not just an actual reload), and since
+  // registering updates the shared context those renders come from,
+  // that becomes a genuine render loop, not just wasted work.
+  const handlePreviewFrameLoad = useCallback((): void => {
+    const doc = iframeRef.current?.contentDocument;
     if (!doc) {
       return;
     }
@@ -255,7 +273,7 @@ export function PageEditorPage() {
       },
       true,
     );
-  }
+  }, [historyPreviewRef]);
 
   // A link inside the preview always means one of three things, never
   // the iframe's own default navigation - staying inside the admin-
@@ -308,6 +326,26 @@ export function PageEditorPage() {
     navigateToPage(matchedPath, resolved.pathname);
   }
 
+  // Clearing the highlight on the iframe's own mouseleave isn't gated
+  // on historyPreviewRef the way handlePreviewFrameLoad's own listeners
+  // are (above) - there's nothing wrong with clearing a stale highlight
+  // regardless of whether history browsing is active. useCallback here
+  // for the same referential-stability reason as handlePreviewFrameLoad -
+  // setHighlightedSectionId is already a stable setter, so an empty
+  // dependency array is correct.
+  const handleFrameMouseLeave = useCallback(() => setHighlightedSectionId(null), []);
+
+  // The object identity here must stay stable across unrelated renders
+  // (both inputs already are, via useCallback above), or every render
+  // would re-register into the shared context, which itself triggers a
+  // re-render of every consumer including this component - see
+  // handlePreviewFrameLoad's own comment for the render-loop this avoids.
+  const frameHandlers = useMemo(
+    () => ({ onFrameLoad: handlePreviewFrameLoad, onFrameMouseLeave: handleFrameMouseLeave }),
+    [handlePreviewFrameLoad, handleFrameMouseLeave],
+  );
+  usePreviewFrameHandlers(frameHandlers);
+
   const {
     status,
     content,
@@ -329,9 +367,17 @@ export function PageEditorPage() {
   // "name" property at all and rejects it as an unknown one) - matches
   // the agent's own path-prefix dispatch (validateContent) rather than
   // trusting the content's own unconstrained "type" string.
-  function setContent(value: string): void {
-    setContentRaw(path.startsWith('posts/') ? value : backfillPageName(value));
-  }
+  //
+  // useCallback (not a plain function) because SectionFieldsPanel now
+  // reaches this page via useFieldsPanel's memoised node, below - an
+  // unstable setContent would force that memo to recompute every
+  // render, undoing the whole point of memoising it.
+  const setContent = useCallback(
+    (value: string) => {
+      setContentRaw(path.startsWith('posts/') ? value : backfillPageName(value));
+    },
+    [path, setContentRaw],
+  );
 
   // Sections is only ever an option when the content is actually a
   // sections-shaped document - a menu, or any content without a
@@ -392,9 +438,9 @@ export function PageEditorPage() {
     setViewMode('sections');
   }
 
-  function handleCloseFields(): void {
-    setSelectedInstanceId(null);
-  }
+  // useCallback (not a plain function) for the same reason setContent
+  // above is - it feeds useFieldsPanel's memoised node, below.
+  const handleCloseFields = useCallback(() => setSelectedInstanceId(null), []);
 
   // Page Meta/History have nothing to do with a selected section - an
   // open Fields panel left over from Sections would be showing
@@ -500,6 +546,15 @@ export function PageEditorPage() {
     }
   }, [actionError, showToast]);
 
+  // Drives the shared viewport (PreviewContext.tsx) with whatever this
+  // page is currently showing - unconditionally, not just once content
+  // has loaded, so History's own revisionRef swap (and the loading/error
+  // placeholder pushed via usePreviewBody below) reach it immediately
+  // too, not only a fully-loaded page's own url.
+  useEffect(() => {
+    setPreview({ url: previewUrl, revisionRef: historyPreviewRef, status });
+  }, [setPreview, previewUrl, historyPreviewRef, status]);
+
   // Remembers this as the site's own "last visited editor page"
   // (currentSite.ts) - only once content has actually loaded, so a
   // broken or nonexistent URL never overwrites a previously-good
@@ -602,19 +657,88 @@ export function PageEditorPage() {
   // mark, same as usePageDeviceToggle above.
   usePagePath(previewUrl);
 
+  // Asks AppShell for the shared viewport for as long as this page is
+  // mounted - Editor/Pages hub/Media are the only routes that ever call
+  // this, so it stays hidden everywhere else (Settings etc.) without
+  // those routes needing to know anything about it.
+  usePreviewVisible(true);
+
+  // The Fields panel now renders as a sibling of the shared viewport
+  // (AppShell's SharedPreviewRegion), not inline here - pushed up so it
+  // can keep pushing/shrinking the viewport's own width exactly as
+  // before (app-shell.css's .preview-viewport-wrap.has-fields-panel).
+  //
+  // useMemo, not a bare JSX expression - PageEditorPage both writes to
+  // AND reads from PreviewContext (device/iframeRef/setPreview above),
+  // so it's a direct subscriber of the very context useFieldsPanel
+  // updates. A fresh element every render would re-register on every
+  // render (not just when something relevant actually changed), and
+  // since registering updates that shared context, every subscriber -
+  // including this component itself - re-renders in response, which
+  // recreates the element again: a genuine infinite render loop, not
+  // just wasted work (confirmed live: a naive first pass at this pegged
+  // a CPU core and never finished a single test). The same reasoning
+  // applies to usePreviewOverlay/usePreviewBody below.
+  const fieldsPanelNode = useMemo(
+    () =>
+      selectedInstanceId !== null ? (
+        <SectionFieldsPanel
+          siteId={siteId}
+          content={content}
+          setContent={setContent}
+          validationErrors={validationErrors}
+          selectedInstanceId={selectedInstanceId}
+          onClose={handleCloseFields}
+        />
+      ) : null,
+    [siteId, content, setContent, validationErrors, selectedInstanceId, handleCloseFields],
+  );
+  useFieldsPanel(fieldsPanelNode);
+
+  // Mirrors mobilePreviewOpen up so AppShell can apply .is-open-mobile
+  // to the shared region (mobile is otherwise untouched by this
+  // restructuring - see editor-layout.css/app-shell.css's mobile
+  // blocks), and pushes the "Close Preview" button itself up too, since
+  // it now needs to render alongside a viewport this page no longer
+  // owns directly.
+  useMobilePreviewOpen(mobilePreviewOpen);
+  const previewOverlayNode = useMemo(
+    () =>
+      mobilePreviewOpen ? (
+        <button type="button" className="editor-mobile-preview-close" onClick={() => setMobilePreviewOpen(false)}>
+          Close Preview
+        </button>
+      ) : null,
+    [mobilePreviewOpen],
+  );
+  usePreviewOverlay(previewOverlayNode);
+
+  // While this page's own content is still loading or failed to load,
+  // it has a placeholder to show in the shared viewport instead of the
+  // standard PreviewFrame - unlike Pages hub/Media, which only ever
+  // have a real url or nothing (PreviewFrame's own built-in empty
+  // state), this reflects Editor's own fetch status specifically.
+  const previewBodyNode = useMemo(
+    () =>
+      isContentPlaceholder ? (
+        status === 'loading' ? (
+          <TopLoadingBar active />
+        ) : (
+          <SiteStatusPanel {...buildPlaceholderPanelProps(status, { errorMessage, siteId, onRetry: reloadLatest })} />
+        )
+      ) : null,
+    [isContentPlaceholder, status, errorMessage, siteId, reloadLatest],
+  );
+  usePreviewBody(previewBodyNode);
+
   return (
     <>
       <div className="editor-page">
         <div className="editor-shell">
-          {/* .editor-sidebar is always mounted, same convention as
-              .editor-fields-panel below - collapsed to width: 0 via the
-              is-revealed class (editor-layout.css) rather than
-              conditionally rendered, specifically so .editor-preview-full/
-              PreviewFrame never move position in this tree and never
-              remount (and reload the live iframe) at the exact moment
-              the sidebar reveals itself. Full width before that reveal
-              is a side effect of the sidebar occupying zero space, not a
-              separate layout branch. */}
+          {/* .editor-sidebar is always mounted - collapsed via opacity/
+              transform (is-revealed class, editor-layout.css) rather
+              than conditionally rendered, so its own reveal is a fade
+              and slide rather than a remount. */}
           {/* inert while collapsed - it's still in the DOM (width: 0,
               see editor-layout.css) rather than unmounted, but its tab
               buttons must never be keyboard-focusable or exposed to
@@ -675,8 +799,8 @@ export function PageEditorPage() {
             {/* Once revealed, the sidebar stays put across a later page
                 change - only this inner content area blanks while that
                 specific page's own content is (re)loading, the same
-                TopLoadingBar at the top of the viewport covering both
-                this and the preview pane's own reload below. */}
+                TopLoadingBar pushed via usePreviewBody above covering
+                the shared viewport's own reload at the same time. */}
             <div className="editor-tab-content">
               {isContentPlaceholder ? null : (
                 <div className="editor-tab-panel" ref={tabPanelRef}>
@@ -725,54 +849,19 @@ export function PageEditorPage() {
             </div>
           </div>
 
-          {/* A sibling of .editor-preview-full, not nested inside it -
-              that panel is itself hidden by default below the mobile
-              breakpoint, which would hide a child toggle button along
-              with it, leaving no way to ever open it. */}
+          {/* The live preview itself, and the Fields panel beside it,
+              are AppShell's own shared, persistent viewport now
+              (SharedPreviewRegion, driven via the usePreviewVisible/
+              useFieldsPanel/usePreviewFrameHandlers hooks above) - not
+              rendered here at all any more, so switching away to Pages
+              hub or Media never reloads them.
+              This toggle button stays here (Editor's own UI, calling
+              setMobilePreviewOpen directly) rather than moving with
+              them - .editor-shell still fully contains it regardless of
+              where the viewport itself now lives. */}
           <button type="button" className="editor-mobile-preview-toggle" onClick={() => setMobilePreviewOpen(true)}>
             Preview
           </button>
-
-          <div
-            className={`editor-preview-full${sidebarRevealed ? ' has-sidebar' : ''}${selectedInstanceId !== null ? ' has-fields-panel' : ''}${mobilePreviewOpen ? ' is-open-mobile' : ''}`}
-          >
-            {isContentPlaceholder ? (
-              status === 'loading' ? (
-                <TopLoadingBar active />
-              ) : (
-                <SiteStatusPanel {...buildPlaceholderPanelProps(status, { errorMessage, siteId, onRetry: reloadLatest })} />
-              )
-            ) : (
-              <PreviewFrame
-                siteId={siteId}
-                url={previewUrl}
-                status={status}
-                device={device}
-                revisionRef={historyPreviewRef}
-                iframeRef={previewIframeRef}
-                onFrameLoad={handlePreviewFrameLoad}
-                onFrameMouseLeave={() => setHighlightedSectionId(null)}
-              />
-            )}
-            {mobilePreviewOpen && (
-              <button type="button" className="editor-mobile-preview-close" onClick={() => setMobilePreviewOpen(false)}>
-                Close Preview
-              </button>
-            )}
-          </div>
-
-          <div className={`editor-fields-panel${selectedInstanceId !== null ? ' is-open' : ''}`}>
-            {selectedInstanceId !== null && (
-              <SectionFieldsPanel
-                siteId={siteId}
-                content={content}
-                setContent={setContent}
-                validationErrors={validationErrors}
-                selectedInstanceId={selectedInstanceId}
-                onClose={handleCloseFields}
-              />
-            )}
-          </div>
         </div>
       </div>
       {blocker.state === 'blocked' && (

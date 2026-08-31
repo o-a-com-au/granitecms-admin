@@ -384,8 +384,22 @@
 /* The editor manages its own internal scroll regions (the edit panel
    and the preview each scroll independently) - .app-content itself
    must not also scroll, or a page taller than the viewport gets two
-   nested scrollbars fighting each other. */
+   nested scrollbars fighting each other.
+
+   flex: 0 0 <fixed width>, not the base rule's flex: 1 - the live
+   preview (and the Fields panel beside it) used to live in here too, as
+   a second flex child claiming the rest of the row; now that both moved
+   out to .shared-preview-region below, .app-content only ever contains
+   .editor-sidebar (position: absolute inside .editor-shell - see
+   editor-layout.css - so it contributes no intrinsic width of its own),
+   and needs an explicit size to reveal into rather than collapsing to
+   nothing. Matches .editor-sidebar's own width plus its left margin
+   (its right margin is 0) exactly, so its slide-in reveal has a
+   properly sized box to animate within. Reset back to full width on
+   mobile, below - the sidebar's own mobile override already goes
+   full-bleed there, and this must make room for it. */
 .app-content:has(.editor-page) {
+  flex: 0 0 calc(var(--editor-sidebar-width) + var(--space-sm));
   max-width: none;
   padding: 0;
   overflow: hidden;
@@ -440,18 +454,45 @@
    have, just hoisted up a level so a route swap underneath (.app-content)
    never touches it. */
 .shared-preview-region {
+  position: relative;
   flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
 }
 
+/* margin-right, not margin-left/has-sidebar the way editor-layout.css's
+   old .editor-preview-full also had - the sidebar's own column
+   (.app-content, above) is a real, separately-sized flex sibling now,
+   not something absolutely-positioned overlaying this region's own box,
+   so there's nothing here for it to make room for any more. The Fields
+   panel (editor-layout.css's .editor-fields-panel, rendered as this
+   region's other child, below) is still an overlay ON TOP of this box
+   specifically, exactly as it was inside .editor-preview-full before -
+   .has-fields-panel toggles in step with its own .is-open, same
+   transition duration, so the two settle at the same moment. */
 .preview-viewport-wrap {
   flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  margin-right: 0;
+  transition: margin-right 0.3s ease;
+}
+
+.preview-viewport-wrap.has-fields-panel {
+  margin-right: calc(var(--space-sm) + var(--editor-sidebar-width));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview-viewport-wrap {
+    transition: none;
+  }
+}
+
+.preview-viewport-wrap > .site-status-panel {
+  margin: 0 var(--space-sm);
 }
 
 .shared-preview-region .preview-empty {
@@ -485,7 +526,7 @@
    (.app-topbar-actions, e.g. Editor's Save/Discard) takes priority
    over the rail whenever both would otherwise want the same strip of
    screen - :has() is already an established pattern in this app's own
-   CSS (editor-layout.css's .editor-preview-full:has(...) etc.). */
+   CSS (editor-layout.css's .shared-preview-region:has(...) etc.). */
 @media (max-width: 720px) {
   .app-topbar-device-toggle {
     display: none;
@@ -522,6 +563,27 @@
 
   .app-content {
     padding-bottom: 5rem;
+  }
+
+  /* The fixed left-pane widths .app-content:has(.editor-page)/
+     :has(.pages-hub) size themselves to above are a desktop-only
+     side-by-side-with-the-preview concept - reset to full width here
+     (same specificity, later in this file, so this wins the tie) so
+     each route's own left pane is the one full-bleed mobile screen, the
+     same as .list-page/.onboarding-page routes already are. The shared
+     viewport itself only ever reappears on mobile via Editor's own
+     .is-open-mobile toggle (editor-layout.css) - Pages hub/Media have
+     no equivalent toggle, so their preview simply isn't reachable on a
+     phone, same as before this restructuring (neither ever had a real
+     mobile preview experience). */
+  .app-content:has(.editor-page),
+  .app-content:has(.pages-hub) {
+    flex: 1;
+    width: 100%;
+  }
+
+  .shared-preview-region {
+    display: none;
   }
 
   .app-topbar-address-bar {

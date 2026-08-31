@@ -1,17 +1,15 @@
-/* The editor page is a full-bleed split screen, not a normal padded,
-   centred reading-width page - it opts out of main's own layout
-   entirely so the preview and edit panels can each run edge to edge
-   and fill the exact height available in .app-content. Page Meta/
-   Sections sit on the left, the live preview in the centre, and a
-   third Fields panel slides in on the right once a section or block
-   is selected - never overlaying the preview, always pushing/
-   shrinking it, per docs/designs/Revised-Page-Edit--Section-Edit.png
-   (a deliberate change from the previous two-column layout, where
-   Fields was a third tab sharing the left column with Page/Sections
-   instead of its own independent panel). flex/min-height: 0 (not
-   min-height: 100vh) is what lets .editor-sidebar-scroll's own
-   overflow-y: auto below actually bound and scroll, instead of the
-   whole document growing to fit it. */
+/* The editor's own left pane (Page Meta/Sections/History) - a full-
+   bleed column, not a normal padded, centred reading-width page, sized
+   by app-shell.css's own .app-content:has(.editor-page) override to
+   exactly fit .editor-sidebar below. The live preview and the Fields
+   panel that used to sit beside this in one shared .editor-shell moved
+   out to AppShell's own persistent .shared-preview-region (see
+   app-shell.css) - they're a sibling of .app-content now, not something
+   inside it, which is what lets them survive navigating away from the
+   Editor entirely (Pages hub, Media) without reloading. flex/min-
+   height: 0 (not min-height: 100vh) is what lets .editor-sidebar-
+   scroll's own overflow-y: auto below actually bound and scroll,
+   instead of the whole document growing to fit it. */
 .editor-page {
   max-width: none;
   margin: 0;
@@ -30,18 +28,6 @@
   min-height: 0;
 }
 
-/* .preview-viewport (device-preview.css) carries its own left/right
-   margin, which is what insets the real preview from its neighbours
-   normally - SiteStatusPanel/TopLoadingBar sit directly in
-   .editor-preview-full instead (nothing to preview yet), so this gives
-   the same inset explicitly. Applies unchanged whether the sidebar is
-   collapsed (first load, full width) or revealed (a later page's own
-   load failed) - both leave .editor-preview-full occupying the same
-   full remaining span either way. */
-.editor-preview-full > .site-status-panel {
-  margin: 0 var(--space-sm);
-}
-
 /* A column of its own - alerts/conflict box and the tab bar
    (.editor-sidebar-top) stay fixed at the top, .editor-tab-content is
    its own independent scroll region below them, and .editor-footer's
@@ -50,22 +36,17 @@
    themselves too, so scrolling a long tab's content also scrolled the
    Page/Sections/Fields tabs out of view.
 
-   Always mounted, same convention as .editor-fields-panel below -
-   rather than conditionally rendered, so .editor-preview-full (the
-   live preview) never moves position in the tree and never remounts -
-   and reloads - at exactly the moment this reveals itself
-   (PageEditorPage.tsx toggles .is-revealed once, briefly after the
-   very first load's content actually arrives, and never back).
-
    position: absolute + transform: translateX, not a width: 0 -> full
    animation - animating width made the content look like it was being
-   wiped/revealed by an expanding box, not genuinely moving. Taking it
-   out of flow entirely like this is also what makes the preview
-   genuinely full width beforehand, as a side effect of this
-   contributing no flex space at all, not a separate "full width"
-   layout branch anywhere else - .editor-preview-full's own margin-left
-   (below) does the "pushes, doesn't overlay" job once revealed, in
-   step with this same transition. */
+   wiped/revealed by an expanding box, not genuinely moving. .editor-
+   shell's own position: relative (above) is what this resolves against
+   - now that the live preview lives elsewhere entirely (AppShell's
+   .shared-preview-region), there's no longer a neighbour for this
+   reveal to push/make room in, just this panel fading and sliding into
+   its own already-reserved column (app-shell.css's .app-content:has
+   (.editor-page) sizes that column to fit this exactly, whether
+   revealed or not - unlike before, .app-content's own width no longer
+   depends on this element's reveal state at all). */
 .editor-sidebar {
   position: absolute;
   top: 0;
@@ -200,59 +181,27 @@
   resize: none;
 }
 
-/* margin-left, not something .editor-sidebar itself contributes -
-   that's position: absolute now (above), so it takes up no flex space
-   of its own at all. This is what makes the reveal genuinely push the
-   preview rather than the sidebar just sliding in on top of it -
-   .has-sidebar toggles in step with .editor-sidebar's own
-   .is-revealed, same transition duration, so the two settle at the
-   same moment. var(--space-sm) matches .editor-sidebar's own right
-   margin being 0 - .preview-viewport's own left margin (device-
-   preview.css) provides the actual visible gap beyond that, same as
-   it always has. */
-.editor-preview-full {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  margin-left: 0;
-  margin-right: 0;
-  transition:
-    margin-left 0.3s ease,
-    margin-right 0.3s ease;
-}
-
-.editor-preview-full.has-sidebar {
-  margin-left: calc(var(--space-sm) + var(--editor-sidebar-width));
-}
-
-/* Same idea, mirrored for the Fields panel on the other side (below) -
-   .has-fields-panel toggles in step with .editor-fields-panel's own
-   .is-open, same transition duration. */
-.editor-preview-full.has-fields-panel {
-  margin-right: calc(var(--space-sm) + var(--editor-sidebar-width));
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .editor-preview-full {
-    transition: none;
-  }
-}
-
-/* The Fields panel - a sibling of .editor-sidebar on the other side of
-   the preview, not a mode of it. Same fixed width when open so the
-   layout reads as symmetric either way (an empty gutter on the right
-   would be more jarring than a matching one). Always mounted (see
-   PageEditorPage.tsx), same convention as .editor-sidebar above, so
-   .editor-preview-full never moves position in the tree.
+/* The Fields panel - a sibling of the live preview on the other side of
+   it, not a mode of it, both now rendered by AppShell's own
+   .shared-preview-region rather than anything here in the Editor's own
+   tree (see app-shell.css's SharedPreviewRegion/.preview-viewport-wrap.
+   has-fields-panel, which does the "pushes, doesn't overlay" margin job
+   this used to get from .editor-preview-full itself). Same fixed width
+   when open so the layout reads as symmetric either way (an empty
+   gutter on the right would be more jarring than a matching one).
+   Always mounted while the shared region itself is (see AppShell.tsx),
+   same convention as .editor-sidebar above.
 
    position: absolute + transform: translateX (mirrored from
    .editor-sidebar's own - this is the same off-canvas slide, just
    sliding in from the right instead of the left) - a width: 0 -> full
    animation made this look like it was growing into place rather than
    genuinely sliding in, same issue the sidebar had before it moved to
-   this same technique. .editor-preview-full's own margin-right (below)
-   does the "pushes, doesn't overlay" job once open, in step with this
-   same transition. */
+   this same technique. Resolves against .shared-preview-region's own
+   position: relative now, not .editor-shell (a completely different
+   element, in a completely different part of the tree) - the box that
+   ends up there is equivalent either way, since this and the preview it
+   slides in beside always move together. */
 .editor-fields-panel {
   position: absolute;
   top: 0;
@@ -341,8 +290,9 @@ button.fields-panel-delete:hover {
    itself is otherwise unreachable once the mobile breakpoint below
    stacks the panels full-screen, so this is the only way to see it
    there. Desktop always shows the preview already, so both this and
-   its own Close Preview button inside .editor-preview-full stay
-   hidden until that breakpoint. */
+   its own Close Preview button (rendered into AppShell's shared region
+   via usePreviewOverlay - see PreviewContext.tsx) stay hidden until
+   that breakpoint. */
 .editor-mobile-preview-toggle,
 .editor-mobile-preview-close {
   display: none;
@@ -359,14 +309,6 @@ button.fields-panel-delete:hover {
   min-height: 0;
   display: flex;
   flex-direction: column;
-}
-
-.editor-preview-full .preview-empty {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--colour-muted);
 }
 
 .editor-actions {
@@ -446,19 +388,18 @@ button.fields-panel-delete:hover {
     bottom: 1.25rem;
   }
 
-  .editor-preview-full,
-  .editor-preview-full.has-sidebar,
-  .editor-preview-full.has-fields-panel {
-    display: none;
-    /* Resets the desktop push-in-sync margins (above) - .is-open-mobile
-       below is a position: fixed full-screen overlay, not something
-       sitting beside the sidebar or Fields panel, so either margin
-       would only ever shift it off-screen for no reason here. */
-    margin-left: 0;
-    margin-right: 0;
-  }
-
-  .editor-preview-full.is-open-mobile {
+  /* .shared-preview-region already goes display: none by default on
+     mobile (app-shell.css) - the two rules below just add back the
+     cases where Editor specifically still wants it shown full-screen
+     (the explicit toggle, and while its own content is loading/erroring
+     - see usePreviewBody in PreviewContext.tsx), overriding that
+     default at equal specificity by winning on source order within this
+     file... except app-shell.css loads AFTER this file (index.css), so
+     these actually win on the higher specificity :has()/two-class
+     selectors below add, not source order - either way, the net effect
+     is what matters: shown only for these two Editor-specific cases,
+     hidden everywhere else on a phone. */
+  .shared-preview-region.is-open-mobile {
     display: flex;
     flex-direction: column;
     position: fixed;
@@ -467,14 +408,8 @@ button.fields-panel-delete:hover {
     background: var(--colour-bg);
   }
 
-  /* Loading/error content (SiteStatusPanel, TopLoadingBar) always lives
-     in .editor-preview-full now (PageEditorPage.tsx), same as the real
-     preview - without this, it would be invisible here until the user
-     happened to tap the Preview toggle, since that's the only thing
-     .is-open-mobile above normally reacts to. Same full-screen
-     treatment either way. */
-  .editor-preview-full:has(.site-status-panel),
-  .editor-preview-full:has(.top-loading-bar) {
+  .shared-preview-region:has(.site-status-panel),
+  .shared-preview-region:has(.top-loading-bar) {
     display: flex;
     flex-direction: column;
     position: fixed;

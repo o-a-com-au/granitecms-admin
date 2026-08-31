@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { DeviceTier } from '../editor/DeviceToggle.tsx';
 import type { EditorStatus } from '../editor/useAutosaveDraft.ts';
+import { PreviewFrame } from '../editor/PreviewFrame.tsx';
 import { readLastPreviewUrl } from '../sites/currentSite.ts';
 
 // The one persistent live-preview viewport, owned by AppShell (the one
@@ -53,6 +54,8 @@ interface PreviewContextValue {
   setFieldsPanel: (node: ReactNode | null) => void;
   previewOverlay: ReactNode;
   setPreviewOverlay: (node: ReactNode | null) => void;
+  previewBody: ReactNode;
+  setPreviewBody: (node: ReactNode | null) => void;
 }
 
 const PreviewContext = createContext<PreviewContextValue | null>(null);
@@ -93,6 +96,7 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
   const [mobileOpen, setMobileOpen] = useState(false);
   const [fieldsPanel, setFieldsPanel] = useState<ReactNode>(null);
   const [previewOverlay, setPreviewOverlay] = useState<ReactNode>(null);
+  const [previewBody, setPreviewBody] = useState<ReactNode>(null);
   const previousSiteIdRef = useRef(siteId);
 
   useEffect(() => {
@@ -133,8 +137,22 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
       setFieldsPanel,
       previewOverlay,
       setPreviewOverlay,
+      previewBody,
+      setPreviewBody,
     }),
-    [previewUrl, revisionRef, status, setPreview, device, frameHandlers, visible, mobileOpen, fieldsPanel, previewOverlay],
+    [
+      previewUrl,
+      revisionRef,
+      status,
+      setPreview,
+      device,
+      frameHandlers,
+      visible,
+      mobileOpen,
+      fieldsPanel,
+      previewOverlay,
+      previewBody,
+    ],
   );
 
   return <PreviewContext.Provider value={value}>{children}</PreviewContext.Provider>;
@@ -189,6 +207,22 @@ export function usePreviewOverlay(node: ReactNode | null): void {
   }, [setPreviewOverlay, node]);
 }
 
+// PageEditorPage-only: while its own content is still loading (or
+// failed to load), it has a placeholder (TopLoadingBar/SiteStatusPanel)
+// to show in place of the standard shared PreviewFrame - unlike
+// Pages hub/Media, which always have a real url (or nothing at all,
+// which PreviewFrame already renders its own empty state for), Editor's
+// placeholder reflects its own fetch status, not what's being
+// previewed. null (the default, once content has loaded) lets the
+// standard shared PreviewFrame show through again.
+export function usePreviewBody(node: ReactNode | null): void {
+  const { setPreviewBody } = usePreviewContextValue();
+  useEffect(() => {
+    setPreviewBody(node);
+    return () => setPreviewBody(null);
+  }, [setPreviewBody, node]);
+}
+
 // PageEditorPage-only: (re)attaches its hover-highlight/anchor-click-
 // interception listeners on every frame load, and clears the
 // highlighted section on mouseleave - see PreviewFrame.tsx's own props
@@ -202,4 +236,60 @@ export function usePreviewFrameHandlers(handlers: PreviewFrameHandlers | null): 
     setFrameHandlers(handlers ?? {});
     return () => setFrameHandlers({});
   }, [setFrameHandlers, handlers]);
+}
+
+// The one persistent live-preview viewport itself - rendered by
+// AppShell.tsx as a sibling of .app-content rather than inside it, so
+// it survives whatever the Outlet swaps in underneath it. Exported from
+// here (not kept private to AppShell.tsx) so tests can render the exact
+// same component a real route ends up talking to, rather than a
+// hand-rolled stand-in that could drift from it. Renders nothing at all
+// until a route actually asks for it (usePreviewVisible(true)) -
+// Settings and any other non-preview route simply never does, so this
+// stays hidden there without needing to know anything about the
+// current route itself.
+export function SharedPreviewRegion({ siteId }: { siteId: string }) {
+  const {
+    visible,
+    previewUrl,
+    device,
+    revisionRef,
+    status,
+    iframeRef,
+    frameHandlers,
+    fieldsPanel,
+    mobileOpen,
+    previewOverlay,
+    previewBody,
+  } = usePreview();
+
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <div className={`shared-preview-region${mobileOpen ? ' is-open-mobile' : ''}`}>
+      <div className={`preview-viewport-wrap${fieldsPanel !== null ? ' has-fields-panel' : ''}`}>
+        {previewBody ?? (
+          <PreviewFrame
+            siteId={siteId}
+            url={previewUrl}
+            status={status}
+            device={device}
+            revisionRef={revisionRef}
+            iframeRef={iframeRef}
+            onFrameLoad={frameHandlers.onFrameLoad}
+            onFrameMouseLeave={frameHandlers.onFrameMouseLeave}
+          />
+        )}
+        {previewOverlay}
+      </div>
+      {/* Always mounted while the region itself is, same convention as
+          the Editor's own .editor-sidebar - only PageEditorPage ever
+          fills this (SectionFieldsPanel via useFieldsPanel), so it
+          renders empty/collapsed (editor-layout.css's .editor-fields-panel,
+          not .is-open) on every other route. */}
+      <div className={`editor-fields-panel${fieldsPanel !== null ? ' is-open' : ''}`}>{fieldsPanel}</div>
+    </div>
+  );
 }

@@ -7,8 +7,7 @@ import { IconSprite } from '../icons/index.tsx';
 import { GraniteLogo } from './GraniteLogo.tsx';
 import { IconRail } from './IconRail.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider, PagePathProvider } from './PageActionsContext.tsx';
-import { PreviewProvider, usePreview } from './PreviewContext.tsx';
-import { PreviewFrame } from '../editor/PreviewFrame.tsx';
+import { PreviewProvider, SharedPreviewRegion } from './PreviewContext.tsx';
 import { useSites } from '../sites/useSites.ts';
 import { readLastSiteId, resolveEditorHref, writeLastSiteId } from '../sites/currentSite.ts';
 
@@ -91,41 +90,6 @@ function GlobeIcon() {
       <line x1="2" y1="12" x2="22" y2="12" />
       <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
     </svg>
-  );
-}
-
-// The one persistent live-preview viewport (PreviewContext.tsx),
-// rendered as a sibling of .app-content rather than inside it - the
-// point is that it survives whatever the Outlet swaps in underneath it.
-// Renders nothing at all until a route actually asks for it
-// (usePreviewVisible(true)) - Settings and any other non-preview route
-// simply never does, so this stays hidden there without needing to know
-// anything about the current route itself.
-function SharedPreviewRegion({ siteId }: { siteId: string }) {
-  const { visible, previewUrl, device, revisionRef, status, iframeRef, frameHandlers, fieldsPanel, mobileOpen, previewOverlay } =
-    usePreview();
-
-  if (!visible) {
-    return null;
-  }
-
-  return (
-    <div className={`shared-preview-region${mobileOpen ? ' is-open-mobile' : ''}`}>
-      <div className={`preview-viewport-wrap${fieldsPanel !== null ? ' has-fields-panel' : ''}`}>
-        <PreviewFrame
-          siteId={siteId}
-          url={previewUrl}
-          status={status}
-          device={device}
-          revisionRef={revisionRef}
-          iframeRef={iframeRef}
-          onFrameLoad={frameHandlers.onFrameLoad}
-          onFrameMouseLeave={frameHandlers.onFrameMouseLeave}
-        />
-        {previewOverlay}
-      </div>
-      {fieldsPanel}
-    </div>
   );
 }
 
