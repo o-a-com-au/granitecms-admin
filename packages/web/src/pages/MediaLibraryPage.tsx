@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import type { MediaItem } from '../api/site-media.ts';
 import { MediaLibrary } from '../media/MediaLibrary.tsx';
 import { MediaImagePreviewModal } from '../media/MediaImagePreviewModal.tsx';
-import { usePreviewVisible } from '../layout/PreviewContext.tsx';
+import { usePreview, usePreviewVisible } from '../layout/PreviewContext.tsx';
+import { DeviceToggle } from '../editor/DeviceToggle.tsx';
+import { usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
 
 // The old full-width photo-grid route becomes a left panel beside the
 // shared preview viewport (AppShell's SharedPreviewRegion), the same
@@ -19,8 +21,17 @@ import { usePreviewVisible } from '../layout/PreviewContext.tsx';
 export function MediaLibraryPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
+  const { device, setDevice } = usePreview();
 
   usePreviewVisible(true);
+  // Same device-size toggle Pages hub already wires up - the shared
+  // viewport still shows whatever site page was last active while
+  // browsing Media, so the topbar shouldn't drop the one control that
+  // affects it just because this route itself has nothing to do with a
+  // page. Without this, the topbar visibly reflowed (the toggle's own
+  // slot going empty) switching to/from Media - reported directly.
+  const deviceToggleNode = useMemo(() => <DeviceToggle device={device} onChange={setDevice} />, [device, setDevice]);
+  usePageDeviceToggle(deviceToggleNode);
 
   return (
     <div className="media-hub">
