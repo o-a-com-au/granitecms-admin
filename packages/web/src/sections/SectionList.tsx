@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { AddIcon } from './AddIcon.tsx';
+import { AddSectionModal } from './AddSectionModal.tsx';
 import { BlockList } from './BlockList.tsx';
 import { AccordionArrowIcon } from './AccordionArrowIcon.tsx';
 import { DragHandleIcon } from './DragHandleIcon.tsx';
@@ -14,7 +15,6 @@ import {
   type Instance,
   type ThemeTypeSchemas,
 } from './instance-types.ts';
-import { useAddMenu } from './useAddMenu.ts';
 
 interface SectionRowProps {
   section: Instance;
@@ -296,7 +296,7 @@ export function SectionList({
   selectedInstanceId,
 }: SectionListProps) {
   const sectionTypeNames = Object.keys(sectionTypes.schemas);
-  const { open: addMenuOpen, setOpen: setAddMenuOpen, openUpward, ref: addMenuRef, toggle: toggleAddMenu } = useAddMenu();
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const [draggedIndex, setDraggedIndexState] = useState<number | null>(null);
   const [dropIndex, setDropIndexState] = useState<number | null>(null);
   // Which row just landed from a completed drag, and a fresh token each
@@ -380,7 +380,7 @@ export function SectionList({
       ...(acceptsBlocks ? { blocks: [] } : {}),
     };
     onChange([...sections, newSection]);
-    setAddMenuOpen(false);
+    setAddModalOpen(false);
   }
 
   function handleDragOver(event: DragEvent<HTMLLIElement>, index: number): void {
@@ -545,32 +545,20 @@ export function SectionList({
         )}
       </ul>
       {sectionTypeNames.length > 0 && (
-        <div className="instance-add-menu-wrap" ref={addMenuRef}>
-          {addMenuOpen && (
-            <div className={`instance-add-menu${openUpward ? '' : ' instance-add-menu-below'}`} role="menu">
-              {sectionTypeNames.map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  role="menuitem"
-                  className="instance-add-menu-item"
-                  onClick={() => addSection(type)}
-                >
-                  {schemaTitle(sectionTypes.schemas[type], type)}
-                </button>
-              ))}
-            </div>
-          )}
-          <button
-            type="button"
-            className="instance-add-button"
-            aria-haspopup="menu"
-            aria-expanded={addMenuOpen}
-            onClick={toggleAddMenu}
-          >
+        // .instance-add-menu-wrap kept purely for its own margin-top -
+        // no popover positioned against it any more (that's the old
+        // dropdown's job, still needed by BlockList's own "Add Block"
+        // button, which shares this same class), just reused here
+        // rather than duplicating the same spacing rule under a new
+        // name.
+        <div className="instance-add-menu-wrap">
+          <button type="button" className="instance-add-button" onClick={() => setAddModalOpen(true)}>
             <AddIcon />
             Add Section
           </button>
+          {addModalOpen && (
+            <AddSectionModal sectionTypes={sectionTypes} onSelect={addSection} onClose={() => setAddModalOpen(false)} />
+          )}
         </div>
       )}
     </div>

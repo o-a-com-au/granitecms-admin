@@ -1,0 +1,88 @@
+/* AddSectionModal.tsx - a centred grid picker replacing the old
+   context-menu-style "Add Section" dropdown. Sizing/grid conventions
+   mirror media-library.css's own .media-picker-modal/.media-library-
+   grid (the closest existing "pick one of several visual cards from a
+   modal" pattern in this app), width capped rather than height - this
+   list is expected to be much shorter than a real media library, so a
+   fixed height (and the scroll it would imply) isn't needed here. */
+.add-section-modal {
+  width: min(90vw, 640px);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-lg);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+}
+
+.add-section-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.add-section-modal-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+/* button.add-section-modal-close, same specificity-tie reasoning as
+   button.add-section-item above. */
+button.add-section-modal-close {
+  background: none;
+  border: none;
+  color: var(--colour-muted);
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+
+.add-section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  overflow-y: auto;
+}
+
+/* button.add-section-item, not the bare class: base.css's own
+   button[type='button'] rule (element+attribute, same 0,1,1
+   specificity as element+class) would otherwise win the tie regardless
+   of import order and keep its own background/border - see index.css's
+   own comment on this exact convention. */
+button.add-section-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The placeholder itself - a plain tinted box standing in for real
+   per-type artwork, matching media-library.css's own thumb sizing
+   convention (square, rounded, bordered) so swapping this for a real
+   <img> later is a drop-in change, not a layout rework. */
+.add-section-item-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-xs);
+  background: var(--colour-surface-hover);
+}
+
+.add-section-item:hover .add-section-item-thumb,
+.add-section-item:focus-visible .add-section-item-thumb {
+  border-color: var(--colour-primary);
+}
+
+.add-section-item-name {
+  font-size: 0.85rem;
+  color: var(--colour-text);
+}

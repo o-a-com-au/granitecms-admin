@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, createEvent, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SectionList } from '../../src/sections/SectionList.tsx';
 import type { Instance, ThemeTypeSchemas } from '../../src/sections/instance-types.ts';
 import { createFakeDataTransfer } from '../helpers/fakeDataTransfer.ts';
@@ -334,7 +334,17 @@ describe('SectionList', () => {
     expect(dataTransfer.setDragImage).toHaveBeenCalledWith(pill, 0, 12);
   });
 
-  it('I2: the add-section menu lists types sourced from the fetched theme schemas, not hardcoded', () => {
+  // Every grid item is a plain button (no distinguishing role of its
+  // own), same as the modal's own Close button - filtered out by name
+  // here so assertions on "the type cards" don't have to special-case
+  // it individually every time.
+  function addSectionCards(): HTMLElement[] {
+    return within(screen.getByRole('dialog', { name: 'Add a Section' }))
+      .getAllByRole('button')
+      .filter((button) => button.getAttribute('aria-label') !== 'Close');
+  }
+
+  it('I2: the add-section modal lists types sourced from the fetched theme schemas, not hardcoded', () => {
     render(
       <SectionList
         sections={[]}
@@ -347,10 +357,10 @@ describe('SectionList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Section' }));
 
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['hero', 'faq']);
+    expect(addSectionCards().map((card) => card.textContent)).toEqual(['hero', 'faq']);
   });
 
-  it('I2: picking a type from the add-section menu adds it, closes the menu, and (for a type that accepts blocks) initialises blocks: []', () => {
+  it('I2: picking a type from the add-section modal adds it, closes the modal, and (for a type that accepts blocks) initialises blocks: []', () => {
     const onChange = vi.fn();
     render(
       <SectionList
@@ -363,12 +373,12 @@ describe('SectionList', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Section' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'hero' }));
+    fireEvent.click(screen.getByRole('button', { name: 'hero' }));
 
     const [[newSections]] = onChange.mock.calls as [[Instance[]]];
     expect(newSections[0]?.type).toBe('hero');
     expect(newSections[0]?.blocks).toEqual([]);
-    expect(screen.queryByRole('menuitem')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('L3: a newly-added section is pre-filled from its schema\'s declared defaults, not left empty', () => {
@@ -394,7 +404,7 @@ describe('SectionList', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Section' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'hero' }));
+    fireEvent.click(screen.getByRole('button', { name: 'hero' }));
 
     const [[newSections]] = onChange.mock.calls as [[Instance[]]];
     expect(newSections[0]?.settings).toEqual({ heading: 'New Section' });
@@ -413,33 +423,30 @@ describe('SectionList', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Section' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'hero' }));
+    fireEvent.click(screen.getByRole('button', { name: 'hero' }));
 
     const [[newSections]] = onChange.mock.calls as [[Instance[]]];
     expect(newSections[0]?.settings).toEqual({});
   });
 
-  it('clicking outside the open add-section menu closes it without adding anything', () => {
+  it('the add-section modal\'s Close button dismisses it without adding anything', () => {
     const onChange = vi.fn();
     render(
-      <div>
-        <button type="button">outside</button>
-        <SectionList
-          sections={[]}
-          sectionTypes={SECTION_TYPES}
-          blockTypes={BLOCK_TYPES}
-          onChange={onChange}
-          onEditInstance={vi.fn()}
-        />
-      </div>,
+      <SectionList
+        sections={[]}
+        sectionTypes={SECTION_TYPES}
+        blockTypes={BLOCK_TYPES}
+        onChange={onChange}
+        onEditInstance={vi.fn()}
+      />,
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Section' }));
-    expect(screen.getAllByRole('menuitem')).toHaveLength(2);
+    expect(addSectionCards()).toHaveLength(2);
 
-    fireEvent.mouseDown(screen.getByRole('button', { name: 'outside' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
-    expect(screen.queryByRole('menuitem')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -763,8 +770,10 @@ describe('SectionList', () => {
     expect(screen.getByRole('button', { name: 'Edit Hero' })).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Section' }));
-    expect(screen.getByRole('menuitem', { name: 'Hero' })).toBeDefined();
-    expect(screen.getByRole('menuitem', { name: 'FAQ' })).toBeDefined();
+    const dialog = screen.getByRole('dialog', { name: 'Add a Section' });
+    expect(within(dialog).getByRole('button', { name: 'Hero' })).toBeDefined();
+    expect(within(dialog).getByRole('button', { name: 'FAQ' })).toBeDefined();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove section' }));
     expect(onChange).toHaveBeenCalledWith([]);
