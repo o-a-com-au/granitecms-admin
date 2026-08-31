@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { schemaTitle, type ThemeTypeSchemas } from './instance-types.ts';
 
@@ -25,7 +26,20 @@ export interface AddSectionModalProps {
 // ConfirmDialog/MediaPickerModal's own established convention (an
 // explicit close action only) rather than inventing a third pattern.
 export function AddSectionModal({ sectionTypes, onSelect, onClose }: AddSectionModalProps) {
-  const typeNames = Object.keys(sectionTypes.schemas);
+  const [query, setQuery] = useState('');
+  // Titled first, so the search matches what's actually on screen (the
+  // schema's own title, e.g. "FAQ") rather than only the raw type slug
+  // a theme author never shows anywhere - a query like "media" should
+  // still find a "Media + Text" section even though its type is
+  // media-text, which substring-matching the slug alone would also
+  // happen to catch, but by accident, not by design.
+  const types = Object.keys(sectionTypes.schemas).map((type) => ({
+    type,
+    title: schemaTitle(sectionTypes.schemas[type], type),
+  }));
+  const normalisedQuery = query.trim().toLowerCase();
+  const visibleTypes =
+    normalisedQuery === '' ? types : types.filter(({ title }) => title.toLowerCase().includes(normalisedQuery));
 
   return createPortal(
     <div className="modal-overlay">
@@ -36,11 +50,19 @@ export function AddSectionModal({ sectionTypes, onSelect, onClose }: AddSectionM
             &times;
           </button>
         </div>
+        <input
+          type="search"
+          className="content-search add-section-search"
+          placeholder="Search sections"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        {visibleTypes.length === 0 && <p className="add-section-empty">No sections match &quot;{query}&quot;.</p>}
         <div className="add-section-grid">
-          {typeNames.map((type) => (
+          {visibleTypes.map(({ type, title }) => (
             <button key={type} type="button" className="add-section-item" onClick={() => onSelect(type)}>
               <span className="add-section-item-thumb" aria-hidden="true" />
-              <span className="add-section-item-name">{schemaTitle(sectionTypes.schemas[type], type)}</span>
+              <span className="add-section-item-name">{title}</span>
             </button>
           ))}
         </div>

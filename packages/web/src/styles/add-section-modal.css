@@ -12,9 +12,21 @@
   flex-direction: column;
   padding: var(--space-lg);
   border-radius: var(--radius-sm);
-  background: black;
   border: 1px solid var(--colour-border);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* A deliberately different fill from every other .modal (var(--colour-
+   surface), the app's standard panel colour) - explicit per-theme
+   values rather than an existing --colour-* alias, since neither
+   token already means "pure black in dark, pure white in light"
+   (--colour-surface is a grey in both). */
+[data-theme='dark'] .add-section-modal {
+  background: var(--grey-900);
+}
+
+[data-theme='light'] .add-section-modal {
+  background: white;
 }
 
 .add-section-modal-header {
@@ -39,6 +51,16 @@ button.add-section-modal-close {
   line-height: 1;
   padding: 0;
   cursor: pointer;
+}
+
+.add-section-search {
+  width: 100%;
+  margin-bottom: var(--space-md);
+}
+
+.add-section-empty {
+  margin: 0 0 var(--space-md);
+  color: var(--colour-muted);
 }
 
 .add-section-grid {
