@@ -1,36 +1,44 @@
-/* App shell: a persistent left icon rail (IconRail.tsx) plus a top bar,
-   every authenticated route renders inside both. Owns the page's one
-   <main> landmark itself (.app-content) - individual pages render a
-   plain wrapper instead of their own <main> once nested here. */
+/* App shell: a persistent top bar spanning the full width, with a left
+   icon rail (IconRail.tsx) below it running alongside .app-content -
+   not the full height of the screen, just the space under the bar. */
 .app-shell {
   display: flex;
+  flex-direction: column;
   height: 100vh;
+}
+
+/* The row everything but the top bar lives in - the rail on the left,
+   .app-content filling the rest. */
+.app-shell-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
 }
 
 /* The rail: three destinations (Editor/Pages/Media), each an icon
    stacked over a label. Revived from this app's own earlier icon-rail
    design (git show 1cdd753^ -- app-shell.css), which the top-bar nav
-   this replaces had itself replaced - same shape, just three items
-   instead of four and no bottom-pinned account avatar (that stays in
-   the top bar, unchanged). */
+   this replaces had itself replaced - three items instead of four, no
+   bottom-pinned account avatar (that stays in the top bar), no
+   background fill of its own (it reads as part of the same flat page
+   background .app-content sits on, not a distinct panel), and only
+   below the top bar rather than the full screen height. */
 .app-sidebar {
-  flex: 0 0 84px;
+  flex: 0 0 60px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1.25rem;
   padding: 1.25rem 0;
-  background: var(--colour-surface);
-  box-shadow: var(--shadow-panel);
 }
 
 .nav-rail-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
   width: 100%;
-  padding: 0.5rem 0.25rem;
+  padding: 0.4rem 0.15rem;
   color: var(--colour-muted);
   text-decoration: none;
   border: none;
@@ -40,16 +48,18 @@
 
 /* PagesIcon/MediaIcon/EditorIcon (icons/index.tsx) each render their
    svg at width/height: 100% - this box is what actually sizes them,
-   matching .device-icon's own rem-based sizing convention. */
+   matching .device-icon's own rem-based sizing convention. Sized down
+   slightly from the rail's own earlier 1.6rem now that the rail itself
+   is only 60px wide, not 84px. */
 .nav-rail-icon {
   display: flex;
   flex: 0 0 auto;
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.4rem;
+  height: 1.4rem;
 }
 
 .nav-rail-label {
-  font-size: 0.7rem;
+  font-size: 0.62rem;
   font-weight: 500;
 }
 
@@ -71,17 +81,6 @@
   color: var(--colour-border);
   cursor: not-allowed;
   pointer-events: none;
-}
-
-/* The column everything but the rail lives in - top bar above,
-   .app-content below, exactly what .app-shell itself used to be
-   before the rail became a flex row sibling instead of the outermost
-   element. */
-.app-shell-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
 }
 
 /* No background/border of its own - it reads as part of the same flat
@@ -161,7 +160,7 @@
   align-items: center;
   gap: 0.6rem;
   padding: 0.5rem 0.85rem;
-  border-radius: var(--radius-md);
+  border-radius: 999px;
   background: var(--colour-input-background);
   border: 1px solid var(--colour-border);
   color: var(--colour-muted);
@@ -457,6 +456,11 @@
     display: none;
   }
 
+  /* Unlike the desktop rail (no background, reads as part of the flat
+     page), the mobile bottom bar sits fixed over scrolling page
+     content - it needs its own opaque fill to stay legible, same
+     reasoning as .app-topbar-actions' own mobile background just
+     below. */
   .app-sidebar {
     position: fixed;
     left: 0;
@@ -468,6 +472,7 @@
     flex-direction: row;
     justify-content: space-around;
     padding: 0.5rem 0;
+    background: var(--colour-surface);
     box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.3);
   }
 

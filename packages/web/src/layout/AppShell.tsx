@@ -235,147 +235,145 @@ export function AppShell() {
     <>
       <IconSprite />
       <div className="app-shell">
-        {hasSites && (
-          <IconRail
-            editorTo={editorNavTo}
-            isEditingPage={isEditingPage}
-            contentTo={contentTo}
-            isOnContent={location.pathname === contentTo}
-            mediaTo={mediaTo}
-            isOnMedia={location.pathname === mediaTo}
-          />
-        )}
-        <div className="app-shell-main">
-          <header className="app-topbar">
-            <div className="app-topbar-start">
-              <Link className="app-logo" to="/" title="Granite CMS">
-                <span className="app-logo-mark">
-                  <GraniteLogo />
-                </span>
-                {!siteAddressLabel && (
-                  <span className="app-logo-word">
-                    GRANITE<span className="app-logo-version">{APP_VERSION}</span>
-                  </span>
-                )}
-              </Link>
-            </div>
-            {/* The new address bar - a static display of the current
-                page's address (site domain + path, from the same
-                usePagePath chrome slot the old logo-slot label already
-                read) plus the device-size toggle, replacing the old
-                nav-links span. Not yet clickable/searchable - that's a
-                deliberately later enhancement, hence the title hint. */}
-            <div className="app-topbar-address-bar" title={siteAddressLabel ?? undefined}>
-              <span className="app-address-bar-icon" aria-hidden="true">
-                <GlobeIcon />
+        <header className="app-topbar">
+          <div className="app-topbar-start">
+            <Link className="app-logo" to="/" title="Granite CMS">
+              <span className="app-logo-mark">
+                <GraniteLogo />
               </span>
-              <span className="app-address-bar-label">{siteAddressLabel ?? 'No site selected'}</span>
-              {siteAddressLabel && siteLiveHref && (
-                <a
-                  className="app-address-bar-external-link"
-                  href={siteLiveHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`Open ${siteAddressLabel} in a new tab`}
-                  aria-label={`Open ${siteAddressLabel} in a new tab`}
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <ExternalLinkIcon />
-                </a>
-              )}
-              <div className="app-topbar-device-toggle">{deviceToggle}</div>
-            </div>
-            <div className="app-topbar-end">
-              <div className="app-topbar-actions">{pageActions}</div>
-              <div className="nav-rail-account" ref={accountRef}>
-                {accountOpen && (
-                  <div className="account-popover" role="menu">
-                    <div className="account-popover-header">
-                      <span className="app-avatar" aria-hidden="true">
-                        {initial}
-                        <span className="app-avatar-status" />
-                      </span>
-                      <div className="account-popover-identity">
-                        <p className="account-popover-name">{(user && formatFullName(user.firstName, user.lastName)) || user?.username}</p>
-                        <p className="account-popover-email">{user?.email}</p>
-                      </div>
+              <span className="app-logo-word">
+                GRANITE<span className="app-logo-version">{APP_VERSION}</span>
+              </span>
+            </Link>
+          </div>
+          {/* The new address bar - a static display of the current
+              page's address (site domain + path, from the same
+              usePagePath chrome slot the old logo-slot label already
+              read) plus the device-size toggle, replacing the old
+              nav-links span. Not yet clickable/searchable - that's a
+              deliberately later enhancement, hence the title hint. */}
+          <div className="app-topbar-address-bar" title={siteAddressLabel ?? undefined}>
+            <span className="app-address-bar-icon" aria-hidden="true">
+              <GlobeIcon />
+            </span>
+            <span className="app-address-bar-label">{siteAddressLabel ?? 'No site selected'}</span>
+            {siteAddressLabel && siteLiveHref && (
+              <a
+                className="app-address-bar-external-link"
+                href={siteLiveHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Open ${siteAddressLabel} in a new tab`}
+                aria-label={`Open ${siteAddressLabel} in a new tab`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <ExternalLinkIcon />
+              </a>
+            )}
+            <div className="app-topbar-device-toggle">{deviceToggle}</div>
+          </div>
+          <div className="app-topbar-end">
+            <div className="app-topbar-actions">{pageActions}</div>
+            <div className="nav-rail-account" ref={accountRef}>
+              {accountOpen && (
+                <div className="account-popover" role="menu">
+                  <div className="account-popover-header">
+                    <span className="app-avatar" aria-hidden="true">
+                      {initial}
+                      <span className="app-avatar-status" />
+                    </span>
+                    <div className="account-popover-identity">
+                      <p className="account-popover-name">{(user && formatFullName(user.firstName, user.lastName)) || user?.username}</p>
+                      <p className="account-popover-email">{user?.email}</p>
                     </div>
-                    {/* docs/design/User-context-menu.png - a dropdown once
-                        there's more than one site to switch between (a
-                        plain list doesn't scale, and the mockup itself
-                        shows a select-styled control); with only one
-                        site there's nothing to actually switch to, so
-                        that one stays the plain non-interactive
-                        treatment it already had. */}
-                    {sites !== null && sites.length > 1 && (
-                      <div className="account-popover-sites">
-                        <p className="account-popover-sites-label">Switch site</p>
-                        <select
-                          className="account-popover-site-select"
-                          aria-label="Switch site"
-                          value={effectiveSiteId ?? ''}
-                          onChange={(event) => {
-                            const nextSiteId = event.target.value;
-                            setAccountOpen(false);
-                            navigate(resolveEditorHref(nextSiteId));
-                          }}
-                        >
-                          {sites.map((site) => (
-                            <option key={site.id} value={site.id}>
-                              {hostLabelFor(site.url)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                    {sites !== null && sites.length === 1 && (
-                      <div className="account-popover-sites">
-                        <p className="account-popover-sites-label">Switch site</p>
-                        <span className="account-popover-item is-current" aria-current="page">
-                          {hostLabelFor(sites[0]!.url)}
-                        </span>
-                      </div>
-                    )}
-                    {sites === null && !sitesError && (
-                      <span className="account-popover-item account-popover-item-muted" aria-disabled="true">
-                        Loading sites...
-                      </span>
-                    )}
-                    {sitesError && (
-                      <span className="account-popover-item account-popover-item-muted" role="alert">
-                        Couldn&apos;t load sites
-                      </span>
-                    )}
-                    <Link to="/settings/personal" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
-                      Account Settings
-                    </Link>
-                    <button type="button" role="menuitem" className="account-popover-item" onClick={toggleTheme}>
-                      {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="account-popover-item"
-                      onClick={() => void handleLogout()}
-                    >
-                      Logout
-                    </button>
                   </div>
-                )}
-                <button
-                  type="button"
-                  className="app-avatar"
-                  aria-haspopup="menu"
-                  aria-expanded={accountOpen}
-                  onClick={handleToggleAccount}
-                  title={user ? user.username : 'Account'}
-                >
-                  {initial}
-                  <span className="app-avatar-status" aria-hidden="true" />
-                </button>
-              </div>
+                  {/* docs/design/User-context-menu.png - a dropdown once
+                      there's more than one site to switch between (a
+                      plain list doesn't scale, and the mockup itself
+                      shows a select-styled control); with only one
+                      site there's nothing to actually switch to, so
+                      that one stays the plain non-interactive
+                      treatment it already had. */}
+                  {sites !== null && sites.length > 1 && (
+                    <div className="account-popover-sites">
+                      <p className="account-popover-sites-label">Switch site</p>
+                      <select
+                        className="account-popover-site-select"
+                        aria-label="Switch site"
+                        value={effectiveSiteId ?? ''}
+                        onChange={(event) => {
+                          const nextSiteId = event.target.value;
+                          setAccountOpen(false);
+                          navigate(resolveEditorHref(nextSiteId));
+                        }}
+                      >
+                        {sites.map((site) => (
+                          <option key={site.id} value={site.id}>
+                            {hostLabelFor(site.url)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {sites !== null && sites.length === 1 && (
+                    <div className="account-popover-sites">
+                      <p className="account-popover-sites-label">Switch site</p>
+                      <span className="account-popover-item is-current" aria-current="page">
+                        {hostLabelFor(sites[0]!.url)}
+                      </span>
+                    </div>
+                  )}
+                  {sites === null && !sitesError && (
+                    <span className="account-popover-item account-popover-item-muted" aria-disabled="true">
+                      Loading sites...
+                    </span>
+                  )}
+                  {sitesError && (
+                    <span className="account-popover-item account-popover-item-muted" role="alert">
+                      Couldn&apos;t load sites
+                    </span>
+                  )}
+                  <Link to="/settings/personal" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
+                    Account Settings
+                  </Link>
+                  <button type="button" role="menuitem" className="account-popover-item" onClick={toggleTheme}>
+                    {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="account-popover-item"
+                    onClick={() => void handleLogout()}
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+              <button
+                type="button"
+                className="app-avatar"
+                aria-haspopup="menu"
+                aria-expanded={accountOpen}
+                onClick={handleToggleAccount}
+                title={user ? user.username : 'Account'}
+              >
+                {initial}
+                <span className="app-avatar-status" aria-hidden="true" />
+              </button>
             </div>
-          </header>
+          </div>
+        </header>
+        <div className="app-shell-body">
+          {hasSites && (
+            <IconRail
+              editorTo={editorNavTo}
+              isEditingPage={isEditingPage}
+              contentTo={contentTo}
+              isOnContent={location.pathname === contentTo}
+              mediaTo={mediaTo}
+              isOnMedia={location.pathname === mediaTo}
+            />
+          )}
           <div className="app-content">
             <PageActionsProvider setActions={setPageActions}>
               <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>

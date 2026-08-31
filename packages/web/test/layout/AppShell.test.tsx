@@ -596,14 +596,16 @@ describe('AppShell', () => {
     expect(screen.queryByRole('link', { name: /open .* in a new tab/i })).toBeNull();
   });
 
-  it('shows the current site\'s own domain in the address bar (not the logo slot) on a site-scoped route, with a link to the live site', async () => {
+  it('shows the current site\'s own domain in the address bar, alongside the brand mark (not instead of it), with a link to the live site', async () => {
     installFakeApi();
 
     renderShell('/sites/site-1/content');
     await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
 
     expect(screen.getByText('localhost:3891', { selector: '.app-address-bar-label' })).toBeDefined();
-    expect(screen.queryByText('GRANITE')).toBeNull();
+    // GRANITE is a fixed part of the logo slot now, not a fallback that
+    // only shows when there's no site address to display instead.
+    expect(screen.getByText('GRANITE')).toBeDefined();
     const externalLink = screen.getByRole('link', { name: 'Open localhost:3891 in a new tab' });
     expect(externalLink.getAttribute('href')).toBe('http://localhost:3891');
     expect(externalLink.getAttribute('target')).toBe('_blank');
