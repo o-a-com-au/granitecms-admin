@@ -1,20 +1,94 @@
-/* App shell: the persistent top bar every authenticated route renders
-   inside (docs/designs/Revised-Pages.png) - replaces the previous left
-   icon rail entirely. Owns the page's one <main> landmark itself
-   (.app-content) - individual pages render a plain wrapper instead of
-   their own <main> once nested here. */
+/* App shell: a persistent left icon rail (IconRail.tsx) plus a top bar,
+   every authenticated route renders inside both. Owns the page's one
+   <main> landmark itself (.app-content) - individual pages render a
+   plain wrapper instead of their own <main> once nested here. */
 .app-shell {
   display: flex;
-  flex-direction: column;
   height: 100vh;
 }
 
-/* No background/border of its own (docs/designs/Revised-Pages.png) -
-   it reads as part of the same flat page background as .app-content
-   below it, not a distinct panel sitting on top. */
+/* The rail: three destinations (Editor/Pages/Media), each an icon
+   stacked over a label. Revived from this app's own earlier icon-rail
+   design (git show 1cdd753^ -- app-shell.css), which the top-bar nav
+   this replaces had itself replaced - same shape, just three items
+   instead of four and no bottom-pinned account avatar (that stays in
+   the top bar, unchanged). */
+.app-sidebar {
+  flex: 0 0 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.25rem 0;
+  background: var(--colour-surface);
+  box-shadow: var(--shadow-panel);
+}
+
+.nav-rail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.5rem 0.25rem;
+  color: var(--colour-muted);
+  text-decoration: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* PagesIcon/MediaIcon/EditorIcon (icons/index.tsx) each render their
+   svg at width/height: 100% - this box is what actually sizes them,
+   matching .device-icon's own rem-based sizing convention. */
+.nav-rail-icon {
+  display: flex;
+  flex: 0 0 auto;
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.nav-rail-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.nav-rail-item:hover {
+  color: var(--colour-text);
+}
+
+/* The design system's own fixed-palette icons can't shift colour on
+   their own via currentColor (icons/index.tsx's own comment) - a
+   background box behind the whole icon+label is the active indicator
+   instead, same convention the device toggle already uses. */
+[aria-current='page'].nav-rail-item {
+  background: var(--colour-surface-hover);
+  color: var(--colour-text);
+  border-radius: var(--radius-sm);
+}
+
+.nav-rail-item[aria-disabled='true'] {
+  color: var(--colour-border);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* The column everything but the rail lives in - top bar above,
+   .app-content below, exactly what .app-shell itself used to be
+   before the rail became a flex row sibling instead of the outermost
+   element. */
+.app-shell-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* No background/border of its own - it reads as part of the same flat
+   page background as .app-content below it, not a distinct panel
+   sitting on top. */
 .app-topbar {
   flex: 0 0 auto;
-  position: relative;
   display: flex;
   align-items: center;
   gap: 1.5rem;
@@ -22,7 +96,6 @@
   background: var(--colour-surface);
   box-shadow: var(--shadow-panel);
   margin-bottom: var(--space-md);
-
 }
 
 .app-topbar-start {
@@ -32,31 +105,12 @@
   flex: 0 0 auto;
 }
 
-/* Desktop never shows this - there is always room for the nav inline,
-   so a hamburger there would be pure decoration, not a real toggle.
-   Only the mobile breakpoint below turns it on. */
-.app-topbar-hamburger {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-xs);
-  background: none;
-  color: var(--colour-text);
-}
-
-.app-topbar-hamburger:hover {
-  background: var(--colour-surface-hover);
-}
-
 /* GraniteLogo.tsx (docs/designs/granite-logo.svg) plus the "GRANITE
-   2.3" wordmark (docs/designs/Phone-Pages.png already establishes this
-   same treatment for the mobile top bar) - a plain link, not a solid
-   background box like the old bare "G" mark, since the full-colour
-   logo needs no contrast box behind it to read. */
+   2.3" wordmark - a plain link, not a solid background box like the
+   old bare "G" mark, since the full-colour logo needs no contrast box
+   behind it to read. The wordmark itself only ever shows when there's
+   no current site address to show instead (AppShell.tsx) - the address
+   bar is where that now lives, not this slot. */
 .app-logo {
   display: flex;
   align-items: center;
@@ -83,117 +137,68 @@
 }
 
 /* Same size as "GRANITE" itself (no separate font-size) - light
-   weight and the muted colour are what set it apart, per the same
-   "2.3" treatment in docs/designs/Phone-Pages.png. */
+   weight and the muted colour are what set it apart. */
 .app-logo-version {
   margin-left: 0.3rem;
   color: var(--colour-muted);
   font-weight: 300;
 }
 
-/* Replaces the plain "GRANITE 2.3" word while a specific site (and,
-   inside the editor, one of its pages) is the current view (AppShell's
-   own siteAddressLabel) - a real address can run much longer than the
-   fixed wordmark ever did, so this caps it rather than letting it push
-   the centred nav out of place or wrap onto a second line. */
-.app-logo-url {
-  max-width: 16rem;
+/* The new address bar - a search/location-bar-styled display of the
+   current page's address (globe icon + domain/path + external-link +
+   the device-size toggle), centred in the middle of the top bar in
+   place of the old nav-links span. flex: 1 with a max-width and
+   auto margins, not position: absolute the way the old nav needed to
+   be - there's no longer anything else in this bar competing for
+   centring against a variable-width sibling. Not yet interactive
+   (no onClick, just a title hint) - a later revision makes this
+   clickable to search/jump to a page. */
+.app-topbar-address-bar {
+  flex: 1;
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--colour-input-background);
+  border: 1px solid var(--colour-border);
+  color: var(--colour-muted);
+}
+
+.app-address-bar-icon {
+  display: flex;
+  flex: 0 0 auto;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.app-address-bar-label {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.9rem;
-  font-weight: 600;
-  letter-spacing: normal;
+  font-size: 0.85rem;
+  color: var(--colour-text);
 }
 
-/* Sits beside .app-logo, not inside it - the wordmark itself is
-   already an <a> (Link to "/"), and nesting a second anchor inside it
-   would be invalid HTML. Opens the real live site (not this admin's
-   own draft preview) in a new tab, so it's deliberately plain, muted
-   chrome rather than a coloured call-to-action button. */
-.app-logo-external-link {
+.app-address-bar-external-link {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  padding: 0.3rem;
-  border-radius: var(--radius-sm);
+  width: 1.4rem;
+  height: 1.4rem;
+  padding: 0.25rem;
+  border-radius: var(--radius-xs);
   color: var(--colour-muted);
 }
 
-.app-logo-external-link:hover {
+.app-address-bar-external-link:hover {
   background: var(--colour-surface-hover);
   color: var(--colour-text);
-}
-
-/* flex: 1 (not 0 0 auto) plus justify-content: center is what actually
-   centres the nav between .app-topbar-start and .app-topbar-end
-   (docs/designs/App-Menu.png) - the nav's own flex-basis fills the
-   whole middle span so its content centres in that span rather than
-   just against the logo. */
-/* Absolutely positioned against .app-topbar itself (position: relative,
-   above), not flex: 1 filling the space between the logo and
-   .app-topbar-end - that centred it only within whatever space those
-   two happened to leave, which visibly shifted left/right depending on
-   whether the device-size toggle was present (Editor) or not
-   (Pages/Menus/...). This keeps it dead centre in the whole bar
-   regardless. .app-topbar-start/.app-topbar-end don't depend on this
-   being a flex participant either - start is a plain first flex child,
-   end pushes itself right via its own margin-left: auto. */
-.app-topbar-nav {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-}
-
-.app-topbar-nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.5rem 0.85rem;
-  color: var(--colour-muted);
-  text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.app-topbar-nav-item:hover {
-  color: var(--colour-text);
-}
-
-/* No background pill any more (docs/designs/App-Menu.png) - the
-   active tab is marked by bold text plus its own underline bar
-   instead. */
-.app-topbar-nav-item[aria-current='page'] {
-  color: var(--colour-text);
-  font-weight: 700;
-  position: relative;
-}
-.app-topbar-nav-item[aria-current='page']:after {
-  display: block;
-  content: '';
-  width: 100%;
-  height: 4px;
-  border-radius: var(--radius-sm);
-  background: var(--colour-primary);
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  margin: 0 auto;
-}
-
-.app-topbar-nav-item[aria-disabled='true'] {
-  color: var(--colour-border);
-  cursor: not-allowed;
-  pointer-events: none;
 }
 
 .app-topbar-end {
@@ -215,11 +220,8 @@
 }
 
 /* PageEditorPage's own device-size toggle (usePageDeviceToggle,
-   PageActionsContext.tsx) - previously PreviewFrame's own top bar,
-   alongside an address-bar-style URL display this revision drops
-   entirely (docs/designs/Revised-Page-Edit--Section-Edit.png shows
-   neither the old preview top bar nor a URL anywhere, just the
-   device icons here, between the nav and Save Changes). */
+   PageActionsContext.tsx), now rendered inside the address bar rather
+   than as its own separate top-bar slot. */
 .app-topbar-device-toggle:empty {
   display: none;
 }
@@ -255,9 +257,7 @@
   border: 2px solid var(--colour-surface);
 }
 
-/* Hangs below the avatar now, not out to the side - the top bar has
-   the opposite space constraint the old 92px-wide rail did, plenty of
-   room above, none to the right of the last item in the row. */
+/* Hangs below the avatar, top-right of the whole shell. */
 .account-popover {
   position: absolute;
   top: calc(100% + 0.75rem);
@@ -395,22 +395,35 @@
   flex-direction: column;
 }
 
-/* Pages/Menus (docs/designs/Revised-Pages.png) get their own full-
-   width grey panel (.list-page, pages-list.css) instead of the
-   centred, padded column every other route sits in - drop
-   .app-content's own max-width here, and move the panel's gap from
-   the viewport onto this padding (flush on top, var(--space-sm) on
-   the other three sides) rather than a margin on .list-page itself.
-   display: flex + .list-page's own flex: 1 is what actually stretches
-   the panel to fill the remaining height - a min-height: 100% there
-   instead would resolve against .app-content's content-box height
-   alone, ignoring its own margin, so the panel's total box (height +
-   margin) would always overflow .app-content by exactly one
-   var(--space-sm) even when the content itself fits (confirmed live:
-   scrollHeight was 8px taller than clientHeight on every load). */
+/* Menus/Redirects (still built on the older full-width panel while
+   their own hub tabs are rolled out) get their own full-width grey
+   panel (.list-page, pages-list.css) instead of the centred, padded
+   column every other route sits in - drop .app-content's own
+   max-width here, and move the panel's gap from the viewport onto
+   this padding (flush on top, var(--space-sm) on the other three
+   sides) rather than a margin on .list-page itself. display: flex +
+   .list-page's own flex: 1 is what actually stretches the panel to
+   fill the remaining height - a min-height: 100% there instead would
+   resolve against .app-content's content-box height alone, ignoring
+   its own margin, so the panel's total box (height + margin) would
+   always overflow .app-content by exactly one var(--space-sm) even
+   when the content itself fits (confirmed live: scrollHeight was 8px
+   taller than clientHeight on every load). */
 .app-content:has(.list-page) {
   max-width: none;
   padding: 0 var(--space-sm) var(--space-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+/* The Pages hub (PagesHubPage.tsx) manages its own internal scroll
+   regions the same way the editor does (tabbed list panel + preview
+   viewport, each scrolling independently) - same override as
+   .editor-page above. */
+.app-content:has(.pages-hub) {
+  max-width: none;
+  padding: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -428,70 +441,55 @@
   flex-direction: column;
 }
 
-/* Mobile: the nav collapses behind the hamburger (docs/designs/
-   Phone-Pages.png) - a dropdown panel anchored under the top bar
-   itself, spanning its full width, rather than inline. The page-
-   actions slot (Discard/Save Changes) relocates to a bar fixed at the
-   bottom of the screen instead (docs/designs/Phone-Page-Edit--Section-
-   Edit.png) - the top bar stays reserved for the hamburger, logo, and
-   account only. .app-content gets bottom padding equal to that bar's
-   own height so it never sits underneath the fixed bar's content. */
+/* Mobile: the rail becomes a fixed bottom tab bar (three destinations
+   is few enough to always show inline, no hamburger/drawer needed any
+   more). Simulating a device size makes no sense once you're already
+   looking at a real phone - the phone-only Preview toggle
+   (editor-layout.css) is this breakpoint's own way to see the live
+   site instead, same reasoning device-toggle already hid for. Only one
+   fixed bottom bar shows at a time: a page's own action bar
+   (.app-topbar-actions, e.g. Editor's Save/Discard) takes priority
+   over the rail whenever both would otherwise want the same strip of
+   screen - :has() is already an established pattern in this app's own
+   CSS (editor-layout.css's .editor-preview-full:has(...) etc.). */
 @media (max-width: 720px) {
-  .app-topbar-hamburger {
-    display: flex;
-  }
-
-  /* Simulating a device size makes no sense once you're already
-     looking at a real phone - the phone-only Preview toggle
-     (editor-layout.css) is this breakpoint's own way to see the live
-     site instead. */
   .app-topbar-device-toggle {
     display: none;
   }
 
-  .app-topbar-nav {
-    display: none;
-    position: absolute;
-    top: 100%;
+  .app-sidebar {
+    position: fixed;
     left: 0;
     right: 0;
-    /* Cancels the desktop rule's centring transform above - left/right:
-       0 already spans the full width here, so that translate would
-       otherwise shift this whole dropdown sideways by half its own
-       width. */
-    transform: none;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.25rem;
-    padding: 0.75rem;
-    background: var(--colour-surface);
-    border-bottom: 1px solid var(--colour-border);
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
-    z-index: 20;
+    bottom: 0;
+    z-index: 30;
+    flex: none;
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 0.5rem 0;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.3);
   }
 
-  .app-topbar-nav.is-open {
-    display: flex;
+  .nav-rail-item {
+    width: auto;
+    flex: 1;
   }
 
-  /* Same idea as .app-topbar-device-toggle above - considerably less
-     room here once the hamburger and account avatar both claim their
-     own fixed space either side of it. */
-  .app-logo-url {
-    max-width: 9rem;
-  }
-
-  /* Left-aligned like every other row in the dropdown, not centred
-     like the desktop bar - align-items: center is a desktop-only
-     concern (docs/designs/App-Menu.png), the mobile drawer never
-     showed that layout in its own design. */
-  .app-topbar-nav-item {
-    align-items: flex-start;
-    padding: 0.75rem 0.85rem;
-  }
-
-  .app-topbar-actions:empty {
+  .app-shell:has(.app-topbar-actions:not(:empty)) .app-sidebar {
     display: none;
+  }
+
+  .app-content {
+    padding-bottom: 5rem;
+  }
+
+  .app-topbar-address-bar {
+    max-width: none;
+  }
+
+  .app-address-bar-label {
+    font-size: 0.8rem;
   }
 
   .app-topbar-actions:not(:empty) {

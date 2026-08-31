@@ -161,6 +161,16 @@ function Icon({ id }: { id: string }) {
   );
 }
 
+// No dedicated "Editor" glyph exists in this sprite (it predates Editor
+// being a nav destination at all) - reuses icon-tab-page (a plain page/
+// document glyph, itself already unused) as a placeholder rather than
+// hand-authoring a new multi-shape icon to match this set's fixed-
+// palette style, same "placeholder now, real artwork later" approach
+// AddSectionModal's own thumbnails already took.
+export function EditorIcon() {
+  return <Icon id="icon-tab-page" />;
+}
+
 export function PagesIcon() {
   return <Icon id="icon-pages" />;
 }

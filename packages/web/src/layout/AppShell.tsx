@@ -4,17 +4,16 @@ import { useAuth } from '../auth/AuthContext.tsx';
 import { formatFullName } from '../auth/fullName.ts';
 import { useTheme } from '../theme/ThemeContext.tsx';
 import { IconSprite } from '../icons/index.tsx';
-import { HamburgerIcon } from '../icons/HamburgerIcon.tsx';
 import { GraniteLogo } from './GraniteLogo.tsx';
+import { IconRail } from './IconRail.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider, PagePathProvider } from './PageActionsContext.tsx';
 import { useSites } from '../sites/useSites.ts';
 import { readLastSiteId, resolveEditorHref, writeLastSiteId } from '../sites/currentSite.ts';
 
 // Bumped by hand alongside any release worth surfacing in the brand
-// mark (docs/designs/Phone-Pages.png shows the same "GRANITE 2.3"
-// treatment already established for the mobile top bar) - not derived
-// from package.json, whose own version has stayed at the 0.0.0
-// placeholder throughout development and isn't meant for display.
+// mark - not derived from package.json, whose own version has stayed
+// at the 0.0.0 placeholder throughout development and isn't meant for
+// display.
 const APP_VERSION = '2.3';
 
 // Falls back to the raw stored URL for the rare case it isn't a valid
@@ -70,42 +69,37 @@ function ExternalLinkIcon() {
   );
 }
 
-interface TopNavItemProps {
-  label: string;
-  to: string | undefined;
-  active: boolean;
-}
-
-// A nav item with no destination (siteId not yet known, e.g. on the
-// registry) renders disabled rather than being omitted - the revised
-// designs (docs/designs/Revised-Pages.png) show every nav item
-// consistently present in the top bar.
-function TopNavItem({ label, to, active }: TopNavItemProps) {
-  if (!to) {
-    return (
-      <span className="app-topbar-nav-item" aria-disabled="true" title={`${label} (unavailable)`}>
-        {label}
-      </span>
-    );
-  }
+// A plain globe glyph for the new address bar - same "generic
+// currentColor utility icon" reasoning as ExternalLinkIcon above, not
+// one of the design system's own baked-colour icons.
+function GlobeIcon() {
   return (
-    <Link className="app-topbar-nav-item" to={to} aria-current={active ? 'page' : undefined}>
-      {label}
-    </Link>
+    <svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
   );
 }
 
-// Wraps every authenticated route as one shared layout - a persistent
-// top bar (docs/designs/Revised-Pages.png; replaces the previous left
-// icon rail entirely) carrying primary nav, an account popover, and
-// two slots leaf routes can push content into: page actions
-// (PageEditorPage's own Save/Discard, previously pinned in its own
-// footer only because there was no shared header for them to live in)
-// and a device-size toggle (previously PreviewFrame's own, alongside
-// an address-bar-style URL display this revision drops entirely - see
-// PageActionsContext.tsx). The primary nav collapses behind a
-// hamburger below the mobile breakpoint (docs/designs/Phone-Pages.png)
-// - desktop always shows it inline, no hamburger there at all.
+// Wraps every authenticated route as one shared layout: a left icon
+// rail (IconRail.tsx - Editor/Pages/Media, replacing the previous
+// horizontal top-bar nav) plus a top bar carrying the current page's
+// address (in place of the old nav-links span - a plain display for
+// now, not yet clickable/searchable, deliberately deferred), the
+// device-size toggle, an account popover, and two slots leaf routes
+// can push content into: page actions (PageEditorPage's own Save/
+// Discard) and the device-size toggle (see PageActionsContext.tsx).
 //
 // siteId comes from a plain useParams() call, not pathname parsing:
 // react-router's useParams() returns the deepest matched route's
@@ -121,7 +115,6 @@ export function AppShell() {
   const { theme, toggleTheme } = useTheme();
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [pageActions, setPageActions] = useState<ReactNode>(null);
   const [deviceToggle, setDeviceToggle] = useState<ReactNode>(null);
   const [pagePath, setPagePath] = useState<ReactNode>(null);
@@ -155,15 +148,6 @@ export function AppShell() {
     };
   }, [accountOpen]);
 
-  // A route change is always a deliberate nav pick (or a redirect
-  // following one) - closing the mobile drawer here covers both
-  // "tapped a link" and "navigated some other way while it happened
-  // to be open" with the one effect, rather than wiring a close call
-  // into every link individually.
-  useEffect(() => {
-    setMobileNavOpen(false);
-  }, [location.pathname]);
-
   // The entire mechanism for "remember the current site" (currentSite.ts) -
   // every site-scoped route this shell wraps re-records itself here, no
   // per-page plumbing needed. "/" and the always-visible Editor nav item
@@ -189,10 +173,10 @@ export function AppShell() {
   const initial = user?.username ? user.username[0]?.toUpperCase() : '?';
 
   // Genuinely nothing to navigate to yet, not just "no site currently
-  // selected" - every nav item would render disabled (TopNavItem's own
-  // fallback) or, worse, pointing at a stale remembered siteId
+  // selected" - every rail item would render disabled (IconRailItem's
+  // own fallback) or, worse, pointing at a stale remembered siteId
   // (readLastSiteId()) that no longer exists. sites === null (still
-  // loading) stays false here, not true - the nav starting empty and
+  // loading) stays false here, not true - the rail starting empty and
   // then appearing once the fetch confirms real sites exist is a
   // normal, expected loading pattern; briefly showing it optimistically
   // and then hiding it again for a genuinely empty registry (found
@@ -214,15 +198,13 @@ export function AppShell() {
   const editorTo = siteId ? `/sites/${siteId}/editor` : undefined;
   const isEditingPage = location.pathname === editorTo;
   // Falls back to the last-visited site (e.g. while on /settings, where
-  // siteId itself isn't in the URL) so every nav item stays a real link
-  // from anywhere, not just while a site is already selected in the
-  // URL. undefined only on a genuine first-ever visit, before any site
-  // has ever been known - TopNavItem renders that as disabled.
+  // siteId itself isn't in the URL) so every rail item stays a real
+  // link from anywhere, not just while a site is already selected in
+  // the URL. undefined only on a genuine first-ever visit, before any
+  // site has ever been known - IconRailItem renders that as disabled.
   const effectiveSiteId = siteId ?? readLastSiteId();
   const contentTo = effectiveSiteId ? `/sites/${effectiveSiteId}/content` : undefined;
-  const menusTo = effectiveSiteId ? `/sites/${effectiveSiteId}/menus` : undefined;
   const mediaTo = effectiveSiteId ? `/sites/${effectiveSiteId}/media` : undefined;
-  const redirectsTo = effectiveSiteId ? `/sites/${effectiveSiteId}/redirects` : undefined;
   const editorNavTo = isEditingPage
     ? `${location.pathname}${location.search}`
     : effectiveSiteId
@@ -253,170 +235,156 @@ export function AppShell() {
     <>
       <IconSprite />
       <div className="app-shell">
-        <header className="app-topbar">
-          <div className="app-topbar-start">
-            {hasSites && (
-              <button
-                type="button"
-                className="app-topbar-hamburger"
-                aria-haspopup="menu"
-                aria-expanded={mobileNavOpen}
-                aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
-                onClick={() => setMobileNavOpen((current) => !current)}
-              >
-                <HamburgerIcon open={mobileNavOpen} />
-              </button>
-            )}
-            <Link className="app-logo" to="/" title="Granite CMS">
-              <span className="app-logo-mark">
-                <GraniteLogo />
-              </span>
-              {siteAddressLabel ? (
-                <span className="app-logo-word app-logo-url">{siteAddressLabel}</span>
-              ) : (
-                <span className="app-logo-word">
-                  GRANITE<span className="app-logo-version">{APP_VERSION}</span>
+        {hasSites && (
+          <IconRail
+            editorTo={editorNavTo}
+            isEditingPage={isEditingPage}
+            contentTo={contentTo}
+            isOnContent={location.pathname === contentTo}
+            mediaTo={mediaTo}
+            isOnMedia={location.pathname === mediaTo}
+          />
+        )}
+        <div className="app-shell-main">
+          <header className="app-topbar">
+            <div className="app-topbar-start">
+              <Link className="app-logo" to="/" title="Granite CMS">
+                <span className="app-logo-mark">
+                  <GraniteLogo />
                 </span>
-              )}
-            </Link>
-            {siteAddressLabel && siteLiveHref && (
-              <a
-                className="app-logo-external-link"
-                href={siteLiveHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`Open ${siteAddressLabel} in a new tab`}
-                aria-label={`Open ${siteAddressLabel} in a new tab`}
-              >
-                <ExternalLinkIcon />
-              </a>
-            )}
-          </div>
-          {/* Always rendered, even with nothing to navigate to yet -
-              its own flex: 1 (app-shell.css) is what fills the middle
-              span between the logo and the account avatar, keeping the
-              avatar pinned to the right edge either way. Only the items
-              inside are conditional. */}
-          <nav className={`app-topbar-nav${mobileNavOpen ? ' is-open' : ''}`} aria-label="Primary">
-            {hasSites && (
-              <>
-                {/* First item, as the default/primary destination -
-                    always present, like Pages/Menus/Media/Redirects.
-                    Links to the current location while already there
-                    (unchanged), otherwise to whichever site is known
-                    (falling back to the last-visited one) and that
-                    site's own last-visited editor location, falling
-                    back again to its default homepage document.
-                    Disabled only on a genuine first-ever visit, before
-                    any site has ever been known. */}
-                <TopNavItem label="Editor" to={editorNavTo} active={isEditingPage} />
-                <TopNavItem label="Pages" to={contentTo} active={location.pathname === contentTo} />
-                <TopNavItem label="Menus" to={menusTo} active={location.pathname === menusTo} />
-                <TopNavItem label="Media" to={mediaTo} active={location.pathname === mediaTo} />
-                <TopNavItem label="Redirects" to={redirectsTo} active={location.pathname === redirectsTo} />
-              </>
-            )}
-          </nav>
-          <div className="app-topbar-end">
-            <div className="app-topbar-device-toggle">{deviceToggle}</div>
-            <div className="app-topbar-actions">{pageActions}</div>
-            <div className="nav-rail-account" ref={accountRef}>
-              {accountOpen && (
-                <div className="account-popover" role="menu">
-                  <div className="account-popover-header">
-                    <span className="app-avatar" aria-hidden="true">
-                      {initial}
-                      <span className="app-avatar-status" />
-                    </span>
-                    <div className="account-popover-identity">
-                      <p className="account-popover-name">{(user && formatFullName(user.firstName, user.lastName)) || user?.username}</p>
-                      <p className="account-popover-email">{user?.email}</p>
-                    </div>
-                  </div>
-                  {/* docs/design/User-context-menu.png - a dropdown once
-                      there's more than one site to switch between (a
-                      plain list doesn't scale, and the mockup itself
-                      shows a select-styled control); with only one
-                      site there's nothing to actually switch to, so
-                      that one stays the plain non-interactive
-                      treatment it already had. */}
-                  {sites !== null && sites.length > 1 && (
-                    <div className="account-popover-sites">
-                      <p className="account-popover-sites-label">Switch site</p>
-                      <select
-                        className="account-popover-site-select"
-                        aria-label="Switch site"
-                        value={effectiveSiteId ?? ''}
-                        onChange={(event) => {
-                          const nextSiteId = event.target.value;
-                          setAccountOpen(false);
-                          navigate(resolveEditorHref(nextSiteId));
-                        }}
-                      >
-                        {sites.map((site) => (
-                          <option key={site.id} value={site.id}>
-                            {hostLabelFor(site.url)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  {sites !== null && sites.length === 1 && (
-                    <div className="account-popover-sites">
-                      <p className="account-popover-sites-label">Switch site</p>
-                      <span className="account-popover-item is-current" aria-current="page">
-                        {hostLabelFor(sites[0]!.url)}
-                      </span>
-                    </div>
-                  )}
-                  {sites === null && !sitesError && (
-                    <span className="account-popover-item account-popover-item-muted" aria-disabled="true">
-                      Loading sites...
-                    </span>
-                  )}
-                  {sitesError && (
-                    <span className="account-popover-item account-popover-item-muted" role="alert">
-                      Couldn&apos;t load sites
-                    </span>
-                  )}
-                  <Link to="/settings/personal" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
-                    Account Settings
-                  </Link>
-                  <button type="button" role="menuitem" className="account-popover-item" onClick={toggleTheme}>
-                    {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="account-popover-item"
-                    onClick={() => void handleLogout()}
-                  >
-                    Logout
-                  </button>
-                </div>
-              )}
-              <button
-                type="button"
-                className="app-avatar"
-                aria-haspopup="menu"
-                aria-expanded={accountOpen}
-                onClick={handleToggleAccount}
-                title={user ? user.username : 'Account'}
-              >
-                {initial}
-                <span className="app-avatar-status" aria-hidden="true" />
-              </button>
+                {!siteAddressLabel && (
+                  <span className="app-logo-word">
+                    GRANITE<span className="app-logo-version">{APP_VERSION}</span>
+                  </span>
+                )}
+              </Link>
             </div>
+            {/* The new address bar - a static display of the current
+                page's address (site domain + path, from the same
+                usePagePath chrome slot the old logo-slot label already
+                read) plus the device-size toggle, replacing the old
+                nav-links span. Not yet clickable/searchable - that's a
+                deliberately later enhancement, hence the title hint. */}
+            <div className="app-topbar-address-bar" title={siteAddressLabel ?? undefined}>
+              <span className="app-address-bar-icon" aria-hidden="true">
+                <GlobeIcon />
+              </span>
+              <span className="app-address-bar-label">{siteAddressLabel ?? 'No site selected'}</span>
+              {siteAddressLabel && siteLiveHref && (
+                <a
+                  className="app-address-bar-external-link"
+                  href={siteLiveHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Open ${siteAddressLabel} in a new tab`}
+                  aria-label={`Open ${siteAddressLabel} in a new tab`}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <ExternalLinkIcon />
+                </a>
+              )}
+              <div className="app-topbar-device-toggle">{deviceToggle}</div>
+            </div>
+            <div className="app-topbar-end">
+              <div className="app-topbar-actions">{pageActions}</div>
+              <div className="nav-rail-account" ref={accountRef}>
+                {accountOpen && (
+                  <div className="account-popover" role="menu">
+                    <div className="account-popover-header">
+                      <span className="app-avatar" aria-hidden="true">
+                        {initial}
+                        <span className="app-avatar-status" />
+                      </span>
+                      <div className="account-popover-identity">
+                        <p className="account-popover-name">{(user && formatFullName(user.firstName, user.lastName)) || user?.username}</p>
+                        <p className="account-popover-email">{user?.email}</p>
+                      </div>
+                    </div>
+                    {/* docs/design/User-context-menu.png - a dropdown once
+                        there's more than one site to switch between (a
+                        plain list doesn't scale, and the mockup itself
+                        shows a select-styled control); with only one
+                        site there's nothing to actually switch to, so
+                        that one stays the plain non-interactive
+                        treatment it already had. */}
+                    {sites !== null && sites.length > 1 && (
+                      <div className="account-popover-sites">
+                        <p className="account-popover-sites-label">Switch site</p>
+                        <select
+                          className="account-popover-site-select"
+                          aria-label="Switch site"
+                          value={effectiveSiteId ?? ''}
+                          onChange={(event) => {
+                            const nextSiteId = event.target.value;
+                            setAccountOpen(false);
+                            navigate(resolveEditorHref(nextSiteId));
+                          }}
+                        >
+                          {sites.map((site) => (
+                            <option key={site.id} value={site.id}>
+                              {hostLabelFor(site.url)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {sites !== null && sites.length === 1 && (
+                      <div className="account-popover-sites">
+                        <p className="account-popover-sites-label">Switch site</p>
+                        <span className="account-popover-item is-current" aria-current="page">
+                          {hostLabelFor(sites[0]!.url)}
+                        </span>
+                      </div>
+                    )}
+                    {sites === null && !sitesError && (
+                      <span className="account-popover-item account-popover-item-muted" aria-disabled="true">
+                        Loading sites...
+                      </span>
+                    )}
+                    {sitesError && (
+                      <span className="account-popover-item account-popover-item-muted" role="alert">
+                        Couldn&apos;t load sites
+                      </span>
+                    )}
+                    <Link to="/settings/personal" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
+                      Account Settings
+                    </Link>
+                    <button type="button" role="menuitem" className="account-popover-item" onClick={toggleTheme}>
+                      {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="account-popover-item"
+                      onClick={() => void handleLogout()}
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="app-avatar"
+                  aria-haspopup="menu"
+                  aria-expanded={accountOpen}
+                  onClick={handleToggleAccount}
+                  title={user ? user.username : 'Account'}
+                >
+                  {initial}
+                  <span className="app-avatar-status" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          </header>
+          <div className="app-content">
+            <PageActionsProvider setActions={setPageActions}>
+              <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>
+                <PagePathProvider setPagePath={setPagePath}>
+                  <Outlet />
+                </PagePathProvider>
+              </PageDeviceToggleProvider>
+            </PageActionsProvider>
           </div>
-        </header>
-        <div className="app-content">
-          <PageActionsProvider setActions={setPageActions}>
-            <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>
-              <PagePathProvider setPagePath={setPagePath}>
-                <Outlet />
-              </PagePathProvider>
-            </PageDeviceToggleProvider>
-          </PageActionsProvider>
         </div>
       </div>
     </>

@@ -240,35 +240,34 @@ afterEach(() => {
 });
 
 describe('AppShell', () => {
-  it('renders all four top-bar nav items, with no History item - history is reached per-page from the editor now', async () => {
+  it('renders exactly the three icon-rail nav items - Menus/Redirects live inside Pages\' own tabs now', async () => {
     installFakeApi();
     renderShell('/sites/site-1/content');
 
     await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
+    expect(screen.getByRole('link', { name: 'Editor' })).toBeDefined();
     expect(screen.getByRole('link', { name: 'Pages' })).toBeDefined();
-    expect(screen.getByRole('link', { name: 'Menus' })).toBeDefined();
     expect(screen.getByRole('link', { name: 'Media' })).toBeDefined();
-    expect(screen.getByRole('link', { name: 'Redirects' })).toBeDefined();
+    expect(screen.queryByRole('link', { name: 'Menus' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Redirects' })).toBeNull();
     expect(screen.queryByText('History')).toBeNull();
   });
 
-  it('sees siteId via useParams and points Pages/Menus/Media/Redirects at the current site', async () => {
+  it('sees siteId via useParams and points Pages/Media at the current site', async () => {
     installFakeApi();
     renderShell('/sites/site-1/content');
 
     await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
     expect(screen.getByRole('link', { name: 'Pages' }).getAttribute('href')).toBe('/sites/site-1/content');
-    expect(screen.getByRole('link', { name: 'Menus' }).getAttribute('href')).toBe('/sites/site-1/menus');
     expect(screen.getByRole('link', { name: 'Media' }).getAttribute('href')).toBe('/sites/site-1/media');
-    expect(screen.getByRole('link', { name: 'Redirects' }).getAttribute('href')).toBe('/sites/site-1/redirects');
   });
 
   it('highlights the active nav item via aria-current', async () => {
     installFakeApi();
-    renderShell('/sites/site-1/menus');
+    renderShell('/sites/site-1/media');
 
-    await waitFor(() => expect(screen.getByText('menus content')).toBeDefined());
-    expect(screen.getByRole('link', { name: 'Menus' }).getAttribute('aria-current')).toBe('page');
+    await waitFor(() => expect(screen.getByText('media content')).toBeDefined());
+    expect(screen.getByRole('link', { name: 'Media' }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('link', { name: 'Pages' }).getAttribute('aria-current')).toBeNull();
   });
 
@@ -299,13 +298,13 @@ describe('AppShell', () => {
     expect(items.at(0)).toBe('Editor');
   });
 
-  it('disables Pages, Menus, and Editor too when no site is known at all (a genuine first-ever visit)', async () => {
+  it('disables Pages, Media, and Editor too when no site is known at all (a genuine first-ever visit)', async () => {
     installFakeApi();
     renderShell('/settings');
 
     await waitFor(() => expect(screen.getByText('settings content')).toBeDefined());
     expect(screen.getByTitle('Pages (unavailable)')).toBeDefined();
-    expect(screen.getByTitle('Menus (unavailable)')).toBeDefined();
+    expect(screen.getByTitle('Media (unavailable)')).toBeDefined();
     expect(screen.getByTitle('Editor (unavailable)')).toBeDefined();
   });
 
@@ -326,12 +325,12 @@ describe('AppShell', () => {
     renderShell('/settings');
 
     await waitFor(() => expect(screen.getByText('settings content')).toBeDefined());
-    // The nav landmark itself stays mounted (it's what keeps the
-    // account avatar pinned to the right edge - see AppShell.tsx) but
-    // holds nothing.
-    expect(within(screen.getByRole('navigation', { name: 'Primary' })).queryAllByRole('link')).toHaveLength(0);
+    // The rail itself doesn't mount at all (unlike the old top-bar nav,
+    // it isn't load-bearing for the account avatar's own position -
+    // that pins via .app-topbar-end's margin-left: auto regardless).
+    expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull();
     expect(screen.queryByTitle('Pages (unavailable)')).toBeNull();
-    expect(screen.queryByTitle('Menus (unavailable)')).toBeNull();
+    expect(screen.queryByTitle('Media (unavailable)')).toBeNull();
     expect(screen.queryByTitle('Editor (unavailable)')).toBeNull();
   });
 
@@ -394,7 +393,7 @@ describe('AppShell', () => {
     );
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'register' })).toBeDefined());
-    expect(within(screen.getByRole('navigation', { name: 'Primary' })).queryAllByRole('link')).toHaveLength(0);
+    expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'register' }));
 
@@ -404,7 +403,7 @@ describe('AppShell', () => {
     );
   });
 
-  it('Editor, Pages, Menus, Media, and Redirects all fall back to a locally-remembered site when siteId itself is unset (e.g. on /settings)', async () => {
+  it('Editor, Pages, and Media all fall back to a locally-remembered site when siteId itself is unset (e.g. on /settings)', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     localStorage.setItem('cms-admin-last-site', 'site-1');
     installFakeApi();
@@ -413,17 +412,15 @@ describe('AppShell', () => {
     await waitFor(() => expect(screen.getByText('settings content')).toBeDefined());
     expect(screen.getByRole('link', { name: 'Editor' }).getAttribute('href')).toBe(defaultEditorHref('site-1'));
     expect(screen.getByRole('link', { name: 'Pages' }).getAttribute('href')).toBe('/sites/site-1/content');
-    expect(screen.getByRole('link', { name: 'Menus' }).getAttribute('href')).toBe('/sites/site-1/menus');
     expect(screen.getByRole('link', { name: 'Media' }).getAttribute('href')).toBe('/sites/site-1/media');
-    expect(screen.getByRole('link', { name: 'Redirects' }).getAttribute('href')).toBe('/sites/site-1/redirects');
   });
 
   it('visiting a site-scoped route remembers that site as the current one', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     installFakeApi();
-    renderShell('/sites/site-1/menus');
+    renderShell('/sites/site-1/media');
 
-    await waitFor(() => expect(screen.getByText('menus content')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('media content')).toBeDefined());
     expect(readLastSiteId()).toBe('site-1');
   });
 
@@ -561,40 +558,6 @@ describe('AppShell', () => {
     expect(screen.getByRole('menuitem', { name: 'Logout' })).toBeDefined();
   });
 
-  it('the hamburger toggles the mobile nav dropdown open and closed', async () => {
-    installFakeApi();
-    renderShell('/sites/site-1/content');
-    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
-
-    const hamburger = screen.getByRole('button', { name: 'Open menu' });
-    expect(hamburger.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.getByRole('navigation', { name: 'Primary' }).className).not.toContain('is-open');
-
-    fireEvent.click(hamburger);
-
-    expect(screen.getByRole('button', { name: 'Close menu' }).getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByRole('navigation', { name: 'Primary' }).className).toContain('is-open');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Close menu' }));
-
-    expect(screen.getByRole('button', { name: 'Open menu' }).getAttribute('aria-expanded')).toBe('false');
-    expect(screen.getByRole('navigation', { name: 'Primary' }).className).not.toContain('is-open');
-  });
-
-  it('picking a nav item from the open mobile dropdown closes it', async () => {
-    installFakeApi();
-    renderShell('/sites/site-1/content');
-    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
-
-    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
-    expect(screen.getByRole('navigation', { name: 'Primary' }).className).toContain('is-open');
-
-    fireEvent.click(screen.getByRole('link', { name: 'Menus' }));
-
-    await waitFor(() => expect(screen.getByText('menus content')).toBeDefined());
-    expect(screen.getByRole('navigation', { name: 'Primary' }).className).not.toContain('is-open');
-  });
-
   it('a developer sees the "Account Settings" popover item, pointing at /settings/personal', async () => {
     installFakeApiWithProfile();
 
@@ -621,24 +584,25 @@ describe('AppShell', () => {
     expect(link.getAttribute('href')).toBe('/settings/personal');
   });
 
-  it('shows the plain brand mark, not a site address, on a route with no site in the URL', async () => {
+  it('shows the plain brand mark in the logo slot, and "No site selected" in the address bar, on a route with no site in the URL', async () => {
     installFakeApi();
 
     renderShell('/');
     await waitFor(() => expect(screen.getByText('home content')).toBeDefined());
 
     expect(screen.getByText('GRANITE')).toBeDefined();
-    expect(screen.queryByText('localhost:3891', { selector: '.app-logo-url' })).toBeNull();
+    expect(screen.getByText('No site selected', { selector: '.app-address-bar-label' })).toBeDefined();
+    expect(screen.queryByText('localhost:3891', { selector: '.app-address-bar-label' })).toBeNull();
     expect(screen.queryByRole('link', { name: /open .* in a new tab/i })).toBeNull();
   });
 
-  it('shows the current site\'s own domain in place of the brand mark on a site-scoped route, with a link to the live site', async () => {
+  it('shows the current site\'s own domain in the address bar (not the logo slot) on a site-scoped route, with a link to the live site', async () => {
     installFakeApi();
 
     renderShell('/sites/site-1/content');
     await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
 
-    expect(screen.getByText('localhost:3891', { selector: '.app-logo-url' })).toBeDefined();
+    expect(screen.getByText('localhost:3891', { selector: '.app-address-bar-label' })).toBeDefined();
     expect(screen.queryByText('GRANITE')).toBeNull();
     const externalLink = screen.getByRole('link', { name: 'Open localhost:3891 in a new tab' });
     expect(externalLink.getAttribute('href')).toBe('http://localhost:3891');
@@ -649,7 +613,7 @@ describe('AppShell', () => {
     renderShellWithPagePath('/sites/site-1/editor', '/what-we-stand-for');
     await waitFor(() => expect(screen.getByText('editor content')).toBeDefined());
 
-    expect(screen.getByText('localhost:3891/what-we-stand-for', { selector: '.app-logo-url' })).toBeDefined();
+    expect(screen.getByText('localhost:3891/what-we-stand-for', { selector: '.app-address-bar-label' })).toBeDefined();
     const externalLink = screen.getByRole('link', { name: 'Open localhost:3891/what-we-stand-for in a new tab' });
     expect(externalLink.getAttribute('href')).toBe('http://localhost:3891/what-we-stand-for');
   });
@@ -658,13 +622,13 @@ describe('AppShell', () => {
     renderShellWithPagePath('/sites/site-1/editor', '/');
     await waitFor(() => expect(screen.getByText('editor content')).toBeDefined());
 
-    expect(screen.getByText('localhost:3891', { selector: '.app-logo-url' })).toBeDefined();
+    expect(screen.getByText('localhost:3891', { selector: '.app-address-bar-label' })).toBeDefined();
   });
 
   it('falls back to the domain alone while the editor has no live preview for the open content type (path is null)', async () => {
     renderShellWithPagePath('/sites/site-1/editor', null);
     await waitFor(() => expect(screen.getByText('editor content')).toBeDefined());
 
-    expect(screen.getByText('localhost:3891', { selector: '.app-logo-url' })).toBeDefined();
+    expect(screen.getByText('localhost:3891', { selector: '.app-address-bar-label' })).toBeDefined();
   });
 });
