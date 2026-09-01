@@ -121,11 +121,6 @@
   color: #fff;
 }
 
-.instance-row-main.is-selected button.instance-row-remove:hover {
-  background: none;
-  color: #fff;
-}
-
 /* PagesTabPanel.tsx's own drag-to-reparent feature - the row currently
    under the dragged page, if it's a valid destination (PagesTabPanel's
    own isValidDropTarget already gates which candidate ever gets this
@@ -188,6 +183,13 @@
    now shares one consistent hit-box size, centring its own fixed-size
    20x20 icon (AccordionArrowIcon.tsx) with a little breathing room
    rather than filling it edge-to-edge. */
+/* opacity 0.5 at rest, not a fixed colour - the icon needs to read
+   against both a plain row (grey text) and an is-selected row's own
+   blue background (forced to white, below), and a colour swap on
+   hover picked the wrong target colour for whichever background
+   wasn't in mind (reported directly: hover's colour-text swap looked
+   wrong against the blue is-selected background). Dimming/undimming
+   the same colour works unchanged against either background. */
 button.instance-row-chevron {
   flex: 0 0 auto;
   display: flex;
@@ -199,6 +201,8 @@ button.instance-row-chevron {
   border: none;
   background: none;
   color: var(--colour-muted);
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
 }
 
 /* background: none overrides base.css's own button[type='button']:hover
@@ -208,7 +212,7 @@ button.instance-row-chevron {
    the way a real button would. */
 button.instance-row-chevron:hover {
   background: none;
-  color: var(--colour-text);
+  opacity: 1;
 }
 
 /* Rendered instead of the real button (SectionList.tsx/BlockList.tsx)
@@ -270,19 +274,27 @@ a.instance-row-remove {
   transition: opacity 0.15s ease;
 }
 
-.instance-row-main:hover button.instance-row-remove,
-.instance-row-main:hover a.instance-row-remove,
-button.instance-row-remove:hover,
-a.instance-row-remove:hover,
+/* Revealed at 0.5, not the icon's own full 1 - rollover then dims up
+   to 1 (below), the same rest/hover opacity pair every other
+   instance-row icon uses now instead of a colour swap, so the reveal
+   itself doesn't read as "already hovered".
+   :not(:hover) on the icon itself - hovering the button also keeps
+   its ancestor .instance-row-main:hover true (a child being hovered
+   doesn't un-hover its parent), and this reveal selector is otherwise
+   more specific than the icon's own :hover rule below (three classes
+   vs two), so without this guard the reveal's 0.5 permanently pinned
+   the icon at 0.5 and its own :hover rule's opacity: 1 never won. */
+.instance-row-main:hover button.instance-row-remove:not(:hover),
+.instance-row-main:hover a.instance-row-remove:not(:hover),
 button.instance-row-remove:focus-visible,
 a.instance-row-remove:focus-visible {
-  opacity: 1;
+  opacity: 0.5;
 }
 
 button.instance-row-remove:hover,
 a.instance-row-remove:hover {
   background: none;
-  color: #fff;
+  opacity: 1;
   border-color: transparent;
 }
 
@@ -300,6 +312,8 @@ a.instance-row-remove:hover {
   align-items: center;
   justify-content: center;
   color: var(--colour-muted);
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
   cursor: grab;
   touch-action: none;
 }
@@ -309,7 +323,7 @@ a.instance-row-remove:hover {
 }
 
 .instance-row-drag-handle:hover {
-  color: #fff;
+  opacity: 1;
 }
 
 /* DragHandleIcon.tsx is a fixed 20x20 SVG now, not width/height: 100%
