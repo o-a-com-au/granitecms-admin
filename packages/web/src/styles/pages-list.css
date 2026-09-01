@@ -108,15 +108,13 @@
 }
 
 /* The Pages tree's Name cell (docs/design/Pages.png's chevron on
-   "Home"). button.page-tree-toggle is flat and icon-only, like
-   button.instance-row-chevron elsewhere in the app, not the generic
-   bordered/padded button[type='button'] pill it would otherwise
-   inherit - the element+class selector is needed for the same reason
-   noted on instance-row-chevron, to out-specify that attribute
-   selector. .page-tree-toggle-spacer shares its exact box size so a
-   leaf row's title lines up under an expandable sibling's title at
-   the same depth, rather than sitting flush against the indent with
-   no toggle to fill the gap. */
+   "Home"). The toggle itself is now button.instance-row-chevron
+   (instance-rows.css), the exact same expand/collapse affordance
+   Sections/Blocks already use (AccordionArrowIcon, an SVG rather than
+   a plain '›'/'⌄' character, rotating rather than swapping glyphs) -
+   requested directly, so every instance-row's own accordion arrow
+   looks and behaves identically rather than the page tree keeping a
+   parallel, slowly-drifting implementation of its own. */
 /* flex: 1; min-width: 0 - without this, the cell sizes to its content's
    natural width (its default flex-basis: auto) rather than shrinking to
    fit .instance-row-main's own available space, which meant the Link
@@ -132,29 +130,6 @@
   gap: 0.35rem;
   flex: 1;
   min-width: 0;
-}
-
-button.page-tree-toggle,
-.page-tree-toggle-spacer {
-  flex: 0 0 auto;
-  width: 1.1rem;
-  height: 1.1rem;
-}
-
-button.page-tree-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--colour-muted);
-  font-size: 0.9rem;
-  line-height: 1;
-}
-
-button.page-tree-toggle:hover {
-  color: var(--colour-text);
 }
 
 .content-search {

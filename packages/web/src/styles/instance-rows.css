@@ -170,14 +170,19 @@
    font-size'd text glyph any more - the previous "›"/"‹" characters sat
    at whatever height their font's own metrics happened to place them,
    which never quite lined up with the label's own text baseline next
-   to it (docs/design's accordion-arrow.svg + mockup). */
+   to it (docs/design's accordion-arrow.svg + mockup).
+   1.75rem, matching button.instance-row-remove's own box exactly (was
+   1.25rem) - every instance-row action (chevron, edit, remove, drag)
+   now shares one consistent hit-box size, centring its own fixed-size
+   20x20 icon (AccordionArrowIcon.tsx) with a little breathing room
+   rather than filling it edge-to-edge. */
 button.instance-row-chevron {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.75rem;
+  height: 1.75rem;
   padding: 0;
   border: none;
   background: none;
@@ -200,18 +205,18 @@ button.instance-row-chevron:hover {
    that particular row actually has an arrow. */
 .instance-row-chevron-spacer {
   flex: 0 0 auto;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
 /* Points right at rest, matching the mockup's collapsed state - rotated
    to point left once expanded, the same relationship the old '›'/'‹'
    text glyphs had, just as a rotation of the one icon rather than two
-   separate characters. */
+   separate characters. No width/height of its own any more - the icon
+   it wraps (AccordionArrowIcon) is a fixed 20x20 now, not a box-filling
+   100%, so this only needs to own the rotation itself. */
 .instance-row-chevron-icon {
   display: flex;
-  width: 0.6rem;
-  height: 0.6rem;
   transition: transform 0.15s ease;
 }
 
@@ -272,10 +277,16 @@ a.instance-row-remove:hover {
 /* Only the drag handle itself is draggable (not the whole row), so a
    plain click anywhere else on the row still opens the Fields tab
    instead of accidentally starting a drag. */
+/* 1.75rem square, matching every other instance-row action's own
+   hit-box (button.instance-row-chevron/instance-row-remove) - was
+   sized purely by its icon child before (no box of its own). */
 .instance-row-drag-handle {
   flex: 0 0 auto;
+  width: 1.75rem;
+  height: 1.75rem;
   display: flex;
   align-items: center;
+  justify-content: center;
   color: var(--colour-muted);
   cursor: grab;
   touch-action: none;
@@ -289,15 +300,11 @@ a.instance-row-remove:hover {
   color: #fff;
 }
 
-/* DragHandleIcon.tsx renders its svg at width/height: 100% - this box
-   does the actual sizing, matching the icon's previous fixed 14x20px
-   default (at the browser's un-overridden 16px root), same convention
-   as .tab-icon/.device-icon elsewhere. */
+/* DragHandleIcon.tsx is a fixed 20x20 SVG now, not width/height: 100%
+   - this wrapper only needs to lay it out, not size it. */
 .instance-row-drag-handle-icon {
   display: flex;
   flex: 0 0 auto;
-  width: 0.5rem;
-  height: 1rem;
 }
 
 /* SectionList.tsx/BlockList.tsx's own native-drag "ghost" - the pill a

@@ -11,6 +11,7 @@ import { NewPageModal } from './NewPageModal.tsx';
 import { AddIcon } from '../sections/AddIcon.tsx';
 import { EditIcon } from '../sections/EditIcon.tsx';
 import { DragHandleIcon } from '../sections/DragHandleIcon.tsx';
+import { AccordionArrowIcon } from '../sections/AccordionArrowIcon.tsx';
 import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
 import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
@@ -413,15 +414,17 @@ function PagesHubTreeRow({
           {hasChildren ? (
             <button
               type="button"
-              className="page-tree-toggle"
+              className="instance-row-chevron"
               aria-expanded={!collapsed}
               aria-label={collapsed ? `Expand ${entry.name || entry.path}` : `Collapse ${entry.name || entry.path}`}
               onClick={handleToggleClick}
             >
-              {collapsed ? '›' : '⌄'}
+              <span className={`instance-row-chevron-icon${collapsed ? '' : ' is-expanded'}`}>
+                <AccordionArrowIcon />
+              </span>
             </button>
           ) : (
-            <span className="page-tree-toggle-spacer" aria-hidden="true" />
+            <span className="instance-row-chevron-spacer" aria-hidden="true" />
           )}
           <span className="page-tree-title" title={entry.name || entry.path}>
             {entry.name || entry.path}
