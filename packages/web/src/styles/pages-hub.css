@@ -85,6 +85,10 @@
    caught it too: this file loads after instance-rows.css with equal
    specificity, so its flex: 1 won over the Edit link's own flex: 0 0
    auto/fixed width, stretching the icon across the whole row. */
+/* font-size/font-weight match .instance-row-main strong exactly
+   (instance-rows.css) - was 0.85rem/600, a slightly different size
+   than every other instance-row's own label (0.8rem), reported
+   directly as an inconsistency across tabs. */
 .instance-row-main .page-tree-title {
   display: block;
   flex: 1;
@@ -93,8 +97,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--colour-text);
-  font-weight: 600;
-  font-size: 0.85rem;
+  font-weight: 400;
+  font-size: 0.8rem;
 }
 
 .redirects-tab-row-label {

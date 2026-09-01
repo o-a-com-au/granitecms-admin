@@ -169,7 +169,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 0.8rem;
 }
 
@@ -336,7 +336,7 @@ a.instance-row-remove:hover {
   border-radius: 999px;
   background: var(--colour-primary);
   color: #fff;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 0.8rem;
   white-space: nowrap;
   pointer-events: none;
