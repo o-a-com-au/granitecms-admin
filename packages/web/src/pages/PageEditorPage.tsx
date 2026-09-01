@@ -495,11 +495,24 @@ export function PageEditorPage() {
   // links, browser back/forward), so a single UnsavedChangesPrompt
   // covers all of them instead of this one call site having its own
   // separate window.confirm.
+  // setViewMode('sections') - PageEditorPage never remounts on a path
+  // change (same route, only its search params differ), so whatever
+  // tab was open for the PREVIOUS page would otherwise just carry over
+  // unchanged, same as selectedInstanceId would without its own [path]
+  // effect above. Landing on a genuinely different page should show
+  // its Sections, not whatever unrelated tab (Page Meta, History) the
+  // last page happened to be left on - reported directly. Scoped to
+  // just this call site, not a blanket effect keyed on path - unlike
+  // navigating to a different page, handleRenamed's own path/url swap
+  // is still the SAME page the user is actively editing (often from
+  // Page Meta, mid-rename), so it must never yank them away from
+  // whatever tab they were already using.
   function navigateToPage(newPath: string, newUrl: string): void {
     const next = new URLSearchParams(searchParams);
     next.set('path', newPath);
     next.set('url', newUrl);
     setSearchParams(next);
+    setViewMode('sections');
   }
 
   const { actionBusy, actionError, confirmingDiscard, handlePublish, handleDiscard, cancelDiscard } = useDraftPublishActions(

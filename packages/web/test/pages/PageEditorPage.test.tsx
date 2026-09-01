@@ -837,6 +837,31 @@ describe('PageEditorPage', () => {
     expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
+  it('following a preview link to another page switches the sidebar back to Sections, even if Page Meta was open', async () => {
+    const api = installFakeEditorApi({
+      content: JSON.stringify({ title: 'About', published: true, sections: [] }),
+      etag: '"etag-1"',
+      source: 'live',
+      contentList: [
+        { path: 'pages/about.json', url: '/about' },
+        { path: 'pages/docs.json', url: '/docs' },
+      ],
+    });
+    renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Section' })).toBeDefined());
+    await waitForContentIndexLoaded(api.fetchMock);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Page Meta' }));
+    expect(screen.getByRole('tab', { name: 'Page Meta' }).getAttribute('aria-selected')).toBe('true');
+
+    const iframe = (await screen.findByTitle('Live preview')) as HTMLIFrameElement;
+    const { link } = writeIframeDocWithLink(iframe, '/docs');
+    fireEvent.click(link);
+
+    await waitFor(() => expect(iframe.src).toContain('/api/sites/site-1/preview/docs?t='));
+    expect(screen.getByRole('tab', { name: 'Sections' }).getAttribute('aria-selected')).toBe('true');
+  });
+
   describe('a page with unpublished changes (source: draft) blocks navigating away', () => {
     function setUpDirtyPage() {
       const api = installFakeEditorApi({
