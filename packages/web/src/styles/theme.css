@@ -93,6 +93,15 @@
      mode's own block below keeps these on --colour-muted instead,
      where grey already reads fine against a light surface. */
   --colour-icon-muted: #fff;
+  /* The "blue text button" rollover (Add Section, Delete Section,
+     settings-text-link etc - a bare colour swap, no background of its
+     own) wants a lighter blue here, not --colour-primary-hover's own
+     darker one - that token stays as-is for solid/filled buttons
+     (base.css's button:hover), where darkening on hover is the
+     established convention regardless of theme; a text-only rollover
+     against this theme's dark surfaces reads better brightening
+     instead. */
+  --colour-text-button-hover: #628bf8;
   --colour-input-background: #000;
   --colour-table-header: var(--grey-900);
   --colour-table-background: var(--grey-850);
@@ -118,6 +127,11 @@
      row-level icon glyphs on the ordinary muted grey, which already
      reads fine against this theme's light surfaces. */
   --colour-icon-muted: var(--colour-muted);
+  /* See the dark block's own comment above - light mode keeps the
+     text-button rollover on the same darker blue solid buttons
+     already use here, which already reads correctly against a light
+     surface. */
+  --colour-text-button-hover: var(--colour-primary-hover);
   --colour-input-background: #fff;
   --colour-table-header: var(--grey-50);
   --colour-table-background: var(--grey-100);

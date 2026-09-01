@@ -411,7 +411,7 @@ button.instance-add-button {
 }
 
 button.instance-add-button:hover {
-  color: var(--colour-primary-hover);
+  color: var(--colour-text-button-hover);
   background: none;
 }
 

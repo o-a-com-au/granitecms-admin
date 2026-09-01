@@ -285,7 +285,7 @@ button.settings-text-link {
 }
 
 button.settings-text-link:hover {
-  color: var(--colour-primary-hover);
+  color: var(--colour-text-button-hover);
   background: none;
 }
 

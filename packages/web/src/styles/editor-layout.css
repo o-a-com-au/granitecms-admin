@@ -297,7 +297,7 @@ button.fields-panel-delete {
 
 button.fields-panel-delete:hover {
   background: none;
-  color: var(--colour-primary-hover);
+  color: var(--colour-text-button-hover);
 }
 
 /* Phone only (docs/designs/Phone-Preview.png) - the live preview
