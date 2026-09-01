@@ -287,6 +287,19 @@
   position: relative;
 }
 
+/* Two-tone diagonal split (requested directly, with a reference image)
+   - a hard 50/50 colour stop, not a soft blend, so the diagonal reads
+   as a clean straight edge rather than a gradient fade. 135deg, not
+   45deg - CSS's own angle convention (0deg points up, increasing
+   clockwise) runs opposite to how the reference image's "45 degree"
+   diagonal actually reads visually: darker top-left, lighter bottom-
+   right needs a gradient axis pointing toward the bottom-right
+   (135deg), not the top-right (45deg would put the darker half at the
+   bottom-left instead - confirmed live against the reference, then
+   corrected). The lighter half is a colour-mix of the same
+   --colour-primary token (not a second literal hex) so it stays in
+   step if the accent colour ever changes, the same reasoning
+   theme.css's own token layer exists for. */
 .app-avatar {
   position: relative;
   display: flex;
@@ -297,7 +310,7 @@
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: var(--colour-primary);
+  background: linear-gradient(135deg, var(--colour-primary) 50%, color-mix(in srgb, var(--colour-primary) 55%, white) 50%);
   color: #fff;
   font-weight: 600;
   font-size: 0.9rem;
