@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allowedBlockTypes, buildDefaultSettings, schemaTitle } from '../../src/sections/instance-types.ts';
+import { allowedBlockTypes, buildDefaultSettings, dataDrivenLabel, schemaTitle } from '../../src/sections/instance-types.ts';
 
 describe('schemaTitle', () => {
   it('uses the schema\'s own "title" keyword when present', () => {
@@ -20,6 +20,52 @@ describe('schemaTitle', () => {
 
   it('falls back when title is present but not a string', () => {
     expect(schemaTitle({ title: 42 }, 'hero')).toBe('hero');
+  });
+});
+
+describe('dataDrivenLabel', () => {
+  it('uses "headline" when present', () => {
+    expect(dataDrivenLabel({ headline: 'Big Announcement' })).toBe('Big Announcement');
+  });
+
+  it('uses "heading" when there is no headline', () => {
+    expect(dataDrivenLabel({ heading: 'Our Team' })).toBe('Our Team');
+  });
+
+  it('uses "name" when there is no headline or heading', () => {
+    expect(dataDrivenLabel({ name: 'Jane Smith' })).toBe('Jane Smith');
+  });
+
+  it('uses "label" when none of headline/heading/name are present', () => {
+    expect(dataDrivenLabel({ label: 'Learn more' })).toBe('Learn more');
+  });
+
+  it('observes the priority order headline > heading > name > label when several are present at once', () => {
+    expect(dataDrivenLabel({ label: 'D', name: 'C', heading: 'B', headline: 'A' })).toBe('A');
+    expect(dataDrivenLabel({ label: 'D', name: 'C', heading: 'B' })).toBe('B');
+    expect(dataDrivenLabel({ label: 'D', name: 'C' })).toBe('C');
+  });
+
+  it('matches the settings key case-insensitively', () => {
+    expect(dataDrivenLabel({ Heading: 'Our Team' })).toBe('Our Team');
+    expect(dataDrivenLabel({ HEADLINE: 'Big Announcement' })).toBe('Big Announcement');
+  });
+
+  it('falls through to the next candidate when a higher-priority field is blank or not a string', () => {
+    expect(dataDrivenLabel({ headline: '   ', heading: 'Our Team' })).toBe('Our Team');
+    expect(dataDrivenLabel({ headline: 42, heading: 'Our Team' })).toBe('Our Team');
+  });
+
+  it('returns null when none of the four fields are present', () => {
+    expect(dataDrivenLabel({ eyebrow: 'About', subheading: 'A team bio' })).toBeNull();
+  });
+
+  it('returns null for an empty settings object', () => {
+    expect(dataDrivenLabel({})).toBeNull();
+  });
+
+  it('returns null when settings itself is undefined', () => {
+    expect(dataDrivenLabel(undefined)).toBeNull();
   });
 });
 

@@ -70,6 +70,37 @@ function humanizeFieldKey(key: string): string {
     .join(' ');
 }
 
+// Checked in this fixed priority order (requested directly, exactly
+// this order) - the first of these whose settings value is a non-empty
+// string wins: headline, heading, name, label. Matched case-
+// insensitively against the instance's own settings keys, not its
+// schema - a theme author's field is almost always camelCase
+// ("headline"), but this tolerates whatever casing a schema happens to
+// use rather than silently missing a match. Anything else (missing,
+// empty, or a non-string value like a number/boolean) falls through to
+// the next candidate; if none match at all, the caller falls back to
+// schemaTitle - this function returns null rather than the type name
+// itself, so it stays a pure "did the data provide one" answer with no
+// opinion on what to show otherwise.
+const DATA_LABEL_KEYS = ['headline', 'heading', 'name', 'label'];
+
+export function dataDrivenLabel(settings: Record<string, unknown> | undefined): string | null {
+  if (!settings) {
+    return null;
+  }
+  const byLowerKey = new Map<string, unknown>();
+  for (const [key, value] of Object.entries(settings)) {
+    byLowerKey.set(key.toLowerCase(), value);
+  }
+  for (const candidate of DATA_LABEL_KEYS) {
+    const value = byLowerKey.get(candidate);
+    if (typeof value === 'string' && value.trim() !== '') {
+      return value;
+    }
+  }
+  return null;
+}
+
 // L3: builds the initial settings for a freshly-added section/block from
 // whatever "default" values its schema declares (standard JSON Schema
 // keyword, not required-specific) - previously always {}, leaving any

@@ -16,7 +16,13 @@ const BLOCK_TYPES: ThemeTypeSchemas = {
   acceptsBlocks: { button: false, group: true },
 };
 
-function block(id: string, type = 'button', settings: Record<string, unknown> = { label: id }): Instance {
+// settings defaults to {}, not { label: id } - BlockList.tsx's own
+// dataDrivenLabel now prefers a real headline/heading/name/label field
+// over the type's own schema title for a row's display text, so a
+// non-empty default here would silently swap what most of this file's
+// existing tests are actually asserting on (the type's own title, via
+// schemaTitle) for whatever id string happened to be passed in.
+function block(id: string, type = 'button', settings: Record<string, unknown> = {}): Instance {
   return { id, type, settings };
 }
 
@@ -562,6 +568,55 @@ describe('BlockList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove block' }));
     expect(onChange).toHaveBeenCalledWith([]);
+  });
+
+  it("prefers a real headline/heading/name/label field from the block's own settings over its type's schema title", () => {
+    const typesWithTitle: ThemeTypeSchemas = {
+      schemas: { button: { type: 'object', title: 'Button', properties: {} } },
+      acceptsBlocks: { button: false },
+    };
+    render(
+      <BlockList
+        blocks={[block('a', 'button', { label: 'Learn more' })]}
+        blockTypes={typesWithTitle}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Learn more', { selector: 'strong' })).toBeDefined();
+    expect(screen.queryByText('Button', { selector: 'strong' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Edit Learn more' })).toBeDefined();
+  });
+
+  it('observes the priority order headline > heading > name > label for the row label, same as dataDrivenLabel itself', () => {
+    render(
+      <BlockList
+        blocks={[block('a', 'button', { label: 'D', name: 'C', heading: 'B', headline: 'A' })]}
+        blockTypes={BLOCK_TYPES}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('A', { selector: 'strong' })).toBeDefined();
+  });
+
+  it("falls back to the type's own schema title when none of headline/heading/name/label are present in settings, same as before", () => {
+    const typesWithTitle: ThemeTypeSchemas = {
+      schemas: { button: { type: 'object', title: 'Button', properties: {} } },
+      acceptsBlocks: { button: false },
+    };
+    render(
+      <BlockList
+        blocks={[block('a', 'button', { url: '#', style: 'primary' })]}
+        blockTypes={typesWithTitle}
+        onChange={vi.fn()}
+        onEditInstance={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Button', { selector: 'strong' })).toBeDefined();
   });
 
   it('K4: the add-block menu is restricted to allowedTypes when the parent schema declares one', () => {

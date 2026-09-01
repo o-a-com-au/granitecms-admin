@@ -8,6 +8,7 @@ import { computeDropIndex, reorderList } from './drag-reorder.ts';
 import {
   allowedBlockTypes,
   buildDefaultSettings,
+  dataDrivenLabel,
   schemaTitle,
   type FieldErrorMap,
   type Instance,
@@ -66,7 +67,13 @@ function BlockRow({
   const acceptsNestedBlocks = blockTypes.acceptsBlocks[block.type] === true;
   const isSelected = block.id === selectedInstanceId;
   const hasError = Boolean(fieldErrors?.[block.id] && Object.keys(fieldErrors[block.id] as object).length > 0);
-  const displayName = schemaTitle(blockTypes.schemas[block.type], block.type);
+  // Requested directly: a block's own row label prefers real data over
+  // its generic type name, so several same-type blocks in one list
+  // (e.g. five "Logo Mark" blocks) read as distinct at a glance instead
+  // of all showing the identical title - see dataDrivenLabel's own
+  // comment for the exact priority order. Falls back to the type's own
+  // title (schemaTitle) when nothing in settings matches.
+  const displayName = dataDrivenLabel(block.settings) ?? schemaTitle(blockTypes.schemas[block.type], block.type);
   const nestedAllowedTypes = allowedBlockTypes(blockTypes.schemas[block.type]);
 
   // The floating name pill a real native drag shows pinned to the
@@ -150,7 +157,7 @@ function BlockRow({
           // whether that particular row has one.
           <span className="instance-row-chevron-spacer" aria-hidden="true" />
         )}
-        <strong>{displayName}</strong>
+        <strong title={displayName}>{displayName}</strong>
         <button type="button" className="instance-row-remove" aria-label="Remove block" onClick={handleRemove}>
           <TrashIcon />
         </button>

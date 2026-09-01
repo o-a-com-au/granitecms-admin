@@ -155,8 +155,20 @@
   flex: 0 0 auto;
 }
 
+/* min-width: 0/overflow: hidden/etc - a row's label was always short
+   (a type's own title, e.g. "Logo Mark") until BlockList.tsx's own
+   dataDrivenLabel started preferring real settings data (a heading or
+   name field) for it instead, which has no length guarantee at all - a
+   flex item's own automatic minimum width otherwise floors at its
+   content's max-content size regardless of flex: 1 (the same flex/
+   min-width gotcha this app has hit before), forcing the whole row
+   wider instead of actually truncating within it. */
 .instance-row-main strong {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 600;
   font-size: 0.8rem;
 }

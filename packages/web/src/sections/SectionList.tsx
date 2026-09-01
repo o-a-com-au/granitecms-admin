@@ -209,7 +209,7 @@ function SectionRow({
           // whether that particular row has one.
           <span className="instance-row-chevron-spacer" aria-hidden="true" />
         )}
-        <strong>{displayName}</strong>
+        <strong title={displayName}>{displayName}</strong>
         <button type="button" className="instance-row-remove" aria-label="Remove section" onClick={handleRemove}>
           <TrashIcon />
         </button>
