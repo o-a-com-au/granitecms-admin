@@ -58,18 +58,22 @@ export async function unpublishSitePage(siteId: string, path: string, message: s
   }
 }
 
-// Backs the Slug field's rename-on-save (PageMetadataPanel.tsx). from/
-// to are page URLs ("/about"), not content paths - the one call site
-// this has today already holds the page's current url from
-// PreviewFrame's own props, not its content path. "conflict" (409) is
-// reused for "a page already exists at that destination slug" rather
-// than adding a new reason - it's the same "something else is already
-// there" shape the rest of this file's reasons already cover.
-export async function moveSitePage(siteId: string, from: string, to: string, message: string): Promise<void> {
+// Backs the Slug field's rename-on-save (PageMetadataPanel.tsx) and the
+// page tree's drag-to-reparent feature (PagesTabPanel.tsx). from/to are
+// page URLs ("/about"), not content paths - both call sites already
+// hold the page's current url, not its content path. "conflict" (409)
+// is reused for "a page already exists at that destination slug"
+// rather than adding a new reason - it's the same "something else is
+// already there" shape the rest of this file's reasons already cover.
+// createRedirect defaults false, matching the Slug field's own
+// WordPress-style "no automatic redirect" rename - the reparent call
+// site passes true, since moving a page under a different parent
+// changes its whole URL prefix, not just its final slug.
+export async function moveSitePage(siteId: string, from: string, to: string, message: string, createRedirect = false): Promise<void> {
   const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/move`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to, message }),
+    body: JSON.stringify({ from, to, message, createRedirect }),
   });
 
   if (response.status === 400) {

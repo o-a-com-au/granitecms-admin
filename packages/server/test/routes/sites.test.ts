@@ -1628,7 +1628,7 @@ describe('sites routes', () => {
     await app.close();
   });
 
-  it("POST /api/sites/:id/move sends the logged-in admin's own name/email as author and createRedirect: false, never something the caller supplied", async () => {
+  it("POST /api/sites/:id/move sends the logged-in admin's own name/email as author, and createRedirect: false when the caller omits it entirely", async () => {
     const { app, cookie } = await buildTestServer();
     let receivedBody = '';
     fakeSite = createServer((req, res) => {
@@ -1669,6 +1669,60 @@ describe('sites routes', () => {
       author: { name: TEST_NAME, email: TEST_EMAIL },
       createRedirect: false,
     });
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/move forwards createRedirect: true when the caller explicitly requests it (the page tree\'s drag-to-reparent feature)', async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedBody = '';
+    fakeSite = createServer((req, res) => {
+      if (req.method === 'POST' && req.url === '/v1/content/move') {
+        let raw = '';
+        req.on('data', (chunk: Buffer) => {
+          raw += chunk.toString();
+        });
+        req.on('end', () => {
+          receivedBody = raw;
+          sendJson(res, 200, { ok: true });
+        });
+        return;
+      }
+      sendJson(res, 404, { error: 'not found' });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const siteUrl = `http://127.0.0.1:${address.port}`;
+    const id = await registerSite(app, cookie, siteUrl, 'any-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/move`,
+      headers: { cookie },
+      payload: { from: '/team', to: '/about/team', message: 'Move team under About', createRedirect: true },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(JSON.parse(receivedBody).createRedirect, true);
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/move rejects a non-boolean createRedirect with 400', async () => {
+    const { app, cookie } = await buildTestServer();
+    const id = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/move`,
+      headers: { cookie },
+      payload: { from: '/about', to: '/company', message: 'msg', createRedirect: 'true' },
+    });
+
+    assert.equal(response.statusCode, 400);
 
     await app.close();
   });

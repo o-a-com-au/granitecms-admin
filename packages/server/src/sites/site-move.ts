@@ -14,22 +14,22 @@ export type MoveSiteResult =
 export interface MoveSiteOptions {
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
+  // false (the default) matches the Slug field's own rename-on-save
+  // (PageMetadataPanel.tsx) - a WordPress-style rename with no
+  // automatic redirect (the project owner's own call - see the
+  // redirect-creation discussion in phase-3-checklist.md's Group
+  // notes). The page tree's drag-to-reparent feature passes true: it
+  // changes a page's whole URL prefix, not just its final slug, so a
+  // link elsewhere is more likely to break without one.
+  createRedirect?: boolean;
 }
 
-// Backs the Slug field's rename-on-save (PageMetadataPanel.tsx) - from
-// and to are page URLs ("/about"), not content-relative paths, since
-// that's what the agent's own POST /v1/content/move expects (unlike
-// history/revert, which resolve relative to siteRoot and need a
-// "content/" prefix - move.ts's own urlToPagePath does that
-// translation agent-side instead).
-//
-// createRedirect is always false here, not a passthrough option - the
-// only caller today is the admin's own slug editor, and the whole
-// point of that feature is a WordPress-style rename with no automatic
-// redirect (the project owner's own call - see the redirect-creation
-// discussion in phase-3-checklist.md's Group notes). If a second
-// caller ever needs a real redirect, that's a real second decision to
-// make then, not a default to thread through speculatively now.
+// Backs both the Slug field's rename-on-save and the page tree's
+// drag-to-reparent feature - from and to are page URLs ("/about"), not
+// content-relative paths, since that's what the agent's own POST
+// /v1/content/move expects (unlike history/revert, which resolve
+// relative to siteRoot and need a "content/" prefix - move.ts's own
+// urlToPagePath does that translation agent-side instead).
 export async function moveSitePath(
   site: Pick<Site, 'url' | 'token'>,
   from: string,
@@ -38,12 +38,13 @@ export async function moveSitePath(
   author: CommitAuthor,
   options: MoveSiteOptions = {},
 ): Promise<MoveSiteResult> {
+  const { createRedirect = false, ...fetchOptions } = options;
   const result = await fetchSite(site, '/v1/content/move', {
-    ...options,
+    ...fetchOptions,
     authToken: site.token,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to, message, author, createRedirect: false }),
+    body: JSON.stringify({ from, to, message, author, createRedirect }),
   });
   const interpreted = await interpretSiteResponse(result);
 

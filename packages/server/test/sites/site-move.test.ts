@@ -66,6 +66,27 @@ describe('moveSitePath', () => {
     });
   });
 
+  it('createRedirect: true is passed through to the agent when the caller explicitly requests it (the page tree\'s drag-to-reparent feature)', async () => {
+    let receivedBody = '';
+    const url = await startServer((req, res) => {
+      let raw = '';
+      req.on('data', (chunk: Buffer) => {
+        raw += chunk.toString();
+      });
+      req.on('end', () => {
+        receivedBody = raw;
+        sendJson(res, 200, { ok: true });
+      });
+    });
+
+    const result = await moveSitePath({ url, token: 'my-token' }, '/team', '/about/team', 'Move team under About', AUTHOR, {
+      createRedirect: true,
+    });
+
+    assert.deepEqual(result, { outcome: 'ok' });
+    assert.equal(JSON.parse(receivedBody).createRedirect, true);
+  });
+
   it('a 404 is reported as source-not-found', async () => {
     const url = await startServer((_req, res) => sendJson(res, 404, { statusCode: 404, error: 'Not Found' }));
 

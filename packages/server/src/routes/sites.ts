@@ -210,8 +210,17 @@ interface MoveBody {
   from: string;
   to: string;
   message: string;
+  createRedirect: boolean;
 }
 
+// createRedirect defaults false when absent - the Slug field's own
+// rename-on-save call (PageMetadataPanel.tsx) never sends it at all,
+// preserving its existing WordPress-style "no automatic redirect"
+// behaviour exactly. The drag-and-drop reparent feature is the first
+// caller that sends true - moving a page under a different parent
+// changes its whole URL prefix, a bigger change than a same-parent
+// slug edit and one a link elsewhere is more likely to break, so that
+// feature always requests a redirect.
 function parseMoveBody(body: unknown): MoveBody | null {
   if (typeof body !== 'object' || body === null) {
     return null;
@@ -226,7 +235,10 @@ function parseMoveBody(body: unknown): MoveBody | null {
   if (typeof record.message !== 'string' || record.message.trim() === '') {
     return null;
   }
-  return { from: record.from, to: record.to, message: record.message };
+  if (record.createRedirect !== undefined && typeof record.createRedirect !== 'boolean') {
+    return null;
+  }
+  return { from: record.from, to: record.to, message: record.message, createRedirect: record.createRedirect === true };
 }
 
 interface UpsertRedirectBody {
@@ -700,11 +712,10 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
       return { error: result.message, reason: result.outcome };
     });
 
-    // Backs the Slug field's rename-on-save (PageMetadataPanel.tsx) -
-    // same author-from-session, not-from-body rule as revert/publish.
-    // No createRedirect field accepted from the client at all: it is
-    // always false, decided once here rather than trusted from the
-    // browser (see site-move.ts's own comment for why).
+    // Backs both the Slug field's rename-on-save (PageMetadataPanel.tsx,
+    // createRedirect omitted/false) and the page tree's drag-to-reparent
+    // feature (PagesTabPanel.tsx, createRedirect: true) - same author-
+    // from-session, not-from-body rule as revert/publish either way.
     app.post<{ Params: { id: string } }>('/:id/move', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
       const site = await sitesStore.find(request.params.id);
       if (!site) {
@@ -718,7 +729,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
       }
 
       const author = requireCommitAuthor(request.currentUser);
-      const result = await moveSitePath(site, body.from, body.to, body.message, author);
+      const result = await moveSitePath(site, body.from, body.to, body.message, author, { createRedirect: body.createRedirect });
 
       if (result.outcome === 'ok') {
         return { ok: true };

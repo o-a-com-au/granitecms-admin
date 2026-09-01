@@ -188,7 +188,12 @@ describe('PageMetadataPanel', () => {
       '/api/sites/site-1/move',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ from: '/about', to: '/about-us', message: 'Change URL from /about to /about-us' }),
+        body: JSON.stringify({
+          from: '/about',
+          to: '/about-us',
+          message: 'Change URL from /about to /about-us',
+          createRedirect: false,
+        }),
       }),
     );
   });
