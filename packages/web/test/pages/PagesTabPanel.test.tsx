@@ -55,13 +55,16 @@ const CHILD_ENTRY = {
   changedAt: null,
 };
 
-function renderPanel(onPreview = vi.fn()) {
+function renderPanel(onPreview = vi.fn(), activeUrl: string | null = null) {
   return {
     onPreview,
     ...render(
       <MemoryRouter initialEntries={['/sites/site-1/content']}>
         <Routes>
-          <Route path="/sites/:siteId/content" element={<PagesTabPanel siteId="site-1" onPreview={onPreview} />} />
+          <Route
+            path="/sites/:siteId/content"
+            element={<PagesTabPanel siteId="site-1" onPreview={onPreview} activeUrl={activeUrl} />}
+          />
         </Routes>
       </MemoryRouter>,
     ),
@@ -111,6 +114,26 @@ describe('PagesTabPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'About' }));
 
     expect(onPreview).toHaveBeenCalledWith({ path: 'pages/about.json', url: '/about' });
+  });
+
+  it("highlights the row matching activeUrl blue (is-selected), the same treatment Sections uses for its own active instance", async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE, ENTRY_TWO]), { status: 200 })));
+
+    renderPanel(vi.fn(), '/about');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+
+    expect(screen.getByRole('button', { name: 'About' }).className).toContain('is-selected');
+    expect(screen.getByRole('button', { name: 'Contact' }).className).not.toContain('is-selected');
+  });
+
+  it('highlights nothing when activeUrl is null (no page currently previewed)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE, ENTRY_TWO]), { status: 200 })));
+
+    renderPanel(vi.fn(), null);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+
+    expect(screen.getByRole('button', { name: 'About' }).className).not.toContain('is-selected');
+    expect(screen.getByRole('button', { name: 'Contact' }).className).not.toContain('is-selected');
   });
 
   it('excludes menus entirely - they live in the Menus tab instead', async () => {

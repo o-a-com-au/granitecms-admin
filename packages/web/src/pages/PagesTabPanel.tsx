@@ -38,6 +38,14 @@ export interface PagesTabPanelProps {
   // on unmount (tab switched away, or this panel gone entirely) so the
   // extra width doesn't linger once nothing here still needs it.
   onMaxDepthChange?: (depth: number) => void;
+  // The url currently shown in the shared viewport (PreviewContext's
+  // own previewUrl) - a row whose own entry.url matches gets the same
+  // blue is-selected treatment Sections/Blocks already use for the
+  // instance currently open in the Fields panel, so it's obvious at a
+  // glance which page the viewport beside this list is actually
+  // showing (requested directly). null matches nothing, same as no
+  // page being previewed at all.
+  activeUrl: string | null;
 }
 
 function collectParentPaths(nodes: PageTreeNode[], into: Set<string>): void {
@@ -67,7 +75,7 @@ function lastPathSegment(path: string): string {
   return segments[segments.length - 1] as string;
 }
 
-export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange }: PagesTabPanelProps) {
+export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }: PagesTabPanelProps) {
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
   const [newPageModalOpen, setNewPageModalOpen] = useState(false);
   const [entries, setEntries] = useState<ContentListEntry[] | null>(null);
@@ -261,6 +269,7 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange }: PagesTabP
               collapsedPaths={collapsedPaths}
               onToggle={handleToggle}
               onPreview={onPreview}
+              activeUrl={activeUrl}
               draggedPath={draggedPath}
               dropTargetPath={dropTargetPath}
               onRowDragStart={handleRowDragStart}
@@ -296,6 +305,7 @@ interface PagesHubTreeRowProps {
   collapsedPaths: ReadonlySet<string>;
   onToggle: (path: string) => void;
   onPreview: (page: PreviewablePage | null) => void;
+  activeUrl: string | null;
   draggedPath: string | null;
   dropTargetPath: string | null;
   onRowDragStart: (path: string) => void;
@@ -334,6 +344,7 @@ function PagesHubTreeRow({
   collapsedPaths,
   onToggle,
   onPreview,
+  activeUrl,
   draggedPath,
   dropTargetPath,
   onRowDragStart,
@@ -344,6 +355,7 @@ function PagesHubTreeRow({
 }: PagesHubTreeRowProps) {
   const navigate = useNavigate();
   const { entry } = node;
+  const isActive = entry.url !== null && entry.url === activeUrl;
   const hasChildren = node.children.length > 0;
   const collapsed = collapsedPaths.has(entry.path);
   const editorHref = `/sites/${siteId}/editor?path=${encodeURIComponent(entry.path)}${
@@ -387,7 +399,7 @@ function PagesHubTreeRow({
   return (
     <li className={`instance-row${isDragging ? ' is-dragging' : ''}`}>
       <div
-        className={`instance-row-main${isDropTarget ? ' is-drop-target' : ''}`}
+        className={`instance-row-main${isActive ? ' is-selected' : ''}${isDropTarget ? ' is-drop-target' : ''}`}
         role="button"
         tabIndex={0}
         aria-label={entry.name || entry.path}
@@ -462,6 +474,7 @@ function PagesHubTreeRow({
               collapsedPaths={collapsedPaths}
               onToggle={onToggle}
               onPreview={onPreview}
+              activeUrl={activeUrl}
               draggedPath={draggedPath}
               dropTargetPath={dropTargetPath}
               onRowDragStart={onRowDragStart}

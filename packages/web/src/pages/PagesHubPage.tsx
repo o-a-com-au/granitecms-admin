@@ -33,7 +33,7 @@ type HubTab = 'pages' | 'menus' | 'redirects';
 export function PagesHubPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
   const [tab, setTab] = useState<HubTab>('pages');
-  const { device, setDevice, setPreview } = usePreview();
+  const { device, setDevice, setPreview, previewUrl } = usePreview();
   // How many levels deep the Pages tab's own tree is currently expanded
   // (0 = only root rows visible) - PagesTabPanel reports this itself
   // (onMaxDepthChange) since only it knows its own collapsed state.
@@ -93,7 +93,9 @@ export function PagesHubPage() {
         </div>
         <div className="editor-tab-content">
           <div className="editor-tab-panel">
-            {tab === 'pages' && <PagesTabPanel siteId={siteId} onPreview={handlePreview} onMaxDepthChange={setPagesTreeDepth} />}
+            {tab === 'pages' && (
+              <PagesTabPanel siteId={siteId} onPreview={handlePreview} onMaxDepthChange={setPagesTreeDepth} activeUrl={previewUrl} />
+            )}
             {tab === 'menus' && <MenusTabPanel siteId={siteId} />}
             {tab === 'redirects' && <RedirectsTabPanel siteId={siteId} />}
           </div>
