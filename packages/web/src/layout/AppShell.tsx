@@ -326,10 +326,6 @@ function AppShellContent() {
               {accountOpen && (
                 <div className="account-popover" role="menu">
                   <div className="account-popover-header">
-                    <span className="app-avatar" aria-hidden="true">
-                      {initial}
-                      <span className="app-avatar-status" />
-                    </span>
                     <div className="account-popover-identity">
                       <p className="account-popover-name">{(user && formatFullName(user.firstName, user.lastName)) || user?.username}</p>
                       <p className="account-popover-email">{user?.email}</p>

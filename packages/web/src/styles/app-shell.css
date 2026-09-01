@@ -287,7 +287,23 @@
   position: relative;
 }
 
-/* Two-tone diagonal split (requested directly, with a reference image)
+/* .app-avatar, button.app-avatar - two selectors, not one, since this
+   class lands on two different elements: the real account-menu
+   trigger is a <button type="button"> (AppShell.tsx), but the bigger
+   decorative avatar repeated inside the open popover's own header is
+   a plain <span>. base.css's own button[type='button'] rule (element+
+   attribute, same 0,1,1 specificity as element+class) sets its own
+   background: var(--colour-surface) - a bare .app-avatar class alone
+   (0,1,0) loses that tie on the BUTTON regardless of import order and
+   silently keeps that plain surface-colour fill instead (the exact
+   same fix already applied to .instance-row-chevron/.instance-add-
+   button/etc elsewhere in this app - found live here too: the gradient
+   below never painted on the real trigger at all, confirmed via
+   getComputedStyle showing backgroundImage: none, backgroundColor:
+   white). The SPAN has no such competing rule, so the bare .app-avatar
+   selector alone is both necessary (button.app-avatar wouldn't match
+   it) and sufficient for it.
+   Two-tone diagonal split (requested directly, with a reference image)
    - a hard 50/50 colour stop, not a soft blend, so the diagonal reads
    as a clean straight edge rather than a gradient fade. 135deg, not
    45deg - CSS's own angle convention (0deg points up, increasing
@@ -300,7 +316,8 @@
    --colour-primary token (not a second literal hex) so it stays in
    step if the accent colour ever changes, the same reasoning
    theme.css's own token layer exists for. */
-.app-avatar {
+.app-avatar,
+button.app-avatar {
   position: relative;
   display: flex;
   align-items: center;
@@ -314,6 +331,17 @@
   color: #fff;
   font-weight: 600;
   font-size: 0.9rem;
+}
+
+/* button.app-avatar, not the bare class - same base.css button[type=
+   'button']:hover specificity tie as the base rule above
+   (background: var(--colour-surface-hover), a plain grey, otherwise
+   silently wins on the real trigger). Requested directly: solid
+   --colour-primary on rollover, no gradient - a plain flat colour
+   reads more clearly as "this is now active/hovered" than the
+   two-tone split would replaying at a different angle or scale. */
+button.app-avatar:hover {
+  background: var(--colour-primary);
 }
 
 .app-avatar-status {
