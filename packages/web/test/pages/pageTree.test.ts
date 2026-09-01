@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ContentListEntry } from '../../src/api/site-content.ts';
-import { buildPageTree, flattenVisibleTree } from '../../src/pages/pageTree.ts';
+import { buildPageTree, flattenVisibleTree, isSelfOrDescendantPage, pageParentPath } from '../../src/pages/pageTree.ts';
 
 function entry(path: string, name: string): ContentListEntry {
   return { path, name, title: name, type: 'page', published: true, hasDraft: false, url: null, changedAt: null };
@@ -99,5 +99,47 @@ describe('flattenVisibleTree', () => {
     const rows = flattenVisibleTree(tree, new Set(['pages/about.json']));
 
     expect(rows.map((row) => row.node.entry.path)).toEqual(['pages/about.json']);
+  });
+});
+
+describe('pageParentPath - drag-and-drop reparenting: "is this already the page\'s own current parent?"', () => {
+  it('a root-level page has no parent', () => {
+    expect(pageParentPath('pages/about.json')).toBeNull();
+  });
+
+  it("a nested page's parent is its own directory prefix, as a page path", () => {
+    expect(pageParentPath('pages/about/team.json')).toBe('pages/about.json');
+  });
+
+  it('two levels deep still resolves to the immediate parent only, not the grandparent', () => {
+    expect(pageParentPath('pages/about/team/lead.json')).toBe('pages/about/team.json');
+  });
+});
+
+describe('isSelfOrDescendantPage - drag-and-drop reparenting: refuse dropping a page onto itself or its own subtree', () => {
+  it('a page is its own self-or-descendant', () => {
+    expect(isSelfOrDescendantPage('pages/about.json', 'pages/about.json')).toBe(true);
+  });
+
+  it('a direct child is a descendant of its parent', () => {
+    expect(isSelfOrDescendantPage('pages/about/team.json', 'pages/about.json')).toBe(true);
+  });
+
+  it('a grandchild is still a descendant, not just a direct child', () => {
+    expect(isSelfOrDescendantPage('pages/about/team/lead.json', 'pages/about.json')).toBe(true);
+  });
+
+  it('an unrelated page is neither itself nor a descendant', () => {
+    expect(isSelfOrDescendantPage('pages/contact.json', 'pages/about.json')).toBe(false);
+  });
+
+  it('a similarly-NAMED but unrelated page is not mistaken for a descendant (prefix must include the path separator)', () => {
+    // "pages/about-us.json" starts with the string "pages/about" but is
+    // not nested under it - the "/" join is what tells them apart.
+    expect(isSelfOrDescendantPage('pages/about-us.json', 'pages/about.json')).toBe(false);
+  });
+
+  it("a page's own parent is not treated as its descendant (the relationship only goes one way)", () => {
+    expect(isSelfOrDescendantPage('pages/about.json', 'pages/about/team.json')).toBe(false);
   });
 });

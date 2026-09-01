@@ -126,6 +126,22 @@
   color: #fff;
 }
 
+/* PagesTabPanel.tsx's own drag-to-reparent feature - the row currently
+   under the dragged page, if it's a valid destination (PagesTabPanel's
+   own isValidDropTarget already gates which candidate ever gets this
+   class in the first place, via dragover's own preventDefault). A
+   tinted background, not just is-highlighted's border-only treatment -
+   this needs to read as "drop here", a distinctly stronger signal than
+   an ordinary hover. The page actually being dragged reuses this
+   file's existing .instance-row.is-dragging (above) on its own <li> -
+   same convention SectionList.tsx's SectionRow already established -
+   rather than a second, page-tree-only opacity rule saying the same
+   thing. */
+.instance-row-main.is-drop-target {
+  background: color-mix(in srgb, var(--colour-primary) 18%, transparent);
+  border-color: var(--colour-primary);
+}
+
 .instance-row-main.has-error strong {
   color: var(--colour-danger);
 }

@@ -1,12 +1,17 @@
-import { useCallback, useEffect, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router';
 import { listSiteContent, SiteContentError } from '../api/site-content.ts';
 import type { ContentListEntry } from '../api/site-content.ts';
+import { moveSitePage } from '../api/site-publishing.ts';
+import { SiteEditorError } from '../api/site-editor.ts';
 import { isMenuPath } from './deriveMenuName.ts';
-import { buildPageTree, flattenVisibleTree, type PageTreeNode } from './pageTree.ts';
+import { buildPageTree, flattenVisibleTree, isSelfOrDescendantPage, pageParentPath, relativePagePath, type PageTreeNode } from './pageTree.ts';
 import { NewPageModal } from './NewPageModal.tsx';
 import { AddIcon } from '../sections/AddIcon.tsx';
 import { EditIcon } from '../sections/EditIcon.tsx';
+import { DragHandleIcon } from '../sections/DragHandleIcon.tsx';
+import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
 import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
 import { buildLoadErrorActions, loadErrorMessage, type LoadError } from '../sites/site-load-error.ts';
@@ -44,6 +49,24 @@ function collectParentPaths(nodes: PageTreeNode[], into: Set<string>): void {
   }
 }
 
+// A move waiting on the user's own confirmation (drag-and-drop
+// reparenting is a bigger, harder-to-eyeball-undo change than a normal
+// drag-reorder elsewhere in this app - requested directly). newPath/
+// newUrl are computed the moment the drop lands, not recomputed at
+// confirm time, so what the dialog shows is exactly what gets sent.
+interface PendingMove {
+  entry: ContentListEntry;
+  newParentEntry: ContentListEntry;
+  newPath: string;
+  newUrl: string;
+}
+
+function lastPathSegment(path: string): string {
+  const stem = relativePagePath(path).replace(/\.json$/, '');
+  const segments = stem.split('/');
+  return segments[segments.length - 1] as string;
+}
+
 export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange }: PagesTabPanelProps) {
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
   const [newPageModalOpen, setNewPageModalOpen] = useState(false);
@@ -51,6 +74,15 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange }: PagesTabP
   const [error, setError] = useState<LoadError | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const retry = useCallback(() => setReloadToken((count) => count + 1), []);
+  // Drag-and-drop reparenting - lifted up here (not kept local to a
+  // single row) since the row currently being dragged and the row
+  // currently hovered as a prospective new parent are frequently two
+  // different rows, anywhere in the recursive tree below.
+  const [draggedPath, setDraggedPath] = useState<string | null>(null);
+  const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
+  const [pendingMove, setPendingMove] = useState<PendingMove | null>(null);
+  const [moveBusy, setMoveBusy] = useState(false);
+  const [moveError, setMoveError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,6 +135,88 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange }: PagesTabP
 
   const pages = entries?.filter((entry) => !isMenuPath(entry.path)) ?? null;
   const tree = pages !== null ? buildPageTree(pages) : null;
+  const pagesByPath = new Map((pages ?? []).map((entry) => [entry.path, entry]));
+
+  // Whether `candidate` may accept `draggedPath` as a new child right
+  // now - checked on every dragover (cheap: path-string comparisons
+  // only, no tree walk), not just once at drop time, so an invalid
+  // target never lights up as a drop target in the first place. Refuses
+  // a candidate with no real url (nothing to nest a child url under),
+  // the dragged page itself or any of its own current descendants
+  // (would try to move a directory into itself), and the page's own
+  // CURRENT parent (nothing would actually change).
+  function isValidDropTarget(candidate: ContentListEntry): boolean {
+    if (draggedPath === null || candidate.path === draggedPath) {
+      return false;
+    }
+    if (candidate.url === null) {
+      return false;
+    }
+    if (isSelfOrDescendantPage(candidate.path, draggedPath)) {
+      return false;
+    }
+    return pageParentPath(draggedPath) !== candidate.path;
+  }
+
+  function handleRowDragStart(path: string): void {
+    setDraggedPath(path);
+  }
+
+  function handleRowDragOver(event: DragEvent, candidate: ContentListEntry): void {
+    if (!isValidDropTarget(candidate)) {
+      return;
+    }
+    event.preventDefault();
+    setDropTargetPath(candidate.path);
+  }
+
+  function handleRowDragLeave(candidatePath: string): void {
+    setDropTargetPath((current) => (current === candidatePath ? null : current));
+  }
+
+  function handleRowDrop(event: DragEvent, candidate: ContentListEntry): void {
+    event.preventDefault();
+    const dragged = draggedPath !== null ? pagesByPath.get(draggedPath) : undefined;
+    setDraggedPath(null);
+    setDropTargetPath(null);
+    if (!dragged || dragged.url === null || candidate.url === null || !isValidDropTarget(candidate)) {
+      return;
+    }
+    const segment = lastPathSegment(dragged.path);
+    const newPath = `${candidate.path.replace(/\.json$/, '')}/${segment}.json`;
+    const newUrl = `${candidate.url}/${segment}`;
+    setPendingMove({ entry: dragged, newParentEntry: candidate, newPath, newUrl });
+  }
+
+  function handleRowDragEnd(): void {
+    setDraggedPath(null);
+    setDropTargetPath(null);
+  }
+
+  async function handleConfirmMove(): Promise<void> {
+    if (!pendingMove || pendingMove.entry.url === null) {
+      return;
+    }
+    setMoveBusy(true);
+    setMoveError(null);
+    try {
+      await moveSitePage(
+        siteId,
+        pendingMove.entry.url,
+        pendingMove.newUrl,
+        `Move ${pendingMove.entry.name || pendingMove.entry.path} under ${pendingMove.newParentEntry.name || pendingMove.newParentEntry.path}`,
+        true,
+      );
+      setPendingMove(null);
+      retry();
+    } catch (err) {
+      setMoveError(
+        err instanceof SiteEditorError ? err.message : err instanceof Error ? err.message : 'Failed to move that page',
+      );
+    } finally {
+      setMoveBusy(false);
+    }
+  }
 
   // flattenVisibleTree isn't used to render any more (the tree renders
   // itself recursively below, real nested <ul>s rather than a flat
@@ -134,6 +248,7 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange }: PagesTabP
   return (
     <div className="pages-hub-tab">
       <h2 className="panel-heading">Pages</h2>
+      {moveError && <p role="alert">{moveError}</p>}
       {tree !== null && tree.length === 0 ? (
         <p>No pages found.</p>
       ) : (
@@ -146,6 +261,13 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange }: PagesTabP
               collapsedPaths={collapsedPaths}
               onToggle={handleToggle}
               onPreview={onPreview}
+              draggedPath={draggedPath}
+              dropTargetPath={dropTargetPath}
+              onRowDragStart={handleRowDragStart}
+              onRowDragOver={handleRowDragOver}
+              onRowDragLeave={handleRowDragLeave}
+              onRowDrop={handleRowDrop}
+              onRowDragEnd={handleRowDragEnd}
             />
           ))}
         </ul>
@@ -155,6 +277,15 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange }: PagesTabP
         Add Page
       </button>
       {newPageModalOpen && <NewPageModal siteId={siteId} onClose={() => setNewPageModalOpen(false)} />}
+      {pendingMove && (
+        <ConfirmDialog
+          message={`Move "${pendingMove.entry.name || pendingMove.entry.path}" under "${pendingMove.newParentEntry.name || pendingMove.newParentEntry.path}"? Its path becomes ${relativePagePath(pendingMove.newPath)} and its url becomes ${pendingMove.newUrl}.`}
+          confirmLabel="Move"
+          busy={moveBusy}
+          onConfirm={() => void handleConfirmMove()}
+          onCancel={() => setPendingMove(null)}
+        />
+      )}
     </div>
   );
 }
@@ -165,6 +296,13 @@ interface PagesHubTreeRowProps {
   collapsedPaths: ReadonlySet<string>;
   onToggle: (path: string) => void;
   onPreview: (page: PreviewablePage | null) => void;
+  draggedPath: string | null;
+  dropTargetPath: string | null;
+  onRowDragStart: (path: string) => void;
+  onRowDragOver: (event: DragEvent, candidate: ContentListEntry) => void;
+  onRowDragLeave: (candidatePath: string) => void;
+  onRowDrop: (event: DragEvent, candidate: ContentListEntry) => void;
+  onRowDragEnd: () => void;
 }
 
 // The real row (PageTreeRow above is dead scaffolding - kept out of the
@@ -190,7 +328,20 @@ interface PagesHubTreeRowProps {
 // comes entirely from that nested <ul>'s own margin/padding cascading
 // one level per recursion, same as blocks - no per-row depth*padding-
 // left inline style any more.
-function PagesHubTreeRow({ siteId, node, collapsedPaths, onToggle, onPreview }: PagesHubTreeRowProps) {
+function PagesHubTreeRow({
+  siteId,
+  node,
+  collapsedPaths,
+  onToggle,
+  onPreview,
+  draggedPath,
+  dropTargetPath,
+  onRowDragStart,
+  onRowDragOver,
+  onRowDragLeave,
+  onRowDrop,
+  onRowDragEnd,
+}: PagesHubTreeRowProps) {
   const navigate = useNavigate();
   const { entry } = node;
   const hasChildren = node.children.length > 0;
@@ -198,6 +349,16 @@ function PagesHubTreeRow({ siteId, node, collapsedPaths, onToggle, onPreview }: 
   const editorHref = `/sites/${siteId}/editor?path=${encodeURIComponent(entry.path)}${
     entry.url !== null ? `&url=${encodeURIComponent(entry.url)}` : ''
   }`;
+  const isDragging = draggedPath === entry.path;
+  const isDropTarget = dropTargetPath === entry.path;
+  // The floating name pill a real native drag shows pinned to the
+  // cursor - same technique and same reasoning as SectionList.tsx's own
+  // SectionRow (instance-rows.css positions .instance-row-drag-pill
+  // off-screen at rest; a portal escapes .editor-sidebar's own
+  // transform/overflow ancestry, which otherwise clips an "off-screen"
+  // position: fixed element instead of actually moving it off-screen -
+  // see that component's own comment for how this was found live).
+  const dragPillRef = useRef<HTMLSpanElement>(null);
 
   function handleTitleClick(): void {
     if (entry.url !== null) {
@@ -224,14 +385,17 @@ function PagesHubTreeRow({ siteId, node, collapsedPaths, onToggle, onPreview }: 
   }
 
   return (
-    <li className="instance-row">
+    <li className={`instance-row${isDragging ? ' is-dragging' : ''}`}>
       <div
-        className="instance-row-main"
+        className={`instance-row-main${isDropTarget ? ' is-drop-target' : ''}`}
         role="button"
         tabIndex={0}
         aria-label={entry.name || entry.path}
         onClick={handleTitleClick}
         onKeyDown={handleRowKeyDown}
+        onDragOver={(event) => onRowDragOver(event, entry)}
+        onDragLeave={() => onRowDragLeave(entry.path)}
+        onDrop={(event) => onRowDrop(event, entry)}
       >
         <span className="page-tree-cell">
           {hasChildren ? (
@@ -254,6 +418,39 @@ function PagesHubTreeRow({ siteId, node, collapsedPaths, onToggle, onPreview }: 
         <Link to={editorHref} className="instance-row-remove" aria-label={`Edit ${entry.name || entry.path}`} onClick={handleEditLinkClick}>
           <EditIcon />
         </Link>
+        {entry.url !== null && (
+          <span
+            className="instance-row-drag-handle"
+            draggable
+            role="button"
+            aria-label={`Drag to move ${entry.name || entry.path}`}
+            tabIndex={-1}
+            onClick={(event) => event.stopPropagation()}
+            onDragStart={(event) => {
+              event.stopPropagation();
+              event.dataTransfer.effectAllowed = 'move';
+              if (dragPillRef.current) {
+                event.dataTransfer.setDragImage(dragPillRef.current, 0, 12);
+              }
+              onRowDragStart(entry.path);
+            }}
+            onDragEnd={(event) => {
+              event.stopPropagation();
+              onRowDragEnd();
+            }}
+          >
+            <span className="instance-row-drag-handle-icon">
+              <DragHandleIcon />
+            </span>
+          </span>
+        )}
+        {entry.url !== null &&
+          createPortal(
+            <span className="instance-row-drag-pill" ref={dragPillRef} aria-hidden="true">
+              {entry.name || entry.path}
+            </span>,
+            document.body,
+          )}
       </div>
       {hasChildren && !collapsed && (
         <ul className="instance-list instance-list-nested">
@@ -265,6 +462,13 @@ function PagesHubTreeRow({ siteId, node, collapsedPaths, onToggle, onPreview }: 
               collapsedPaths={collapsedPaths}
               onToggle={onToggle}
               onPreview={onPreview}
+              draggedPath={draggedPath}
+              dropTargetPath={dropTargetPath}
+              onRowDragStart={onRowDragStart}
+              onRowDragOver={onRowDragOver}
+              onRowDragLeave={onRowDragLeave}
+              onRowDrop={onRowDrop}
+              onRowDragEnd={onRowDragEnd}
             />
           ))}
         </ul>

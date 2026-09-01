@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { PagesTabPanel } from '../../src/pages/PagesTabPanel.tsx';
+import { createFakeDataTransfer } from '../helpers/fakeDataTransfer.ts';
 
 const ENTRY_ONE = {
   path: 'pages/about.json',
@@ -142,6 +143,125 @@ describe('PagesTabPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Collapse About' }));
     expect(screen.queryByRole('button', { name: 'Team' })).toBeNull();
+  });
+
+  describe('drag-and-drop reparenting', () => {
+    function dragHandleFor(name: string): HTMLElement {
+      return screen.getByRole('button', { name: `Drag to move ${name}` });
+    }
+
+    // Waits for the settled, collapsed-by-default state directly (not
+    // just for the row to exist at all) before expanding it -
+    // collapsedPaths starts empty and is only seeded to collapsed via a
+    // follow-up effect once entries load, so a plain "+About exists"
+    // check can resolve during that brief pre-seed window, when the
+    // toggle's own accessible name is still "Collapse About" - found
+    // live via real flakiness (~1 in 10 runs), not a hypothetical.
+    async function expandAbout(): Promise<void> {
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Expand About' })).toBeDefined());
+      fireEvent.click(screen.getByRole('button', { name: 'Expand About' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Team' })).toBeDefined());
+    }
+
+    it('dragging a page onto another shows a confirmation naming the resulting path/url', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE, ENTRY_TWO]), { status: 200 })));
+      renderPanel();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Contact' })).toBeDefined());
+
+      fireEvent.dragStart(dragHandleFor('Contact'), { dataTransfer: createFakeDataTransfer() });
+      fireEvent.dragOver(screen.getByRole('button', { name: 'About' }));
+      fireEvent.drop(screen.getByRole('button', { name: 'About' }));
+
+      expect(screen.getByRole('alertdialog')).toBeDefined();
+      expect(
+        screen.getByText('Move "Contact" under "About"? Its path becomes about/contact.json and its url becomes /about/contact.'),
+      ).toBeDefined();
+    });
+
+    it('confirming the move calls the move API with createRedirect: true, then reloads the list', async () => {
+      const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.includes('/move')) {
+          return new Response(JSON.stringify({ ok: true }), { status: 200 });
+        }
+        return new Response(JSON.stringify([ENTRY_ONE, ENTRY_TWO]), { status: 200 });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      renderPanel();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Contact' })).toBeDefined());
+
+      fireEvent.dragStart(dragHandleFor('Contact'), { dataTransfer: createFakeDataTransfer() });
+      fireEvent.dragOver(screen.getByRole('button', { name: 'About' }));
+      fireEvent.drop(screen.getByRole('button', { name: 'About' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Move' }));
+
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          '/api/sites/site-1/move',
+          expect.objectContaining({
+            method: 'POST',
+            body: JSON.stringify({ from: '/contact', to: '/about/contact', message: 'Move Contact under About', createRedirect: true }),
+          }),
+        ),
+      );
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      // The list reloads after a successful move - the fake fetch above
+      // always returns the same two root entries regardless of the
+      // move having "happened" (jsdom doesn't actually run the agent),
+      // so this just confirms a second /content fetch really occurred.
+      expect(fetchMock.mock.calls.filter((call) => !String(call[0]).includes('/move')).length).toBeGreaterThan(1);
+    });
+
+    it('Cancel dismisses the confirmation without calling the move API', async () => {
+      const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE, ENTRY_TWO]), { status: 200 }));
+      vi.stubGlobal('fetch', fetchMock);
+      renderPanel();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Contact' })).toBeDefined());
+
+      fireEvent.dragStart(dragHandleFor('Contact'), { dataTransfer: createFakeDataTransfer() });
+      fireEvent.dragOver(screen.getByRole('button', { name: 'About' }));
+      fireEvent.drop(screen.getByRole('button', { name: 'About' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/move'), expect.anything());
+    });
+
+    it('dropping a page onto itself is refused - no confirmation appears', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE, ENTRY_TWO]), { status: 200 })));
+      renderPanel();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+
+      fireEvent.dragStart(dragHandleFor('About'), { dataTransfer: createFakeDataTransfer() });
+      fireEvent.dragOver(screen.getByRole('button', { name: 'About' }));
+      fireEvent.drop(screen.getByRole('button', { name: 'About' }));
+
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+
+    it('dropping a page onto its own current descendant is refused - no confirmation appears', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([PARENT_ENTRY, CHILD_ENTRY]), { status: 200 })));
+      renderPanel();
+      await expandAbout();
+
+      fireEvent.dragStart(dragHandleFor('About'), { dataTransfer: createFakeDataTransfer() });
+      fireEvent.dragOver(screen.getByRole('button', { name: 'Team' }));
+      fireEvent.drop(screen.getByRole('button', { name: 'Team' }));
+
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+
+    it("dropping a page onto its own current parent is refused (nothing would change) - no confirmation appears", async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([PARENT_ENTRY, CHILD_ENTRY]), { status: 200 })));
+      renderPanel();
+      await expandAbout();
+
+      fireEvent.dragStart(dragHandleFor('Team'), { dataTransfer: createFakeDataTransfer() });
+      fireEvent.dragOver(screen.getByRole('button', { name: 'About' }));
+      fireEvent.drop(screen.getByRole('button', { name: 'About' }));
+
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
   });
 
   it('the "Add Page" link opens the New Page modal', async () => {

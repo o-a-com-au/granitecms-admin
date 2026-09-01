@@ -14,12 +14,47 @@ export interface PageTreeNode {
 // directory stem, the nested page is shown flattened at the top level
 // rather than inventing a synthetic folder-only group nothing in the
 // data actually represents.
-function relativePagePath(path: string): string {
+// Exported (not just a private helper any more) - PagesTabPanel.tsx's
+// own drag-and-drop reparenting needs the same "strip the pages/
+// prefix" step this file already does internally, both to compute a
+// dragged page's current parent (pageParentPath below) and its own
+// final path segment (the part that survives a reparent unchanged).
+export function relativePagePath(path: string): string {
   return path.startsWith('pages/') ? path.slice('pages/'.length) : path;
 }
 
 function stemOf(relativePath: string): string {
   return relativePath.replace(/\.json$/, '');
+}
+
+// The file path a page's parent WOULD have, purely from its own path's
+// directory prefix - null for a root-level page (no parent). This is
+// the same segments.slice(0, -1) step buildPageTree uses internally to
+// look up a node's real parent, just exposed as its own question:
+// drag-and-drop reparenting needs to know whether a prospective drop
+// target is already this page's own current parent (not identity by
+// object reference - the tree may not have found a real parent node at
+// all if none exists at that stem, per buildPageTree's own "flattened
+// to root" case), not whether the parent is real content.
+export function pageParentPath(path: string): string | null {
+  const segments = relativePagePath(path).replace(/\.json$/, '').split('/');
+  if (segments.length === 1) {
+    return null;
+  }
+  return `pages/${segments.slice(0, -1).join('/')}.json`;
+}
+
+// Whether `candidatePath` is `ancestorPath` itself, or nests underneath
+// it - drag-and-drop reparenting must refuse both (dropping a page onto
+// itself, or onto one of its own current descendants), since either
+// would try to move a directory into itself. Pure path-prefix
+// comparison (relativePagePath + stemOf), not a tree walk - the same
+// directory-prefix relationship buildPageTree itself relies on to
+// determine nesting in the first place.
+export function isSelfOrDescendantPage(candidatePath: string, ancestorPath: string): boolean {
+  const candidateStem = stemOf(relativePagePath(candidatePath));
+  const ancestorStem = stemOf(relativePagePath(ancestorPath));
+  return candidateStem === ancestorStem || candidateStem.startsWith(`${ancestorStem}/`);
 }
 
 // pages/index.json (the site root) and pages/404.json are not just
