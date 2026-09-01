@@ -467,8 +467,19 @@
    specifically so the base rule's own flex-basis transition (above) has
    two real lengths to interpolate between on a route switch to/from
    Media below - a transition to/from auto doesn't animate, it snaps. */
+/* + var(--pages-hub-extra-width, 0px) - set as an inline custom
+   property by AppShell.tsx itself (PreviewContext.tsx's own
+   pagesTreeDepth), growing this in step with however deep
+   PagesHubPage's own page tree is currently expanded (requested
+   directly - a nested page now indents exactly the way a nested block
+   does, real margin/padding per level rather than a flat depth*padding,
+   so the deeper the tree opens the less room its own label has unless
+   this grows to match). min() caps the total at 45% of the row this
+   sits in (the same row .shared-preview-region shares - AppShell.tsx),
+   so an unusually deep tree can shrink the live preview but never
+   swallow it entirely. */
 .app-content:has(.pages-hub) {
-  flex: 0 0 calc(var(--editor-sidebar-width) + var(--space-sm));
+  flex: 0 0 min(calc(var(--editor-sidebar-width) + var(--space-sm) + var(--pages-hub-extra-width, 0px)), 45%);
   max-width: none;
   padding: 0;
   overflow: hidden;

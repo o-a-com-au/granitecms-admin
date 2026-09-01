@@ -59,6 +59,8 @@ interface PreviewContextValue {
   setPreviewOverlay: (node: ReactNode | null) => void;
   previewBody: ReactNode;
   setPreviewBody: (node: ReactNode | null) => void;
+  pagesTreeDepth: number;
+  setPagesTreeDepth: (depth: number) => void;
 }
 
 const PreviewContext = createContext<PreviewContextValue | null>(null);
@@ -100,6 +102,14 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
   const [fieldsPanel, setFieldsPanel] = useState<ReactNode>(null);
   const [previewOverlay, setPreviewOverlay] = useState<ReactNode>(null);
   const [previewBody, setPreviewBody] = useState<ReactNode>(null);
+  // PagesHubPage-only: how many levels deep its own page tree is
+  // currently expanded, so AppShell can grow .app-content to match
+  // (app-shell.css's own .app-content:has(.pages-hub) rule owns the
+  // fixed width that actually constrains the visible panel -
+  // .pages-hub-panel's own flex-basis is downstream of that, not
+  // independent of it, so this has to live somewhere AppShell itself
+  // can read, not inside PagesHubPage's own subtree).
+  const [pagesTreeDepth, setPagesTreeDepth] = useState(0);
   const previousSiteIdRef = useRef(siteId);
   // Any route showing the shared viewport unmounts before the NEXT one
   // that also wants it visible has mounted (confirmed live via a mount/
@@ -182,6 +192,8 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
       setPreviewOverlay,
       previewBody,
       setPreviewBody,
+      pagesTreeDepth,
+      setPagesTreeDepth,
     }),
     [
       previewUrl,
@@ -197,6 +209,7 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
       fieldsPanel,
       previewOverlay,
       previewBody,
+      pagesTreeDepth,
     ],
   );
 
@@ -273,6 +286,21 @@ export function usePreviewBody(node: ReactNode | null): void {
     setPreviewBody(node);
     return () => setPreviewBody(null);
   }, [setPreviewBody, node]);
+}
+
+// PagesHubPage-only: reports how many levels deep its own page tree is
+// currently expanded (0 = only root rows visible), so AppShell.tsx can
+// grow .app-content to match - requested directly ("opening three
+// levels deep make the panel two tabs wider"). Resets to 0 on unmount,
+// same as every other route-scoped value in this context, so switching
+// away from Pages hub (or its own Menus/Redirects tabs, which report
+// nothing) never leaves stale extra width behind.
+export function usePagesTreeDepth(depth: number): void {
+  const { setPagesTreeDepth } = usePreviewContextValue();
+  useEffect(() => {
+    setPagesTreeDepth(depth);
+    return () => setPagesTreeDepth(0);
+  }, [setPagesTreeDepth, depth]);
 }
 
 // PageEditorPage-only: (re)attaches its hover-highlight/anchor-click-

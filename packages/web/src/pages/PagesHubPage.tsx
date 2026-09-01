@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 import { usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
-import { usePreview, usePreviewVisible } from '../layout/PreviewContext.tsx';
+import { usePagesTreeDepth, usePreview, usePreviewVisible } from '../layout/PreviewContext.tsx';
 import { useSectionClickToEdit } from '../editor/useSectionClickToEdit.ts';
 import { writeLastEditorLocation } from '../sites/currentSite.ts';
 import { PagesTabPanel, type PreviewablePage } from './PagesTabPanel.tsx';
@@ -34,6 +34,16 @@ export function PagesHubPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
   const [tab, setTab] = useState<HubTab>('pages');
   const { device, setDevice, setPreview } = usePreview();
+  // How many levels deep the Pages tab's own tree is currently expanded
+  // (0 = only root rows visible) - PagesTabPanel reports this itself
+  // (onMaxDepthChange) since only it knows its own collapsed state.
+  // usePagesTreeDepth pushes the number up into the shared preview
+  // context, since it's AppShell.tsx (not this page) that owns
+  // .app-content - the element whose own width actually has to grow -
+  // see PreviewContext.tsx's own comment on why this can't just be a
+  // plain inline style set locally here.
+  const [pagesTreeDepth, setPagesTreeDepth] = useState(0);
+  usePagesTreeDepth(pagesTreeDepth);
 
   // The shared viewport already shows whatever page was last active for
   // this site (PreviewContext.tsx seeds itself from the same
@@ -83,7 +93,7 @@ export function PagesHubPage() {
         </div>
         <div className="editor-tab-content">
           <div className="editor-tab-panel">
-            {tab === 'pages' && <PagesTabPanel siteId={siteId} onPreview={handlePreview} />}
+            {tab === 'pages' && <PagesTabPanel siteId={siteId} onPreview={handlePreview} onMaxDepthChange={setPagesTreeDepth} />}
             {tab === 'menus' && <MenusTabPanel siteId={siteId} />}
             {tab === 'redirects' && <RedirectsTabPanel siteId={siteId} />}
           </div>

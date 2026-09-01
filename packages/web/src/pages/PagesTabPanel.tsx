@@ -23,6 +23,16 @@ export interface PreviewablePage {
 export interface PagesTabPanelProps {
   siteId: string;
   onPreview: (page: PreviewablePage | null) => void;
+  // Reports the deepest currently-EXPANDED level (0 = only root rows
+  // visible, however many pages exist at that level) so PagesHubPage
+  // can grow .pages-hub-panel to match - a nested page rendered the
+  // same way BlockList nests blocks (real indentation via
+  // .instance-list-nested, not a flat depth*padding-left) needs more
+  // horizontal room the deeper it's expanded, same as a title
+  // truncating less the more space its row actually has. Called with 0
+  // on unmount (tab switched away, or this panel gone entirely) so the
+  // extra width doesn't linger once nothing here still needs it.
+  onMaxDepthChange?: (depth: number) => void;
 }
 
 function collectParentPaths(nodes: PageTreeNode[], into: Set<string>): void {
@@ -34,7 +44,7 @@ function collectParentPaths(nodes: PageTreeNode[], into: Set<string>): void {
   }
 }
 
-export function PagesTabPanel({ siteId, onPreview }: PagesTabPanelProps) {
+export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange }: PagesTabPanelProps) {
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
   const [newPageModalOpen, setNewPageModalOpen] = useState(false);
   const [entries, setEntries] = useState<ContentListEntry[] | null>(null);
@@ -92,7 +102,26 @@ export function PagesTabPanel({ siteId, onPreview }: PagesTabPanelProps) {
   }
 
   const pages = entries?.filter((entry) => !isMenuPath(entry.path)) ?? null;
-  const rows = pages !== null ? flattenVisibleTree(buildPageTree(pages), collapsedPaths) : null;
+  const tree = pages !== null ? buildPageTree(pages) : null;
+
+  // flattenVisibleTree isn't used to render any more (the tree renders
+  // itself recursively below, real nested <ul>s rather than a flat
+  // depth-annotated array) - kept around purely to reuse its own
+  // visible-rows walk for this one number, rather than writing a
+  // second, easily-drifting depth-walker that has to agree with it on
+  // exactly the same "collapsed hides children, not itself" rule.
+  useEffect(() => {
+    if (tree === null) {
+      return;
+    }
+    const visibleRows = flattenVisibleTree(tree, collapsedPaths);
+    const maxDepth = visibleRows.reduce((max, row) => Math.max(max, row.depth), 0);
+    onMaxDepthChange?.(maxDepth);
+  }, [entries, collapsedPaths]);
+
+  useEffect(() => {
+    return () => onMaxDepthChange?.(0);
+  }, []);
 
   if (error) {
     return <SiteStatusPanel variant="problem" message={loadErrorMessage(error)} actions={buildLoadErrorActions(error, siteId, retry)} />;
@@ -105,17 +134,16 @@ export function PagesTabPanel({ siteId, onPreview }: PagesTabPanelProps) {
   return (
     <div className="pages-hub-tab">
       <h2 className="panel-heading">Pages</h2>
-      {rows !== null && rows.length === 0 ? (
+      {tree !== null && tree.length === 0 ? (
         <p>No pages found.</p>
       ) : (
         <ul className="instance-list">
-          {rows?.map(({ node, depth }) => (
+          {tree?.map((node) => (
             <PagesHubTreeRow
               key={node.entry.path}
               siteId={siteId}
               node={node}
-              depth={depth}
-              collapsed={collapsedPaths.has(node.entry.path)}
+              collapsedPaths={collapsedPaths}
               onToggle={handleToggle}
               onPreview={onPreview}
             />
@@ -134,8 +162,7 @@ export function PagesTabPanel({ siteId, onPreview }: PagesTabPanelProps) {
 interface PagesHubTreeRowProps {
   siteId: string;
   node: PageTreeNode;
-  depth: number;
-  collapsed: boolean;
+  collapsedPaths: ReadonlySet<string>;
   onToggle: (path: string) => void;
   onPreview: (page: PreviewablePage | null) => void;
 }
@@ -151,10 +178,23 @@ interface PagesHubTreeRowProps {
 // navigates. A page with no real url (nothing to preview) falls back
 // to going straight to the editor on click, same as the button does -
 // there's nothing useful a "preview" click could do there.
-function PagesHubTreeRow({ siteId, node, depth, collapsed, onToggle, onPreview }: PagesHubTreeRowProps) {
+//
+// Nests exactly the way BlockList.tsx's own BlockRow does now (matching
+// the look of nested blocks under a section, requested directly): a
+// row with children renders its own <ul className="instance-list
+// instance-list-nested"> of child rows inside its own <li>, recursing
+// into this same component rather than flattening the whole tree into
+// one depth-annotated array first (pageTree.ts's flattenVisibleTree
+// still exists, but only PagesTabPanel's own max-depth calculation
+// uses it now - rendering itself is real recursion). The indentation
+// comes entirely from that nested <ul>'s own margin/padding cascading
+// one level per recursion, same as blocks - no per-row depth*padding-
+// left inline style any more.
+function PagesHubTreeRow({ siteId, node, collapsedPaths, onToggle, onPreview }: PagesHubTreeRowProps) {
   const navigate = useNavigate();
   const { entry } = node;
   const hasChildren = node.children.length > 0;
+  const collapsed = collapsedPaths.has(entry.path);
   const editorHref = `/sites/${siteId}/editor?path=${encodeURIComponent(entry.path)}${
     entry.url !== null ? `&url=${encodeURIComponent(entry.url)}` : ''
   }`;
@@ -193,7 +233,7 @@ function PagesHubTreeRow({ siteId, node, depth, collapsed, onToggle, onPreview }
         onClick={handleTitleClick}
         onKeyDown={handleRowKeyDown}
       >
-        <span className="page-tree-cell" style={{ paddingLeft: `${depth * 1.5}rem` }}>
+        <span className="page-tree-cell">
           {hasChildren ? (
             <button
               type="button"
@@ -215,6 +255,20 @@ function PagesHubTreeRow({ siteId, node, depth, collapsed, onToggle, onPreview }
           <EditIcon />
         </Link>
       </div>
+      {hasChildren && !collapsed && (
+        <ul className="instance-list instance-list-nested">
+          {node.children.map((child) => (
+            <PagesHubTreeRow
+              key={child.entry.path}
+              siteId={siteId}
+              node={child}
+              collapsedPaths={collapsedPaths}
+              onToggle={onToggle}
+              onPreview={onPreview}
+            />
+          ))}
+        </ul>
+      )}
     </li>
   );
 }

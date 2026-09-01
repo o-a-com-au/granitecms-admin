@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { formatFullName } from '../auth/fullName.ts';
@@ -145,7 +145,17 @@ function AppShellContent() {
   // right below it - confirmed live, reported directly. Reading the
   // same previewUrl SharedPreviewRegion already reads means the address
   // bar and the viewport can never show two different pages.
-  const { previewUrl } = usePreview();
+  const { previewUrl, pagesTreeDepth } = usePreview();
+  // One indent level's own width (instance-list-nested's margin-left
+  // 1.1rem + padding-left 0.75rem, instance-rows.css) - the same unit a
+  // nested page's own indentation grows by, so .app-content widens in
+  // exact step with however deep PagesHubPage's own tree is expanded
+  // (requested directly: "opening three levels deep make the panel two
+  // tabs wider"). Read here, not inside PagesHubPage itself - this is
+  // the one component that actually renders .app-content, the element
+  // app-shell.css's own :has(.pages-hub) rule sizes; a custom property
+  // set any deeper in the tree would never reach back up to it.
+  const pagesHubExtraWidth = pagesTreeDepth > 0 ? `${pagesTreeDepth * 1.85}rem` : undefined;
 
   // Dismiss on an outside click - the popover has no backdrop of its
   // own (docs/design/Account Logout.png shows it floating directly
@@ -411,7 +421,7 @@ function AppShellContent() {
               isOnMedia={location.pathname === mediaTo}
             />
           )}
-          <div className="app-content">
+          <div className="app-content" style={{ '--pages-hub-extra-width': pagesHubExtraWidth } as CSSProperties}>
             <PageActionsProvider setActions={setPageActions}>
               <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>
                 <Outlet />
