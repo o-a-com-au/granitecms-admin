@@ -117,7 +117,15 @@
   color: #fff;
 }
 
-.instance-row-main.is-selected button.instance-row-remove {
+/* a.instance-row-remove alongside button.instance-row-remove - Pages
+   hub's own Edit action (PagesTabPanel.tsx/MenusTabPanel.tsx) reuses
+   this class on an <a>, not a <button> (see this class's own base
+   rule above), and without the anchor selector here it stayed the
+   ordinary muted icon colour on a selected row instead of picking up
+   white like every other row action (reported directly - the Pages
+   hub's edit pencil was still grey on the selected blue row). */
+.instance-row-main.is-selected button.instance-row-remove,
+.instance-row-main.is-selected a.instance-row-remove {
   color: #fff;
 }
 

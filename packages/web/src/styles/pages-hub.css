@@ -101,6 +101,17 @@
   font-size: 0.8rem;
 }
 
+/* .page-tree-title's own explicit colour above always wins over the
+   inherited white .instance-row-main.is-selected sets on the row
+   itself (an explicit rule on the element beats an inherited value
+   regardless of specificity), so the selected row's title stayed
+   --colour-text - grey in light mode - rather than matching every
+   other instance-row's own <strong> label, which turns white via its
+   own is-selected override (instance-rows.css). */
+.instance-row-main.is-selected .page-tree-title {
+  color: #fff;
+}
+
 .redirects-tab-row-label {
   flex: 1;
   min-width: 0;
