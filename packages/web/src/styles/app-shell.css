@@ -255,6 +255,21 @@
   gap: 0.75rem;
 }
 
+/* white-space: nowrap - .app-topbar-end (this sits inside) can now
+   genuinely shrink under space pressure (flex: 1 1 0, app-shell.css's
+   own true-centring fix), and a plain button's automatic minimum width
+   is only as wide as its longest WORD, not its whole label, since text
+   can wrap by default - "Save"/"Discard Changes" started wrapping onto
+   two lines well before the row ran out of room, reported directly.
+   flex-shrink: 0 on top - without it, the button would still happily
+   shrink narrower than its own (now unwrappable) text and clip it
+   instead, rather than the row honouring the button's real minimum
+   width as its own floor. */
+.app-topbar-actions button {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* PageEditorPage's own device-size toggle (usePageDeviceToggle,
    PageActionsContext.tsx), now rendered inside the address bar rather
    than as its own separate top-bar slot. */
