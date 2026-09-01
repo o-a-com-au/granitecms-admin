@@ -400,6 +400,23 @@ button.instance-add-button:hover {
   margin-top: 0.6rem;
 }
 
+/* BlockList.tsx's own "Add Block" - the wrap div sits as a sibling
+   AFTER the nested <ul> it belongs to (both inside the same parent
+   SectionRow <li>), not inside it, so it never inherited that list's
+   own margin-left indent on its own - it lined up with the top-level
+   Sections list instead of the blocks it's actually adding to
+   (reported directly, with a screenshot). var(--space-lg) + 0.75rem
+   matches instance-list-nested's own margin-left + padding-left
+   exactly, so this lines up with the block ROWS themselves (where
+   their own pill backgrounds start), not just the thin border-left
+   line beside them. The adjacent-sibling selector only ever matches
+   here: SectionList.tsx's own top-level list (whose "Add Section" wrap
+   this class also styles) never carries instance-list-nested, so that
+   one is correctly left un-indented. */
+.instance-list-nested + .instance-add-menu-wrap {
+  margin-left: calc(var(--space-lg) + 0.75rem);
+}
+
 .instance-add-menu {
   position: absolute;
   bottom: calc(100% + 0.5rem);
