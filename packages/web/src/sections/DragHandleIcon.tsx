@@ -1,23 +1,18 @@
-// A plain six-dot grip glyph - the drag affordance shown on the right
-// of every instance-row that supports reordering/reparenting. Fixed
-// 14x14, matching every other instance-row icon's own sizing
-// convention (EditIcon/TrashIcon/AccordionArrowIcon) - not
-// width/height="100%" any more, which has no size of its own to fall
-// back on if its wrapping box's own sizing ever regresses (see
-// EditIcon.tsx's own comment for exactly that bug, once real). viewBox
-// stays 14x20 (the glyph's own natural, non-square aspect) - the
-// browser's default preserveAspectRatio scales it to fit the 14x14
-// box without distorting it, rather than stretching it to fill a
-// square it was never drawn for.
+// The drag affordance shown on the right of every instance-row that
+// supports reordering/reparenting - Lucide's own "grip-vertical"
+// (https://lucide.dev, ISC licensed), requested directly at 16x16 with
+// a 1.75 stroke. Six r="1" circles rendered with no fill (stroke only,
+// matching the rest of Lucide's own icon set) still read as solid
+// dots - the stroke's own width already reaches each circle's centre.
 export function DragHandleIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 20" fill="none" aria-hidden="true">
-      <circle cx="4" cy="4" r="1.5" fill="currentColor" />
-      <circle cx="10" cy="4" r="1.5" fill="currentColor" />
-      <circle cx="4" cy="10" r="1.5" fill="currentColor" />
-      <circle cx="10" cy="10" r="1.5" fill="currentColor" />
-      <circle cx="4" cy="16" r="1.5" fill="currentColor" />
-      <circle cx="10" cy="16" r="1.5" fill="currentColor" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="9" cy="12" r="1" />
+      <circle cx="9" cy="5" r="1" />
+      <circle cx="9" cy="19" r="1" />
+      <circle cx="15" cy="12" r="1" />
+      <circle cx="15" cy="5" r="1" />
+      <circle cx="15" cy="19" r="1" />
     </svg>
   );
 }
