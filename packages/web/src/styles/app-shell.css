@@ -96,6 +96,27 @@
 /* No background/border of its own - it reads as part of the same flat
    page background as .app-content below it, not a distinct panel
    sitting on top. */
+/* Still flex, not grid (a grid attempt at this - minmax(0, 1fr) sides
+   either side of a minmax(0, 800px) middle - looked right on paper but
+   isn't: a non-fr track's max is its own target size, not something it
+   gives up under pressure, so on a real narrow-ish window the middle
+   held its full 800px and .app-topbar-end's own Save/Discard pair
+   overlapped it outright, confirmed live). flex: 1 1 0 (not the
+   default flex: 0 0 auto) on .app-topbar-start/-end is what actually
+   fixes the original bug: an explicit flex-basis of 0 discards each
+   side's own content size from the growth math entirely, so equal
+   flex-grow gives them IDENTICAL final widths whenever there's enough
+   room - regardless of how much content either side actually holds
+   (a flex row with the default flex: 0 0 auto only ever centred the
+   address bar in whatever space was left over after those two sides'
+   own, frequently unequal, content widths - e.g. Editor's own Save/
+   Discard pair appearing in .app-topbar-end, .app-topbar-start staying
+   just the logo - reported directly). Neither side sets min-width: 0,
+   so its own automatic content-based minimum still applies as a floor:
+   under genuine pressure (a window too narrow for logo + 800px address
+   bar + actions all at once), a side simply stops shrinking at its own
+   natural width instead of clipping, and the address bar (flex: 0 1
+   800px below) absorbs the remaining squeeze itself. */
 .app-topbar {
   flex: 0 0 auto;
   display: flex;
@@ -111,7 +132,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  flex: 0 0 auto;
+  flex: 1 1 0;
 }
 
 /* GraniteLogo.tsx (docs/designs/granite-logo.svg) plus the "GRANITE
@@ -155,17 +176,19 @@
 
 /* The new address bar - a search/location-bar-styled display of the
    current page's address (globe icon + domain/path + external-link +
-   the device-size toggle), centred in the middle of the top bar in
-   place of the old nav-links span. flex: 1 with a max-width and
-   auto margins, not position: absolute the way the old nav needed to
-   be - there's no longer anything else in this bar competing for
-   centring against a variable-width sibling. Not yet interactive
-   (no onClick, just a title hint) - a later revision makes this
-   clickable to search/jump to a page. */
+   the device-size toggle), truly centred in the top bar (see
+   .app-topbar's own flex: 1 1 0 sides, above) rather than by a bare
+   flex: 1/margin: 0 auto, which only ever centred it in whatever space
+   was left over after its siblings. flex: 0 1 800px - never grows
+   past 800px, but CAN still shrink (the default flex-shrink: 1) if a
+   window is too narrow to fit it at full width alongside its siblings,
+   so it absorbs that squeeze itself rather than overlapping them (both
+   siblings keep their own natural minimum instead of shrinking below
+   it - see .app-topbar-start's own comment). Not yet interactive (no
+   onClick, just a title hint) - a later revision makes this clickable
+   to search/jump to a page. */
 .app-topbar-address-bar {
-  flex: 1;
-  max-width: 640px;
-  margin: 0 auto;
+  flex: 0 1 800px;
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -210,12 +233,16 @@
   color: var(--colour-text);
 }
 
+/* flex: 1 1 0, no min-width: 0 - see .app-topbar-start's own comment
+   (the identical rule, mirrored on this side). No margin-left: auto
+   any more - flex-grow already pulls it to the far edge on its own,
+   the same way it now does for .app-topbar-start on the near edge. */
 .app-topbar-end {
   display: flex;
   align-items: center;
   gap: 1rem;
-  flex: 0 0 auto;
-  margin-left: auto;
+  flex: 1 1 0;
+  justify-content: flex-end;
 }
 
 /* Wherever the current leaf route has pushed its own action buttons
@@ -644,10 +671,6 @@
 
   .shared-preview-region {
     display: none;
-  }
-
-  .app-topbar-address-bar {
-    max-width: none;
   }
 
   .app-address-bar-label {
