@@ -62,11 +62,17 @@
    matching .device-icon's own rem-based sizing convention. Sized down
    slightly from the rail's own earlier 1.6rem now that the rail itself
    is only 60px wide, not 84px. */
+/* 1.25rem (20px at the default root) - matches IconRail.tsx's own
+   Lucide icons exactly (each a fixed 20x20 SVG, not a box-filling
+   100%), so there's no leftover padding/off-centre gap between this
+   wrapper and the icon it holds. */
 .nav-rail-icon {
   display: flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 .nav-rail-label {

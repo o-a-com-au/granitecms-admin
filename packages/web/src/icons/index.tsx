@@ -39,18 +39,6 @@
 export function IconSprite() {
   return (
     <svg aria-hidden="true" style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
-      <symbol id="icon-pages" viewBox="0 0 64 64">
-        <polygon fill="#575757" opacity={0.5} points="46.98 62.49 11.2 62.49 11.2 9.69 35.65 9.69 46.98 20.35 46.98 62.49" />
-        <polygon fill="#c4c4c4" points="55.34 54.9 19.55 54.9 19.55 2.1 44.01 2.1 55.34 12.76 55.34 54.9" />
-        <rect fill="#717171" x="24.93" y="37.22" width="24.46" height="6.93" />
-        <rect fill="#717171" x="24.93" y="25.87" width="24.46" height="6.93" />
-        <polygon fill="#727272" points="55.34 12.76 43.98 12.76 43.98 2.1 55.34 12.76" />
-        <path
-          fill="#fff"
-          d="M43.01,2.85l.03,9.57v.99s.99,0,.99,0l10.31.08v40.15H20.55V2.85h22.46ZM44.01,1.85h-24.46v52.8h35.79V12.51l-11.3-.09-.03-10.57h0Z"
-        />
-      </symbol>
-
       <symbol id="icon-menus" viewBox="0 0 64 64">
         <rect fill="#757575" x="17.47" y="22.03" width="39.97" height="8.56" rx="2.51" ry="2.51" />
         <path fill="#c4c4c4" d="M19.97,10.44h34.96c1.11,0,2.01.9,2.01,2.01v3.55c0,1.11-.9,2.01-2.01,2.01H19.97c-1.11,0-2.01-.9-2.01-2.01v-3.55c0-1.11.9-2.01,2.01-2.01Z" />
@@ -68,15 +56,6 @@ export function IconSprite() {
         <ellipse fill="#575757" cx="10.85" cy="25.82" rx="3.69" ry="3.97" />
         <ellipse fill="#575757" cx="10.85" cy="37.6" rx="3.69" ry="3.97" />
         <ellipse fill="#575757" cx="10.85" cy="49.37" rx="3.69" ry="3.97" />
-      </symbol>
-
-      <symbol id="icon-media" viewBox="0 0 64 64">
-        <polyline fill="#575757" points="4.35 45.41 4.35 4.19 45.57 4.19" />
-        <polyline fill="#727272" points="11.97 53.19 11.97 11.96 53.2 11.96" />
-        <rect fill="#c4c4c4" x="19.25" y="19.73" width="41.23" height="41.23" />
-        <polygon fill="#575757" opacity={0.4} points="18.96 46.62 32.59 32.57 41.66 43.13 60.52 23.93 60.52 60.96 19.25 60.96 18.96 46.62" />
-        <circle fill="#575757" opacity={0.4} cx="26.36" cy="26.96" r="3.8" />
-        <path fill="#fff" d="M59.47,20.73v39.23H20.25V20.73h39.23ZM60.47,19.73H19.25v41.23h41.23V19.73h0Z" />
       </symbol>
 
       <symbol id="icon-redirects" viewBox="0 0 64 64">
@@ -161,26 +140,8 @@ function Icon({ id }: { id: string }) {
   );
 }
 
-// No dedicated "Editor" glyph exists in this sprite (it predates Editor
-// being a nav destination at all) - reuses icon-tab-page (a plain page/
-// document glyph, itself already unused) as a placeholder rather than
-// hand-authoring a new multi-shape icon to match this set's fixed-
-// palette style, same "placeholder now, real artwork later" approach
-// AddSectionModal's own thumbnails already took.
-export function EditorIcon() {
-  return <Icon id="icon-tab-page" />;
-}
-
-export function PagesIcon() {
-  return <Icon id="icon-pages" />;
-}
-
 export function MenusIcon() {
   return <Icon id="icon-menus" />;
-}
-
-export function MediaIcon() {
-  return <Icon id="icon-media" />;
 }
 
 export function RedirectsIcon() {
