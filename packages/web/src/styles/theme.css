@@ -85,6 +85,14 @@
   --colour-tab-border: var(--grey-500);
   --colour-muted: var(--grey-500);
   --colour-text: var(--grey-200);
+  /* Row-level icons (instance-rows.css's chevron/remove/edit/drag
+     glyphs) want white here, not --colour-muted's grey - on the dark
+     surfaces this theme uses everywhere, a grey glyph reads as
+     washed-out/hard to place, where white reads clearly as an icon at
+     rest even before its own hover/opacity treatment kicks in. Light
+     mode's own block below keeps these on --colour-muted instead,
+     where grey already reads fine against a light surface. */
+  --colour-icon-muted: #fff;
   --colour-input-background: #000;
   --colour-table-header: var(--grey-900);
   --colour-table-background: var(--grey-850);
@@ -106,6 +114,10 @@
   --colour-tab-border: var(--grey-100);
   --colour-muted: var(--grey-500);
   --colour-text: var(--grey-700);
+  /* See the dark block's own comment above - light mode keeps the
+     row-level icon glyphs on the ordinary muted grey, which already
+     reads fine against this theme's light surfaces. */
+  --colour-icon-muted: var(--colour-muted);
   --colour-input-background: #fff;
   --colour-table-header: var(--grey-50);
   --colour-table-background: var(--grey-100);
