@@ -34,7 +34,7 @@
 }
 
 .instance-list-nested {
-  margin: 0.4rem 0 0 1.1rem;
+  margin: var(--space-xs) 0 0 var(--space-lg);
   padding-left: 0.75rem;
   border-left: 1px solid var(--colour-border);
 }

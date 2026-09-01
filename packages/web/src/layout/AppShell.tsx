@@ -147,15 +147,16 @@ function AppShellContent() {
   // bar and the viewport can never show two different pages.
   const { previewUrl, pagesTreeDepth } = usePreview();
   // One indent level's own width (instance-list-nested's margin-left
-  // 1.1rem + padding-left 0.75rem, instance-rows.css) - the same unit a
-  // nested page's own indentation grows by, so .app-content widens in
-  // exact step with however deep PagesHubPage's own tree is expanded
-  // (requested directly: "opening three levels deep make the panel two
-  // tabs wider"). Read here, not inside PagesHubPage itself - this is
-  // the one component that actually renders .app-content, the element
-  // app-shell.css's own :has(.pages-hub) rule sizes; a custom property
-  // set any deeper in the tree would never reach back up to it.
-  const pagesHubExtraWidth = pagesTreeDepth > 0 ? `${pagesTreeDepth * 1.85}rem` : undefined;
+  // var(--space-lg), 1.5rem + padding-left 0.75rem, instance-rows.css)
+  // - the same unit a nested page's own indentation grows by, so
+  // .app-content widens in exact step with however deep PagesHubPage's
+  // own tree is expanded (requested directly: "opening three levels
+  // deep make the panel two tabs wider"). Read here, not inside
+  // PagesHubPage itself - this is the one component that actually
+  // renders .app-content, the element app-shell.css's own
+  // :has(.pages-hub) rule sizes; a custom property set any deeper in
+  // the tree would never reach back up to it.
+  const pagesHubExtraWidth = pagesTreeDepth > 0 ? `${pagesTreeDepth * 2.25}rem` : undefined;
 
   // Dismiss on an outside click - the popover has no backdrop of its
   // own (docs/design/Account Logout.png shows it floating directly
