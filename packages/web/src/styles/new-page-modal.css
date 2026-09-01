@@ -1,0 +1,30 @@
+/* NewPageModal.tsx's own details step - the grid step reuses add-
+   section-modal.css's classes as-is (same look as AddSectionModal,
+   the whole point), this file only covers the plain .modal step
+   afterwards: a small header row for the "< Back" control beside the
+   heading, replacing .modal h2's own default margin (moved onto the
+   wrapper instead, so the button and heading share one baseline). */
+.new-page-details-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.new-page-details-header h2 {
+  margin: 0;
+}
+
+button.new-page-back {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--colour-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+button.new-page-back:hover {
+  color: var(--colour-text);
+}

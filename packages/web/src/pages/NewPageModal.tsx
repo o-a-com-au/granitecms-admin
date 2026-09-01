@@ -42,17 +42,29 @@ function deriveUrlFromPath(path: string): string {
   return `/${withoutPrefix.replace(/\.json$/, '')}`;
 }
 
-// Group Q: a title, a path, and - only once real templates exist for
-// this site - a picker between them and a blank page. Reuses
-// .modal-overlay/.modal/.modal-actions as-is (RedirectFormModal.tsx's
-// own precedent). Creating the page is the same PUT /v1/drafts/* every
-// other save already goes through (saveSiteDraft, unchanged) - the
-// placeholder '*' If-Match can never match a real file's etag, so
-// attempting to create at an already-occupied path naturally 409s
-// through the existing conflict handling below, rather than needing a
-// separate pre-flight existence check.
+// Group Q, revised to a two-step wizard matching AddSectionModal's own
+// grid picker (requested directly, "similar to the Add Section
+// popup"): step one is a centred grid of template cards - a "Blank
+// page" card always first, then whatever real templates this site's
+// theme declares - and clicking one both records the selection and
+// advances to step two, the actual Title/Path form (reusing plain
+// .modal/.modal-actions, RedirectFormModal.tsx's own precedent,
+// rather than the grid step's wider .add-section-modal sizing - a
+// two-field form doesn't need that much room). No auto-skip to step
+// two when a theme has no real templates - the grid still renders
+// with just the one Blank page card, simpler than adding a second
+// code path and avoiding a race against the template fetch (skipping
+// the instant it resolves to empty could otherwise yank a user already
+// looking at the grid onto the form beneath them).
+// Creating the page is the same PUT /v1/drafts/* every other save
+// already goes through (saveSiteDraft, unchanged) - the placeholder
+// '*' If-Match can never match a real file's etag, so attempting to
+// create at an already-occupied path naturally 409s through the
+// existing conflict handling below, rather than needing a separate
+// pre-flight existence check.
 export function NewPageModal({ siteId, onClose }: NewPageModalProps) {
   const navigate = useNavigate();
+  const [step, setStep] = useState<'template' | 'details'>('template');
   const [title, setTitle] = useState('');
   const [path, setPath] = useState('');
   const [pathTouched, setPathTouched] = useState(false);
@@ -112,14 +124,51 @@ export function NewPageModal({ siteId, onClose }: NewPageModalProps) {
     }
   }
 
+  function handleSelectTemplate(templateId: string | null): void {
+    setSelectedTemplateId(templateId);
+    setStep('details');
+  }
+
+  if (step === 'template') {
+    return (
+      <div className="modal-overlay">
+        <div className="add-section-modal" role="dialog" aria-modal="true" aria-labelledby="new-page-heading">
+          <div className="add-section-modal-header">
+            <h2 id="new-page-heading">New Page</h2>
+            <button type="button" className="add-section-modal-close" aria-label="Close" onClick={onClose}>
+              &times;
+            </button>
+          </div>
+          <div className="add-section-grid">
+            <button type="button" className="add-section-item" onClick={() => handleSelectTemplate(null)}>
+              <span className="add-section-item-thumb" aria-hidden="true" />
+              <span className="add-section-item-name">Blank page</span>
+            </button>
+            {(templates ?? []).map((template) => (
+              <button key={template.id} type="button" className="add-section-item" onClick={() => handleSelectTemplate(template.id)}>
+                <span className="add-section-item-thumb" aria-hidden="true" />
+                <span className="add-section-item-name">{template.title}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="modal-overlay">
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="new-page-heading">
-        <h2 id="new-page-heading">New Page</h2>
+        <div className="new-page-details-header">
+          <button type="button" className="new-page-back" onClick={() => setStep('template')} disabled={busy}>
+            &lsaquo; Back
+          </button>
+          <h2 id="new-page-heading">New Page</h2>
+        </div>
         <form onSubmit={(event) => void handleSubmit(event)}>
           <label>
             Title
-            <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} required />
+            <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} required autoFocus />
           </label>
           <label>
             Path
@@ -134,31 +183,6 @@ export function NewPageModal({ siteId, onClose }: NewPageModalProps) {
               required
             />
           </label>
-          {templates !== null && templates.length > 0 && (
-            <fieldset className="new-page-templates">
-              <legend>Template</legend>
-              <label>
-                <input
-                  type="radio"
-                  name="template"
-                  checked={selectedTemplateId === null}
-                  onChange={() => setSelectedTemplateId(null)}
-                />
-                Blank page
-              </label>
-              {templates.map((template) => (
-                <label key={template.id}>
-                  <input
-                    type="radio"
-                    name="template"
-                    checked={selectedTemplateId === template.id}
-                    onChange={() => setSelectedTemplateId(template.id)}
-                  />
-                  {template.title}
-                </label>
-              ))}
-            </fieldset>
-          )}
           {error && <p role="alert">{error}</p>}
           <div className="modal-actions">
             <button type="button" onClick={onClose} disabled={busy}>

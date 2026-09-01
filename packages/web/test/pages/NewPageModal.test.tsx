@@ -52,20 +52,49 @@ function installFakeFetch({ templates = [] as unknown[], saveStatus = 200 }: { t
   return { fetchMock, getReceivedSaveBody: () => receivedSaveBody };
 }
 
+async function chooseTemplate(name: string): Promise<void> {
+  await waitFor(() => expect(screen.getByRole('button', { name })).toBeDefined());
+  fireEvent.click(screen.getByRole('button', { name }));
+  await waitFor(() => expect(screen.getByLabelText('Title')).toBeDefined());
+}
+
 describe('NewPageModal', () => {
-  it('the template picker does not appear when the theme has no templates', async () => {
+  it('opens on a grid of template cards, "Blank page" first, even when the theme has no real templates', async () => {
     const { fetchMock } = installFakeFetch({ templates: [] });
     renderModal();
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(screen.queryByText('Template')).toBeNull();
-    expect(screen.queryByText('Blank page')).toBeNull();
+    const cards = await screen.findAllByRole('button', { name: /^(Blank page|Blog Article)$/ });
+    expect(cards.map((card) => card.textContent)).toEqual(['Blank page']);
+    expect(screen.queryByLabelText('Title')).toBeNull();
+  });
+
+  it('a real template appears as its own card alongside Blank page', async () => {
+    installFakeFetch({ templates: [TEMPLATE] });
+    renderModal();
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Blog Article' })).toBeDefined());
+    expect(screen.getByRole('button', { name: 'Blank page' })).toBeDefined();
+  });
+
+  it('choosing a card advances to the Title/Path form, and Back returns to the grid', async () => {
+    installFakeFetch({ templates: [] });
+    renderModal();
+
+    await chooseTemplate('Blank page');
+    expect(screen.queryByRole('button', { name: 'Blank page' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '‹ Back' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Blank page' })).toBeDefined());
+    expect(screen.queryByLabelText('Title')).toBeNull();
   });
 
   it('creates a blank page (schemaVersion 5, published false) and navigates to the editor for it', async () => {
     const { getReceivedSaveBody } = installFakeFetch({ templates: [] });
     const { router } = renderModal();
 
+    await chooseTemplate('Blank page');
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'My Page' } });
     await waitFor(() => expect((screen.getByLabelText('Path') as HTMLInputElement).value).toBe('pages/my-page.json'));
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
@@ -87,18 +116,18 @@ describe('NewPageModal', () => {
     installFakeFetch({ templates: [] });
     renderModal();
 
+    await chooseTemplate('Blank page');
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'My Page' } });
     fireEvent.change(screen.getByLabelText('Path'), { target: { value: 'pages/custom-path.json' } });
 
     expect((screen.getByLabelText('Path') as HTMLInputElement).value).toBe('pages/custom-path.json');
   });
 
-  it('creates a page from a selected template - sections/layout kept, name/title/schemaVersion/published overridden', async () => {
+  it('creates a page from a chosen template - sections/layout kept, name/title/schemaVersion/published overridden', async () => {
     const { getReceivedSaveBody } = installFakeFetch({ templates: [TEMPLATE] });
     const { router } = renderModal();
 
-    await waitFor(() => expect(screen.getByText('Blog Article')).toBeDefined());
-    fireEvent.click(screen.getByRole('radio', { name: 'Blog Article' }));
+    await chooseTemplate('Blog Article');
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'My Post' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
@@ -114,19 +143,11 @@ describe('NewPageModal', () => {
     });
   });
 
-  it('"Blank page" is selected by default even when templates exist', async () => {
-    installFakeFetch({ templates: [TEMPLATE] });
-    renderModal();
-
-    await waitFor(() => expect(screen.getByRole('radio', { name: 'Blank page' })).toBeDefined());
-    expect((screen.getByRole('radio', { name: 'Blank page' }) as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByRole('radio', { name: 'Blog Article' }) as HTMLInputElement).checked).toBe(false);
-  });
-
   it('shows a real conflict message and does not navigate when the path already exists', async () => {
     installFakeFetch({ templates: [], saveStatus: 409 });
     const { router } = renderModal();
 
+    await chooseTemplate('Blank page');
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'My Page' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
@@ -134,12 +155,24 @@ describe('NewPageModal', () => {
     expect(router.state.location.pathname).toBe('/sites/site-1/content');
   });
 
-  it('Cancel calls onClose without saving', async () => {
+  it('the close button on the template grid calls onClose without saving', async () => {
     const { fetchMock } = installFakeFetch({ templates: [] });
     const onClose = vi.fn();
     renderModal(onClose);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/drafts/'), expect.anything());
+  });
+
+  it('Cancel on the details form calls onClose without saving', async () => {
+    const { fetchMock } = installFakeFetch({ templates: [] });
+    const onClose = vi.fn();
+    renderModal(onClose);
+
+    await chooseTemplate('Blank page');
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
