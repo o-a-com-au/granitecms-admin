@@ -47,6 +47,13 @@
   --colour-ok: #3ecf6e;
   --colour-warning: #f5a623;
   --colour-danger: #f0685c;
+  /* The account avatar's own background (app-shell.css) - requested
+     directly. -hover is a computed darker mix of the same colour, not
+     a second literal hex, so it can never drift out of step if this
+     one ever changes - same reasoning --gradient-pill-active's own
+     lighter half already uses color-mix for. */
+  --colour-avatar: #bb75a9;
+  --colour-avatar-hover: color-mix(in srgb, var(--colour-avatar) 80%, black);
 
   --radius-xs: 3px;
   --radius-sm: 5px;
