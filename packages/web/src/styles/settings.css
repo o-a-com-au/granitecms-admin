@@ -168,10 +168,24 @@
   display: none;
 }
 
+/* Fades in on mount, reusing pages-list.css's own list-page-fade-up
+   keyframe by name (its own comment already documents Pages hub/Media
+   doing the same for the identical reason) - SettingsLayout renders
+   this fresh once per entry into /settings (its own Outlet just swaps
+   the section beneath it on every later sub-navigation, so this only
+   ever fades in the once, on load, not on every Personal <-> Password
+   switch). Requested directly. */
 .settings-content {
   flex: 1;
   min-width: 0;
   max-width: 480px;
+  animation: list-page-fade-up 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-content {
+    animation: none;
+  }
 }
 
 .settings-content > section + section {
