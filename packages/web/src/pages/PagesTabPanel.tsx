@@ -376,7 +376,13 @@ function PagesHubTreeRow({
     if (entry.url !== null) {
       onPreview({ path: entry.path, url: entry.url });
     } else {
-      navigate(editorHref);
+      // state, not a query param - a one-time signal for how THIS
+      // navigation should open the editor (requested directly: land on
+      // Page Meta, not the usual Sections default), not something worth
+      // baking into the shareable/persisted URL (currentSite.ts's own
+      // "last editor location" only ever stores pathname+search, so a
+      // later revisit via that still opens on the ordinary default).
+      navigate(editorHref, { state: { initialViewMode: 'metafields' } });
     }
   }
 
@@ -429,7 +435,13 @@ function PagesHubTreeRow({
             {entry.name || entry.path}
           </span>
         </span>
-        <Link to={editorHref} className="instance-row-remove" aria-label={`Edit ${entry.name || entry.path}`} onClick={handleEditLinkClick}>
+        <Link
+          to={editorHref}
+          state={{ initialViewMode: 'metafields' }}
+          className="instance-row-remove"
+          aria-label={`Edit ${entry.name || entry.path}`}
+          onClick={handleEditLinkClick}
+        >
           <EditIcon />
         </Link>
         {entry.url !== null && (

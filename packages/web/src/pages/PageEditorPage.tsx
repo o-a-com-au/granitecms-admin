@@ -41,7 +41,18 @@ export function PageEditorPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const path = searchParams.get('path') ?? '';
   const previewUrl = searchParams.get('url');
-  const [viewMode, setViewMode] = useState<'metafields' | 'sections' | 'raw' | 'history'>('sections');
+  // Seeded from router state (PagesTabPanel.tsx's own Edit action) when
+  // present, defaulting to 'sections' otherwise - requested directly:
+  // opening a page from the page tree should land on Page Meta, not
+  // the usual Sections default. A plain useState initialiser, not a
+  // lazy () => callback - React only ever reads this on the very first
+  // render regardless, and there's nothing expensive to defer here.
+  // Only ever set once, on mount - unlike navigateToPage's own
+  // setViewMode('sections') (below), which resets the tab on every
+  // later in-place page switch within this same mounted instance, this
+  // only ever applies to how THIS mount itself opened.
+  const initialViewMode = (location.state as { initialViewMode?: 'metafields' | 'sections' | 'raw' | 'history' } | null)?.initialViewMode;
+  const [viewMode, setViewMode] = useState<'metafields' | 'sections' | 'raw' | 'history'>(initialViewMode ?? 'sections');
   // The commit hash currently rendered in the main viewport while
   // browsing the History tab, or null for the normal current-version
   // preview - deliberately independent of status/source (draft/live
