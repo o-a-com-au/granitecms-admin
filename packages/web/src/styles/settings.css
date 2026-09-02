@@ -153,10 +153,18 @@
   flex: 0 0 auto;
 }
 
+/* margin: 0 auto - a flex item's own auto margins absorb the row's
+   free space ahead of flex-grow, so this centres the capped-width
+   (520px) column within whatever room is left after the sidebar,
+   rather than it sitting flush against the sidebar with a big empty
+   gap to its right (requested directly). The sidebar itself is
+   unaffected - it keeps its own fixed flex-basis (0 0 220px) and stays
+   pinned to the left. */
 .settings-content {
   flex: 1;
   min-width: 0;
   max-width: 520px;
+  margin: 0 auto;
 }
 
 .settings-content > section + section {
