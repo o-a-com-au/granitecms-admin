@@ -1,3 +1,4 @@
+import { CloseIcon } from './CloseIcon.tsx';
 import { schemaTitle } from './instance-types.ts';
 import { findInstance, parsePage } from './page-content.ts';
 import { useThemeSchemas } from './useThemeSchemas.ts';
@@ -45,7 +46,7 @@ export function SectionFieldsPanelHeader({ siteId, content, selectedInstanceId, 
     <div className="fields-panel-header">
       <h2 className="panel-heading">{title}</h2>
       <button type="button" className="fields-panel-close" aria-label="Close" onClick={onClose}>
-        &times;
+        <CloseIcon />
       </button>
     </div>
   );
