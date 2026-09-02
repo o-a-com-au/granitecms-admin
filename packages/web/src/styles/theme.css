@@ -102,7 +102,7 @@
      against this theme's dark surfaces reads better brightening
      instead. */
   --colour-text-button-hover: #628bf8;
-  --colour-input-background: #000;
+  --colour-input-background: var(--grey-900);
   --colour-table-header: var(--grey-900);
   --colour-table-background: var(--grey-850);
   --colour-table-row-divider: var(--grey-800);
