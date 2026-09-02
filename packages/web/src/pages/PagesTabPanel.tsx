@@ -256,7 +256,6 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }
 
   return (
     <div className="pages-hub-tab">
-      <h2 className="panel-heading">Pages</h2>
       {moveError && <p role="alert">{moveError}</p>}
       {tree !== null && tree.length === 0 ? (
         <p>No pages found.</p>

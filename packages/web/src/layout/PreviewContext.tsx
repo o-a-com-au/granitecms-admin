@@ -55,6 +55,8 @@ interface PreviewContextValue {
   setMobileOpen: (open: boolean) => void;
   fieldsPanel: ReactNode;
   setFieldsPanel: (node: ReactNode | null) => void;
+  fieldsPanelHeader: ReactNode;
+  setFieldsPanelHeader: (node: ReactNode | null) => void;
   previewOverlay: ReactNode;
   setPreviewOverlay: (node: ReactNode | null) => void;
   previewBody: ReactNode;
@@ -100,6 +102,7 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
   const [visible, setVisible] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [fieldsPanel, setFieldsPanel] = useState<ReactNode>(null);
+  const [fieldsPanelHeader, setFieldsPanelHeader] = useState<ReactNode>(null);
   const [previewOverlay, setPreviewOverlay] = useState<ReactNode>(null);
   const [previewBody, setPreviewBody] = useState<ReactNode>(null);
   // PagesHubPage-only: how many levels deep its own page tree is
@@ -188,6 +191,8 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
       setMobileOpen,
       fieldsPanel,
       setFieldsPanel,
+      fieldsPanelHeader,
+      setFieldsPanelHeader,
       previewOverlay,
       setPreviewOverlay,
       previewBody,
@@ -207,6 +212,7 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
       scheduleHidePreview,
       mobileOpen,
       fieldsPanel,
+      fieldsPanelHeader,
       previewOverlay,
       previewBody,
       pagesTreeDepth,
@@ -247,6 +253,20 @@ export function useFieldsPanel(node: ReactNode | null): void {
     setFieldsPanel(node);
     return () => setFieldsPanel(null);
   }, [setFieldsPanel, node]);
+}
+
+// PageEditorPage-only: SectionFieldsPanelHeader (heading + close
+// button), pushed up as a separate slot from useFieldsPanel's own body
+// - SharedPreviewRegion (below) renders this outside .editor-fields-
+// panel's own scrolling area, so it never scrolls out of view with the
+// form fields beneath it (requested directly, matching the left
+// sidebar's own .panel-heading-bar treatment).
+export function useFieldsPanelHeader(node: ReactNode | null): void {
+  const { setFieldsPanelHeader } = usePreviewContextValue();
+  useEffect(() => {
+    setFieldsPanelHeader(node);
+    return () => setFieldsPanelHeader(null);
+  }, [setFieldsPanelHeader, node]);
 }
 
 // PageEditorPage-only: mirrors its own mobilePreviewOpen toggle (mobile
@@ -354,6 +374,7 @@ export function SharedPreviewRegion({
     iframeRef,
     frameHandlers,
     fieldsPanel,
+    fieldsPanelHeader,
     mobileOpen,
     previewOverlay,
     previewBody,
@@ -389,10 +410,17 @@ export function SharedPreviewRegion({
       </div>
       {/* Always mounted while the region itself is, same convention as
           the Editor's own .editor-sidebar - only PageEditorPage ever
-          fills this (SectionFieldsPanel via useFieldsPanel), so it
-          renders empty/collapsed (editor-layout.css's .editor-fields-panel,
-          not .is-open) on every other route. */}
-      <div className={`editor-fields-panel${fieldsPanel !== null ? ' is-open' : ''}`}>{fieldsPanel}</div>
+          fills this (SectionFieldsPanel/SectionFieldsPanelHeader via
+          useFieldsPanel/useFieldsPanelHeader), so it renders empty/
+          collapsed (editor-layout.css's .editor-fields-panel, not
+          .is-open) on every other route. Header and body are separate
+          children, not one combined node - the header stays outside
+          the body's own overflow-y: auto (editor-layout.css) so it
+          never scrolls out of view with the fields beneath it. */}
+      <div className={`editor-fields-panel${fieldsPanel !== null ? ' is-open' : ''}`}>
+        <div className="editor-fields-panel-header">{fieldsPanelHeader}</div>
+        <div className="editor-fields-panel-body">{fieldsPanel}</div>
+      </div>
     </div>
   );
 }

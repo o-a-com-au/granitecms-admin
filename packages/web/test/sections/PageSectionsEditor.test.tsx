@@ -42,7 +42,7 @@ const PAGE_WITH_SECTIONS = JSON.stringify({
 // separate, independently-mounted right-hand panel rather than a mode
 // of this component, so this file only covers the Sections list itself.
 describe('PageSectionsEditor', () => {
-  it('shows the Sections heading immediately, but holds off the skeleton row until the fetch has been running a full second', async () => {
+  it('holds off the skeleton row until the fetch has been running a full second', async () => {
     vi.useFakeTimers();
     let resolveFetch!: (response: Response) => void;
     const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { resolveFetch = resolve; }));
@@ -58,7 +58,6 @@ describe('PageSectionsEditor', () => {
       />,
     );
 
-    expect(screen.getByText('Sections')).toBeDefined();
     expect(document.querySelector('.sections-skeleton-row')).toBeNull();
     expect(screen.queryByText('Loading theme...')).toBeNull();
 
@@ -110,7 +109,6 @@ describe('PageSectionsEditor', () => {
     );
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeDefined());
-    expect(screen.getByText('Sections')).toBeDefined();
   });
 
   it('falls back to an explanatory message when the content has no sections array', async () => {

@@ -216,6 +216,18 @@
    element, in a completely different part of the tree) - the box that
    ends up there is equivalent either way, since this and the preview it
    slides in beside always move together. */
+/* The outer sliding shell - kept as the element with the permanent
+   transform (ColorPickerPopover.tsx/RichTextField.tsx/MediaPickerModal.tsx
+   all portal to document.body specifically because this element's own
+   transform makes it the containing block for a position: fixed
+   descendant; keeping the name and the transform on the same element
+   means none of those comments or that reasoning needed to change).
+   display: flex column, not a single padded box any more - its own
+   header (below) needs to sit outside the scrollable body, the same
+   "heading is a sibling, not the scroll area's first child" move
+   .panel-heading-bar makes for the left sidebar, but this side also
+   needed a spot for the close button (requested directly), which a
+   bare heading element alone has no room for. */
 .editor-fields-panel {
   position: absolute;
   top: 0;
@@ -225,8 +237,9 @@
   margin: var(--space-sm);
   margin-top: 0;
   margin-left: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  padding: 0;
   background: var(--colour-surface);
   /* border: 1px solid var(--colour-border); */
   border-radius: var(--radius-sm);
@@ -241,14 +254,44 @@
 .editor-fields-panel.is-open {
   transform: translateX(0);
   opacity: 1;
-  overflow-y: auto;
-  padding: var(--space-lg) var(--space-md);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .editor-fields-panel {
     transition: none;
   }
+}
+
+/* Non-scrolling - SectionFieldsPanelHeader.tsx's own heading + close
+   button, pushed up to render here (via useFieldsPanelHeader,
+   PreviewContext.tsx) as a sibling of .editor-fields-panel-body
+   instead of that body's first child, so it never scrolls out of view
+   with the fields beneath it. Padding/background only while open,
+   same reasoning .editor-fields-panel-body's own toggle below has -
+   nothing to show while collapsed/empty on every other route. */
+.editor-fields-panel-header {
+  flex: 0 0 auto;
+}
+
+.editor-fields-panel.is-open .editor-fields-panel-header {
+  padding: 0.6rem var(--space-md);
+  background: var(--gradient-panel-heading);
+}
+
+/* The scrolling body - SectionFieldsPanel.tsx's own form, now the
+   header's sibling rather than its own first child stacked ahead of
+   it in the same scroll area. min-height: 0 is what lets a flex
+   child's own overflow-y: auto actually bound and scroll rather than
+   growing the whole column to fit its content (the same flex/overflow
+   gotcha this app has hit before, e.g. .editor-page's own comment). */
+.editor-fields-panel-body {
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-fields-panel.is-open .editor-fields-panel-body {
+  overflow-y: auto;
+  padding: var(--space-lg) var(--space-md);
 }
 
 .fields-panel-header {
@@ -451,7 +494,6 @@ button.fields-panel-delete:hover {
     flex: none;
     max-width: none;
     margin: 0;
-    padding-top: 1.5rem;
     /* transform/opacity deliberately left alone - .is-open (desktop
        rule, above) already resolves both to their resting values
        (translateX(0), opacity: 1), which is exactly what this fixed
@@ -462,5 +504,14 @@ button.fields-panel-delete:hover {
     display: flex;
     flex-direction: column;
     width: 100%;
+  }
+
+  /* The shell's own top clearance (space above the very first thing
+     the full-screen overlay shows) moved here from the shell itself -
+     now that the header is a distinct child with its own background
+     (desktop rule, above), padding on the shell would just add a bare
+     unstyled gap above that background instead of extending it. */
+  .editor-fields-panel.is-open .editor-fields-panel-header {
+    padding-top: 1.5rem;
   }
 }

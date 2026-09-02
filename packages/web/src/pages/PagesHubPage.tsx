@@ -91,6 +91,9 @@ export function PagesHubPage() {
             </button>
           </div>
         </div>
+        <div className="panel-heading-bar">
+          <h2 className="panel-heading">{tab === 'pages' ? 'Pages' : tab === 'menus' ? 'Menus' : 'Redirects'}</h2>
+        </div>
         <div className="editor-tab-content">
           <div className="editor-tab-panel">
             {tab === 'pages' && (

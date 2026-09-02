@@ -21,11 +21,13 @@ import {
   usePreview,
   usePreviewVisible,
   useFieldsPanel,
+  useFieldsPanelHeader,
   useMobilePreviewOpen,
   usePreviewOverlay,
   usePreviewBody,
   usePreviewFrameHandlers,
 } from '../layout/PreviewContext.tsx';
+import { SectionFieldsPanelHeader } from '../sections/SectionFieldsPanelHeader.tsx';
 
 // Group I: the structured section/block editor (PageSectionsEditor) is
 // the default view, driving the exact same useAutosaveDraft hook Group
@@ -756,6 +758,23 @@ export function PageEditorPage() {
   );
   useFieldsPanel(fieldsPanelNode);
 
+  // Its own separate slot (useFieldsPanelHeader), not part of
+  // fieldsPanelNode above - SharedPreviewRegion renders this outside
+  // .editor-fields-panel's own scrolling body (editor-layout.css), so
+  // the heading and close button stay visible while the form scrolls
+  // beneath them. Same memoisation reasoning as fieldsPanelNode - a
+  // fresh element every render would re-register on every render via
+  // the same shared PreviewContext this component both reads and
+  // writes.
+  const fieldsPanelHeaderNode = useMemo(
+    () =>
+      selectedInstanceId !== null ? (
+        <SectionFieldsPanelHeader siteId={siteId} content={content} selectedInstanceId={selectedInstanceId} onClose={handleCloseFields} />
+      ) : null,
+    [siteId, content, selectedInstanceId, handleCloseFields],
+  );
+  useFieldsPanelHeader(fieldsPanelHeaderNode);
+
   // Mirrors mobilePreviewOpen up so AppShell can apply .is-open-mobile
   // to the shared region (mobile is otherwise untouched by this
   // restructuring - see editor-layout.css/app-shell.css's mobile
@@ -867,6 +886,19 @@ export function PageEditorPage() {
                   History
                 </button>
               </div>
+            </div>
+
+            {/* A sibling of .editor-tab-content, not its scrollable
+                first child any more - stays visible while whichever
+                tab's own row list/form scrolls beneath it (requested
+                directly). 'raw' reads as "Sections" - it's shown while
+                that tab button stays selected (see effectiveViewMode's
+                own comment), just with the fallback textarea in place
+                of the structured editor. */}
+            <div className="panel-heading-bar">
+              <h2 className="panel-heading">
+                {effectiveViewMode === 'metafields' ? 'Page attributes' : effectiveViewMode === 'history' ? 'History' : 'Sections'}
+              </h2>
             </div>
 
             {/* Once revealed, the sidebar stays put across a later page

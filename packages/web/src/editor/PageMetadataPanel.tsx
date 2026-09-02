@@ -170,7 +170,6 @@ export function PageMetadataPanel({
 
   return (
     <div className="metadata-panel">
-      <h2 className="panel-heading">Page attributes</h2>
       <label>
         Name
         <input

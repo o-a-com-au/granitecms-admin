@@ -68,7 +68,6 @@ export function PageSectionsEditor({
   if (loadError) {
     return (
       <div className="sections-panel">
-        <h2 className="panel-heading">Sections</h2>
         <p role="alert">{loadError}</p>
       </div>
     );
@@ -76,7 +75,6 @@ export function PageSectionsEditor({
   if (!themeSchemas) {
     return (
       <div className="sections-panel">
-        <h2 className="panel-heading">Sections</h2>
         {/* A single empty row shaped like a real section (instance-
             rows.css), not a text message - the shimmer is enough on its
             own to read as "still loading", without implying there's
@@ -93,7 +91,6 @@ export function PageSectionsEditor({
   if (!page) {
     return (
       <div className="sections-panel">
-        <h2 className="panel-heading">Sections</h2>
         <p role="alert">This content can&apos;t be shown in the structured editor - switch to raw JSON to edit it.</p>
       </div>
     );
@@ -110,7 +107,6 @@ export function PageSectionsEditor({
 
   return (
     <div className="sections-panel">
-      <h2 className="panel-heading">Sections</h2>
       <SectionList
         sections={page.sections}
         sectionTypes={sectionTypes}

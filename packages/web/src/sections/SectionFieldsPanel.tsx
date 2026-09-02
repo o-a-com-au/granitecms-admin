@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { SectionSettingsForm } from './SectionSettingsForm.tsx';
 import { TrashIcon } from './TrashIcon.tsx';
-import { schemaTitle, type Instance } from './instance-types.ts';
+import type { Instance } from './instance-types.ts';
 import {
   buildFieldErrorMap,
   findInstance,
@@ -117,12 +117,6 @@ export function SectionFieldsPanel({
 
   return (
     <div className="fields-panel" ref={panelRef}>
-      <div className="fields-panel-header">
-        <h2 className="panel-heading">{schemaTitle(schema, instance.type)}</h2>
-        <button type="button" className="fields-panel-close" aria-label="Close" onClick={onClose}>
-          &times;
-        </button>
-      </div>
       <SectionSettingsForm
         siteId={siteId}
         schema={schema}

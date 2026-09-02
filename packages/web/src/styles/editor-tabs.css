@@ -54,33 +54,41 @@
 
 /* Shared small-caps section heading - originally just "Page
    attributes" on the Page tab, now also the Sections tab's own
-   "Sections" heading and the Fields tab's instance-name heading
-   (PageSectionsEditor.tsx), so all three editor tabs read as the same
-   kind of panel rather than Page being the only one with a heading at
-   all.
-   position: sticky, not a real DOM move out of .editor-tab-content -
-   every panel that uses this class renders it as the first child of
-   its own flex column, itself inside .editor-tab-content's own
-   overflow-y: auto (editor-layout.css), so sticky keeps it pinned at
-   the scroll container's own top edge with no structural change
-   needed anywhere. Its own background (below) is what actually
-   separates it from the row list, occluding whatever scrolls up
-   underneath - without one a sticky element is see-through, and the
-   next row up would show straight through the heading. z-index: 1
-   layers it above that same scrolled content (siblings default to
-   auto, so 1 is enough to win). */
+   "Sections" heading and every other editor/hub tab's own, so all of
+   them read as the same kind of panel rather than Page being the only
+   one with a heading at all. Genuinely outside the scrollable area
+   now (.panel-heading-bar below, and .editor-fields-panel-header in
+   editor-layout.css for the Fields panel specifically) - a real DOM
+   move, not a sticky trick, since some of these headings needed a
+   second slot beside them (the Fields panel's own close button) that
+   a sticky-in-place approach couldn't give a home to. This rule stays
+   just the text styling; the bar/header wrapping it owns the
+   background and spacing. */
 .panel-heading {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   margin: 0;
-  padding: 0.5rem 0;
-  background: var(--gradient-panel-heading);
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--colour-text);
+}
+
+/* The left-sidebar heading bar (Page Meta/Sections/History in
+   PageEditorPage.tsx; Pages/Menus/Redirects in PagesHubPage.tsx;
+   Media in MediaLibraryPage.tsx) - a sibling rendered directly above
+   .editor-tab-content, not its first child any more, so it never
+   scrolls with the row list beneath it. flex: 0 0 auto - each of
+   those parents is a flex column (.editor-sidebar/.pages-hub-panel/
+   .media-hub-panel), and this needs to keep its own natural height
+   rather than stretching to share the column's remaining space with
+   .editor-tab-content. */
+.panel-heading-bar {
+  flex: 0 0 auto;
+  margin-bottom: var(--space-sm);
+  padding: 0.6rem var(--space-md);
+  border-radius: var(--radius-sm);
+  background: var(--gradient-panel-heading);
+  box-shadow: var(--shadow-panel);
 }
 
 /* Shared small-print helper text under a panel heading - History was
