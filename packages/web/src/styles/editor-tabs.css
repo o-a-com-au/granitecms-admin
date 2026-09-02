@@ -82,13 +82,21 @@
    .media-hub-panel), and this needs to keep its own natural height
    rather than stretching to share the column's remaining space with
    .editor-tab-content. */
+/* No margin-bottom/box-shadow/bottom radius of its own - sits flush
+   against .editor-tab-content directly below (editor-layout.css),
+   which owns the bottom corners and the one shared shadow between the
+   two, so together they read as a single panel with a header, not two
+   separate floating boxes (reported directly - the first pass had a
+   visible gap and its own shadow, looking like two stacked pills).
+   Extra bottom padding (0.6rem top, 1rem bottom) is the "margin below
+   the header" that gap used to provide - kept as room to breathe now
+   that it's internal to the one merged shape rather than a gap between
+   two of them. */
 .panel-heading-bar {
   flex: 0 0 auto;
-  margin-bottom: var(--space-sm);
-  padding: 0.6rem var(--space-md);
-  border-radius: var(--radius-sm);
+  padding: 0.6rem var(--space-md) 1rem;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   background: var(--gradient-panel-heading);
-  box-shadow: var(--shadow-panel);
 }
 
 /* Shared small-print helper text under a panel heading - History was

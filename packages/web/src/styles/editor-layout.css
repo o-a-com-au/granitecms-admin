@@ -127,6 +127,11 @@
   color: var(--colour-text);
 }
 
+/* border-radius/box-shadow here are shared with .panel-heading-bar
+   directly above (editor-tabs.css) - only the bottom corners are
+   rounded here (the bar owns the top ones), and only this element
+   carries the shadow, so the pair reads as one panel with a header,
+   not two stacked boxes each shadowed on their own. */
 .editor-tab-content {
   flex: 1;
   min-height: 0;
@@ -136,7 +141,7 @@
   padding: var(--space-lg) var(--space-md);
   background: var(--colour-surface);
   /*border: 1px solid var(--colour-border);*/
-  border-radius: var(--radius-sm);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   box-shadow: var(--shadow-panel);
 }
 
