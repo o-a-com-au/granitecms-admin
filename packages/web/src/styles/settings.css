@@ -87,10 +87,18 @@
   opacity: 1;
 }
 
+/* justify-content: center - centres the sidebar+content pair as one
+   group in the middle of the page, each keeping its own existing
+   width (the sidebar's fixed 220px, the content column's own 520px
+   cap) rather than either one stretching or the sidebar staying
+   pinned to the left edge (corrected per feedback - a previous pass
+   centred the content column alone within the space left over after a
+   left-pinned sidebar, which wasn't what was wanted). */
 .settings-shell-body {
   flex: 1;
   min-height: 0;
   display: flex;
+  justify-content: center;
   gap: 3rem;
   align-items: flex-start;
   padding: 0 var(--space-lg) var(--space-lg);
@@ -153,18 +161,10 @@
   flex: 0 0 auto;
 }
 
-/* margin: 0 auto - a flex item's own auto margins absorb the row's
-   free space ahead of flex-grow, so this centres the capped-width
-   (520px) column within whatever room is left after the sidebar,
-   rather than it sitting flush against the sidebar with a big empty
-   gap to its right (requested directly). The sidebar itself is
-   unaffected - it keeps its own fixed flex-basis (0 0 220px) and stays
-   pinned to the left. */
 .settings-content {
   flex: 1;
   min-width: 0;
   max-width: 520px;
-  margin: 0 auto;
 }
 
 .settings-content > section + section {
