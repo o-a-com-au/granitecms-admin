@@ -427,6 +427,17 @@ button.fields-panel-delete:hover {
   .editor-shell {
     position: relative;
     flex-direction: column;
+    /* The small side gap (requested directly) lives here, not as a
+       margin on .editor-sidebar itself - that child's own width: 100%
+       is a hard, non-shrinking size, so a margin alongside it doesn't
+       get subtracted the way it would for a flex-grow-sized item;
+       it just adds on top, overflowing the sidebar past this shell's
+       own right edge by exactly the margin amount (confirmed live -
+       reported directly as "the editor is overflowing"). Padding here
+       instead shrinks the content box width: 100% actually resolves
+       against, so the same visual gap appears without adding anything
+       extra on top of it. */
+    padding: 0 var(--space-sm);
   }
 
   .editor-sidebar {
@@ -440,10 +451,7 @@ button.fields-panel-delete:hover {
     flex: 1;
     width: 100%;
     max-width: none;
-    /* A small side margin (requested directly), not desktop's own
-       gap-on-all-sides - top/bottom stay flush, there's no neighbouring
-       panel on a phone screen for those to separate this one from. */
-    margin: 0 var(--space-sm);
+    margin: 0;
     /* Overrides the desktop-only collapsed-by-default state above
        (opacity: 0/overflow: hidden, toggled by .is-revealed) - this is
        the main mobile screen, full-bleed always, regardless of the
