@@ -10,7 +10,7 @@ import { PageActionsProvider, PageDeviceToggleProvider } from './PageActionsCont
 import { PreviewProvider, SharedPreviewRegion, usePreview } from './PreviewContext.tsx';
 import { useSites } from '../sites/useSites.ts';
 import { readLastSiteId, resolveEditorHref, writeLastSiteId } from '../sites/currentSite.ts';
-import { toSiteLoadError } from '../sites/site-load-error.ts';
+import { buildLoadErrorActions, loadErrorMessage, toSiteLoadError } from '../sites/site-load-error.ts';
 import { APP_VERSION } from './appVersion.ts';
 
 // Falls back to the raw stored URL for the rare case it isn't a valid
@@ -273,6 +273,166 @@ function AppShellContent() {
     });
   }
 
+  // Extracted so the full-page "can't connect" takeover below can
+  // reuse the exact same popover (identity, Switch website, theme
+  // toggle, Logout) rather than duplicating it - a plain local
+  // variable, not a separate component, since it closes directly over
+  // this render's own state/handlers instead of needing a large prop
+  // list for all of it.
+  const accountMenu = (
+    <div className="nav-rail-account" ref={accountRef}>
+      {accountOpen && (
+        <div className="account-popover" role="menu">
+          <div className="account-popover-header">
+            <div className="account-popover-identity">
+              <p className="account-popover-name">{(user && formatFullName(user.firstName, user.lastName)) || user?.username}</p>
+              <p className="account-popover-email">{user?.email}</p>
+            </div>
+          </div>
+          {/* docs/design/User-context-menu.png - a dropdown once
+              there's more than one site to switch between (a
+              plain list doesn't scale, and the mockup itself
+              shows a select-styled control); with only one
+              site there's nothing to actually switch to, so
+              that one stays the plain non-interactive
+              treatment it already had. */}
+          {sites !== null && sites.length > 1 && (
+            <div className="account-popover-sites">
+              <p className="account-popover-sites-label">Switch website</p>
+              <select
+                className="account-popover-site-select"
+                aria-label="Switch website"
+                value={effectiveSiteId ?? ''}
+                onChange={(event) => {
+                  const nextSiteId = event.target.value;
+                  setAccountOpen(false);
+                  navigate(resolveEditorHref(nextSiteId));
+                }}
+              >
+                {sites.map((site) => (
+                  <option key={site.id} value={site.id}>
+                    {hostLabelFor(site.url)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {sites !== null && sites.length === 1 && (
+            <div className="account-popover-sites">
+              <p className="account-popover-sites-label">Switch website</p>
+              <span className="account-popover-item is-current" aria-current="page">
+                {hostLabelFor(sites[0]!.url)}
+              </span>
+            </div>
+          )}
+          {sites === null && !sitesError && (
+            <span className="account-popover-item account-popover-item-muted" aria-disabled="true">
+              Loading websites...
+            </span>
+          )}
+          {sitesError && (
+            <span className="account-popover-item account-popover-item-muted" role="alert">
+              Couldn&apos;t load websites
+            </span>
+          )}
+          <Link to="/settings/personal" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
+            Account Settings
+          </Link>
+          <button type="button" role="menuitem" className="account-popover-item" onClick={toggleTheme}>
+            {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="account-popover-item"
+            onClick={() => void handleLogout()}
+          >
+            Logout
+          </button>
+        </div>
+      )}
+      <button
+        type="button"
+        className="app-avatar"
+        aria-haspopup="menu"
+        aria-expanded={accountOpen}
+        onClick={handleToggleAccount}
+        title={user ? user.username : 'Account'}
+      >
+        {initial}
+        <span className="app-avatar-status" aria-hidden="true" />
+      </button>
+    </div>
+  );
+
+  // A full-page takeover, not just the shared preview region's own
+  // small inline panel - requested directly, with a mockup: the
+  // registry already knows this site is broken (not-found/unreachable/
+  // unauthorized), so render this BEFORE <Outlet/> ever mounts the
+  // routed page underneath, rather than alongside it. That's what
+  // actually fixes "individual warning messages appear in the viewport
+  // and other panels" - Pages hub/Editor/Media/etc. each run their own
+  // independent content fetch that would otherwise ALSO fail and show
+  // its own separate SiteStatusPanel; none of that ever fires if the
+  // page never mounts in the first place.
+  //
+  // Gated on the raw route siteId (useParams, truthy only on an actual
+  // /sites/:siteId/* route), not usePreview()'s own `visible` - visible
+  // is itself set true by the routed page's own usePreviewVisible(true)
+  // effect, so gating on it created a genuine infinite loop, found
+  // live: this branch hides <Outlet/>, which unmounts that page, whose
+  // cleanup schedules visible back to false, which un-hides <Outlet/>,
+  // remounting the page, which sets visible true again... (confirmed by
+  // watching .site-unavailable-body/.nav-rail flicker in and out every
+  // ~150ms in a live check). The route siteId has no such circularity -
+  // it comes from the URL alone, regardless of whether the matched
+  // element underneath ever actually mounts. Settings and Home keep
+  // their own normal behaviour even if some other, unrelated site
+  // happens to be broken, since neither route has a siteId param at
+  // all. Deliberately scoped to only what the registry itself already
+  // knows - a route's own content fetch failing for some other,
+  // transient reason on an otherwise-healthy site is a different,
+  // rarer case, left to that route's own existing (unchanged) handling.
+  if (siteId && siteError) {
+    return (
+      <>
+        <IconSprite />
+        <div className="app-shell site-unavailable-shell">
+          <header className="app-topbar">
+            <div className="app-topbar-start">
+              <Link className="app-logo" to="/" title="Granite CMS">
+                <span className="app-logo-mark">
+                  <GraniteLogo />
+                </span>
+                <span className="app-logo-word">
+                  GRANITE<span className="app-logo-version">{APP_VERSION}</span>
+                </span>
+              </Link>
+            </div>
+            <div className="app-topbar-end">{accountMenu}</div>
+          </header>
+          <div className="site-unavailable-body">
+            <h1>Cannot connect to website</h1>
+            <p>{loadErrorMessage(siteError)}</p>
+            <div className="site-status-panel-actions">
+              {buildLoadErrorActions(siteError, effectiveSiteId ?? '', () => void refreshSites()).map((action) =>
+                action.href ? (
+                  <Link key={action.label} to={action.href} className="site-status-panel-action">
+                    {action.label}
+                  </Link>
+                ) : (
+                  <button key={action.label} type="button" className="site-status-panel-action" onClick={action.onClick}>
+                    {action.label}
+                  </button>
+                ),
+              )}
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <IconSprite />
@@ -317,89 +477,7 @@ function AppShellContent() {
           </div>
           <div className="app-topbar-end">
             <div className="app-topbar-actions">{pageActions}</div>
-            <div className="nav-rail-account" ref={accountRef}>
-              {accountOpen && (
-                <div className="account-popover" role="menu">
-                  <div className="account-popover-header">
-                    <div className="account-popover-identity">
-                      <p className="account-popover-name">{(user && formatFullName(user.firstName, user.lastName)) || user?.username}</p>
-                      <p className="account-popover-email">{user?.email}</p>
-                    </div>
-                  </div>
-                  {/* docs/design/User-context-menu.png - a dropdown once
-                      there's more than one site to switch between (a
-                      plain list doesn't scale, and the mockup itself
-                      shows a select-styled control); with only one
-                      site there's nothing to actually switch to, so
-                      that one stays the plain non-interactive
-                      treatment it already had. */}
-                  {sites !== null && sites.length > 1 && (
-                    <div className="account-popover-sites">
-                      <p className="account-popover-sites-label">Switch website</p>
-                      <select
-                        className="account-popover-site-select"
-                        aria-label="Switch website"
-                        value={effectiveSiteId ?? ''}
-                        onChange={(event) => {
-                          const nextSiteId = event.target.value;
-                          setAccountOpen(false);
-                          navigate(resolveEditorHref(nextSiteId));
-                        }}
-                      >
-                        {sites.map((site) => (
-                          <option key={site.id} value={site.id}>
-                            {hostLabelFor(site.url)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  {sites !== null && sites.length === 1 && (
-                    <div className="account-popover-sites">
-                      <p className="account-popover-sites-label">Switch website</p>
-                      <span className="account-popover-item is-current" aria-current="page">
-                        {hostLabelFor(sites[0]!.url)}
-                      </span>
-                    </div>
-                  )}
-                  {sites === null && !sitesError && (
-                    <span className="account-popover-item account-popover-item-muted" aria-disabled="true">
-                      Loading websites...
-                    </span>
-                  )}
-                  {sitesError && (
-                    <span className="account-popover-item account-popover-item-muted" role="alert">
-                      Couldn&apos;t load websites
-                    </span>
-                  )}
-                  <Link to="/settings/personal" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>
-                    Account Settings
-                  </Link>
-                  <button type="button" role="menuitem" className="account-popover-item" onClick={toggleTheme}>
-                    {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="account-popover-item"
-                    onClick={() => void handleLogout()}
-                  >
-                    Logout
-                  </button>
-                </div>
-              )}
-              <button
-                type="button"
-                className="app-avatar"
-                aria-haspopup="menu"
-                aria-expanded={accountOpen}
-                onClick={handleToggleAccount}
-                title={user ? user.username : 'Account'}
-              >
-                {initial}
-                <span className="app-avatar-status" aria-hidden="true" />
-              </button>
-            </div>
+            {accountMenu}
           </div>
         </header>
         <div className="app-shell-body">

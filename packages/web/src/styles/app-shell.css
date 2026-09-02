@@ -649,6 +649,39 @@ button.app-avatar:hover {
   margin: 0 var(--space-sm);
 }
 
+/* AppShell.tsx's own full-page "can't connect" takeover (requested
+   directly, with a mockup) - .site-unavailable-shell reuses .app-shell
+   itself for its 100vh/flex-column sizing, this is just the centred
+   body beneath its own trimmed .app-topbar (logo left, account menu
+   right, no address bar/device toggle/rail - none of that has
+   anywhere useful to point at once the site itself can't be reached).
+   Deliberately not .site-status-panel reused wholesale - that one
+   renders its own boxed/backgrounded card, meant to sit as a panel
+   embedded within some other screen, not to fill an entire bare page
+   the way this needs to. The action buttons still reuse its own
+   .site-status-panel-action styling directly, for visual consistency
+   with every other "Retry"/"Manage Websites" affordance elsewhere. */
+.site-unavailable-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  text-align: center;
+}
+
+.site-unavailable-body h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.site-unavailable-body p {
+  margin: 0;
+  color: var(--colour-muted);
+}
+
 .shared-preview-region .preview-empty {
   flex: 1;
   display: flex;
