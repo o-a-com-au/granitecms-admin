@@ -279,7 +279,7 @@
 }
 
 .editor-fields-panel.is-open .editor-fields-panel-header {
-  padding: 0.6rem var(--space-md);
+  padding: var(--space-sm) var(--space-md);
   background: var(--gradient-panel-heading);
 }
 
@@ -517,6 +517,6 @@ button.fields-panel-delete:hover {
      (desktop rule, above), padding on the shell would just add a bare
      unstyled gap above that background instead of extending it. */
   .editor-fields-panel.is-open .editor-fields-panel-header {
-    padding-top: 1.5rem;
+    padding-top: var(--space-lg);
   }
 }
