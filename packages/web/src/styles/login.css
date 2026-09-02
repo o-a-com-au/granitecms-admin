@@ -8,22 +8,26 @@
   padding: 1.5rem;
 }
 
+/* No background/border any more (requested directly) - the form sits
+   directly on the page's own background rather than a boxed card. */
 .login-card {
   width: 100%;
   max-width: 360px;
-  background: var(--colour-surface);
-  border: 1px solid var(--colour-border);
   border-radius: 12px;
   padding: 2rem;
 }
 
+/* The real brand mark (GraniteLogo.tsx), not the previous plain
+   "Granite CMS" text - centred above the headline (requested
+   directly), a fixed 3rem square matching the sizing convention
+   other logo placements use, just larger here since this is the
+   page's own hero mark rather than a small corner wordmark
+   (app-shell.css's own .app-logo-mark is 2rem). */
 .login-logo {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 2rem;
-  font-size: 1.4rem;
-  font-weight: 700;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 1.5rem;
 }
 
 .login-card form {

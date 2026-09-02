@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { getOAuthProviders } from '../api/auth.ts';
 import { PasswordInput } from '../components/PasswordInput.tsx';
+import { GraniteLogo } from '../layout/GraniteLogo.tsx';
 
 // One fixed message regardless of failure cause, mirroring the
 // backend's own indistinguishable wrong-username/wrong-password
@@ -60,10 +61,10 @@ export function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <p className="login-logo" aria-hidden="true">
-          Granite CMS
-        </p>
-        <h1>Log in</h1>
+        <div className="login-logo" aria-hidden="true">
+          <GraniteLogo />
+        </div>
+        <h1>Login to Granite</h1>
         <form onSubmit={handleSubmit}>
           <label>
             {/* "Username or email" - every account except the one

@@ -78,7 +78,7 @@ describe('LoginPage', () => {
 
     renderLoginPage();
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Log in' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Login to Granite' })).toBeDefined());
     expect(screen.queryByRole('link', { name: 'Sign in with Google' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Sign in with GitHub' })).toBeNull();
   });
@@ -110,7 +110,7 @@ describe('LoginPage', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
 
     renderLoginPage();
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Log in' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Login to Granite' })).toBeDefined());
 
     const signupLink = screen.getByRole('link', { name: 'Sign up' });
     expect(signupLink.getAttribute('href')).toBe('/signup');

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { PasswordInput } from '../components/PasswordInput.tsx';
 import { isStrongPassword, MIN_PASSWORD_LENGTH, PASSWORD_REQUIREMENTS_MESSAGE } from '../auth/passwordStrength.ts';
+import { GraniteLogo } from '../layout/GraniteLogo.tsx';
 
 // Public, a sibling of /login in App.tsx - self-serve developer
 // signup. No username field anywhere - it's derived from email
@@ -43,9 +44,9 @@ export function SignupPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <p className="login-logo" aria-hidden="true">
-          Granite CMS
-        </p>
+        <div className="login-logo" aria-hidden="true">
+          <GraniteLogo />
+        </div>
         <h1>Sign up</h1>
         <form onSubmit={handleSubmit}>
           <label>

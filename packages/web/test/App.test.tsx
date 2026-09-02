@@ -30,7 +30,7 @@ describe('App', () => {
 
     renderApp(['/']);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Log in' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Login to Granite' })).toBeDefined());
   });
 
   it('an authenticated visitor at / with no site ever visited is redirected to /onboarding, not the login screen', async () => {
@@ -59,7 +59,7 @@ describe('App', () => {
     // the normal "Register a website" registry view even with zero
     // sites, reserved for a developer deliberately navigating there.
     await waitFor(() => expect(screen.getByText(/Welcome to Granite CMS/)).toBeDefined());
-    expect(screen.queryByRole('heading', { name: 'Log in' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Login to Granite' })).toBeNull();
   });
 
   it('an authenticated visitor at / with a remembered site lands in that site\'s editor instead', async () => {
@@ -148,6 +148,6 @@ describe('App', () => {
 
     renderApp(['/login']);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Log in' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Login to Granite' })).toBeDefined());
   });
 });
