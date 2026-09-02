@@ -30,6 +30,15 @@
   margin: 0 auto 1.5rem;
 }
 
+/* Direct children only, not the form's own internal alert <p> - the
+   heading and the closing "Don't/Already have an account?" line
+   centre (requested directly), while the form's own labels/inputs
+   stay in their normal left-aligned/full-width layout underneath. */
+.login-card > h1,
+.login-card > p {
+  text-align: center;
+}
+
 .login-card form {
   align-items: stretch;
 }

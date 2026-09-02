@@ -47,7 +47,7 @@ export function SignupPage() {
         <div className="login-logo" aria-hidden="true">
           <GraniteLogo />
         </div>
-        <h1>Sign up</h1>
+        <h1>Sign up to Granite</h1>
         <form onSubmit={handleSubmit}>
           <label>
             First Name

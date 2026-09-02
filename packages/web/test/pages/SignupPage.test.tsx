@@ -77,7 +77,7 @@ describe('SignupPage', () => {
     );
 
     renderSignupPage();
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up to Granite' })).toBeDefined());
 
     fillAndSubmit('New', 'Dev', 'new-dev@example.com', 'Str0ng Passw0rd!');
 
@@ -109,7 +109,7 @@ describe('SignupPage', () => {
     );
 
     renderSignupPage();
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up to Granite' })).toBeDefined());
 
     fillAndSubmit('Someone', '', 'taken@example.com', 'Str0ng Passw0rd!');
 
@@ -129,7 +129,7 @@ describe('SignupPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderSignupPage();
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up to Granite' })).toBeDefined());
 
     fillAndSubmit('Short', '', 'short@example.com', 'short1');
 
@@ -143,7 +143,7 @@ describe('SignupPage', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
 
     renderSignupPage();
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up to Granite' })).toBeDefined());
 
     fireEvent.click(screen.getByRole('link', { name: 'Log in' }));
 
