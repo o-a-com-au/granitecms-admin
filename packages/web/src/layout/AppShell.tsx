@@ -11,12 +11,14 @@ import { PreviewProvider, SharedPreviewRegion, usePreview } from './PreviewConte
 import { useSites } from '../sites/useSites.ts';
 import { readLastSiteId, resolveEditorHref, writeLastSiteId } from '../sites/currentSite.ts';
 import { toSiteLoadError } from '../sites/site-load-error.ts';
+import packageJson from '../../package.json';
 
-// Bumped by hand alongside any release worth surfacing in the brand
-// mark - not derived from package.json, whose own version has stayed
-// at the 0.0.0 placeholder throughout development and isn't meant for
-// display.
-const APP_VERSION = '2.3';
+// package.json's own "version" is now the real source of truth for
+// this - pre-1.0 while still under active development (no public
+// release yet), bumped by hand (minor for a batch of new capability,
+// patch for a small fix) alongside whatever's worth surfacing in the
+// brand mark, reserving 1.0.0 for an actual public launch.
+const APP_VERSION = packageJson.version;
 
 // Falls back to the raw stored URL for the rare case it isn't a valid
 // URL at all (e.g. mid-edit in the registry) - the popover's "Switch
