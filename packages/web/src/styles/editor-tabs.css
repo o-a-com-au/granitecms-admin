@@ -87,14 +87,10 @@
    which owns the bottom corners and the one shared shadow between the
    two, so together they read as a single panel with a header, not two
    separate floating boxes (reported directly - the first pass had a
-   visible gap and its own shadow, looking like two stacked pills).
-   Extra bottom padding (--space-md, vs --space-sm on the other three
-   sides) is the "margin below the header" that gap used to provide -
-   kept as room to breathe now that it's internal to the one merged
-   shape rather than a gap between two of them. */
+   visible gap and its own shadow, looking like two stacked pills). */
 .panel-heading-bar {
   flex: 0 0 auto;
-  padding: var(--space-sm) var(--space-md) var(--space-md);
+  padding: var(--space-md);
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   background: var(--gradient-panel-heading);
 }
