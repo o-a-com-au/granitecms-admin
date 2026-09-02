@@ -440,10 +440,10 @@ button.fields-panel-delete:hover {
     flex: 1;
     width: 100%;
     max-width: none;
-    /* Full-bleed here, not the small gap-on-all-sides desktop's own
-       side-by-side layout gets - a phone screen has no neighbouring
-       panel for that gap to visually separate this one from. */
-    margin: 0;
+    /* A small side margin (requested directly), not desktop's own
+       gap-on-all-sides - top/bottom stay flush, there's no neighbouring
+       panel on a phone screen for those to separate this one from. */
+    margin: 0 var(--space-sm);
     /* Overrides the desktop-only collapsed-by-default state above
        (opacity: 0/overflow: hidden, toggled by .is-revealed) - this is
        the main mobile screen, full-bleed always, regardless of the

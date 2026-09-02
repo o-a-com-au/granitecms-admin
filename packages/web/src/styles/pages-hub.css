@@ -135,3 +135,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Phone (this app's established 720px breakpoint) - a small side
+   margin (requested directly), matching editor-layout.css's own
+   .editor-sidebar mobile treatment. */
+@media (max-width: 720px) {
+  .pages-hub-panel {
+    margin-left: var(--space-sm);
+    margin-right: var(--space-sm);
+  }
+}
