@@ -53,6 +53,7 @@
   padding: 2.5rem;
   overflow: auto;
   border: 1px solid var(--colour-border);
+  border-bottom: none;
   border-top-left-radius: var(--radius-sm);
   border-top-right-radius: var(--radius-sm);
   transition: padding 0.3s ease;

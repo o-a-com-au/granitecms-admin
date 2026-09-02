@@ -38,9 +38,10 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  margin: var(--space-sm);
+  margin-bottom: var(--space-sm);
   margin-top: 0;
   margin-right: 0;
+  margin-left: 0;
   /* Fades in on every fresh mount - PagesHubPage remounts in full on
      every route switch into it (no PageEditorPage.tsx-style persistence
      across navigations to replay a fade via JS instead), same reasoning
