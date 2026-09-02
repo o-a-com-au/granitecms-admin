@@ -112,6 +112,13 @@
   --gradient-pill: linear-gradient(0deg, var(--grey-700), var(--grey-650));
   --gradient-pill-active: linear-gradient(0deg, var(--colour-primary-dark), var(--colour-primary));
   --gradient-viewport: linear-gradient(0deg, var(--grey-800), #000);
+  /* .panel-heading's own sticky bar (editor-tabs.css) - bottom stop is
+     always --colour-surface itself, the exact colour of the scrolled
+     content sitting directly beneath it, so the bar blends seamlessly
+     into the panel rather than showing a seam at the point it stops
+     scrolling; the top stop is just a touch lighter for a subtle lift,
+     not a strong highlight. */
+  --gradient-panel-heading: linear-gradient(0deg, var(--colour-surface), var(--grey-750));
 }
 
 [data-theme='light'] {
@@ -142,4 +149,6 @@
   --gradient-pill: linear-gradient(0deg, var(--grey-50), #fff);
   --gradient-pill-active: linear-gradient(0deg, var(--colour-primary-dark), var(--colour-primary));
   --gradient-viewport: linear-gradient(0deg, var(--grey-100), var(--grey-200));
+  /* See the dark block's own comment above. */
+  --gradient-panel-heading: linear-gradient(0deg, var(--colour-surface), var(--grey-50));
 }

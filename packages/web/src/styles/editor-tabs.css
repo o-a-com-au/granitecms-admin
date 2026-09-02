@@ -57,9 +57,25 @@
    "Sections" heading and the Fields tab's instance-name heading
    (PageSectionsEditor.tsx), so all three editor tabs read as the same
    kind of panel rather than Page being the only one with a heading at
-   all. */
+   all.
+   position: sticky, not a real DOM move out of .editor-tab-content -
+   every panel that uses this class renders it as the first child of
+   its own flex column, itself inside .editor-tab-content's own
+   overflow-y: auto (editor-layout.css), so sticky keeps it pinned at
+   the scroll container's own top edge with no structural change
+   needed anywhere. Its own background (below) is what actually
+   separates it from the row list, occluding whatever scrolls up
+   underneath - without one a sticky element is see-through, and the
+   next row up would show straight through the heading. z-index: 1
+   layers it above that same scrolled content (siblings default to
+   auto, so 1 is enough to win). */
 .panel-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   margin: 0;
+  padding: 0.5rem 0;
+  background: var(--gradient-panel-heading);
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
