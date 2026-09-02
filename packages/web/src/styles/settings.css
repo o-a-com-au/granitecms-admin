@@ -463,8 +463,18 @@ button.settings-text-link:hover {
     border-bottom: 2px solid transparent;
   }
 
+  /* The underline (border-bottom, above/below) is the only signal for
+     active here - font-weight stays the same as the resting state
+     (requested directly), unlike desktop's own bold treatment. */
   .settings-nav-item[aria-current='page'] {
     border-bottom-color: var(--colour-text);
+    font-weight: 400;
+  }
+
+  /* No icon in the tab strip (requested directly) - just the
+     shortened label and the underline. */
+  .settings-nav-item-icon {
+    display: none;
   }
 
   /* The reverse of settings.css's own base rule above - full label
