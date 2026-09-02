@@ -35,7 +35,7 @@ export function ManageSitesPage() {
         <h2>Register a website</h2>
         <form onSubmit={handleRegister} className="settings-card">
           <label>
-            Site URL
+            Website URL
             <input
               value={url}
               onChange={(event) => setUrl(event.target.value)}

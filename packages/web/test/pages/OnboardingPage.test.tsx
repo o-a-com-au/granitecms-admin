@@ -40,10 +40,10 @@ function renderPage() {
   );
 }
 
-// Advances from step 1 (Site URL) to step 2 (API Token) - the shared
+// Advances from step 1 (Website URL) to step 2 (API Token) - the shared
 // setup every test past the first one needs.
 function goToStep2(url = 'https://client-one.example.com'): void {
-  fireEvent.change(screen.getByLabelText('Site URL'), { target: { value: url } });
+  fireEvent.change(screen.getByLabelText('Website URL'), { target: { value: url } });
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 }
 
@@ -52,11 +52,11 @@ afterEach(() => {
 });
 
 describe('OnboardingPage', () => {
-  it('starts on step 1 (Site URL only), with no sidebar or Active websites list', () => {
+  it('starts on step 1 (Website URL only), with no sidebar or Active websites list', () => {
     renderPage();
 
     expect(screen.getByText(/Welcome to Granite CMS/)).toBeDefined();
-    expect(screen.getByLabelText('Site URL')).toBeDefined();
+    expect(screen.getByLabelText('Website URL')).toBeDefined();
     expect(screen.queryByLabelText('API Token')).toBeNull();
     expect(screen.queryByText('Register a website')).toBeNull();
     expect(screen.queryByText('Active websites')).toBeNull();
@@ -68,12 +68,12 @@ describe('OnboardingPage', () => {
 
     goToStep2('https://client-one.example.com');
 
-    expect(screen.queryByLabelText('Site URL')).toBeNull();
+    expect(screen.queryByLabelText('Website URL')).toBeNull();
     expect(screen.getByLabelText('API Token')).toBeDefined();
 
     // Back returns to step 1 with the URL still filled in, not reset.
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    expect((screen.getByLabelText('Site URL') as HTMLInputElement).value).toBe('https://client-one.example.com');
+    expect((screen.getByLabelText('Website URL') as HTMLInputElement).value).toBe('https://client-one.example.com');
   });
 
   it('registering on step 2 navigates back to "/" so the new site becomes current', async () => {

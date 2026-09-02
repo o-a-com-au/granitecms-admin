@@ -53,7 +53,7 @@ export function OnboardingPage() {
         {step === 1 ? (
           <form onSubmit={handleContinue} className="onboarding-form">
             <label>
-              Site URL
+              Website URL
               <input
                 value={url}
                 onChange={(event) => setUrl(event.target.value)}
@@ -68,7 +68,7 @@ export function OnboardingPage() {
           </form>
         ) : (
           <form onSubmit={handleRegister} className="onboarding-form">
-            <p>Enter the API token for your site to finish connecting it.</p>
+            <p>Enter the API token for your website to finish connecting it.</p>
             <label>
               API Token
               <input value={token} onChange={(event) => setToken(event.target.value)} required autoFocus />

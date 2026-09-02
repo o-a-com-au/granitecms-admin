@@ -81,22 +81,22 @@ afterEach(() => {
 });
 
 describe('SettingsLayout', () => {
-  it('a developer sees all four sidebar sections, including Manage Sites', async () => {
+  it('a developer sees all four sidebar sections, including Manage Websites', async () => {
     installFakeMe('developer');
     renderLayout('/settings/personal');
 
     await waitFor(() => expect(screen.getByRole('link', { name: 'Personal Details' })).toBeDefined());
     expect(screen.getByRole('link', { name: 'Password and Security' })).toBeDefined();
     expect(screen.getByRole('link', { name: 'Manage Subscription' })).toBeDefined();
-    expect(screen.getByRole('link', { name: 'Manage Sites' })).toBeDefined();
+    expect(screen.getByRole('link', { name: 'Manage Websites' })).toBeDefined();
   });
 
-  it('a client does not see Manage Sites', async () => {
+  it('a client does not see Manage Websites', async () => {
     installFakeMe('client');
     renderLayout('/settings/personal');
 
     await waitFor(() => expect(screen.getByRole('link', { name: 'Personal Details' })).toBeDefined());
-    expect(screen.queryByRole('link', { name: 'Manage Sites' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Manage Websites' })).toBeNull();
   });
 
   it('marks the link matching the current section as the active page', async () => {
@@ -115,7 +115,7 @@ describe('SettingsLayout', () => {
     await waitFor(() => expect(screen.getByText('personal pane')).toBeDefined());
   });
 
-  // Deliberately navigating to Settings > Manage Sites always shows the
+  // Deliberately navigating to Settings > Manage Websites always shows the
   // normal shell, even with zero sites registered - the bare first-run
   // welcome screen (OnboardingPage.tsx) is a separate route
   // (/onboarding), reached only via HomeRedirect's own "/" landing
@@ -126,7 +126,7 @@ describe('SettingsLayout', () => {
 
     await waitFor(() => expect(screen.getByText('sites pane')).toBeDefined());
     expect(screen.getByRole('link', { name: 'Personal Details' })).toBeDefined();
-    expect(screen.getByRole('link', { name: 'Manage Sites' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('link', { name: 'Manage Websites' }).getAttribute('aria-current')).toBe('page');
   });
 
   // Forces dark regardless of the app's own light/dark toggle

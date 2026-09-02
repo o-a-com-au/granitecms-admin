@@ -47,10 +47,10 @@ export function toSiteLoadError(sites: SiteListEntry[] | null, siteId: string): 
 
 export function loadErrorMessage(error: LoadError): string {
   if (error.reason === 'unreachable') {
-    return 'This site is unreachable right now.';
+    return 'This website is unreachable right now.';
   }
   if (error.reason === 'unauthorized') {
-    return "This site's token was rejected.";
+    return "This website's token was rejected.";
   }
   if (error.reason === 'site-not-found') {
     return SITE_NOT_FOUND_MESSAGE;
@@ -70,11 +70,11 @@ export function buildLoadErrorActions(error: LoadError, siteId: string, onRetry:
     return [{ label: 'Diagnose', href: `/settings/sites/${siteId}` }];
   }
   if (error.reason === 'site-not-found') {
-    return [{ label: 'Manage Sites', href: '/settings/sites' }];
+    return [{ label: 'Manage Websites', href: '/settings/sites' }];
   }
   return [
     { label: 'Retry', onClick: onRetry },
     { label: 'Diagnose', href: `/settings/sites/${siteId}` },
-    { label: 'Manage Sites', href: '/settings/sites' },
+    { label: 'Manage Websites', href: '/settings/sites' },
   ];
 }

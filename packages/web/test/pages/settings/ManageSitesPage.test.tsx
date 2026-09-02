@@ -74,7 +74,7 @@ describe('ManageSitesPage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Nothing registered yet.')).toBeDefined());
 
-    fireEvent.change(screen.getByLabelText('Site URL'), { target: { value: 'https://client-one.example.com' } });
+    fireEvent.change(screen.getByLabelText('Website URL'), { target: { value: 'https://client-one.example.com' } });
     fireEvent.change(screen.getByLabelText('API Token'), { target: { value: 'a-real-token' } });
     fireEvent.click(screen.getByRole('button', { name: 'Register' }));
 
@@ -94,7 +94,7 @@ describe('ManageSitesPage', () => {
     );
     await waitFor(() => expect(screen.getByText('Nothing registered yet.')).toBeDefined());
 
-    fireEvent.change(screen.getByLabelText('Site URL'), { target: { value: 'https://client-one.example.com' } });
+    fireEvent.change(screen.getByLabelText('Website URL'), { target: { value: 'https://client-one.example.com' } });
     fireEvent.change(screen.getByLabelText('API Token'), { target: { value: 'a-real-token' } });
     fireEvent.click(screen.getByRole('button', { name: 'Register' }));
 
@@ -137,7 +137,7 @@ describe('ManageSitesPage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Nothing registered yet.')).toBeDefined());
 
-    fireEvent.change(screen.getByLabelText('Site URL'), { target: { value: 'https://client-one.example.com' } });
+    fireEvent.change(screen.getByLabelText('Website URL'), { target: { value: 'https://client-one.example.com' } });
     fireEvent.change(screen.getByLabelText('API Token'), { target: { value: 'a-real-token' } });
     fireEvent.click(screen.getByRole('button', { name: 'Register' }));
 

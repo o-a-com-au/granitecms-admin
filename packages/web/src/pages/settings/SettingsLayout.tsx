@@ -90,7 +90,7 @@ function SettingsNavItem({ label, shortLabel, to, active, icon }: SettingsNavIte
 // docs/design/Settings - *.png - one persistent sidebar (this
 // component) with an <Outlet/> content pane that swaps per section,
 // replacing the three previously-separate /account, /subscription,
-// and /settings pages. "Manage Sites" is the one section still
+// and /settings pages. "Manage Websites" is the one section still
 // gated to developers (App.tsx wraps just that subtree in
 // RequireDeveloper) - a client never owns a site to manage.
 //
@@ -141,7 +141,7 @@ export function SettingsLayout() {
           <SettingsNavItem label="Password and Security" shortLabel="Security" icon={<LockIcon />} to="/settings/password" active={isActive('/settings/password')} />
           <SettingsNavItem label="Manage Subscription" shortLabel="Subscription" icon={<CreditCardIcon />} to="/settings/subscription" active={isActive('/settings/subscription')} />
           {user?.role === 'developer' && (
-            <SettingsNavItem label="Manage Sites" shortLabel="Sites" icon={<GlobeIcon />} to="/settings/sites" active={isActive('/settings/sites')} />
+            <SettingsNavItem label="Manage Websites" shortLabel="Websites" icon={<GlobeIcon />} to="/settings/sites" active={isActive('/settings/sites')} />
           )}
         </nav>
         <div className="settings-content">

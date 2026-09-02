@@ -36,7 +36,7 @@ function PausedNotice() {
   return (
     <div className="paused-notice">
       <h1>Your account is paused</h1>
-      <p>Resume it to get back into the admin. Your site stays live and unaffected while paused.</p>
+      <p>Resume it to get back into the admin. Your website stays live and unaffected while paused.</p>
       {error && <p role="alert">{error}</p>}
       <button type="button" className="button-primary" onClick={() => void handleResume()} disabled={resuming}>
         Resume account

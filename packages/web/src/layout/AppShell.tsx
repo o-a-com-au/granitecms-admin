@@ -299,7 +299,7 @@ function AppShellContent() {
             <span className="app-address-bar-icon" aria-hidden="true">
               <GlobeIcon />
             </span>
-            <span className="app-address-bar-label">{siteAddressLabel ?? 'No site selected'}</span>
+            <span className="app-address-bar-label">{siteAddressLabel ?? 'No website selected'}</span>
             {siteAddressLabel && siteLiveHref && (
               <a
                 className="app-address-bar-external-link"
@@ -335,10 +335,10 @@ function AppShellContent() {
                       treatment it already had. */}
                   {sites !== null && sites.length > 1 && (
                     <div className="account-popover-sites">
-                      <p className="account-popover-sites-label">Switch site</p>
+                      <p className="account-popover-sites-label">Switch website</p>
                       <select
                         className="account-popover-site-select"
-                        aria-label="Switch site"
+                        aria-label="Switch website"
                         value={effectiveSiteId ?? ''}
                         onChange={(event) => {
                           const nextSiteId = event.target.value;
@@ -356,7 +356,7 @@ function AppShellContent() {
                   )}
                   {sites !== null && sites.length === 1 && (
                     <div className="account-popover-sites">
-                      <p className="account-popover-sites-label">Switch site</p>
+                      <p className="account-popover-sites-label">Switch website</p>
                       <span className="account-popover-item is-current" aria-current="page">
                         {hostLabelFor(sites[0]!.url)}
                       </span>
@@ -364,12 +364,12 @@ function AppShellContent() {
                   )}
                   {sites === null && !sitesError && (
                     <span className="account-popover-item account-popover-item-muted" aria-disabled="true">
-                      Loading sites...
+                      Loading websites...
                     </span>
                   )}
                   {sitesError && (
                     <span className="account-popover-item account-popover-item-muted" role="alert">
-                      Couldn&apos;t load sites
+                      Couldn&apos;t load websites
                     </span>
                   )}
                   <Link to="/settings/personal" role="menuitem" className="account-popover-item" onClick={() => setAccountOpen(false)}>

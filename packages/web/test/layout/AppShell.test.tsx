@@ -518,7 +518,7 @@ describe('AppShell', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }));
   });
 
-  it('with only one site, "Switch site" shows it as plain, non-interactive text, not a dropdown', async () => {
+  it('with only one site, "Switch website" shows it as plain, non-interactive text, not a dropdown', async () => {
     installFakeApiWithProfile();
 
     renderShell('/sites/site-1/content');
@@ -526,17 +526,17 @@ describe('AppShell', () => {
 
     fireEvent.click(screen.getByTitle('admin'));
 
-    expect(screen.getByText('Switch site')).toBeDefined();
+    expect(screen.getByText('Switch website')).toBeDefined();
     // Scoped to the popover row specifically, not a bare getByText -
     // the top bar's own wordmark (AppShell.tsx) now shows this same
     // site's address too, once it's the current site.
     const current = screen.getByText('localhost:3891', { selector: '.account-popover-item' });
     expect(current.tagName).toBe('SPAN');
     expect(current.getAttribute('aria-current')).toBe('page');
-    expect(screen.queryByRole('combobox', { name: 'Switch site' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Switch website' })).toBeNull();
   });
 
-  it('with more than one site, "Switch site" renders as a dropdown listing every site, selected on the current one', async () => {
+  it('with more than one site, "Switch website" renders as a dropdown listing every site, selected on the current one', async () => {
     installFakeApiWithTwoSites();
 
     renderShell('/sites/site-1/content');
@@ -544,7 +544,7 @@ describe('AppShell', () => {
 
     fireEvent.click(screen.getByTitle('admin'));
 
-    const select = await screen.findByRole('combobox', { name: 'Switch site' });
+    const select = await screen.findByRole('combobox', { name: 'Switch website' });
     expect((select as HTMLSelectElement).value).toBe('site-1');
     const optionLabels = within(select).getAllByRole('option').map((option) => option.textContent);
     expect(optionLabels).toEqual(['localhost:3891', 'other.example.com']);
@@ -555,7 +555,7 @@ describe('AppShell', () => {
     expect(screen.queryByText('localhost:3891', { selector: '.account-popover-item' })).toBeNull();
   });
 
-  it('picking another site from the "Switch site" dropdown navigates to it and closes the popover', async () => {
+  it('picking another site from the "Switch website" dropdown navigates to it and closes the popover', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     installFakeApiWithTwoSites();
 
@@ -563,7 +563,7 @@ describe('AppShell', () => {
     await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
 
     fireEvent.click(screen.getByTitle('admin'));
-    const select = await screen.findByRole('combobox', { name: 'Switch site' });
+    const select = await screen.findByRole('combobox', { name: 'Switch website' });
 
     fireEvent.change(select, { target: { value: 'site-2' } });
 
@@ -571,7 +571,7 @@ describe('AppShell', () => {
     expect(screen.queryByRole('menuitem', { name: 'Logout' })).toBeNull();
   });
 
-  it('"Switch site" shows a muted loading row before the list arrives, without breaking the rest of the popover', async () => {
+  it('"Switch website" shows a muted loading row before the list arrives, without breaking the rest of the popover', async () => {
     installFakeApiWithDelayedSites();
 
     renderShell('/sites/site-1/content');
@@ -579,11 +579,11 @@ describe('AppShell', () => {
 
     fireEvent.click(screen.getByTitle('admin'));
 
-    expect(screen.getByText('Loading sites...')).toBeDefined();
+    expect(screen.getByText('Loading websites...')).toBeDefined();
     expect(screen.getByRole('menuitem', { name: 'Logout' })).toBeDefined();
   });
 
-  it('"Switch site" shows a muted error row if the site list fails to load, without breaking the rest of the popover', async () => {
+  it('"Switch website" shows a muted error row if the site list fails to load, without breaking the rest of the popover', async () => {
     installFakeApiWithSitesError();
 
     renderShell('/sites/site-1/content');
@@ -591,7 +591,7 @@ describe('AppShell', () => {
 
     fireEvent.click(screen.getByTitle('admin'));
 
-    await waitFor(() => expect(screen.getByText('Couldn\'t load sites')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('Couldn\'t load websites')).toBeDefined());
     expect(screen.getByRole('menuitem', { name: 'Logout' })).toBeDefined();
   });
 
@@ -608,7 +608,7 @@ describe('AppShell', () => {
     expect(link.getAttribute('href')).toBe('/settings/personal');
   });
 
-  it('a client also sees the "Account Settings" popover item - reaching Manage Sites is developer-only, this link is not', async () => {
+  it('a client also sees the "Account Settings" popover item - reaching Manage Websites is developer-only, this link is not', async () => {
     installFakeApiWithClientProfile();
 
     renderShell('/sites/site-1/content');
@@ -621,14 +621,14 @@ describe('AppShell', () => {
     expect(link.getAttribute('href')).toBe('/settings/personal');
   });
 
-  it('shows the plain brand mark in the logo slot, and "No site selected" in the address bar, on a route with no site in the URL', async () => {
+  it('shows the plain brand mark in the logo slot, and "No website selected" in the address bar, on a route with no site in the URL', async () => {
     installFakeApi();
 
     renderShell('/');
     await waitFor(() => expect(screen.getByText('home content')).toBeDefined());
 
     expect(screen.getByText('GRANITE')).toBeDefined();
-    expect(screen.getByText('No site selected', { selector: '.app-address-bar-label' })).toBeDefined();
+    expect(screen.getByText('No website selected', { selector: '.app-address-bar-label' })).toBeDefined();
     expect(screen.queryByText('localhost:3891', { selector: '.app-address-bar-label' })).toBeNull();
     expect(screen.queryByRole('link', { name: /open .* in a new tab/i })).toBeNull();
   });
@@ -724,9 +724,9 @@ describe('AppShell shared preview region', () => {
     );
 
     await waitFor(() => expect(screen.getByText('probe content')).toBeDefined());
-    await waitFor(() => expect(screen.getByText('This site could not be found. It may have been removed.')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('This website could not be found. It may have been removed.')).toBeDefined());
     expect(screen.queryByTitle('Live preview')).toBeNull();
-    expect(screen.getByRole('link', { name: 'Manage Sites' })).toBeDefined();
+    expect(screen.getByRole('link', { name: 'Manage Websites' })).toBeDefined();
   });
 
   it('shows a graceful "unreachable" panel (with Retry) instead of the iframe when the site itself is down', async () => {
@@ -759,7 +759,7 @@ describe('AppShell shared preview region', () => {
     );
 
     await waitFor(() => expect(screen.getByText('probe content')).toBeDefined());
-    await waitFor(() => expect(screen.getByText('This site is unreachable right now.')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('This website is unreachable right now.')).toBeDefined());
     expect(screen.queryByTitle('Live preview')).toBeNull();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeDefined();
   });

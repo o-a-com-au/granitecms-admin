@@ -87,7 +87,7 @@ describe('HomeRedirect', () => {
 
     renderHome();
 
-    await waitFor(() => expect(screen.getByText('No sites are available for this account yet.')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('No websites are available for this account yet.')).toBeDefined());
     expect(screen.queryByText('onboarding page')).toBeNull();
   });
 

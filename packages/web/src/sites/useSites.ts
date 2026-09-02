@@ -22,7 +22,7 @@ export function useSites(): UseSitesResult {
       setSites(result);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load sites');
+      setError(err instanceof Error ? err.message : 'Failed to load websites');
     }
   }, []);
 
@@ -37,7 +37,7 @@ export function useSites(): UseSitesResult {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load sites');
+          setError(err instanceof Error ? err.message : 'Failed to load websites');
         }
       });
 

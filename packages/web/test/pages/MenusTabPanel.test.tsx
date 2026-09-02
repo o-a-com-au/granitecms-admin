@@ -96,7 +96,7 @@ describe('MenusTabPanel', () => {
 
     renderPanel();
 
-    await waitFor(() => expect(screen.getByText('This site is unreachable right now.')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('This website is unreachable right now.')).toBeDefined());
   });
 
   it('the "Add Menu" link opens the New Menu modal', async () => {

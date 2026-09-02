@@ -33,12 +33,12 @@ export function SubscriptionPage() {
         <button type="button" className="button-primary" onClick={() => setConfirmingPause(true)}>
           Pause Subscription
         </button>
-        <p className="settings-muted">Pausing will lock you out of making any edits to your websites. All sites will stay live and unaffected.</p>
+        <p className="settings-muted">Pausing will lock you out of making any edits to your websites. All websites will stay live and unaffected.</p>
       </div>
 
       {confirmingPause && (
         <ConfirmDialog
-          message="Pause your subscription? You'll be signed out of the admin until you resume, but your site stays live and unaffected."
+          message="Pause your subscription? You'll be signed out of the admin until you resume, but your website stays live and unaffected."
           confirmLabel="Pause Subscription"
           busy={pausing}
           onConfirm={() => void handleConfirmPause()}

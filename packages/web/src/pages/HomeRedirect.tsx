@@ -47,5 +47,5 @@ export function HomeRedirect() {
   // Genuinely unreachable in practice (a client account only ever
   // exists via being granted at least one site), but not asserted
   // away - shown plainly rather than risking another redirect loop.
-  return <p>No sites are available for this account yet.</p>;
+  return <p>No websites are available for this account yet.</p>;
 }

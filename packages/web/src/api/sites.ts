@@ -24,7 +24,7 @@ async function parseErrorMessage(response: Response, fallback: string): Promise<
 export async function listSites(): Promise<SiteListEntry[]> {
   const response = await fetch('/api/sites');
   if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, 'Failed to load sites'));
+    throw new Error(await parseErrorMessage(response, 'Failed to load websites'));
   }
   return (await response.json()) as SiteListEntry[];
 }
@@ -36,7 +36,7 @@ export async function registerSite(url: string, token: string): Promise<SiteList
     body: JSON.stringify({ url, token }),
   });
   if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, 'Failed to register the site'));
+    throw new Error(await parseErrorMessage(response, 'Failed to register the website'));
   }
   return (await response.json()) as SiteListEntry;
 }
@@ -56,6 +56,6 @@ export async function rotateSiteToken(id: string, token: string): Promise<SiteLi
 export async function deleteSite(id: string): Promise<void> {
   const response = await fetch(`/api/sites/${encodeURIComponent(id)}`, { method: 'DELETE' });
   if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, 'Failed to delete the site'));
+    throw new Error(await parseErrorMessage(response, 'Failed to delete the website'));
   }
 }

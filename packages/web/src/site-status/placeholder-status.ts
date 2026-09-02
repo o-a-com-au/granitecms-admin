@@ -9,7 +9,7 @@ export type PlaceholderStatus = 'loading' | 'not-found' | 'site-not-found' | 'lo
 // is exactly what prompted unifying this. sites/site-load-error.ts
 // (the four list-style screens) imports this same constant, so the
 // wording can never drift between the two.
-export const SITE_NOT_FOUND_MESSAGE = 'This site could not be found. It may have been removed.';
+export const SITE_NOT_FOUND_MESSAGE = 'This website could not be found. It may have been removed.';
 
 // A type guard, not a boolean helper, so callers narrow `status` to
 // PlaceholderStatus automatically wherever this returns true - both
@@ -49,18 +49,18 @@ export function buildPlaceholderPanelProps(
     return { variant: 'problem', message: 'No content found at this path.' };
   }
   if (status === 'site-not-found') {
-    return { variant: 'problem', message: SITE_NOT_FOUND_MESSAGE, actions: [{ label: 'Manage Sites', href: '/settings/sites' }] };
+    return { variant: 'problem', message: SITE_NOT_FOUND_MESSAGE, actions: [{ label: 'Manage Websites', href: '/settings/sites' }] };
   }
 
   const actions: SiteStatusAction[] = [
     { label: 'Retry', onClick: options.onRetry },
     { label: 'Diagnose', href: `/settings/sites/${options.siteId}` },
-    { label: 'Manage Sites', href: '/settings/sites' },
+    { label: 'Manage Websites', href: '/settings/sites' },
   ];
 
   if (status === 'load-error') {
     return { variant: 'problem', message: options.errorMessage ?? 'Something went wrong loading this content.', actions };
   }
 
-  return { variant: 'problem', message: options.errorMessage ?? 'Could not reach the site. Check back shortly.', actions };
+  return { variant: 'problem', message: options.errorMessage ?? 'Could not reach the website. Check back shortly.', actions };
 }

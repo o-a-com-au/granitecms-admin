@@ -150,7 +150,7 @@ describe('PagesTabPanel', () => {
 
     renderPanel();
 
-    await waitFor(() => expect(screen.getByText('This site is unreachable right now.')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('This website is unreachable right now.')).toBeDefined());
   });
 
   it('nests a page under its matching parent directory stem, collapsed by default, and expands/collapses via the chevron', async () => {

@@ -107,7 +107,7 @@ export async function readSiteEditorContent(siteId: string, path: string): Promi
   const etag = response.headers.get('etag');
   const source = response.headers.get('x-content-source');
   if (!etag || (source !== 'draft' && source !== 'live')) {
-    throw new SiteEditorError('error', 'The site did not return the expected headers');
+    throw new SiteEditorError('error', 'The website did not return the expected headers');
   }
 
   return { content: await response.text(), etag, source };
@@ -135,7 +135,7 @@ export async function saveSiteDraft(siteId: string, path: string, content: strin
 
   const newEtag = response.headers.get('etag');
   if (!newEtag) {
-    throw new SiteEditorError('error', 'The site did not return a new ETag after saving');
+    throw new SiteEditorError('error', 'The website did not return a new ETag after saving');
   }
   return newEtag;
 }

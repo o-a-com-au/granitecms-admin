@@ -32,7 +32,7 @@ export function useRegisterSiteForm(onRegistered: (site: SiteListEntry) => void 
       setToken('');
       await onRegistered(created);
     } catch (err) {
-      setRegisterError(err instanceof Error ? err.message : 'Failed to register the site');
+      setRegisterError(err instanceof Error ? err.message : 'Failed to register the website');
     } finally {
       setRegistering(false);
     }

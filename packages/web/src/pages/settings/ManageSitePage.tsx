@@ -97,7 +97,7 @@ export function ManageSitePage() {
 
   async function handleDelete(): Promise<void> {
     if (!siteId || !site) return;
-    if (!window.confirm(`Delete ${site.url} from the registry? This does not affect the site itself.`)) {
+    if (!window.confirm(`Delete ${site.url} from the registry? This does not affect the website itself.`)) {
       return;
     }
     await deleteSite(siteId);
@@ -106,7 +106,7 @@ export function ManageSitePage() {
 
   async function handleRevoke(client: SiteClient): Promise<void> {
     if (!siteId) return;
-    if (!window.confirm(`Remove ${formatFullName(client.firstName, client.lastName)}'s access to this site?`)) {
+    if (!window.confirm(`Remove ${formatFullName(client.firstName, client.lastName)}'s access to this website?`)) {
       return;
     }
     await revokeSiteClient(siteId, client.id);
