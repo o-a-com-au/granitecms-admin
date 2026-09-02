@@ -51,6 +51,7 @@ function GlobeIcon() {
 
 interface SettingsNavItemProps {
   label: string;
+  shortLabel: string;
   to: string;
   active: boolean;
   icon: ReactNode;
@@ -59,11 +60,29 @@ interface SettingsNavItemProps {
 // Manual useLocation()-based active check, not react-router's own
 // NavLink - mirrors AppShell.tsx's TopNavItem, the one active-link
 // pattern already established in this app.
-function SettingsNavItem({ label, to, active, icon }: SettingsNavItemProps) {
+//
+// Renders both the full and short label always, letting a mobile
+// media query (settings.css) swap which one is visible - requested
+// directly, for the horizontal-tabs mobile layout where the full
+// label doesn't fit ("Personal Details" -> "Personal" etc). aria-label
+// (always the full label) keeps the link's own accessible name stable
+// across both breakpoints - without it, a screen reader would
+// announce both spans' text concatenated together whenever CSS hasn't
+// actually hidden one of them (found live: this app's own test
+// environment never applies imported stylesheets at all, so both were
+// simultaneously "visible" there regardless of breakpoint).
+function SettingsNavItem({ label, shortLabel, to, active, icon }: SettingsNavItemProps) {
   return (
-    <Link className="settings-nav-item" to={to} aria-current={active ? 'page' : undefined}>
-      <span className="settings-nav-item-icon">{icon}</span>
-      {label}
+    <Link className="settings-nav-item" to={to} aria-current={active ? 'page' : undefined} aria-label={label}>
+      <span className="settings-nav-item-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="settings-nav-item-label-full" aria-hidden="true">
+        {label}
+      </span>
+      <span className="settings-nav-item-label-short" aria-hidden="true">
+        {shortLabel}
+      </span>
     </Link>
   );
 }
@@ -118,11 +137,11 @@ export function SettingsLayout() {
       <div className="settings-shell-body">
         <nav className="settings-sidebar" aria-label="Settings">
           <h1>Settings</h1>
-          <SettingsNavItem label="Personal Details" icon={<UserIcon />} to="/settings/personal" active={isActive('/settings/personal')} />
-          <SettingsNavItem label="Password and Security" icon={<LockIcon />} to="/settings/password" active={isActive('/settings/password')} />
-          <SettingsNavItem label="Manage Subscription" icon={<CreditCardIcon />} to="/settings/subscription" active={isActive('/settings/subscription')} />
+          <SettingsNavItem label="Personal Details" shortLabel="Personal" icon={<UserIcon />} to="/settings/personal" active={isActive('/settings/personal')} />
+          <SettingsNavItem label="Password and Security" shortLabel="Security" icon={<LockIcon />} to="/settings/password" active={isActive('/settings/password')} />
+          <SettingsNavItem label="Manage Subscription" shortLabel="Subscription" icon={<CreditCardIcon />} to="/settings/subscription" active={isActive('/settings/subscription')} />
           {user?.role === 'developer' && (
-            <SettingsNavItem label="Manage Sites" icon={<GlobeIcon />} to="/settings/sites" active={isActive('/settings/sites')} />
+            <SettingsNavItem label="Manage Sites" shortLabel="Sites" icon={<GlobeIcon />} to="/settings/sites" active={isActive('/settings/sites')} />
           )}
         </nav>
         <div className="settings-content">

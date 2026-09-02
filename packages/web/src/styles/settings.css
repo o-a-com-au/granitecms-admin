@@ -161,6 +161,13 @@
   flex: 0 0 auto;
 }
 
+/* Full label shown by default (desktop's own vertical sidebar) - the
+   mobile breakpoint below flips which of this pair is visible, for
+   the horizontal-tabs layout where the full label doesn't fit. */
+.settings-nav-item-label-short {
+  display: none;
+}
+
 .settings-content {
   flex: 1;
   min-width: 0;
@@ -425,10 +432,51 @@ button.settings-text-link:hover {
      main axis turns vertical, and .settings-content's flex: 1 stretch
      only ever applied to width, never height, so with align-items:
      flex-start (unchanged above) both would shrink to fit their own
-     content instead of filling the column. */
+     content instead of filling the column.
+     A horizontal row of tabs, not the desktop vertical list shrunk to
+     fit (requested directly) - flex-direction: row, an underline for
+     the active tab instead of desktop's plain opacity/font-weight
+     (border-bottom, below), and the "SETTINGS" heading above it
+     dropped entirely: a vertical section label doesn't fit this
+     "tab strip" shape, and every mobile screen only ever shows the one
+     tab bar anyway. overflow-x: auto is a defensive fallback for a
+     very narrow phone where the tabs (even at their own shortened
+     width) don't all fit - scrolls rather than wrapping onto a second,
+     uneven row. */
   .settings-sidebar {
     flex: 0 0 auto;
+    flex-direction: row;
+    gap: 0;
     width: 100%;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--colour-border);
+  }
+
+  .settings-sidebar h1 {
+    display: none;
+  }
+
+  .settings-nav-item {
+    flex: 0 0 auto;
+    padding: 0.75rem 0.8rem;
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+  }
+
+  .settings-nav-item[aria-current='page'] {
+    border-bottom-color: var(--colour-text);
+  }
+
+  /* The reverse of settings.css's own base rule above - full label
+     shown on desktop, this shortened one on mobile ("Personal Details"
+     -> "Personal" etc, requested directly), so the tab strip's own
+     labels stay short enough for all four to fit/scroll comfortably. */
+  .settings-nav-item-label-full {
+    display: none;
+  }
+
+  .settings-nav-item-label-short {
+    display: inline;
   }
 
   .settings-content {
