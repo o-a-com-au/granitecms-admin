@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../../auth/AuthContext.tsx';
 import { APP_VERSION } from '../../layout/appVersion.ts';
@@ -119,6 +119,27 @@ export function SettingsLayout() {
     return location.pathname === prefix || location.pathname.startsWith(`${prefix}/`);
   }
 
+  // Replays .settings-content's own fade-up on every sub-navigation
+  // (Personal <-> Password <-> ...), not just the first mount into
+  // /settings - this element itself never remounts on those switches
+  // (SettingsLayout stays mounted throughout, only its own <Outlet/>
+  // content changes underneath it), so a plain CSS animation on it
+  // only ever fires once without this. Same remove-reflow-add ref
+  // technique PageEditorPage.tsx/SectionFieldsPanel.tsx already use for
+  // their own tab-fade-in - keyed on the full pathname (not just which
+  // top-level section is active) so a Manage Websites -> a different
+  // site's own Manage Site sub-page still replays it too.
+  const contentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const node = contentRef.current;
+    if (!node) {
+      return;
+    }
+    node.classList.remove('settings-fade-in');
+    void node.offsetWidth;
+    node.classList.add('settings-fade-in');
+  }, [location.pathname]);
+
   return (
     <div className="settings-shell" data-theme="dark">
       <header className="settings-shell-header">
@@ -144,7 +165,7 @@ export function SettingsLayout() {
             <SettingsNavItem label="Manage Websites" shortLabel="Websites" icon={<GlobeIcon />} to="/settings/sites" active={isActive('/settings/sites')} />
           )}
         </nav>
-        <div className="settings-content">
+        <div className="settings-content settings-fade-in" ref={contentRef}>
           <Outlet />
         </div>
       </div>
