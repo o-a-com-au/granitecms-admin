@@ -9,7 +9,7 @@
 .editor-tabs {
   display: flex;
   gap: var(--space-xs);
-  /* padding: var(--space-xs); */
+  padding: var(--space-xs);
   border-radius: var(--radius-sm);
   background: var(--colour-surface);
   box-shadow: var(--shadow-panel);
