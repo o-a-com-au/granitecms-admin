@@ -99,9 +99,9 @@
   min-height: 0;
   display: flex;
   justify-content: center;
-  gap: 3rem;
+  gap: 2rem;
   align-items: flex-start;
-  padding: 0 var(--space-lg) var(--space-lg);
+  padding: var(--space-xl) var(--space-lg) var(--space-lg);
 }
 
 .settings-sidebar {
@@ -164,7 +164,7 @@
 .settings-content {
   flex: 1;
   min-width: 0;
-  max-width: 520px;
+  max-width: 480px;
 }
 
 .settings-content > section + section {
