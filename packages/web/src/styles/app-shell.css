@@ -715,6 +715,18 @@ button.app-avatar:hover {
    screen - :has() is already an established pattern in this app's own
    CSS (editor-layout.css's .shared-preview-region:has(...) etc.). */
 @media (max-width: 720px) {
+  /* Tighter gap, and the "GRANITE 0.3.0" wordmark text dropped
+     entirely (just the logo mark stays, still a real link home) - both
+     requested directly, so the address bar next to it has more room to
+     grow on a narrow phone screen. */
+  .app-topbar {
+    gap: var(--space-sm);
+  }
+
+  .app-logo-word {
+    display: none;
+  }
+
   .app-topbar-device-toggle {
     display: none;
   }
