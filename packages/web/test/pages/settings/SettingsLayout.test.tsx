@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { AuthProvider } from '../../../src/auth/AuthContext.tsx';
 import { SettingsLayout } from '../../../src/pages/settings/SettingsLayout.tsx';
+import { createFakeStorage } from '../../helpers/fakeStorage.ts';
 
 function installFakeMe(role: 'developer' | 'client') {
   vi.stubGlobal(
@@ -126,5 +127,38 @@ describe('SettingsLayout', () => {
     await waitFor(() => expect(screen.getByText('sites pane')).toBeDefined());
     expect(screen.getByRole('link', { name: 'Personal Details' })).toBeDefined();
     expect(screen.getByRole('link', { name: 'Manage Sites' }).getAttribute('aria-current')).toBe('page');
+  });
+
+  // Forces dark regardless of the app's own light/dark toggle
+  // (requested directly) - every --colour-* token used by this shell
+  // and everything under its own <Outlet/> resolves against whichever
+  // [data-theme] is closest, so this attribute alone is the whole
+  // mechanism.
+  it('always renders with data-theme="dark" on its own root, independent of any stored theme preference', async () => {
+    installFakeMe('developer');
+    renderLayout('/settings/personal');
+
+    await waitFor(() => expect(screen.getByText('personal pane')).toBeDefined());
+    expect(document.querySelector('.settings-shell')?.getAttribute('data-theme')).toBe('dark');
+  });
+
+  it('closing (the header logo/close button) goes to "/" when no site has been visited yet', async () => {
+    installFakeMe('developer');
+    renderLayout('/settings/personal');
+
+    await waitFor(() => expect(screen.getByText('personal pane')).toBeDefined());
+    expect(screen.getByRole('link', { name: 'Close' }).getAttribute('href')).toBe('/');
+    expect(screen.getByTitle('Granite CMS').getAttribute('href')).toBe('/');
+  });
+
+  it('closing returns to the last-visited site\'s own last editor location', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    localStorage.setItem('cms-admin-last-site', 'site-1');
+    localStorage.setItem('cms-admin-last-editor-location', JSON.stringify({ 'site-1': '/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout' }));
+    installFakeMe('developer');
+    renderLayout('/settings/personal');
+
+    await waitFor(() => expect(screen.getByText('personal pane')).toBeDefined());
+    expect(screen.getByRole('link', { name: 'Close' }).getAttribute('href')).toBe('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout');
   });
 });

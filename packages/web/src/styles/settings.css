@@ -1,15 +1,99 @@
-/* docs/design/Settings - *.png - the unified Settings shell
-   (SettingsLayout.tsx) reuses the same full-bleed .list-page/
-   .list-page-inner panel Pages and Media sit in (pages-list.css),
-   applied here via app-shell.css's .app-content:has(.list-page)
-   override, rather than the default centred .app-content column.
-   .settings-page itself just adds the sidebar/content flex row on
-   top of .list-page-inner's own box model - the two combine on the
-   same element. */
-.settings-page {
+/* docs/design/Settings - *.png - a genuinely standalone full-screen
+   view now (App.tsx renders SettingsLayout as a sibling of AppShell's
+   own subtree, not a child of it), not the app's usual topbar/icon-
+   rail chrome with a panel inside it - no dependency on app-shell.css
+   at all any more. height: 100vh, same technique .app-shell itself
+   uses (app-shell.css) - this is its own root, not nested inside
+   anything that would otherwise size it. data-theme="dark" is set on
+   this element in SettingsLayout.tsx itself, not here - every
+   --colour-* token below (and in every section page rendered via
+   <Outlet/>) resolves against it regardless of the app's own light/
+   dark toggle (requested directly: "everything is on a dark
+   background"). */
+.settings-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--colour-bg);
+  overflow-y: auto;
+}
+
+/* Deliberately minimal - just the brand mark (linking to the same
+   closeHref the explicit close button does, for a click anywhere
+   familiar) and the one close affordance, nothing else from the
+   app's own topbar (no site picker, no avatar, no Save/Discard). */
+.settings-shell-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+}
+
+/* Same shape as AppShell.tsx's own .app-logo (app-shell.css), kept as
+   a separate rule rather than sharing the class - this file owns its
+   own header end to end, without pulling in app-shell.css for one
+   selector. :visited/:hover repeated with their own color, not just
+   the base selector - base.css's own bare `a:hover` (element+pseudo-
+   class, 0,1,1) otherwise beats this file's plain .settings-shell-logo
+   (a bare class, 0,1,0) on specificity alone (same gotcha
+   .settings-nav-item hit, below), which would recolour the brand mark
+   to --colour-text-button-hover on hover instead of leaving it be. */
+.settings-shell-logo,
+.settings-shell-logo:visited,
+.settings-shell-logo:hover {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--colour-text);
+  text-decoration: none;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.settings-shell-logo-mark {
+  display: block;
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.settings-shell-logo-version {
+  margin-left: 0.4rem;
+  color: var(--colour-muted);
+  font-weight: 400;
+}
+
+/* Opacity, not a colour swap, for hover feedback - same rest/hover
+   pattern as every other icon-only button in this app this session.
+   :visited/:hover repeated with their own color - same specificity
+   gotcha as .settings-shell-logo above; without this, hovering would
+   recolour the icon to --colour-text-button-hover instead of just
+   raising its opacity. */
+.settings-shell-close,
+.settings-shell-close:visited {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-xs);
+  color: var(--colour-icon-muted);
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.settings-shell-close:hover {
+  color: var(--colour-icon-muted);
+  opacity: 1;
+}
+
+.settings-shell-body {
+  flex: 1;
+  min-height: 0;
   display: flex;
   gap: 3rem;
   align-items: flex-start;
+  padding: 0 var(--space-lg) var(--space-lg);
 }
 
 .settings-sidebar {
@@ -21,24 +105,52 @@
 
 .settings-sidebar h1 {
   margin-bottom: 1rem;
+  color: var(--colour-muted);
+  font-size: 1.1rem;
+  font-weight: 400;
 }
 
-.settings-nav-item {
+/* No border/background at all any more - opacity is the only signal
+   between resting, hovered, and active (requested directly: remove
+   the active state's own outline box, active reads as white/bright,
+   everything else faded). The icon fades in lockstep with the label
+   for free, since both inherit this same element's own color/opacity
+   rather than being coloured independently. */
+.settings-nav-item,
+.settings-nav-item:visited {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   padding: 0.6rem 0.8rem;
-  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--colour-text);
   text-decoration: none;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
 }
 
+/* color repeated here, not just opacity - base.css's own bare `a:hover`
+   (element+pseudo-class, 0,1,1) otherwise beats this file's plain
+   .settings-nav-item (a bare class, 0,1,0) on specificity alone,
+   silently recolouring the hovered item to --colour-text-button-hover.
+   Found live hovering the *active* item specifically - real once you
+   notice a click leaves the pointer sitting right there, so a user who
+   clicks a nav item and doesn't move their mouse away would otherwise
+   see it flash that colour instead of staying its own white/bright
+   colour. */
 .settings-nav-item:hover {
   color: var(--colour-text);
-  background: var(--colour-surface-hover);
+  opacity: 0.8;
 }
 
 .settings-nav-item[aria-current='page'] {
-  border-color: var(--colour-border);
-  background: var(--colour-surface);
+  opacity: 1;
+  font-weight: 600;
+}
+
+.settings-nav-item-icon {
+  display: flex;
+  flex: 0 0 auto;
 }
 
 .settings-content {
@@ -295,7 +407,7 @@ button.settings-text-link:hover {
    by side, so it stacks instead, sidebar first - the same "one column
    at a time" shape those other phone layouts already use. */
 @media (max-width: 720px) {
-  .settings-page {
+  .settings-shell-body {
     flex-direction: column;
     gap: 1.5rem;
   }

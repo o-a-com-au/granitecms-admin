@@ -40,6 +40,29 @@ export const routes: RouteObject[] = [
   {
     element: <RequireAuth />,
     children: [
+      // A standalone full-screen view, not nested under AppShell - no
+      // topbar/icon rail/shared preview at all (docs/design's own
+      // Settings mockup shows a bare dark screen with just its own
+      // small logo mark and a close button, requested directly). Still
+      // under RequireAuth (siteId-agnostic auth still applies), just a
+      // sibling of AppShell's own subtree rather than a child of it.
+      {
+        path: '/settings',
+        element: <SettingsLayout />,
+        children: [
+          { index: true, element: <Navigate to="/settings/personal" replace /> },
+          { path: 'personal', element: <PersonalDetailsPage /> },
+          { path: 'password', element: <PasswordSecurityPage /> },
+          { path: 'subscription', element: <SubscriptionPage /> },
+          {
+            element: <RequireDeveloper />,
+            children: [
+              { path: 'sites', element: <ManageSitesPage /> },
+              { path: 'sites/:siteId', element: <ManageSitePage /> },
+            ],
+          },
+        ],
+      },
       {
         element: <AppShell />,
         children: [
@@ -47,23 +70,6 @@ export const routes: RouteObject[] = [
           {
             element: <RequireDeveloper />,
             children: [{ path: '/onboarding', element: <OnboardingPage /> }],
-          },
-          {
-            path: '/settings',
-            element: <SettingsLayout />,
-            children: [
-              { index: true, element: <Navigate to="/settings/personal" replace /> },
-              { path: 'personal', element: <PersonalDetailsPage /> },
-              { path: 'password', element: <PasswordSecurityPage /> },
-              { path: 'subscription', element: <SubscriptionPage /> },
-              {
-                element: <RequireDeveloper />,
-                children: [
-                  { path: 'sites', element: <ManageSitesPage /> },
-                  { path: 'sites/:siteId', element: <ManageSitePage /> },
-                ],
-              },
-            ],
           },
           { path: '/sites/:siteId/content', element: <PagesHubPage /> },
           { path: '/sites/:siteId/media', element: <MediaLibraryPage /> },
