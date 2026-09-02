@@ -9,12 +9,28 @@
 }
 
 /* No background/border any more (requested directly) - the form sits
-   directly on the page's own background rather than a boxed card. */
+   directly on the page's own background rather than a boxed card.
+   Fades in on mount (requested directly - "the same fade in
+   transition used on the settings pages"), reusing pages-list.css's
+   own list-page-fade-up keyframe by name, the same one settings.css's
+   .settings-fade-in and Pages hub/Media's own left panels all reuse
+   for the identical reason. No replay-on-switch trick needed here
+   unlike Settings' own .settings-fade-in - Login and Signup are two
+   separate routes/components, so navigating between them already
+   remounts this element fresh each time, a plain animation fires
+   again for free. */
 .login-card {
   width: 100%;
   max-width: 360px;
   border-radius: 12px;
   padding: 2rem;
+  animation: list-page-fade-up 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card {
+    animation: none;
+  }
 }
 
 /* The real brand mark (GraniteLogo.tsx), not the previous plain
