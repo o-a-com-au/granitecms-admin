@@ -133,7 +133,10 @@ button.address-search-close:hover {
    height once the animation ends (only the animation's own last frame
    is 176px, close enough to the real rendered height - about 174px
    for the current icon+one-line-of-text content - that the hand-off
-   back to auto height reads as seamless rather than a snap). */
+   back to auto height reads as seamless rather than a snap). Shorter
+   than the box's own 0.25s fade (requested directly, a second pass -
+   the grow read as sluggish at the same speed) - it simply finishes
+   while the box is still fading in. */
 .address-search-empty {
   display: flex;
   flex-direction: column;
@@ -144,7 +147,7 @@ button.address-search-close:hover {
   color: var(--colour-muted);
   text-align: center;
   overflow: hidden;
-  animation: address-search-empty-grow 0.25s ease-out;
+  animation: address-search-empty-grow 0.15s ease-out;
 }
 
 @keyframes address-search-empty-grow {
