@@ -20,12 +20,17 @@ export interface AddressBarSearchModalProps {
 
 // Single-use icons (only ever rendered here) - same convention
 // IconRail.tsx already established for its own single-use icons.
-// Lucide's own "search"/"file" (https://lucide.dev, ISC licensed),
-// 16x16 with a 1.75 stroke, matching every other row-level icon's own
-// convention in this app.
+// Lucide's own "search"/"file" (https://lucide.dev, ISC licensed), 1.75
+// stroke matching every other row-level icon's own convention in this
+// app. width/height 100%, not a fixed pixel value - SearchIcon renders
+// at two different sizes here (.address-search-input-icon's ~16px and
+// .address-search-empty-icon's own 64px), so it has to defer entirely
+// to whatever size its own wrapping span gives it (found live - a
+// fixed 16x16 attribute pair left the empty state's icon stuck at 16px
+// after that span grew to 64px).
 function SearchIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="m21 21-4.34-4.34" />
       <circle cx="11" cy="11" r="8" />
     </svg>
@@ -34,7 +39,7 @@ function SearchIcon() {
 
 function FileIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
       <path d="M14 2v5a1 1 0 0 0 1 1h5" />
     </svg>
