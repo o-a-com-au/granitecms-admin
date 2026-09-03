@@ -136,17 +136,29 @@
   white-space: nowrap;
 }
 
-/* MenusTabPanel.tsx's own expanded menu row - wraps both the nested
-   item list and the "Add Menu Item"/"No items yet." line below it in
-   one indented block, matching instance-rows.css's own
-   .instance-list-nested margin/padding/border exactly, just applied
-   one level up so both children share the same indent rather than
-   needing a second sibling-combinator rule the way BlockList.tsx's own
-   .instance-list-nested + .instance-add-menu-wrap does. */
-.menus-tab-items {
-  margin: var(--space-xs) 0 0 var(--space-lg);
-  padding-left: 0.75rem;
-  border-left: 1px solid var(--colour-border);
+/* MenusTabPanel.tsx's own expanded menu row - a plain grouping div with
+   no styling of its own any more (was a single bordered block wrapping
+   both the item list AND the "Add Menu Item"/"No items yet." line
+   below it - its border-left ran the full height of that whole group,
+   continuing past the last item alongside the Add button too, unlike
+   Sections/Blocks where the same line stops exactly at the last row -
+   reported directly). The <ul> itself now carries
+   instance-list-nested (instance-rows.css) directly, matching
+   BlockList.tsx's own nested list exactly - its border-left is
+   therefore only ever as tall as the rows it belongs to. The lines
+   below give the Add button/empty message the matching indent
+   BlockList.tsx's own .instance-list-nested + .instance-add-menu-wrap
+   sibling rule provides there - a plain sibling-of-instance-add-menu-
+   wrap selector doesn't fit here since Menus' own Add button is a bare
+   .instance-add-button (it opens a modal, not a dropdown), and the
+   empty-state message needs the same treatment whenever it renders in
+   the list's place instead. */
+.menus-tab-items > p {
+  margin: var(--space-xs) 0 0 calc(var(--space-lg) + 0.75rem);
+}
+
+.menus-tab-items > button.instance-add-button {
+  margin: 0.6rem 0 0 calc(var(--space-lg) + 0.75rem);
 }
 
 /* Phone (this app's established 720px breakpoint) - a small side gap

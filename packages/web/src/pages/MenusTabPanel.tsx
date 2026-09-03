@@ -129,7 +129,7 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
                     {menu.items.length === 0 ? (
                       <p>No items yet.</p>
                     ) : (
-                      <ul className="instance-list">
+                      <ul className="instance-list instance-list-nested">
                         {menu.items.map((item, index) => (
                           // No stable id in the data model (menu.schema.json's
                           // items are additionalProperties: false - a
