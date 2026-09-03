@@ -133,6 +133,8 @@
      read as a wash in the same sense (see that block's own comment). */
   --colour-drag-handle-wash: color-mix(in srgb, var(--colour-surface-hover) 70%, transparent);
   --colour-input-background: var(--grey-900);
+  --colour-drag-handle-background: rgba(255, 255, 255, 0.1);
+
   --colour-table-header: var(--grey-900);
   --colour-table-background: var(--grey-850);
   --colour-table-row-divider: var(--grey-800);
@@ -179,6 +181,8 @@
      brighter than the row around it" effect in both themes. */
   --colour-drag-handle-wash: color-mix(in srgb, var(--colour-surface) 80%, transparent);
   --colour-input-background: #fff;
+  --colour-drag-handle-background: rgba(0, 0, 0, 0.03);
+
   --colour-table-header: var(--grey-50);
   --colour-table-background: var(--grey-100);
   --colour-table-row-divider: var(--grey-200);

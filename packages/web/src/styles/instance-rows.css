@@ -177,6 +177,8 @@
   white-space: nowrap;
   font-weight: 400;
   font-size: 0.8rem;
+    padding-left: var(--space-sm);
+
 }
 
 /* button.instance-row-chevron, not just .instance-row-chevron - the
@@ -425,19 +427,13 @@ button.instance-row-more:hover {
 .instance-row-drag-handle {
   flex: 0 0 auto;
   width: 1.4rem;
-  height: 2.2rem;
+  height: 2.3rem;
   margin: calc(-1 * var(--space-xs)) var(--space-xs) calc(-1 * var(--space-xs)) calc(-1 * var(--space-xs));
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-xs) 0 0 var(--radius-xs);
-  /* A permanent wash, not a hover state - reads as this zone's own
-     background, distinct from the row around it, at rest (requested
-     directly). Lightens in dark mode, brightens in light mode - see
-     --colour-drag-handle-wash's own two definitions (theme.css) for
-     why each theme needs a different source token to read the same
-     way. */
-  background: var(--colour-drag-handle-wash);
+  background: var(--colour-drag-handle-background);
   color: var(--colour-icon-muted);
   cursor: grab;
   touch-action: none;
