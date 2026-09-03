@@ -166,7 +166,7 @@ button.address-search-close:hover {
   display: flex;
   width: 64px;
   height: 64px;
-  opacity: 0.5;
+  color: var(--colour-search-icon);
 }
 
 .address-search-message {

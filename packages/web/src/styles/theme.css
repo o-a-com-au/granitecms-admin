@@ -63,6 +63,11 @@
      mockup regardless of the app's own toggle, and --grey-100 is
      already identical in both themes anyway. */
   --colour-search-panel: var(--grey-100);
+  /* AddressBarSearchModal.tsx's own empty-state search icon (requested
+     directly) - same reasoning as --colour-search-panel above, an
+     alias rather than a raw --grey-* reference from
+     address-bar-search.css itself. */
+  --colour-search-icon: var(--grey-250);
 
   --radius-xs: 3px;
   --radius-sm: 5px;
