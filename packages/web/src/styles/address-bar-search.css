@@ -192,17 +192,20 @@ button.address-search-result {
   padding: 0.6rem 0.75rem;
   border: none;
   border-radius: var(--radius-sm);
-  background: none;
+  /* A faint 40% wash of the same white the input row/hover state use
+     (requested directly) - color-mix rather than a second literal, so
+     it can never drift out of step with --colour-surface itself. */
+  background: color-mix(in srgb, var(--colour-surface) 40%, transparent);
   color: var(--colour-text);
   text-align: left;
 }
 
-/* var(--colour-surface), not --colour-surface-hover - the panel behind
-   these rows is itself --colour-search-panel (--grey-100), the same
-   value --colour-surface-hover resolves to, so that would be
-   invisible. A hovered row needs to stand out lighter than the panel,
-   matching the reference image, so it reaches for the same white the
-   input row above uses instead. */
+/* Full var(--colour-surface) on hover, not --colour-surface-hover -
+   the panel behind these rows is itself --colour-search-panel
+   (--grey-100), the same value --colour-surface-hover resolves to, so
+   that would be invisible. A hovered row needs to stand out lighter
+   than both the panel and the rest-state 40% wash above, matching the
+   reference image, so it reaches for the same white at full strength. */
 button.address-search-result:hover {
   background: var(--colour-surface);
 }
