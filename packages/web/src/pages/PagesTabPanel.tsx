@@ -469,7 +469,7 @@ function PagesHubTreeRow({
         <Link
           to={editorHref}
           state={{ initialViewMode: 'metafields' }}
-          className="instance-row-remove"
+          className="instance-row-edit"
           aria-label={`Edit ${entry.name || entry.path}`}
           onClick={handleEditLinkClick}
         >

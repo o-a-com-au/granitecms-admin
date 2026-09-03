@@ -10,6 +10,7 @@ import { AccordionArrowIcon } from '../sections/AccordionArrowIcon.tsx';
 import { AddIcon } from '../sections/AddIcon.tsx';
 import { EditIcon } from '../sections/EditIcon.tsx';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
+import { InstanceRowActions } from '../sections/InstanceRowActions.tsx';
 import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
 import { buildLoadErrorActions, loadErrorMessage } from '../sites/site-load-error.ts';
@@ -139,6 +140,13 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
                           // list.
                           <li className="instance-row" key={index}>
                             <div className="instance-row-main">
+                              {/* An item never nests, but every
+                                  instance-row now reserves this column
+                                  regardless (requested directly - "clean
+                                  this up so they are all rendered the
+                                  same way"), matching Sections/Blocks/
+                                  Pages/Redirects. */}
+                              <span className="instance-row-chevron-spacer" aria-hidden="true" />
                               {/* Reuses redirects-tab-row-label as-is
                                   (pages-hub.css) - a generic single-line
                                   label row shape, not actually redirect-
@@ -148,22 +156,23 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
                               <span className="redirects-tab-row-label">
                                 <strong>{item.label || 'Untitled'}</strong>
                               </span>
-                              <button
-                                type="button"
-                                className="instance-row-chevron"
-                                aria-label={`Edit ${item.label || 'menu item'}`}
-                                onClick={() => setItemModalState({ mode: 'edit', menu, index, item })}
-                              >
-                                <EditIcon />
-                              </button>
-                              <button
-                                type="button"
-                                className="instance-row-remove"
-                                aria-label={`Delete ${item.label || 'menu item'}`}
-                                onClick={() => void handleDeleteItem(menu, index, item)}
-                              >
-                                <TrashIcon />
-                              </button>
+                              <InstanceRowActions
+                                actions={[
+                                  {
+                                    key: 'edit',
+                                    label: `Edit ${item.label || 'menu item'}`,
+                                    icon: <EditIcon />,
+                                    onClick: () => setItemModalState({ mode: 'edit', menu, index, item }),
+                                  },
+                                  {
+                                    key: 'delete',
+                                    label: `Delete ${item.label || 'menu item'}`,
+                                    icon: <TrashIcon />,
+                                    variant: 'destructive',
+                                    onClick: () => void handleDeleteItem(menu, index, item),
+                                  },
+                                ]}
+                              />
                             </div>
                           </li>
                         ))}

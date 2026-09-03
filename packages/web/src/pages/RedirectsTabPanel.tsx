@@ -4,7 +4,9 @@ import { useSiteRedirects } from '../redirects/useSiteRedirects.ts';
 import { buildDeleteRedirectMessage } from '../redirects/buildRedirectMessage.ts';
 import { RedirectFormModal } from '../redirects/RedirectFormModal.tsx';
 import { AddIcon } from '../sections/AddIcon.tsx';
+import { EditIcon } from '../sections/EditIcon.tsx';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
+import { InstanceRowActions } from '../sections/InstanceRowActions.tsx';
 import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
 import { buildLoadErrorActions, loadErrorMessage } from '../sites/site-load-error.ts';
@@ -17,10 +19,11 @@ type ModalState = { mode: 'create' } | { mode: 'edit'; entry: RedirectEntry } | 
 
 // From becomes the row's own primary label, To renders as smaller
 // muted text underneath it (a two-line row, not a separate column) -
-// Note is dropped from the visible list entirely. Edit/Delete become
-// small icon buttons (matching SectionList's own hover-revealed row
-// actions), replacing the old text "Edit" button - none of the old
-// four columns (From/To/Note/actions) fit this panel's own
+// Note is dropped from the visible list entirely. Edit/Delete go
+// through InstanceRowActions.tsx now (shared with Menus items), not a
+// hand-rolled pair borrowing button.instance-row-chevron's own class
+// for Edit purely because it produced the same-looking box - none of
+// the old four columns (From/To/Note/actions) fit this panel's own
 // --editor-sidebar-width side by side.
 export function RedirectsTabPanel({ siteId }: RedirectsTabPanelProps) {
   const { entries, loading, loadError, refresh } = useSiteRedirects(siteId);
@@ -63,26 +66,32 @@ export function RedirectsTabPanel({ siteId }: RedirectsTabPanelProps) {
           {entries.map((entry) => (
             <li className="instance-row" key={entry.from}>
               <div className="instance-row-main">
+                {/* Redirects never nest, but every instance-row now
+                    reserves this column regardless (requested directly
+                    - "clean this up so they are all rendered the same
+                    way"), matching Sections/Blocks/Pages. */}
+                <span className="instance-row-chevron-spacer" aria-hidden="true" />
                 <span className="redirects-tab-row-label">
                   <strong>{entry.from}</strong>
                   <span className="redirects-tab-row-to">{entry.to}</span>
                 </span>
-                <button
-                  type="button"
-                  className="instance-row-chevron"
-                  aria-label={`Edit redirect from ${entry.from}`}
-                  onClick={() => setModalState({ mode: 'edit', entry })}
-                >
-                  &hellip;
-                </button>
-                <button
-                  type="button"
-                  className="instance-row-remove"
-                  aria-label={`Delete redirect from ${entry.from}`}
-                  onClick={() => void handleDelete(entry)}
-                >
-                  <TrashIcon />
-                </button>
+                <InstanceRowActions
+                  actions={[
+                    {
+                      key: 'edit',
+                      label: `Edit redirect from ${entry.from}`,
+                      icon: <EditIcon />,
+                      onClick: () => setModalState({ mode: 'edit', entry }),
+                    },
+                    {
+                      key: 'delete',
+                      label: `Delete redirect from ${entry.from}`,
+                      icon: <TrashIcon />,
+                      variant: 'destructive',
+                      onClick: () => void handleDelete(entry),
+                    },
+                  ]}
+                />
               </div>
             </li>
           ))}
