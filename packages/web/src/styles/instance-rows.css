@@ -74,7 +74,6 @@
 }
 
 .instance-row-main {
-  position: relative;
   display: flex;
   align-items: center;
   gap: 0;
@@ -84,22 +83,6 @@
   background: var(--gradient-pill);
   cursor: pointer;
   box-shadow: var(--shadow-panel);
-}
-
-/* .has-drag-column - only on row types that ever have a drag handle at
-   all (Sections, Blocks, Pages), not a blanket property of every
-   instance-row - Redirects/Menus never reorder anything, so reserving
-   this space there was pure dead padding with nothing to justify it
-   (reported directly, live - "why does the menu have such large
-   padding"). Within a list that DOES have drag handles, the reservation
-   still applies to every row in it regardless of whether THIS specific
-   instance has one (a url-less Pages entry has none of its own, but
-   sits alongside siblings that do) - the drag handle itself is
-   positioned absolutely within this space, so a row missing one just
-   leaves it empty rather than needing a spacer element the way the
-   chevron already does. */
-.instance-row-main.has-drag-column {
-  padding-left: calc(var(--space-xs) * 2 + 1.75rem);
 }
 
 .instance-row-main:hover,
@@ -420,27 +403,34 @@ button.instance-row-more:hover {
 /* Only the drag handle itself is draggable (not the whole row), so a
    plain click anywhere else on the row still opens the Fields tab
    instead of accidentally starting a drag.
-   Moved to the very left of the row (requested directly, with a
-   mockup) and taken out of normal flex flow - position: absolute
-   inside .instance-row-main.has-drag-column's own reserved left
-   padding (see that rule's own comment), so a row missing one within
-   an otherwise-draggable list (a url-less Pages entry) leaves that
-   space empty rather than needing a spacer element the chevron still
-   uses. inset top/bottom: var(--space-xs) matches the row's own
-   vertical padding, so the handle's box is flush with the row's inner
-   edge, not centred with extra slack above/below. Only ever rendered
-   at all inside a row that also carries has-drag-column - the two
-   always travel together. */
+   A plain in-flow flex child again, not position: absolute - a row
+   that never renders one (Redirects, Menus, a url-less Pages entry)
+   simply has one fewer flex child, so everything else collapses left
+   to fill the gap on its own, no reserved padding/spacer needed at all
+   (requested directly - a second pass; reserving that space on every
+   row regardless of whether it ever has one left dead padding on
+   Redirects/Menus with nothing to justify it).
+   Negative top/left/bottom margins pull it back out past
+   .instance-row-main's own var(--space-xs) padding to sit flush
+   against the row's actual left/top/bottom edges (inside the 1px
+   border) instead of inset with everything else - the positive right
+   margin is the gap to whatever comes next (the chevron/spacer).
+   height: 2.2rem, not 100%/stretch - close to but not exactly the
+   row's own content-box height (1.75rem, matching every other row
+   action's own box) plus its vertical padding, so it reads as
+   spanning nearly the full row without needing to chase the row's own
+   height as it might vary. border-radius only rounds the two left
+   corners - the two right ones sit against the chevron/label, not the
+   row's own outer edge. */
 .instance-row-drag-handle {
-  position: absolute;
-  left: var(--space-xs);
-  top: var(--space-xs);
-  bottom: var(--space-xs);
-  width: 1.75rem;
+  flex: 0 0 auto;
+  width: 1.4rem;
+  height: 2.2rem;
+  margin: calc(-1 * var(--space-xs)) var(--space-xs) calc(-1 * var(--space-xs)) calc(-1 * var(--space-xs));
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-xs) 0 0 var(--radius-xs);
   /* A permanent wash, not a hover state - reads as this zone's own
      background, distinct from the row around it, at rest (requested
      directly). Lightens in dark mode, brightens in light mode - see

@@ -405,7 +405,7 @@ function PagesHubTreeRow({
   return (
     <li className={`instance-row${isDragging ? ' is-dragging' : ''}`}>
       <div
-        className={`instance-row-main has-drag-column${isActive ? ' is-selected' : ''}${isDropTarget ? ' is-drop-target' : ''}`}
+        className={`instance-row-main${isActive ? ' is-selected' : ''}${isDropTarget ? ' is-drop-target' : ''}`}
         role="button"
         tabIndex={0}
         aria-label={entry.name || entry.path}
