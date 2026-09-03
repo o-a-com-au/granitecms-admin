@@ -137,6 +137,7 @@ export function AddressBarSearchModal({ siteId, domainLabel, anchorRect, onClose
         role="dialog"
         aria-modal="true"
         aria-label="Search pages"
+        data-theme="light"
         style={{ top: anchorRect.top, left: anchorRect.left, width: anchorRect.width }}
       >
         <div className="address-search-input-row">

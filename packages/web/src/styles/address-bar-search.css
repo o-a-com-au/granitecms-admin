@@ -8,7 +8,16 @@
    and growing in place rather than a separate dialog appearing
    elsewhere (corrected per feedback - a first pass centred it in the
    viewport instead). The overlay is now just a plain full-viewport tint
-   behind it, a sibling rather than a flex-centring parent. */
+   behind it, a sibling rather than a flex-centring parent.
+
+   Colours/radii here match a reference image supplied directly: the
+   box itself is --colour-search-panel (--grey-100), the input row
+   sitting on top of it is white (--colour-surface), and result rows
+   turn the same white on hover so they stand out against the grey
+   panel rather than blending into it. The box forces
+   data-theme="light" on its own root (AddressBarSearchModal.tsx) so
+   "white" and "--grey-100" hold regardless of the app's own dark/light
+   toggle - same precedent as SettingsLayout.tsx forcing dark. */
 .address-search-overlay {
   position: fixed;
   inset: 0;
@@ -22,8 +31,8 @@
   max-height: calc(100vh - 6rem);
   display: flex;
   flex-direction: column;
-  background: var(--colour-surface);
-  border-radius: var(--radius-md);
+  background: var(--colour-search-panel);
+  border-radius: var(--radius-lg);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
   overflow: hidden;
   animation: popup-fade-up 0.25s ease-out;
@@ -41,6 +50,7 @@
   align-items: center;
   gap: 0.6rem;
   padding: 1rem 1.25rem;
+  background: var(--colour-surface);
   border-bottom: 1px solid var(--colour-border);
 }
 
@@ -148,8 +158,14 @@ button.address-search-result {
   text-align: left;
 }
 
+/* var(--colour-surface), not --colour-surface-hover - the panel behind
+   these rows is itself --colour-search-panel (--grey-100), the same
+   value --colour-surface-hover resolves to, so that would be
+   invisible. A hovered row needs to stand out lighter than the panel,
+   matching the reference image, so it reaches for the same white the
+   input row above uses instead. */
 button.address-search-result:hover {
-  background: var(--colour-surface-hover);
+  background: var(--colour-surface);
 }
 
 .address-search-result-icon {
@@ -191,9 +207,9 @@ button.address-search-result:hover {
 .address-search-result-type {
   flex: 0 0 auto;
   padding: 0.25rem 0.6rem;
-  border-radius: 999px;
-  background: var(--colour-surface-hover);
-  color: var(--colour-muted);
+  border-radius: var(--radius-sm);
+  background: var(--colour-muted);
+  color: #fff;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;

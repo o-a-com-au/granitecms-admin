@@ -54,6 +54,15 @@
      lighter half already uses color-mix for. */
   --colour-avatar: #bb75a9;
   --colour-avatar-hover: color-mix(in srgb, var(--colour-avatar) 80%, black);
+  /* AddressBarSearchModal.tsx's own panel background (requested
+     directly, matching a reference image) - an alias into the raw grey
+     scale rather than a --grey-* reference from address-bar-search.css
+     itself, per this file's own "only file with raw colour values"
+     rule above. Theme-agnostic on purpose: the box forces
+     data-theme="light" on its own root so it always reads as the light
+     mockup regardless of the app's own toggle, and --grey-100 is
+     already identical in both themes anyway. */
+  --colour-search-panel: var(--grey-100);
 
   --radius-xs: 3px;
   --radius-sm: 5px;
