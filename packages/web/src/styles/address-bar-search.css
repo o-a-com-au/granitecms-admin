@@ -1,0 +1,200 @@
+/* AddressBarSearchModal.tsx - AppShell.tsx's own address bar, turned
+   into a page search (requested directly, with a mockup). Not
+   .modal-overlay (modal.css) - that one centres vertically in the
+   middle of the viewport, but this needs to sit near the top, roughly
+   where the address bar itself is, the same way a command-palette-
+   style search reads. Its own overlay/box pair instead, reusing
+   modal.css's own tint/shadow/fade values for visual consistency
+   without inheriting that centring. */
+.address-search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  padding: 5rem var(--space-md) var(--space-md);
+  background: rgba(50, 50, 50, 0.6);
+}
+
+.address-search-box {
+  width: min(90vw, 640px);
+  max-height: calc(100vh - 8rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--colour-surface);
+  border-radius: var(--radius-md);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  animation: popup-fade-up 0.25s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .address-search-box {
+    animation: none;
+  }
+}
+
+.address-search-input-row {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--colour-border);
+}
+
+.address-search-input-icon {
+  display: flex;
+  flex: 0 0 auto;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--colour-muted);
+}
+
+/* .address-search-input-row input, not a bare input selector - this
+   one reads as part of the search box's own header, not an ordinary
+   bordered form field, so it needs to override base.css's own
+   input{border/padding/background} rule entirely. Specific enough
+   (class+element) to win outright regardless of file order, unlike
+   the recurring button[type='button'] specificity ties elsewhere in
+   this app. */
+.address-search-input-row input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  padding: 0;
+  background: none;
+  color: var(--colour-text);
+  font: inherit;
+  font-size: 1.1rem;
+}
+
+.address-search-input-row input:focus {
+  outline: none;
+}
+
+/* button.address-search-close, not the bare class - base.css's own
+   button[type='button']/:hover rule (element+attribute) otherwise
+   wins the specificity tie against a bare class, the same recurring
+   gotcha this app has hit repeatedly elsewhere (button.instance-row-
+   chevron etc). Opacity, not a colour swap, for hover feedback - same
+   rest/hover pattern as every other icon-only button this session. */
+button.address-search-close {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--colour-icon-muted);
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+button.address-search-close:hover {
+  background: none;
+  opacity: 1;
+}
+
+.address-search-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-2xl) var(--space-lg);
+  color: var(--colour-muted);
+  text-align: center;
+}
+
+.address-search-empty-icon {
+  display: flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  opacity: 0.5;
+}
+
+.address-search-message {
+  margin: 0;
+  padding: var(--space-lg);
+  color: var(--colour-muted);
+  text-align: center;
+}
+
+.address-search-results {
+  margin: 0;
+  list-style: none;
+  overflow-y: auto;
+  padding: var(--space-sm);
+}
+
+/* button.address-search-result - same specificity reasoning as
+   button.address-search-close above. */
+button.address-search-result {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--colour-text);
+  text-align: left;
+}
+
+button.address-search-result:hover {
+  background: var(--colour-surface-hover);
+}
+
+.address-search-result-icon {
+  display: flex;
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  color: var(--colour-muted);
+}
+
+.address-search-result-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 0.1rem;
+}
+
+.address-search-result-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.address-search-result-path {
+  font-size: 0.8rem;
+  color: var(--colour-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The one signal a result came from something other than a plain page
+   (requested directly - "Article" in the mockup) - entry.type itself
+   (ContentListEntry, api/site-content.ts), shown only when it isn't
+   the ordinary "page" value every real page carries today (see
+   AddressBarSearchModal.tsx's own DEFAULT_TYPE comment). */
+.address-search-result-type {
+  flex: 0 0 auto;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: var(--colour-surface-hover);
+  color: var(--colour-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}

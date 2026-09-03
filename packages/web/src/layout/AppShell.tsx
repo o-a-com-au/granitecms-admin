@@ -8,6 +8,7 @@ import { GraniteLogo } from './GraniteLogo.tsx';
 import { IconRail } from './IconRail.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider } from './PageActionsContext.tsx';
 import { PreviewProvider, SharedPreviewRegion, usePreview } from './PreviewContext.tsx';
+import { AddressBarSearchModal } from './AddressBarSearchModal.tsx';
 import { useSites } from '../sites/useSites.ts';
 import { readLastSiteId, resolveEditorHref, writeLastSiteId } from '../sites/currentSite.ts';
 import { buildLoadErrorActions, loadErrorMessage, toSiteLoadError } from '../sites/site-load-error.ts';
@@ -127,6 +128,7 @@ function AppShellContent() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [accountOpen, setAccountOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
   const [pageActions, setPageActions] = useState<ReactNode>(null);
   const [deviceToggle, setDeviceToggle] = useState<ReactNode>(null);
@@ -448,14 +450,39 @@ function AppShellContent() {
               </span>
             </Link>
           </div>
-          {/* The new address bar - a static display of the current
-              page's address (site domain + path, from the same shared
-              previewUrl the preview viewport itself shows - see
-              AppShellContent's own comment above) plus the device-size
-              toggle, replacing the old nav-links span. Not yet
-              clickable/searchable - that's a
-              deliberately later enhancement, hence the title hint. */}
-          <div className="app-topbar-address-bar" title={siteAddressLabel ?? undefined}>
+          {/* The address bar - a display of the current page's address
+              (site domain + path, from the same shared previewUrl the
+              preview viewport itself shows - see AppShellContent's own
+              comment above) plus the device-size toggle. Now also a
+              search trigger (requested directly, with a mockup) -
+              clicking it opens AddressBarSearchModal in place of the
+              plain title-hint it used to just show. Only when siteId
+              (the raw route param, not effectiveSiteId's own fallback)
+              and currentSite are both real - same scoping siteAddressLabel
+              itself already uses, since search needs an actual site to
+              query, not just "whichever site was last visited" while on
+              an unrelated route. role="button"/tabIndex/onKeyDown - a
+              plain onClick div isn't independently focusable/operable
+              by keyboard otherwise, the same reasoning every other
+              "div styled as a control" in this app already follows
+              (PagesTabPanel.tsx's own instance-row-main etc). */}
+          <div
+            className="app-topbar-address-bar"
+            title={siteAddressLabel ?? undefined}
+            role={siteId && currentSite ? 'button' : undefined}
+            tabIndex={siteId && currentSite ? 0 : undefined}
+            onClick={() => {
+              if (siteId && currentSite) {
+                setSearchOpen(true);
+              }
+            }}
+            onKeyDown={(event) => {
+              if ((event.key === 'Enter' || event.key === ' ') && siteId && currentSite) {
+                event.preventDefault();
+                setSearchOpen(true);
+              }
+            }}
+          >
             <span className="app-address-bar-icon" aria-hidden="true">
               <GlobeIcon />
             </span>
@@ -473,8 +500,19 @@ function AppShellContent() {
                 <ExternalLinkIcon />
               </a>
             )}
-            <div className="app-topbar-device-toggle">{deviceToggle}</div>
+            {/* stopPropagation - DeviceToggle.tsx's own buttons have no
+                such handling themselves (nothing wrapped them in a
+                clickable ancestor before now), so a click on one would
+                otherwise also bubble up and open the search modal,
+                same reasoning the external-link <a> above already
+                needed this for. */}
+            <div className="app-topbar-device-toggle" onClick={(event) => event.stopPropagation()}>
+              {deviceToggle}
+            </div>
           </div>
+          {searchOpen && siteId && currentSite && (
+            <AddressBarSearchModal siteId={siteId} domainLabel={hostLabelFor(currentSite.url)} onClose={() => setSearchOpen(false)} />
+          )}
           <div className="app-topbar-end">
             <div className="app-topbar-actions">{pageActions}</div>
             {accountMenu}

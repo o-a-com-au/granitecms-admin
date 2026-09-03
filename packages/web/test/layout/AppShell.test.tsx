@@ -648,6 +648,40 @@ describe('AppShell', () => {
     expect(externalLink.getAttribute('target')).toBe('_blank');
   });
 
+  it('clicking the address bar opens the page search, only once there\'s a real current site', async () => {
+    installFakeApi();
+
+    renderShell('/');
+    await waitFor(() => expect(screen.getByText('home content')).toBeDefined());
+    fireEvent.click(screen.getByText('No website selected', { selector: '.app-address-bar-label' }).closest('.app-topbar-address-bar')!);
+    expect(screen.queryByRole('dialog', { name: 'Search pages' })).toBeNull();
+  });
+
+  it('clicking the address bar on a real site-scoped route opens the page search', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/auth/me') {
+        return new Response(JSON.stringify({ id: 'admin', username: 'admin' }), { status: 200 });
+      }
+      if (url === '/api/sites') {
+        return new Response(JSON.stringify([SITE]), { status: 200 });
+      }
+      if (url === '/api/sites/site-1/content') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      throw new Error(`unhandled fetch in test: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderShell('/sites/site-1/content');
+    await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
+
+    fireEvent.click(screen.getByText('localhost:3891', { selector: '.app-address-bar-label' }).closest('.app-topbar-address-bar')!);
+
+    expect(screen.getByRole('dialog', { name: 'Search pages' })).toBeDefined();
+    expect(screen.getByText('Search for pages in localhost:3891')).toBeDefined();
+  });
+
   it('appends the currently open page\'s own path once the editor registers one, joined onto the site\'s domain', async () => {
     renderShellWithPagePath('/sites/site-1/editor', '/what-we-stand-for');
     await waitFor(() => expect(screen.getByText('editor content')).toBeDefined());
