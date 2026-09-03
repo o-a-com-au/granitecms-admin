@@ -52,12 +52,16 @@ function installFakeFetch(entries: unknown[] = ENTRIES) {
   return fetchMock;
 }
 
+const ANCHOR_RECT = { top: 12, left: 240, width: 800 };
+
 function renderModal(onClose = vi.fn()) {
   const router = createMemoryRouter(
     [
       {
         path: '/sites/:siteId/content',
-        element: <AddressBarSearchModal siteId="site-1" domainLabel="examplewebsite.com.au" onClose={onClose} />,
+        element: (
+          <AddressBarSearchModal siteId="site-1" domainLabel="examplewebsite.com.au" anchorRect={ANCHOR_RECT} onClose={onClose} />
+        ),
       },
       { path: '/sites/:siteId/editor', element: <div>editor placeholder</div> },
     ],
@@ -143,12 +147,22 @@ describe('AddressBarSearchModal', () => {
   it('clicking the backdrop closes, but clicking inside the box does not', () => {
     installFakeFetch();
     const onClose = vi.fn();
-    renderModal(onClose);
+    const { container } = renderModal(onClose);
 
     fireEvent.click(screen.getByRole('dialog'));
     expect(onClose).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('dialog').parentElement!);
+    fireEvent.click(container.querySelector('.address-search-overlay')!);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('pins the box to the address bar\'s own measured position, not centred in the viewport', () => {
+    installFakeFetch();
+    renderModal();
+
+    const box = screen.getByRole('dialog');
+    expect(box.style.top).toBe('12px');
+    expect(box.style.left).toBe('240px');
+    expect(box.style.width).toBe('800px');
   });
 });

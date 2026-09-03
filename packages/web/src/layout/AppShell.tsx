@@ -130,6 +130,20 @@ function AppShellContent() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
+  const addressBarRef = useRef<HTMLDivElement>(null);
+  // The real address bar's own measured position/size at the moment
+  // it's clicked - AddressBarSearchModal is anchored to this exact
+  // rect (position: fixed, inline top/left/width) rather than centred
+  // in the viewport, so it reads as the address bar itself turning
+  // white and growing, not a separate dialog appearing elsewhere
+  // (corrected per feedback, with the same mockup - a first pass just
+  // centred it, which drifts from the real bar's own position on any
+  // viewport where .app-topbar-start/.app-topbar-end aren't equal
+  // widths, since the bar's own true centre is then off-centre from
+  // the viewport's). Re-measured fresh on every open, not cached -
+  // this element can genuinely move (a shorter/longer siteAddressLabel
+  // reflows the topbar's own flex row).
+  const [addressBarRect, setAddressBarRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const [pageActions, setPageActions] = useState<ReactNode>(null);
   const [deviceToggle, setDeviceToggle] = useState<ReactNode>(null);
   const { sites, error: sitesError, refresh: refreshSites } = useSites();
@@ -467,18 +481,23 @@ function AppShellContent() {
               "div styled as a control" in this app already follows
               (PagesTabPanel.tsx's own instance-row-main etc). */}
           <div
+            ref={addressBarRef}
             className="app-topbar-address-bar"
             title={siteAddressLabel ?? undefined}
             role={siteId && currentSite ? 'button' : undefined}
             tabIndex={siteId && currentSite ? 0 : undefined}
             onClick={() => {
-              if (siteId && currentSite) {
+              if (siteId && currentSite && addressBarRef.current) {
+                const rect = addressBarRef.current.getBoundingClientRect();
+                setAddressBarRect({ top: rect.top, left: rect.left, width: rect.width });
                 setSearchOpen(true);
               }
             }}
             onKeyDown={(event) => {
-              if ((event.key === 'Enter' || event.key === ' ') && siteId && currentSite) {
+              if ((event.key === 'Enter' || event.key === ' ') && siteId && currentSite && addressBarRef.current) {
                 event.preventDefault();
+                const rect = addressBarRef.current.getBoundingClientRect();
+                setAddressBarRect({ top: rect.top, left: rect.left, width: rect.width });
                 setSearchOpen(true);
               }
             }}
@@ -510,8 +529,13 @@ function AppShellContent() {
               {deviceToggle}
             </div>
           </div>
-          {searchOpen && siteId && currentSite && (
-            <AddressBarSearchModal siteId={siteId} domainLabel={hostLabelFor(currentSite.url)} onClose={() => setSearchOpen(false)} />
+          {searchOpen && siteId && currentSite && addressBarRect && (
+            <AddressBarSearchModal
+              siteId={siteId}
+              domainLabel={hostLabelFor(currentSite.url)}
+              anchorRect={addressBarRect}
+              onClose={() => setSearchOpen(false)}
+            />
           )}
           <div className="app-topbar-end">
             <div className="app-topbar-actions">{pageActions}</div>

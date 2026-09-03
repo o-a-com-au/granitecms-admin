@@ -1,24 +1,25 @@
 /* AddressBarSearchModal.tsx - AppShell.tsx's own address bar, turned
    into a page search (requested directly, with a mockup). Not
-   .modal-overlay (modal.css) - that one centres vertically in the
-   middle of the viewport, but this needs to sit near the top, roughly
-   where the address bar itself is, the same way a command-palette-
-   style search reads. Its own overlay/box pair instead, reusing
-   modal.css's own tint/shadow/fade values for visual consistency
-   without inheriting that centring. */
+   .modal-overlay (modal.css) - that one centres a box in the middle of
+   the viewport, but this one is pinned to the real address bar's own
+   measured position instead (AppShell.tsx's addressBarRect, applied as
+   an inline style on .address-search-box itself - top/left/width all
+   live there, not here), so it reads as that element turning white
+   and growing in place rather than a separate dialog appearing
+   elsewhere (corrected per feedback - a first pass centred it in the
+   viewport instead). The overlay is now just a plain full-viewport tint
+   behind it, a sibling rather than a flex-centring parent. */
 .address-search-overlay {
   position: fixed;
   inset: 0;
   z-index: 50;
-  display: flex;
-  justify-content: center;
-  padding: 5rem var(--space-md) var(--space-md);
   background: rgba(50, 50, 50, 0.6);
 }
 
 .address-search-box {
-  width: min(90vw, 640px);
-  max-height: calc(100vh - 8rem);
+  position: fixed;
+  z-index: 51;
+  max-height: calc(100vh - 6rem);
   display: flex;
   flex-direction: column;
   background: var(--colour-surface);

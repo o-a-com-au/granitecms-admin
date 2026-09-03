@@ -6,6 +6,15 @@ import { CloseIcon } from '../sections/CloseIcon.tsx';
 export interface AddressBarSearchModalProps {
   siteId: string;
   domainLabel: string;
+  // The real .app-topbar-address-bar's own measured position/size at
+  // the moment it was clicked (AppShell.tsx) - the search box is
+  // pinned to this exact spot rather than centred in the viewport, so
+  // it reads as that same element turning white and growing, not a
+  // separate dialog appearing elsewhere (corrected per feedback, with
+  // a mockup - a first pass centred it instead, which drifts from the
+  // real bar's own position on any viewport where .app-topbar-start/
+  // .app-topbar-end aren't equal widths).
+  anchorRect: { top: number; left: number; width: number };
   onClose: () => void;
 }
 
@@ -66,7 +75,7 @@ function buildEditorHref(siteId: string, entry: ContentListEntry): string {
 // caching across opens - real sites are small (tens of pages, not
 // thousands), so a fresh fetch each time is simpler than inventing
 // invalidation logic for what's a rarely-reopened, cheap request.
-export function AddressBarSearchModal({ siteId, domainLabel, onClose }: AddressBarSearchModalProps) {
+export function AddressBarSearchModal({ siteId, domainLabel, anchorRect, onClose }: AddressBarSearchModalProps) {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [entries, setEntries] = useState<ContentListEntry[] | null>(null);
@@ -121,13 +130,14 @@ export function AddressBarSearchModal({ siteId, domainLabel, onClose }: AddressB
   }
 
   return (
-    <div className="address-search-overlay" onClick={onClose}>
+    <>
+      <div className="address-search-overlay" onClick={onClose} />
       <div
         className="address-search-box"
         role="dialog"
         aria-modal="true"
         aria-label="Search pages"
-        onClick={(event) => event.stopPropagation()}
+        style={{ top: anchorRect.top, left: anchorRect.left, width: anchorRect.width }}
       >
         <div className="address-search-input-row">
           <span className="address-search-input-icon" aria-hidden="true">
@@ -180,6 +190,6 @@ export function AddressBarSearchModal({ siteId, domainLabel, onClose }: AddressB
           </ul>
         )}
       </div>
-    </div>
+    </>
   );
 }
