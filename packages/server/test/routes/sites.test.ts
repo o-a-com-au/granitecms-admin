@@ -2426,4 +2426,108 @@ describe('sites routes', () => {
 
     await app.close();
   });
+
+  it("DELETE /api/sites/:id/content/*path sends the logged-in admin's own name/email as author, never something the caller supplied", async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedBody: Record<string, unknown> = {};
+    let receivedPath = '';
+    fakeSite = createServer((req, res) => {
+      // See the redirects tests above for why the capabilities
+      // pre-check from registration needs its own, separate branch.
+      if (req.method !== 'DELETE' || !req.url?.startsWith('/v1/content/')) {
+        sendJson(res, 200, { agentVersion: '1.0.0', contentSchemaVersion: 3, sqliteDriver: 'node:sqlite' });
+        return;
+      }
+      receivedPath = req.url;
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        receivedBody = JSON.parse(Buffer.concat(chunks).toString());
+        res.writeHead(204);
+        res.end();
+      });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/sites/${id}/content/pages/about.json`,
+      headers: { cookie },
+      payload: { message: 'Delete About', author: { name: 'Attacker', email: 'x@x.com' } },
+    });
+
+    assert.equal(response.statusCode, 204);
+    assert.equal(receivedPath, '/v1/content/pages/about.json');
+    assert.equal(receivedBody.author && (receivedBody.author as { name: string }).name, 'Jane Editor');
+
+    await app.close();
+  });
+
+  it('DELETE /api/sites/:id/content/*path rejects a missing message with 400, without ever calling the site', async () => {
+    const { app, cookie } = await buildTestServer();
+    const id = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/sites/${id}/content/pages/about.json`,
+      headers: { cookie },
+      payload: {},
+    });
+
+    assert.equal(response.statusCode, 400);
+
+    await app.close();
+  });
+
+  it('DELETE /api/sites/:id/content/*path forwards a site 409 (has children) as a real conflict, with the site\'s own message', async () => {
+    const { app, cookie } = await buildTestServer();
+    fakeSite = createServer((_req, res) =>
+      sendJson(res, 409, { message: '"pages/about.json" has child pages; delete them first' }),
+    );
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/sites/${id}/content/pages/about.json`,
+      headers: { cookie },
+      payload: { message: 'Delete About' },
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(response.json().message, '"pages/about.json" has child pages; delete them first');
+
+    await app.close();
+  });
+
+  it('DELETE /api/sites/:id/content/*path returns 404 when the site reports not-found', async () => {
+    const { app, cookie } = await buildTestServer();
+    fakeSite = createServer((_req, res) => sendJson(res, 404, { message: 'No page found at that path' }));
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/sites/${id}/content/pages/gone.json`,
+      headers: { cookie },
+      payload: { message: 'Delete gone' },
+    });
+
+    assert.equal(response.statusCode, 404);
+
+    await app.close();
+  });
 });

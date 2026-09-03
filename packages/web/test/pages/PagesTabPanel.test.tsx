@@ -287,6 +287,88 @@ describe('PagesTabPanel', () => {
     });
   });
 
+  describe('delete', () => {
+    it('clicking Delete shows a confirmation naming the page', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE]), { status: 200 })));
+      renderPanel();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+
+      fireEvent.click(screen.getByRole('button', { name: 'Delete About' }));
+
+      expect(screen.getByRole('alertdialog')).toBeDefined();
+      expect(screen.getByText('Delete "About"? This cannot be undone.')).toBeDefined();
+    });
+
+    it('a page with children gets an extra warning in the confirmation message', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([PARENT_ENTRY, CHILD_ENTRY]), { status: 200 })));
+      renderPanel();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+
+      fireEvent.click(screen.getByRole('button', { name: 'Delete About' }));
+
+      expect(
+        screen.getByText(
+          'Delete "About"? This cannot be undone. This page has child pages of its own, which must be deleted first.',
+        ),
+      ).toBeDefined();
+    });
+
+    it('confirming calls the delete API with a real message, then reloads the list', async () => {
+      const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if ((init?.method ?? 'GET') === 'DELETE') {
+          return new Response(null, { status: 204 });
+        }
+        return new Response(JSON.stringify([ENTRY_ONE]), { status: 200 });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      renderPanel();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+
+      fireEvent.click(screen.getByRole('button', { name: 'Delete About' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          '/api/sites/site-1/content/pages/about.json',
+          expect.objectContaining({ method: 'DELETE', body: JSON.stringify({ message: 'Delete About' }) }),
+        ),
+      );
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(fetchMock.mock.calls.filter((call) => (call[1] as RequestInit | undefined)?.method !== 'DELETE').length).toBeGreaterThan(1);
+    });
+
+    it('Cancel dismisses the confirmation without calling the delete API', async () => {
+      const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE]), { status: 200 }));
+      vi.stubGlobal('fetch', fetchMock);
+      renderPanel();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+
+      fireEvent.click(screen.getByRole('button', { name: 'Delete About' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ method: 'DELETE' }));
+    });
+
+    it('a 409 (has-children) failure surfaces the site\'s own message, and the dialog stays open', async () => {
+      const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if ((init?.method ?? 'GET') === 'DELETE') {
+          return new Response(JSON.stringify({ message: '"pages/about.json" has child pages; delete them first' }), { status: 409 });
+        }
+        return new Response(JSON.stringify([ENTRY_ONE]), { status: 200 });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      renderPanel();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+
+      fireEvent.click(screen.getByRole('button', { name: 'Delete About' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+      await waitFor(() => expect(screen.getByText('"pages/about.json" has child pages; delete them first')).toBeDefined());
+      expect(screen.getByRole('alertdialog')).toBeDefined();
+    });
+  });
+
   it('the "Add Page" link opens the New Page modal', async () => {
     vi.stubGlobal(
       'fetch',

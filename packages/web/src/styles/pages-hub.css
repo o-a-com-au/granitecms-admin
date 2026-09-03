@@ -120,12 +120,14 @@
   flex-direction: column;
   gap: 0.1rem;
   overflow: hidden;
+  padding: var(--space-xs) var(--space-md) var(--space-xs) var(--space-sm);
 }
 
 .redirects-tab-row-label strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding-left: 0;
 }
 
 .redirects-tab-row-to {

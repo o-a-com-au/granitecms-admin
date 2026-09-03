@@ -1,3 +1,5 @@
+import { encodePathSegments, reasonFromResponse } from './site-editor.ts';
+
 export interface ContentListEntry {
   path: string;
   name: string;
@@ -63,4 +65,38 @@ export async function listSiteContent(siteId: string, filters: ContentListFilter
   }
 
   return (await response.json()) as ContentListEntry[];
+}
+
+// path is content-relative (e.g. "pages/about.json"), matching
+// readSiteEditorContent's own convention (site-editor.ts) - not a
+// public url, since the admin's route forwards straight to the
+// agent's own DELETE /v1/content/*path, which is content-relative too.
+// Throws SiteEditorError (not this file's own SiteContentError) - the
+// 'not-found'/'conflict'/'invalid' reasons a delete can genuinely
+// return aren't in SiteContentError's own narrower reason set, and
+// every other write endpoint in this app already throws SiteEditorError.
+export async function deleteSitePage(siteId: string, path: string, message: string): Promise<void> {
+  const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/content/${encodePathSegments(path)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message }),
+  });
+
+  if (response.status === 404) {
+    throw await reasonFromResponse(response, 'not-found');
+  }
+  // 'conflict' - the agent rejects deleting a page that still has
+  // child pages outright rather than cascading (see this route's own
+  // server-side comment) - reads the same as any other conflict this
+  // app already surfaces (a stale tree, another editor's concurrent
+  // change), so no dedicated reason of its own.
+  if (response.status === 409) {
+    throw await reasonFromResponse(response, 'conflict');
+  }
+  if (response.status === 400) {
+    throw await reasonFromResponse(response, 'invalid');
+  }
+  if (!response.ok) {
+    throw await reasonFromResponse(response, 'error');
+  }
 }

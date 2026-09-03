@@ -25,6 +25,7 @@ import { fetchSiteHistory } from '../sites/site-history.ts';
 import { fetchSiteRevision } from '../sites/site-revision.ts';
 import { revertSitePath } from '../sites/site-revert.ts';
 import { moveSitePath } from '../sites/site-move.ts';
+import { deleteSiteContent } from '../sites/site-content-delete.ts';
 import { fetchSiteThemeSchemas } from '../sites/site-theme-schemas.ts';
 import { fetchSitePageTemplates } from '../sites/site-page-templates.ts';
 import { deleteSiteMedia, listSiteMedia, uploadSiteMedia } from '../sites/site-media.ts';
@@ -240,6 +241,21 @@ function parseMoveBody(body: unknown): MoveBody | null {
     return null;
   }
   return { from: record.from, to: record.to, message: record.message, createRedirect: record.createRedirect === true };
+}
+
+interface DeleteContentBody {
+  message: string;
+}
+
+function parseDeleteContentBody(body: unknown): DeleteContentBody | null {
+  if (typeof body !== 'object' || body === null) {
+    return null;
+  }
+  const record = body as Record<string, unknown>;
+  if (typeof record.message !== 'string' || record.message.trim() === '') {
+    return null;
+  }
+  return { message: record.message };
 }
 
 interface UpsertRedirectBody {
@@ -770,6 +786,52 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
       reply.code(502);
       return { error: result.message, reason: result.outcome };
     });
+
+    // Own route, not folded into /:id/drafts/*'s own DELETE - that one
+    // discards a draft (never touches the live page); this deletes the
+    // live content file itself, matching the agent's own separate
+    // DELETE /v1/content/*path (content.ts, agent repo). path is
+    // content-relative (e.g. "pages/about.json"), the same convention
+    // GET /:id/content/* already uses on this same route pattern -
+    // Fastify allows both verbs on one path.
+    app.delete<{ Params: { id: string; '*': string } }>(
+      '/:id/content/*',
+      { preHandler: [requireAuth, requireSiteAccess] },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const body = parseDeleteContentBody(request.body);
+        if (!body) {
+          reply.code(400);
+          return { error: 'message is required' };
+        }
+
+        const author = requireCommitAuthor(request.currentUser);
+        const result = await deleteSiteContent(site, request.params['*'], body.message, author);
+
+        if (result.outcome === 'ok') {
+          return reply.code(204).send();
+        }
+        if (result.outcome === 'not-found') {
+          reply.code(404);
+          return { error: result.message, reason: 'not-found' };
+        }
+        if (result.outcome === 'has-children') {
+          reply.code(409);
+          return { statusCode: 409, error: 'Conflict', message: result.message, reason: 'has-children' };
+        }
+        if (result.outcome === 'invalid') {
+          reply.code(400);
+          return { statusCode: 400, error: 'Bad Request', message: result.message };
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
 
     // from/to/note all travel in the body on every verb below, never a
     // URL path segment - they're arbitrary public URLs that may

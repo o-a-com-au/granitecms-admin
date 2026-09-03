@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router';
-import { listSiteContent, SiteContentError } from '../api/site-content.ts';
+import { listSiteContent, deleteSitePage, SiteContentError } from '../api/site-content.ts';
 import type { ContentListEntry } from '../api/site-content.ts';
 import { moveSitePage } from '../api/site-publishing.ts';
 import { SiteEditorError } from '../api/site-editor.ts';
@@ -10,8 +10,10 @@ import { buildPageTree, flattenVisibleTree, isSelfOrDescendantPage, pageParentPa
 import { NewPageModal } from './NewPageModal.tsx';
 import { AddIcon } from '../sections/AddIcon.tsx';
 import { EditIcon } from '../sections/EditIcon.tsx';
+import { TrashIcon } from '../sections/TrashIcon.tsx';
 import { DragHandleIcon } from '../sections/DragHandleIcon.tsx';
 import { AccordionArrowIcon } from '../sections/AccordionArrowIcon.tsx';
+import { InstanceRowActions } from '../sections/InstanceRowActions.tsx';
 import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
 import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
@@ -70,6 +72,20 @@ interface PendingMove {
   newUrl: string;
 }
 
+// A delete waiting on the user's own confirmation - no confirmation-
+// free delete the way Redirects/Menu items have (this app's own
+// precedent there), since a whole page (and everything nested under
+// it, per the tree) is a much bigger, harder-to-undo loss than a
+// single redirect or menu item. hasChildren is captured at the moment
+// Delete was clicked, purely to warn in the dialog's own message - the
+// agent's own DELETE /v1/content/*path is what actually enforces this
+// (rejects outright rather than cascading), so a stale computation
+// here can never let a real deletion-with-children through silently.
+interface PendingDelete {
+  entry: ContentListEntry;
+  hasChildren: boolean;
+}
+
 function lastPathSegment(path: string): string {
   const stem = relativePagePath(path).replace(/\.json$/, '');
   const segments = stem.split('/');
@@ -92,6 +108,9 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }
   const [pendingMove, setPendingMove] = useState<PendingMove | null>(null);
   const [moveBusy, setMoveBusy] = useState(false);
   const [moveError, setMoveError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -227,6 +246,34 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }
     }
   }
 
+  function handleRequestDelete(entry: ContentListEntry, hasChildren: boolean): void {
+    setDeleteError(null);
+    setPendingDelete({ entry, hasChildren });
+  }
+
+  async function handleConfirmDelete(): Promise<void> {
+    if (!pendingDelete) {
+      return;
+    }
+    setDeleteBusy(true);
+    setDeleteError(null);
+    try {
+      await deleteSitePage(
+        siteId,
+        pendingDelete.entry.path,
+        `Delete ${pendingDelete.entry.name || pendingDelete.entry.path}`,
+      );
+      setPendingDelete(null);
+      retry();
+    } catch (err) {
+      setDeleteError(
+        err instanceof SiteEditorError ? err.message : err instanceof Error ? err.message : 'Failed to delete that page',
+      );
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
   // flattenVisibleTree isn't used to render any more (the tree renders
   // itself recursively below, real nested <ul>s rather than a flat
   // depth-annotated array) - kept around purely to reuse its own
@@ -257,6 +304,7 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }
   return (
     <div className="pages-hub-tab">
       {moveError && <p role="alert">{moveError}</p>}
+      {deleteError && <p role="alert">{deleteError}</p>}
       {tree !== null && tree.length === 0 ? (
         <p>No pages found.</p>
       ) : (
@@ -272,6 +320,7 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }
               activeUrl={activeUrl}
               draggedPath={draggedPath}
               dropTargetPath={dropTargetPath}
+              onRequestDelete={handleRequestDelete}
               onRowDragStart={handleRowDragStart}
               onRowDragOver={handleRowDragOver}
               onRowDragLeave={handleRowDragLeave}
@@ -295,6 +344,17 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }
           onCancel={() => setPendingMove(null)}
         />
       )}
+      {pendingDelete && (
+        <ConfirmDialog
+          message={`Delete "${pendingDelete.entry.name || pendingDelete.entry.path}"? This cannot be undone.${
+            pendingDelete.hasChildren ? ' This page has child pages of its own, which must be deleted first.' : ''
+          }`}
+          confirmLabel="Delete"
+          busy={deleteBusy}
+          onConfirm={() => void handleConfirmDelete()}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }
@@ -308,6 +368,7 @@ interface PagesHubTreeRowProps {
   activeUrl: string | null;
   draggedPath: string | null;
   dropTargetPath: string | null;
+  onRequestDelete: (entry: ContentListEntry, hasChildren: boolean) => void;
   onRowDragStart: (path: string) => void;
   onRowDragOver: (event: DragEvent, candidate: ContentListEntry) => void;
   onRowDragLeave: (candidatePath: string) => void;
@@ -347,6 +408,7 @@ function PagesHubTreeRow({
   activeUrl,
   draggedPath,
   dropTargetPath,
+  onRequestDelete,
   onRowDragStart,
   onRowDragOver,
   onRowDragLeave,
@@ -478,6 +540,22 @@ function PagesHubTreeRow({
         >
           <EditIcon />
         </Link>
+        {/* Edit stays a real <Link> outside InstanceRowActions.tsx (open-
+            in-new-tab/middle-click etc - see button.instance-row-edit's
+            own comment in instance-rows.css), so only Delete goes
+            through it here - a single action still renders as a plain
+            button, no kebab menu needed for just one. */}
+        <InstanceRowActions
+          actions={[
+            {
+              key: 'delete',
+              label: `Delete ${entry.name || entry.path}`,
+              icon: <TrashIcon />,
+              variant: 'destructive',
+              onClick: () => onRequestDelete(entry, hasChildren),
+            },
+          ]}
+        />
         {entry.url !== null &&
           createPortal(
             <span className="instance-row-drag-pill" ref={dragPillRef} aria-hidden="true">
@@ -499,6 +577,7 @@ function PagesHubTreeRow({
               activeUrl={activeUrl}
               draggedPath={draggedPath}
               dropTargetPath={dropTargetPath}
+              onRequestDelete={onRequestDelete}
               onRowDragStart={onRowDragStart}
               onRowDragOver={onRowDragOver}
               onRowDragLeave={onRowDragLeave}
