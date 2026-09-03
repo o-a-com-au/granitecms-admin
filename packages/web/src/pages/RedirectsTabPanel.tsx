@@ -66,11 +66,12 @@ export function RedirectsTabPanel({ siteId }: RedirectsTabPanelProps) {
           {entries.map((entry) => (
             <li className="instance-row" key={entry.from}>
               <div className="instance-row-main">
-                {/* Redirects never nest, but every instance-row now
-                    reserves this column regardless (requested directly
-                    - "clean this up so they are all rendered the same
-                    way"), matching Sections/Blocks/Pages. */}
-                <span className="instance-row-chevron-spacer" aria-hidden="true" />
+                {/* No chevron/spacer - Redirects never have anything to
+                    expand, unlike Sections/Pages/the menu row itself
+                    (where a mix of chevron/no-chevron siblings in the
+                    SAME list needs to stay aligned), so there's no
+                    alignment case to serve by reserving the column here
+                    at all (requested directly - a second pass). */}
                 <span className="redirects-tab-row-label">
                   <strong>{entry.from}</strong>
                   <span className="redirects-tab-row-to">{entry.to}</span>
