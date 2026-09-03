@@ -133,12 +133,13 @@ button.address-search-close:hover {
    - overflow: hidden clips the icon/text while short, revealing them
    as it grows, then settles back to its own ordinary content-driven
    height once the animation ends (only the animation's own last frame
-   is 176px, close enough to the real rendered height - about 174px
-   for the current icon+one-line-of-text content - that the hand-off
-   back to auto height reads as seamless rather than a snap). Shorter
-   than the box's own 0.25s fade (requested directly, a second pass -
-   the grow read as sluggish at the same speed) - it simply finishes
-   while the box is still fading in. */
+   is 198px, close enough to the real rendered height - about 197.5px
+   with the 64px empty-state icon - that the hand-off back to auto
+   height reads as seamless rather than a snap; re-measure and update
+   this if that icon's own size changes again). Shorter than the box's
+   own 0.25s fade (requested directly, a second pass - the grow read as
+   sluggish at the same speed) - it simply finishes while the box is
+   still fading in. */
 .address-search-empty {
   display: flex;
   flex-direction: column;
@@ -157,14 +158,14 @@ button.address-search-close:hover {
     height: 80px;
   }
   to {
-    height: 176px;
+    height: 198px;
   }
 }
 
 .address-search-empty-icon {
   display: flex;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 64px;
+  height: 64px;
   opacity: 0.5;
 }
 
@@ -190,6 +191,7 @@ button.address-search-result {
   gap: 0.75rem;
   width: 100%;
   padding: 0.6rem 0.75rem;
+  margin-bottom: var(--space-xs);
   border: none;
   border-radius: var(--radius-sm);
   /* A faint 40% wash of the same white the input row/hover state use
