@@ -3,6 +3,7 @@ import { useSiteMenus } from '../menus/useSiteMenus.ts';
 import { MenuItemFormModal } from '../menus/MenuItemFormModal.tsx';
 import { saveSiteMenuItems, type MenuItem, type SiteMenu } from '../api/site-menus.ts';
 import { buildRemoveMenuItemMessage } from '../menus/buildMenuItemMessage.ts';
+import { usePreview } from '../layout/PreviewContext.tsx';
 import { deriveMenuName } from './deriveMenuName.ts';
 import { NewMenuModal } from './NewMenuModal.tsx';
 import { AccordionArrowIcon } from '../sections/AccordionArrowIcon.tsx';
@@ -33,6 +34,7 @@ type ItemModalState =
 // nothing left for a separate page to do once items live inline.
 export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
   const { menus, loading, loadError, refresh } = useSiteMenus(siteId);
+  const { bumpPreview } = usePreview();
   const [expandedPath, setExpandedPath] = useState<string | null>(null);
   const [newMenuModalOpen, setNewMenuModalOpen] = useState(false);
   const [itemModalState, setItemModalState] = useState<ItemModalState>(null);
@@ -45,6 +47,13 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
     try {
       await saveSiteMenuItems(siteId, menu.path, menu.envelope, items, menu.etag, buildRemoveMenuItemMessage(menuName, item.label));
       refresh();
+      // A menu's items typically render inline in a page's own nav
+      // (header/footer) - the shared preview viewport keeps showing
+      // whatever page was last active even while browsing this tab
+      // (PagesHubPage.tsx never clears previewUrl on a tab switch), so
+      // without this it would keep showing the now-stale nav until
+      // something else happened to reload it.
+      bumpPreview();
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Failed to delete that menu item');
     }
@@ -53,6 +62,7 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
   function handleItemSaved(): void {
     setItemModalState(null);
     refresh();
+    bumpPreview();
   }
 
   if (loadError) {
@@ -129,14 +139,14 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
                           // list.
                           <li className="instance-row" key={index}>
                             <div className="instance-row-main">
-                              {/* Reuses redirects-tab-row-label/-to as-is
-                                  (pages-hub.css) - a generic "label above,
-                                  muted subtext below" row shape, not
-                                  actually redirect-specific despite the
-                                  name. */}
+                              {/* Reuses redirects-tab-row-label as-is
+                                  (pages-hub.css) - a generic single-line
+                                  label row shape, not actually redirect-
+                                  specific despite the name. Just the
+                                  label, no url subtext (requested
+                                  directly - a second pass). */}
                               <span className="redirects-tab-row-label">
                                 <strong>{item.label || 'Untitled'}</strong>
-                                <span className="redirects-tab-row-to">{item.url}</span>
                               </span>
                               <button
                                 type="button"

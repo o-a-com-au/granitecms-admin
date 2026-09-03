@@ -2,6 +2,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { MenusTabPanel } from '../../src/pages/MenusTabPanel.tsx';
+import { PreviewProvider, usePreview } from '../../src/layout/PreviewContext.tsx';
+
+// Renders previewGeneration as plain text - PreviewContext.tsx's own
+// bumpPreview has no visible effect of its own to assert on directly
+// (SharedPreviewRegion needs a real previewUrl/visible=true, neither of
+// which this panel sets up itself - that's PagesHubPage's job), so this
+// stands in as the simplest real (non-mocked) way to observe it firing.
+function PreviewGenerationProbe() {
+  const { previewGeneration } = usePreview();
+  return <span data-testid="preview-generation">{previewGeneration}</span>;
+}
 
 const PAGE_ENTRY = { path: 'pages/about.json', name: 'About', title: 'About', type: 'page', published: true, hasDraft: false, url: '/about' };
 const MAIN_MENU_ENTRY = { path: 'menus/main.json', name: '', title: '', type: '', published: false, hasDraft: false, url: null };
@@ -63,9 +74,12 @@ function installFakeApi(entries: unknown[], menuFiles: Record<string, MenuFile>)
 function renderPanel() {
   return render(
     <MemoryRouter initialEntries={['/sites/site-1/content']}>
-      <Routes>
-        <Route path="/sites/:siteId/content" element={<MenusTabPanel siteId="site-1" />} />
-      </Routes>
+      <PreviewProvider siteId="site-1">
+        <Routes>
+          <Route path="/sites/:siteId/content" element={<MenusTabPanel siteId="site-1" />} />
+        </Routes>
+        <PreviewGenerationProbe />
+      </PreviewProvider>
     </MemoryRouter>,
   );
 }
@@ -88,7 +102,7 @@ describe('MenusTabPanel', () => {
     expect(screen.queryByText('Home')).toBeNull();
   });
 
-  it('expanding a menu row reveals its items as children', async () => {
+  it('expanding a menu row reveals its items as children, by label only - no url/path shown', async () => {
     installFakeApi([MAIN_MENU_ENTRY], {
       'menus/main.json': {
         content: { schemaVersion: 1, items: [{ label: 'Home', url: '/' }, { label: 'About', url: '/about' }] },
@@ -102,9 +116,9 @@ describe('MenusTabPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Expand Main' }));
 
     expect(screen.getByText('Home')).toBeDefined();
-    expect(screen.getByText('/')).toBeDefined();
     expect(screen.getByText('About')).toBeDefined();
-    expect(screen.getByText('/about')).toBeDefined();
+    expect(screen.queryByText('/')).toBeNull();
+    expect(screen.queryByText('/about')).toBeNull();
   });
 
   it('shows "No items yet." for a menu with an empty items array', async () => {
@@ -160,6 +174,7 @@ describe('MenusTabPanel', () => {
 
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Contact' } });
     fireEvent.change(screen.getByLabelText('URL'), { target: { value: '/contact' } });
+    expect(screen.getByTestId('preview-generation').textContent).toBe('0');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(screen.getByText('Contact')).toBeDefined());
@@ -168,10 +183,14 @@ describe('MenusTabPanel', () => {
     expect(putCall?.body).toMatchObject({
       content: { schemaVersion: 1, items: [{ label: 'Home', url: '/' }, { label: 'Contact', url: '/contact' }] },
     });
+    // bumpPreview (PreviewContext.tsx) - the shared viewport may be
+    // showing a page whose own nav renders this menu, and it stays
+    // visible across tabs, so a save has to ask for a reload directly.
+    expect(screen.getByTestId('preview-generation').textContent).toBe('1');
   });
 
-  it("an item's edit icon opens the form pre-filled, and saving updates that item in place", async () => {
-    installFakeApi([MAIN_MENU_ENTRY], {
+  it("an item's edit icon opens the form pre-filled, and saving updates that item's url", async () => {
+    const { calls } = installFakeApi([MAIN_MENU_ENTRY], {
       'menus/main.json': { content: { schemaVersion: 1, items: [{ label: 'Home', url: '/' }] }, etag: '"etag-1"' },
     });
 
@@ -185,10 +204,13 @@ describe('MenusTabPanel', () => {
     fireEvent.change(screen.getByLabelText('URL'), { target: { value: '/home' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    await waitFor(() => expect(screen.getByText('/home')).toBeDefined());
+    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+    const putCall = calls.find((call) => call.method === 'PUT');
+    expect(putCall?.body).toMatchObject({ content: { items: [{ label: 'Home', url: '/home' }] } });
+    expect(screen.getByTestId('preview-generation').textContent).toBe('1');
   });
 
-  it('deletes a menu item with no confirmation step', async () => {
+  it('deletes a menu item with no confirmation step, and bumps the preview generation', async () => {
     const { calls } = installFakeApi([MAIN_MENU_ENTRY], {
       'menus/main.json': {
         content: { schemaVersion: 1, items: [{ label: 'Home', url: '/' }, { label: 'About', url: '/about' }] },
@@ -207,6 +229,7 @@ describe('MenusTabPanel', () => {
     expect(screen.getByText('About')).toBeDefined();
     const putCall = calls.find((call) => call.method === 'PUT');
     expect(putCall?.body).toMatchObject({ content: { items: [{ label: 'About', url: '/about' }] } });
+    expect(screen.getByTestId('preview-generation').textContent).toBe('1');
   });
 
   it('the "Add Menu" button still opens the New Menu modal', async () => {

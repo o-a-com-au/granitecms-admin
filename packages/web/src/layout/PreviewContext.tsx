@@ -43,6 +43,17 @@ interface PreviewContextValue {
   revisionRef: string | null;
   status: EditorStatus;
   setPreview: (next: Partial<PreviewConfig>) => void;
+  // A caller-driven "reload the previewed document now" signal,
+  // independent of status - status's own saving/ready transitions only
+  // ever come from the Editor's own draft-autosave lifecycle
+  // (useAutosaveDraft), so anything that mutates content through a
+  // different path entirely (e.g. MenusTabPanel.tsx's own menu-item
+  // saves, which go straight through saveSiteMenuItems, no draft
+  // involved) has no status transition of its own to piggyback on.
+  // bumpPreview lets it ask for a reload directly instead - see
+  // PreviewFrame.tsx's usePreviewRefreshToken, which reacts to both.
+  previewGeneration: number;
+  bumpPreview: () => void;
   device: DeviceTier;
   setDevice: (device: DeviceTier) => void;
   iframeRef: RefObject<HTMLIFrameElement | null>;
@@ -96,6 +107,7 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
   const [previewUrl, setPreviewUrl] = useState<string | null>(() => (siteId ? readLastPreviewUrl(siteId) : null));
   const [revisionRef, setRevisionRef] = useState<string | null>(null);
   const [status, setStatus] = useState<EditorStatus>('ready');
+  const [previewGeneration, setPreviewGeneration] = useState(0);
   const [device, setDevice] = useState<DeviceTier>('desktop');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [frameHandlers, setFrameHandlers] = useState<PreviewFrameHandlers>({});
@@ -173,12 +185,18 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
     }
   }, []);
 
+  const bumpPreview = useCallback(() => {
+    setPreviewGeneration((current) => current + 1);
+  }, []);
+
   const value = useMemo<PreviewContextValue>(
     () => ({
       previewUrl,
       revisionRef,
       status,
       setPreview,
+      previewGeneration,
+      bumpPreview,
       device,
       setDevice,
       iframeRef,
@@ -205,6 +223,8 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
       revisionRef,
       status,
       setPreview,
+      previewGeneration,
+      bumpPreview,
       device,
       frameHandlers,
       visible,
@@ -371,6 +391,7 @@ export function SharedPreviewRegion({
     device,
     revisionRef,
     status,
+    previewGeneration,
     iframeRef,
     frameHandlers,
     fieldsPanel,
@@ -399,6 +420,7 @@ export function SharedPreviewRegion({
               siteId={siteId}
               url={previewUrl}
               status={status}
+              refreshGeneration={previewGeneration}
               device={device}
               revisionRef={revisionRef}
               iframeRef={iframeRef}

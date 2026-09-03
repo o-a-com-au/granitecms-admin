@@ -6,6 +6,15 @@ interface PreviewFrameProps {
   siteId: string;
   url: string | null;
   status: EditorStatus;
+  // A caller-driven "reload now" signal (PreviewContext.tsx's own
+  // bumpPreview), independent of status - status's own saving->ready
+  // transition only ever comes from the Editor's draft-autosave
+  // lifecycle, so anything that mutates content a different way (e.g.
+  // MenusTabPanel.tsx's menu-item saves, which never touch a draft at
+  // all) has no such transition to piggyback on. Optional/defaults to
+  // 0 - a caller with no concept of this (Media, a plain page switch)
+  // just never bumps it, so nothing changes for it.
+  refreshGeneration?: number;
   device: DeviceTier;
   // Set while browsing the page's History tab: renders a specific past
   // git revision instead of the current draft/live content. null/unset
@@ -76,11 +85,15 @@ function encodeUrlSegments(url: string): string {
   return url.split('/').map(encodeURIComponent).join('/');
 }
 
-// F2: bumps only on a real completed autosave ('saving' -> 'ready'),
-// never on the initial load ('loading' -> 'ready') or on entering/
-// leaving a conflict - a plain ref-tracked transition, not a hook on
+// F2: bumps on a real completed autosave ('saving' -> 'ready'), never
+// on the initial load ('loading' -> 'ready') or on entering/leaving a
+// conflict - a plain ref-tracked transition, not a hook on
 // useAutosaveDraft itself, which stays deliberately UI-agnostic and
-// shared with a future Group I form editor.
+// shared with a future Group I form editor. Also bumps on any change
+// to refreshGeneration (PreviewContext.tsx's own bumpPreview) - the
+// one lever available to a caller with no draft/status lifecycle of
+// its own (MenusTabPanel.tsx's menu-item saves) to still ask for a
+// reload.
 //
 // Every bump is a real iframe navigation (a plain src reassignment),
 // which resets scroll to the top like any browser navigation would -
@@ -91,14 +104,18 @@ function encodeUrlSegments(url: string): string {
 // restore once the new document has actually loaded.
 function usePreviewRefreshToken(
   status: EditorStatus,
+  refreshGeneration: number,
   iframeRef: RefObject<HTMLIFrameElement | null> | undefined,
   pendingScrollRef: RefObject<{ x: number; y: number } | null>,
 ): number {
   const previousStatusRef = useRef(status);
+  const previousGenerationRef = useRef(refreshGeneration);
   const [token, setToken] = useState(0);
 
   useEffect(() => {
-    if (previousStatusRef.current === 'saving' && status === 'ready') {
+    const completedAutosave = previousStatusRef.current === 'saving' && status === 'ready';
+    const externallyBumped = previousGenerationRef.current !== refreshGeneration;
+    if (completedAutosave || externallyBumped) {
       const win = iframeRef?.current?.contentWindow;
       if (win) {
         pendingScrollRef.current = { x: win.scrollX, y: win.scrollY };
@@ -106,7 +123,8 @@ function usePreviewRefreshToken(
       setToken((current) => current + 1);
     }
     previousStatusRef.current = status;
-  }, [status]);
+    previousGenerationRef.current = refreshGeneration;
+  }, [status, refreshGeneration]);
 
   return token;
 }
@@ -136,6 +154,7 @@ export function PreviewFrame({
   siteId,
   url,
   status,
+  refreshGeneration = 0,
   device,
   revisionRef,
   iframeRef,
@@ -143,7 +162,7 @@ export function PreviewFrame({
   onFrameMouseLeave,
 }: PreviewFrameProps) {
   const pendingScrollRef = useRef<{ x: number; y: number } | null>(null);
-  const refreshToken = usePreviewRefreshToken(status, iframeRef, pendingScrollRef);
+  const refreshToken = usePreviewRefreshToken(status, refreshGeneration, iframeRef, pendingScrollRef);
   // Drives a plain CSS opacity transition (device-preview.css) rather
   // than an animation keyed on mount - the iframe element itself is
   // never remounted (src reassignment is a real browser navigation,

@@ -68,6 +68,28 @@ describe('PreviewFrame', () => {
     expect(after).toBe(before);
   });
 
+  it('refreshGeneration bumps the token independently of status - a caller with no draft/status lifecycle of its own can still force a reload', () => {
+    const { getByTitle, rerender } = render(
+      <PreviewFrame siteId="site-1" url="/about" status="ready" refreshGeneration={0} device="desktop" />,
+    );
+    const before = (getByTitle('Live preview') as HTMLIFrameElement).src;
+
+    rerender(<PreviewFrame siteId="site-1" url="/about" status="ready" refreshGeneration={1} device="desktop" />);
+    const after = (getByTitle('Live preview') as HTMLIFrameElement).src;
+
+    expect(after).not.toBe(before);
+  });
+
+  it('omitting refreshGeneration entirely never bumps the token on its own (defaults to a stable 0)', () => {
+    const { getByTitle, rerender } = render(<PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" />);
+    const before = (getByTitle('Live preview') as HTMLIFrameElement).src;
+
+    rerender(<PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" />);
+    const after = (getByTitle('Live preview') as HTMLIFrameElement).src;
+
+    expect(after).toBe(before);
+  });
+
   it('F2: the token does not change when entering or leaving a conflict', () => {
     const { getByTitle, rerender } = render(
       <PreviewFrame siteId="site-1" url="/about" status="dirty" device="desktop" />,
