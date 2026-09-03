@@ -25,6 +25,11 @@
   background: rgba(50, 50, 50, 0.6);
 }
 
+/* A plain fade, not the shared popup-fade-up (modal.css) - that one
+   also slides up and scales, which would visibly detach the box from
+   the real address bar's own measured position it's pinned to
+   (anchorRect, above) for the first frames of the animation. Requested
+   directly, alongside .address-search-empty's own grow-in below. */
 .address-search-box {
   position: fixed;
   z-index: 51;
@@ -35,11 +40,21 @@
   border-radius: var(--radius-lg);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
   overflow: hidden;
-  animation: popup-fade-up 0.25s ease-out;
+  animation: address-search-fade-in 0.25s ease-out;
+}
+
+@keyframes address-search-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .address-search-box {
+  .address-search-box,
+  .address-search-empty {
     animation: none;
   }
 }
@@ -111,6 +126,14 @@ button.address-search-close:hover {
   opacity: 1;
 }
 
+/* Grows from a short 80px starting height up to its natural content
+   height (requested directly, alongside the box's own fade-in above)
+   - overflow: hidden clips the icon/text while short, revealing them
+   as it grows, then settles back to its own ordinary content-driven
+   height once the animation ends (only the animation's own last frame
+   is 176px, close enough to the real rendered height - about 174px
+   for the current icon+one-line-of-text content - that the hand-off
+   back to auto height reads as seamless rather than a snap). */
 .address-search-empty {
   display: flex;
   flex-direction: column;
@@ -120,6 +143,17 @@ button.address-search-close:hover {
   padding: var(--space-2xl) var(--space-lg);
   color: var(--colour-muted);
   text-align: center;
+  overflow: hidden;
+  animation: address-search-empty-grow 0.25s ease-out;
+}
+
+@keyframes address-search-empty-grow {
+  from {
+    height: 80px;
+  }
+  to {
+    height: 176px;
+  }
 }
 
 .address-search-empty-icon {
