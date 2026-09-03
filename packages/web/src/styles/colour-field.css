@@ -45,8 +45,8 @@
    resets background-image to none as part of that shorthand. A bare
    class selector (0,1,0) loses that fight regardless of source order,
    silently erasing the gradient - out-specifying it the same way
-   button.instance-row-chevron and button.page-tree-toggle already
-   have to elsewhere in this app (see index.css's own comment). */
+   button.instance-row-chevron already has to elsewhere in this app
+   (see index.css's own comment). */
 button.colour-field-swatch--none,
 button.colour-field-preview--none {
   background-image: linear-gradient(
