@@ -64,7 +64,7 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 1rem 1.25rem;
+  padding: var(--space-sm) var(--space-md);
   background: var(--colour-surface);
   border: 1px solid var(--colour-border);
   margin: var(--space-xs);
@@ -215,15 +215,24 @@ button.address-search-result:hover {
   color: var(--colour-muted);
 }
 
+/* Name and URL sit on one line (requested directly, matching the
+   mockup - name.../about, not name stacked above /about) rather than
+   the previous two-line layout. The name gets first claim on the
+   available width (max-width, not flex-shrink alone - a flex item
+   otherwise won't shrink below its own text's natural width) so a
+   long page name still reads in full before the URL starts giving up
+   its own space. */
 .address-search-result-text {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
   flex: 1;
   min-width: 0;
-  gap: 0.1rem;
+  gap: 0.4rem;
 }
 
 .address-search-result-name {
+  flex: 0 1 auto;
+  max-width: 60%;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -231,6 +240,8 @@ button.address-search-result:hover {
 }
 
 .address-search-result-path {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 0.8rem;
   color: var(--colour-muted);
   overflow: hidden;
@@ -238,11 +249,11 @@ button.address-search-result:hover {
   white-space: nowrap;
 }
 
-/* The one signal a result came from something other than a plain page
-   (requested directly - "Article" in the mockup) - entry.type itself
-   (ContentListEntry, api/site-content.ts), shown only when it isn't
-   the ordinary "page" value every real page carries today (see
-   AddressBarSearchModal.tsx's own DEFAULT_TYPE comment). */
+/* Every result gets one (requested directly, a second pass - "Page"
+   for the ordinary case, not just for a notable non-default type like
+   "Article") - entry.type itself (ContentListEntry, api/site-
+   content.ts), defaulting to DEFAULT_TYPE when a page carries none
+   (see AddressBarSearchModal.tsx's own typeLabel). */
 .address-search-result-type {
   flex: 0 0 auto;
   padding: 0.25rem 0.6rem;

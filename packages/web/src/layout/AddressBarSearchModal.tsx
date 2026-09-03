@@ -41,18 +41,17 @@ function FileIcon() {
   );
 }
 
-// The one non-"page" value real content ever carries today (agent's
-// own migration stamps every existing page "page"; no theme template
-// sets anything else yet) - shown as a label only when a page's own
-// type differs from this, so the label reads as "notable, not the
-// ordinary case" rather than appearing on every single result.
+// The one value real content ever carries today (agent's own
+// migration stamps every existing page "page"; no theme template sets
+// anything else yet) - falls back to this so every result still gets
+// a label (requested directly - a second pass; the label used to only
+// appear for a non-default type, reading as "notable", but showing
+// "Page" for the ordinary case too is what was actually wanted).
 const DEFAULT_TYPE = 'page';
 
-function typeLabel(type: string): string | null {
-  if (type === DEFAULT_TYPE || type.trim() === '') {
-    return null;
-  }
-  return type.charAt(0).toUpperCase() + type.slice(1);
+function typeLabel(type: string): string {
+  const value = type.trim() === '' ? DEFAULT_TYPE : type;
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 // Reuses the same siteId/path/url shape PagesTabPanel.tsx's own
@@ -184,7 +183,7 @@ export function AddressBarSearchModal({ siteId, domainLabel, anchorRect, onClose
                     <span className="address-search-result-name">{entry.name || entry.title}</span>
                     <span className="address-search-result-path">{entry.url ?? entry.path}</span>
                   </span>
-                  {typeLabel(entry.type) && <span className="address-search-result-type">{typeLabel(entry.type)}</span>}
+                  <span className="address-search-result-type">{typeLabel(entry.type)}</span>
                 </button>
               </li>
             ))}

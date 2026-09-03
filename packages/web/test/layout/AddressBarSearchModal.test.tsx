@@ -99,15 +99,15 @@ describe('AddressBarSearchModal', () => {
     expect(screen.queryByText('About Us')).toBeNull();
   });
 
-  it('shows a type label only when the page\'s own type is not the default "page"', async () => {
+  it('shows a type label on every result, "Page" for the default type and the real type otherwise', async () => {
     installFakeFetch();
     renderModal();
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Search pages' }), { target: { value: 'about' } });
 
     await waitFor(() => expect(screen.getByText('Article')).toBeDefined());
-    // "About Us" itself is a plain page - no label rendered for its own row.
-    expect(screen.queryAllByText('Page')).toHaveLength(0);
+    // "About Us" itself is a plain page - labelled "Page", not hidden.
+    expect(screen.getByText('Page')).toBeDefined();
   });
 
   it('shows a no-results message when nothing matches', async () => {
