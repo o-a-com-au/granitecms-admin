@@ -123,6 +123,15 @@
      against this theme's dark surfaces reads better brightening
      instead. */
   --colour-text-button-hover: #628bf8;
+  /* instance-rows.css's own drag handle - a permanent wash behind the
+     grip icon, not a hover state, so the handle reads as its own
+     distinct "zone" of the row at rest (requested directly, with a
+     mockup). --colour-surface-hover (grey-600) is lighter than this
+     theme's own --gradient-pill (grey-700/650), so it reads as a
+     lightening wash here - the opposite direction from light mode's
+     own block below, which needs a different source token entirely to
+     read as a wash in the same sense (see that block's own comment). */
+  --colour-drag-handle-wash: color-mix(in srgb, var(--colour-surface-hover) 70%, transparent);
   --colour-input-background: var(--grey-900);
   --colour-table-header: var(--grey-900);
   --colour-table-background: var(--grey-850);
@@ -160,6 +169,15 @@
      already use here, which already reads correctly against a light
      surface. */
   --colour-text-button-hover: var(--colour-primary-hover);
+  /* See the dark block's own comment - --colour-surface-hover
+     (grey-100) is a touch DARKER than this theme's own --gradient-pill
+     (grey-50/#fff), which would read as a dulling wash rather than the
+     requested "tint it brighter" - --colour-surface itself (plain
+     white) sits at or above the pill's own lightness instead, so it
+     reads as a brightening wash here, the opposite source token from
+     dark mode's, in service of the same "stands out as lighter/
+     brighter than the row around it" effect in both themes. */
+  --colour-drag-handle-wash: color-mix(in srgb, var(--colour-surface) 80%, transparent);
   --colour-input-background: #fff;
   --colour-table-header: var(--grey-50);
   --colour-table-background: var(--grey-100);

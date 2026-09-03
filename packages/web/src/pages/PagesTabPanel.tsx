@@ -415,6 +415,37 @@ function PagesHubTreeRow({
         onDragLeave={() => onRowDragLeave(entry.path)}
         onDrop={(event) => onRowDrop(event, entry)}
       >
+        {/* Absolutely positioned within .instance-row-main's own
+            reserved left padding (instance-rows.css) - a url-less entry
+            renders nothing here at all rather than a spacer, and the
+            reserved padding means the cell after it never shifts
+            either way. */}
+        {entry.url !== null && (
+          <span
+            className="instance-row-drag-handle"
+            draggable
+            role="button"
+            aria-label={`Drag to move ${entry.name || entry.path}`}
+            tabIndex={-1}
+            onClick={(event) => event.stopPropagation()}
+            onDragStart={(event) => {
+              event.stopPropagation();
+              event.dataTransfer.effectAllowed = 'move';
+              if (dragPillRef.current) {
+                event.dataTransfer.setDragImage(dragPillRef.current, 0, 12);
+              }
+              onRowDragStart(entry.path);
+            }}
+            onDragEnd={(event) => {
+              event.stopPropagation();
+              onRowDragEnd();
+            }}
+          >
+            <span className="instance-row-drag-handle-icon">
+              <DragHandleIcon />
+            </span>
+          </span>
+        )}
         <span className="page-tree-cell">
           {hasChildren ? (
             <button
@@ -444,32 +475,6 @@ function PagesHubTreeRow({
         >
           <EditIcon />
         </Link>
-        {entry.url !== null && (
-          <span
-            className="instance-row-drag-handle"
-            draggable
-            role="button"
-            aria-label={`Drag to move ${entry.name || entry.path}`}
-            tabIndex={-1}
-            onClick={(event) => event.stopPropagation()}
-            onDragStart={(event) => {
-              event.stopPropagation();
-              event.dataTransfer.effectAllowed = 'move';
-              if (dragPillRef.current) {
-                event.dataTransfer.setDragImage(dragPillRef.current, 0, 12);
-              }
-              onRowDragStart(entry.path);
-            }}
-            onDragEnd={(event) => {
-              event.stopPropagation();
-              onRowDragEnd();
-            }}
-          >
-            <span className="instance-row-drag-handle-icon">
-              <DragHandleIcon />
-            </span>
-          </span>
-        )}
         {entry.url !== null &&
           createPortal(
             <span className="instance-row-drag-pill" ref={dragPillRef} aria-hidden="true">

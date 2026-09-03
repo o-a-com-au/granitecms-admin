@@ -138,29 +138,10 @@ function BlockRow({
         onClick={handleEdit}
         onKeyDown={handleEditKeyDown}
       >
-        {acceptsNestedBlocks ? (
-          <button
-            type="button"
-            className="instance-row-chevron"
-            aria-label={collapsed ? 'Expand' : 'Collapse'}
-            aria-expanded={!collapsed}
-            onClick={handleToggleCollapsed}
-          >
-            <span className={`instance-row-chevron-icon${collapsed ? '' : ' is-expanded'}`}>
-              <AccordionArrowIcon />
-            </span>
-          </button>
-        ) : (
-          // Same box as the real button above, empty - so a block with
-          // no nested blocks still reserves the arrow's column, and
-          // every row's label lines up in the same place regardless of
-          // whether that particular row has one.
-          <span className="instance-row-chevron-spacer" aria-hidden="true" />
-        )}
-        <strong title={displayName}>{displayName}</strong>
-        <button type="button" className="instance-row-remove" aria-label="Remove block" onClick={handleRemove}>
-          <TrashIcon />
-        </button>
+        {/* Absolutely positioned within .instance-row-main's own
+            reserved left padding (instance-rows.css) - DOM order no
+            longer matters for its own layout, but it's kept first here
+            to match reading/tab order with where it visually sits. */}
         <span
           className="instance-row-drag-handle"
           draggable
@@ -187,6 +168,29 @@ function BlockRow({
             <DragHandleIcon />
           </span>
         </span>
+        {acceptsNestedBlocks ? (
+          <button
+            type="button"
+            className="instance-row-chevron"
+            aria-label={collapsed ? 'Expand' : 'Collapse'}
+            aria-expanded={!collapsed}
+            onClick={handleToggleCollapsed}
+          >
+            <span className={`instance-row-chevron-icon${collapsed ? '' : ' is-expanded'}`}>
+              <AccordionArrowIcon />
+            </span>
+          </button>
+        ) : (
+          // Same box as the real button above, empty - so a block with
+          // no nested blocks still reserves the arrow's column, and
+          // every row's label lines up in the same place regardless of
+          // whether that particular row has one.
+          <span className="instance-row-chevron-spacer" aria-hidden="true" />
+        )}
+        <strong title={displayName}>{displayName}</strong>
+        <button type="button" className="instance-row-remove" aria-label="Remove block" onClick={handleRemove}>
+          <TrashIcon />
+        </button>
         {createPortal(
           <span className="instance-row-drag-pill" ref={dragPillRef} aria-hidden="true">
             {displayName}

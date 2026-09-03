@@ -73,11 +73,19 @@
   }
 }
 
+/* position: relative + the reserved left padding below - the drag
+   handle (if this row has one at all) is positioned absolutely within
+   that space, so removing it (a row with nothing to reorder - Redirects,
+   menu items, a url-less Pages entry) never shifts the chevron/label/
+   actions after it. The reservation is unconditional, not swapped for a
+   spacer element the way the chevron already is - requested directly:
+   "no spacer... same padding... whether it's there or not". */
 .instance-row-main {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-md) var(--space-xs) var(--space-xs);
+  gap: 0;
+  padding: var(--space-xs) var(--space-xs) var(--space-xs) calc(var(--space-xs) * 2 + 1.75rem);
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
   background: var(--gradient-pill);
@@ -308,20 +316,33 @@ a.instance-row-remove:hover {
 
 /* Only the drag handle itself is draggable (not the whole row), so a
    plain click anywhere else on the row still opens the Fields tab
-   instead of accidentally starting a drag. */
-/* 1.75rem square, matching every other instance-row action's own
-   hit-box (button.instance-row-chevron/instance-row-remove) - was
-   sized purely by its icon child before (no box of its own). */
+   instead of accidentally starting a drag.
+   Moved to the very left of the row (requested directly, with a
+   mockup) and taken out of normal flex flow - position: absolute
+   inside .instance-row-main's own reserved left padding (see that
+   rule's own comment), so a row with no drag handle at all leaves
+   that space empty rather than needing a spacer element the chevron
+   still uses. inset top/bottom: var(--space-xs) matches the row's own
+   vertical padding, so the handle's box is flush with the row's inner
+   edge, not centred with extra slack above/below. */
 .instance-row-drag-handle {
-  flex: 0 0 auto;
+  position: absolute;
+  left: var(--space-xs);
+  top: var(--space-xs);
+  bottom: var(--space-xs);
   width: 1.75rem;
-  height: 1.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: var(--radius-xs);
+  /* A permanent wash, not a hover state - reads as this zone's own
+     background, distinct from the row around it, at rest (requested
+     directly). Lightens in dark mode, brightens in light mode - see
+     --colour-drag-handle-wash's own two definitions (theme.css) for
+     why each theme needs a different source token to read the same
+     way. */
+  background: var(--colour-drag-handle-wash);
   color: var(--colour-icon-muted);
-  opacity: 0.5;
-  transition: opacity 0.15s ease;
   cursor: grab;
   touch-action: none;
 }
@@ -330,15 +351,19 @@ a.instance-row-remove:hover {
   cursor: grabbing;
 }
 
-.instance-row-drag-handle:hover {
-  opacity: 1;
-}
-
-/* DragHandleIcon.tsx is a fixed 20x20 SVG now, not width/height: 100%
-   - this wrapper only needs to lay it out, not size it. */
+/* The icon itself still dims at rest and undims on hover/drag - the
+   permanent background wash above is a separate concern from this,
+   which is why opacity moved off .instance-row-drag-handle itself
+   (that would have dimmed the wash too) and onto this icon wrapper. */
 .instance-row-drag-handle-icon {
   display: flex;
   flex: 0 0 auto;
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+}
+
+.instance-row-drag-handle:hover .instance-row-drag-handle-icon {
+  opacity: 1;
 }
 
 /* SectionList.tsx/BlockList.tsx's own native-drag "ghost" - the pill a
