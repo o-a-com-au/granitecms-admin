@@ -197,6 +197,27 @@ function AppShellContent() {
     };
   }, [accountOpen]);
 
+  // AddressBarSearchModal.tsx is pinned to addressBarRect, a one-off
+  // snapshot taken at the moment the address bar was clicked - it never
+  // re-measures itself, so without this it drifts out of place the
+  // instant the real address bar reflows under it (found live: resizing
+  // the window while the search box was open left it floating over
+  // empty space instead of the bar). Re-measures the same element the
+  // click handlers below do, only while the modal is actually open.
+  useEffect(() => {
+    if (!searchOpen) {
+      return;
+    }
+    function handleResize(): void {
+      if (addressBarRef.current) {
+        const rect = addressBarRef.current.getBoundingClientRect();
+        setAddressBarRect({ top: rect.top, left: rect.left, width: rect.width });
+      }
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [searchOpen]);
+
   // The entire mechanism for "remember the current site" (currentSite.ts) -
   // every site-scoped route this shell wraps re-records itself here, no
   // per-page plumbing needed. "/" and the always-visible Editor nav item

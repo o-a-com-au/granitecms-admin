@@ -66,7 +66,9 @@
   gap: 0.6rem;
   padding: 1rem 1.25rem;
   background: var(--colour-surface);
-  border-bottom: 1px solid var(--colour-border);
+  border: 1px solid var(--colour-border);
+  margin: var(--space-xs);
+  border-radius: var(--radius-md);
 }
 
 .address-search-input-icon {
@@ -92,7 +94,7 @@
   background: none;
   color: var(--colour-text);
   font: inherit;
-  font-size: 1.1rem;
+  font-size: 0.85rem;
 }
 
 .address-search-input-row input:focus {
