@@ -131,7 +131,7 @@ function BlockRow({
   return (
     <li className={`instance-row${isDragging ? ' is-dragging' : ''}`} onDragOver={onDragOver} onDrop={onDrop}>
       <div
-        className={`instance-row-main${hasError ? ' has-error' : ''}${isSelected ? ' is-selected' : ''}${isJustDropped ? ' is-just-dropped' : ''}`}
+        className={`instance-row-main has-drag-column${hasError ? ' has-error' : ''}${isSelected ? ' is-selected' : ''}${isJustDropped ? ' is-just-dropped' : ''}`}
         role="button"
         tabIndex={0}
         aria-label={`Edit ${displayName}${hasError ? ' (has an error)' : ''}`}

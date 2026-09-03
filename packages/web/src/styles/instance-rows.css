@@ -73,24 +73,33 @@
   }
 }
 
-/* position: relative + the reserved left padding below - the drag
-   handle (if this row has one at all) is positioned absolutely within
-   that space, so removing it (a row with nothing to reorder - Redirects,
-   menu items, a url-less Pages entry) never shifts the chevron/label/
-   actions after it. The reservation is unconditional, not swapped for a
-   spacer element the way the chevron already is - requested directly:
-   "no spacer... same padding... whether it's there or not". */
 .instance-row-main {
   position: relative;
   display: flex;
   align-items: center;
   gap: 0;
-  padding: var(--space-xs) var(--space-xs) var(--space-xs) calc(var(--space-xs) * 2 + 1.75rem);
+  padding: var(--space-xs);
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
   background: var(--gradient-pill);
   cursor: pointer;
   box-shadow: var(--shadow-panel);
+}
+
+/* .has-drag-column - only on row types that ever have a drag handle at
+   all (Sections, Blocks, Pages), not a blanket property of every
+   instance-row - Redirects/Menus never reorder anything, so reserving
+   this space there was pure dead padding with nothing to justify it
+   (reported directly, live - "why does the menu have such large
+   padding"). Within a list that DOES have drag handles, the reservation
+   still applies to every row in it regardless of whether THIS specific
+   instance has one (a url-less Pages entry has none of its own, but
+   sits alongside siblings that do) - the drag handle itself is
+   positioned absolutely within this space, so a row missing one just
+   leaves it empty rather than needing a spacer element the way the
+   chevron already does. */
+.instance-row-main.has-drag-column {
+  padding-left: calc(var(--space-xs) * 2 + 1.75rem);
 }
 
 .instance-row-main:hover,
@@ -413,12 +422,15 @@ button.instance-row-more:hover {
    instead of accidentally starting a drag.
    Moved to the very left of the row (requested directly, with a
    mockup) and taken out of normal flex flow - position: absolute
-   inside .instance-row-main's own reserved left padding (see that
-   rule's own comment), so a row with no drag handle at all leaves
-   that space empty rather than needing a spacer element the chevron
-   still uses. inset top/bottom: var(--space-xs) matches the row's own
+   inside .instance-row-main.has-drag-column's own reserved left
+   padding (see that rule's own comment), so a row missing one within
+   an otherwise-draggable list (a url-less Pages entry) leaves that
+   space empty rather than needing a spacer element the chevron still
+   uses. inset top/bottom: var(--space-xs) matches the row's own
    vertical padding, so the handle's box is flush with the row's inner
-   edge, not centred with extra slack above/below. */
+   edge, not centred with extra slack above/below. Only ever rendered
+   at all inside a row that also carries has-drag-column - the two
+   always travel together. */
 .instance-row-drag-handle {
   position: absolute;
   left: var(--space-xs);
