@@ -1,149 +1,192 @@
-import { useCallback, useEffect, useState, type KeyboardEvent, type MouseEvent } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { listSiteContent, SiteContentError } from '../api/site-content.ts';
-import { deriveMenuName, isMenuPath } from './deriveMenuName.ts';
+import { useState, type KeyboardEvent } from 'react';
+import { useSiteMenus } from '../menus/useSiteMenus.ts';
+import { MenuItemFormModal } from '../menus/MenuItemFormModal.tsx';
+import { saveSiteMenuItems, type MenuItem, type SiteMenu } from '../api/site-menus.ts';
+import { buildRemoveMenuItemMessage } from '../menus/buildMenuItemMessage.ts';
+import { deriveMenuName } from './deriveMenuName.ts';
 import { NewMenuModal } from './NewMenuModal.tsx';
+import { AccordionArrowIcon } from '../sections/AccordionArrowIcon.tsx';
 import { AddIcon } from '../sections/AddIcon.tsx';
 import { EditIcon } from '../sections/EditIcon.tsx';
+import { TrashIcon } from '../sections/TrashIcon.tsx';
 import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
-import { buildLoadErrorActions, loadErrorMessage, type LoadError } from '../sites/site-load-error.ts';
+import { buildLoadErrorActions, loadErrorMessage } from '../sites/site-load-error.ts';
 
 export interface MenusTabPanelProps {
   siteId: string;
 }
 
-interface MenuRow {
-  path: string;
-  name: string;
-}
+type ItemModalState =
+  | { mode: 'create'; menu: SiteMenu }
+  | { mode: 'edit'; menu: SiteMenu; index: number; item: MenuItem }
+  | null;
 
-// Narrowed to just the menu's own name - the old "Menu items" preview
-// column (a comma-joined list of every item's label) is dropped
-// entirely, no room for it in this panel's own --editor-sidebar-width.
-// No preview affordance here (unlike PagesTabPanel) - a menu has no
-// renderable url of its own to show in the hub's big viewport, so the
-// title button's own click just navigates straight to the editor
-// (same fallback PagesTabPanel's own title button uses for a page
-// with no url). Still reuses the exact same row shape as Pages
-// (page-tree-cell/page-tree-toggle-spacer/page-tree-title on the left,
-// an instance-row-remove Edit link on the right) even though a menu
-// never nests and this Edit link duplicates the title's own action -
-// requested directly, so every hub tab's rows read as the same shape
-// at a glance rather than each tab inventing its own.
+// Each menu is now an accordion row (SectionList.tsx/BlockList.tsx's
+// own expand-to-reveal-children pattern, reused directly - chevron,
+// .instance-list-nested, only one open at a time) rather than a link
+// into a separate full-page editor - requested directly. Add/edit/
+// delete of an item all happen right here: add/edit through
+// MenuItemFormModal.tsx, delete immediately with no confirmation step
+// (matching this app's own established precedent for redirects/blocks/
+// media). Retires the old MenuEditorPage.tsx route entirely - there is
+// nothing left for a separate page to do once items live inline.
 export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
-  const [menus, setMenus] = useState<MenuRow[] | null>(null);
-  const [error, setError] = useState<LoadError | null>(null);
-  const [reloadToken, setReloadToken] = useState(0);
+  const { menus, loading, loadError, refresh } = useSiteMenus(siteId);
+  const [expandedPath, setExpandedPath] = useState<string | null>(null);
   const [newMenuModalOpen, setNewMenuModalOpen] = useState(false);
-  const retry = useCallback(() => setReloadToken((count) => count + 1), []);
+  const [itemModalState, setItemModalState] = useState<ItemModalState>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    setMenus(null);
-    setError(null);
-
-    listSiteContent(siteId, {})
-      .then(async (entries) => {
-        const menuEntries = entries.filter((entry) => isMenuPath(entry.path));
-        // Only the name is shown now, so the menu's own content never
-        // needs reading here any more - the old MenusPage.tsx's own
-        // per-item-labels fetch existed purely to build the now-dropped
-        // "Menu items" preview column.
-        const rows = menuEntries.map((entry): MenuRow => ({ path: entry.path, name: deriveMenuName(entry.path) }));
-        if (!cancelled) {
-          setMenus(rows);
-        }
-      })
-      .catch((err: unknown) => {
-        if (cancelled) {
-          return;
-        }
-        if (err instanceof SiteContentError) {
-          setError({ reason: err.reason, message: err.message });
-        } else {
-          setError({ reason: 'error', message: err instanceof Error ? err.message : 'Failed to load menus' });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [siteId, reloadToken]);
-
-  if (error) {
-    return <SiteStatusPanel variant="problem" message={loadErrorMessage(error)} actions={buildLoadErrorActions(error, siteId, retry)} />;
+  async function handleDeleteItem(menu: SiteMenu, index: number, item: MenuItem): Promise<void> {
+    setDeleteError(null);
+    const menuName = deriveMenuName(menu.path);
+    const items = menu.items.filter((_, i) => i !== index);
+    try {
+      await saveSiteMenuItems(siteId, menu.path, menu.envelope, items, menu.etag, buildRemoveMenuItemMessage(menuName, item.label));
+      refresh();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete that menu item');
+    }
   }
 
-  if (menus === null) {
+  function handleItemSaved(): void {
+    setItemModalState(null);
+    refresh();
+  }
+
+  if (loadError) {
+    return <SiteStatusPanel variant="problem" message={loadErrorMessage(loadError)} actions={buildLoadErrorActions(loadError, siteId, refresh)} />;
+  }
+
+  if (loading) {
     return <TopLoadingBar active />;
   }
 
   return (
     <div className="pages-hub-tab">
+      {deleteError && <p role="alert">{deleteError}</p>}
       {menus.length === 0 ? (
         <p>No menus found.</p>
       ) : (
         <ul className="instance-list">
-          {menus.map((menu) => (
-            <MenuHubRow key={menu.path} siteId={siteId} menu={menu} />
-          ))}
+          {menus.map((menu) => {
+            const name = deriveMenuName(menu.path);
+            const collapsed = menu.path !== expandedPath;
+
+            function toggle(): void {
+              setExpandedPath(collapsed ? menu.path : null);
+            }
+
+            function handleRowKeyDown(event: KeyboardEvent): void {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                toggle();
+              }
+            }
+
+            return (
+              <li className="instance-row" key={menu.path}>
+                <div
+                  className="instance-row-main"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={collapsed ? `Expand ${name}` : `Collapse ${name}`}
+                  onClick={toggle}
+                  onKeyDown={handleRowKeyDown}
+                >
+                  {/* Purely decorative - unlike SectionList.tsx's own
+                      chevron (a distinct control alongside row-main's own
+                      "Edit" action), there is no second action here for
+                      it to own, so it's aria-hidden/untabbable rather than
+                      a second focusable control with the exact same
+                      accessible name as row-main itself. Still a real
+                      button, not a span - button.instance-row-chevron is
+                      what instance-rows.css's own specificity-tie
+                      workaround actually styles. Its click bubbles to
+                      row-main's own onClick below (nothing here stops
+                      it), so it still toggles. */}
+                  <button type="button" className="instance-row-chevron" tabIndex={-1} aria-hidden="true">
+                    <span className={`instance-row-chevron-icon${collapsed ? '' : ' is-expanded'}`}>
+                      <AccordionArrowIcon />
+                    </span>
+                  </button>
+                  <strong title={name}>{name}</strong>
+                </div>
+                {!collapsed && (
+                  <div className="menus-tab-items">
+                    {menu.items.length === 0 ? (
+                      <p>No items yet.</p>
+                    ) : (
+                      <ul className="instance-list">
+                        {menu.items.map((item, index) => (
+                          // No stable id in the data model (menu.schema.json's
+                          // items are additionalProperties: false - a
+                          // client-side id has nowhere to live, same
+                          // constraint the old MenuEditorPage.tsx's own item
+                          // list had) - index is the only key available, an
+                          // accepted trade-off for a short, non-reorderable
+                          // list.
+                          <li className="instance-row" key={index}>
+                            <div className="instance-row-main">
+                              {/* Reuses redirects-tab-row-label/-to as-is
+                                  (pages-hub.css) - a generic "label above,
+                                  muted subtext below" row shape, not
+                                  actually redirect-specific despite the
+                                  name. */}
+                              <span className="redirects-tab-row-label">
+                                <strong>{item.label || 'Untitled'}</strong>
+                                <span className="redirects-tab-row-to">{item.url}</span>
+                              </span>
+                              <button
+                                type="button"
+                                className="instance-row-chevron"
+                                aria-label={`Edit ${item.label || 'menu item'}`}
+                                onClick={() => setItemModalState({ mode: 'edit', menu, index, item })}
+                              >
+                                <EditIcon />
+                              </button>
+                              <button
+                                type="button"
+                                className="instance-row-remove"
+                                aria-label={`Delete ${item.label || 'menu item'}`}
+                                onClick={() => void handleDeleteItem(menu, index, item)}
+                              >
+                                <TrashIcon />
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <button type="button" className="instance-add-button" onClick={() => setItemModalState({ mode: 'create', menu })}>
+                      <AddIcon />
+                      Add Menu Item
+                    </button>
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
       <button type="button" className="instance-add-button" onClick={() => setNewMenuModalOpen(true)}>
         <AddIcon />
         Add Menu
       </button>
-      {newMenuModalOpen && <NewMenuModal siteId={siteId} onClose={() => setNewMenuModalOpen(false)} />}
+      {newMenuModalOpen && <NewMenuModal siteId={siteId} onCreated={refresh} onClose={() => setNewMenuModalOpen(false)} />}
+      {itemModalState && (
+        <MenuItemFormModal
+          siteId={siteId}
+          menu={itemModalState.menu}
+          menuName={deriveMenuName(itemModalState.menu.path)}
+          mode={itemModalState.mode}
+          index={itemModalState.mode === 'edit' ? itemModalState.index : null}
+          item={itemModalState.mode === 'edit' ? itemModalState.item : null}
+          onSaved={handleItemSaved}
+          onClose={() => setItemModalState(null)}
+        />
+      )}
     </div>
-  );
-}
-
-interface MenuHubRowProps {
-  siteId: string;
-  menu: MenuRow;
-}
-
-// Same whole-pill-clickable shape as SectionList.tsx's own SectionRow -
-// role="button"/onClick on .instance-row-main itself, not just the
-// inner title - PagesHubTreeRow's own row previously only wired the
-// title button, leaving the rest of the pill inert, which read as
-// inconsistent next to Sections/Blocks where clicking anywhere on the
-// row opens it (reported directly). The Edit link still needs its own
-// stopPropagation so activating it doesn't also fire the row's own
-// onClick underneath it.
-function MenuHubRow({ siteId, menu }: MenuHubRowProps) {
-  const navigate = useNavigate();
-  const editHref = `/sites/${siteId}/menus/edit?path=${encodeURIComponent(menu.path)}`;
-
-  function handleRowClick(): void {
-    navigate(editHref);
-  }
-
-  function handleRowKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      handleRowClick();
-    }
-  }
-
-  function handleEditLinkClick(event: MouseEvent): void {
-    event.stopPropagation();
-  }
-
-  return (
-    <li className="instance-row">
-      <div className="instance-row-main" role="button" tabIndex={0} aria-label={menu.name} onClick={handleRowClick} onKeyDown={handleRowKeyDown}>
-        <span className="page-tree-cell">
-          <span className="page-tree-toggle-spacer" aria-hidden="true" />
-          <span className="page-tree-title" title={menu.name}>
-            {menu.name}
-          </span>
-        </span>
-        <Link to={editHref} className="instance-row-remove" aria-label={`Edit ${menu.name}`} onClick={handleEditLinkClick}>
-          <EditIcon />
-        </Link>
-      </div>
-    </li>
   );
 }

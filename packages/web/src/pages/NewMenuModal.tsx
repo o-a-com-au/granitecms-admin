@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router';
 import { saveSiteDraft, SiteEditorError } from '../api/site-editor.ts';
 import { slugify } from './slugify.ts';
 
 export interface NewMenuModalProps {
   siteId: string;
+  onCreated: () => void;
   onClose: () => void;
 }
 
@@ -21,9 +21,11 @@ const MENU_SCHEMA_VERSION = 1;
 // If-Match can never match a real file's etag, so attempting to create
 // at an already-occupied path naturally 409s through the existing
 // conflict handling below, rather than needing a separate pre-flight
-// existence check.
-export function NewMenuModal({ siteId, onClose }: NewMenuModalProps) {
-  const navigate = useNavigate();
+// existence check. Calls onCreated (MenusTabPanel.tsx's own refresh)
+// and closes rather than navigating anywhere - there is no more
+// separate menu editor route to land on now that items are edited
+// inline in the same accordion this modal already sits inside.
+export function NewMenuModal({ siteId, onCreated, onClose }: NewMenuModalProps) {
   const [name, setName] = useState('');
   const [path, setPath] = useState('');
   const [pathTouched, setPathTouched] = useState(false);
@@ -46,7 +48,8 @@ export function NewMenuModal({ siteId, onClose }: NewMenuModalProps) {
     try {
       const content = { schemaVersion: MENU_SCHEMA_VERSION, items: [] };
       await saveSiteDraft(siteId, trimmedPath, JSON.stringify(content, null, 2), '*');
-      navigate(`/sites/${siteId}/menus/edit?path=${encodeURIComponent(trimmedPath)}`);
+      onCreated();
+      onClose();
     } catch (err) {
       if (err instanceof SiteEditorError && err.reason === 'conflict') {
         setError('A menu already exists at that path');

@@ -29,6 +29,7 @@ import { fetchSiteThemeSchemas } from '../sites/site-theme-schemas.ts';
 import { fetchSitePageTemplates } from '../sites/site-page-templates.ts';
 import { deleteSiteMedia, listSiteMedia, uploadSiteMedia } from '../sites/site-media.ts';
 import { createSiteRedirect, deleteSiteRedirect, listSiteRedirects, updateSiteRedirect } from '../sites/site-redirects.ts';
+import { saveSiteMenu } from '../sites/site-menus.ts';
 
 // The raw token is never included here, full stop - built by this
 // explicit mapping function rather than spreading the Site record, so
@@ -285,6 +286,29 @@ function parseDeleteRedirectBody(body: unknown): DeleteRedirectBody | null {
     return null;
   }
   return { from: record.from, message: record.message };
+}
+
+interface SaveMenuBody {
+  content: unknown;
+  message: string;
+}
+
+// author is never accepted from the browser here either - same
+// reasoning as requireCommitAuthor below, and the same shape
+// parseUpsertRedirectBody already established for this file's other
+// commit-creating writes.
+function parseSaveMenuBody(body: unknown): SaveMenuBody | null {
+  if (typeof body !== 'object' || body === null) {
+    return null;
+  }
+  const record = body as Record<string, unknown>;
+  if (record.content === undefined) {
+    return null;
+  }
+  if (typeof record.message !== 'string' || record.message.trim() === '') {
+    return null;
+  }
+  return { content: record.content, message: record.message };
 }
 
 // The browser never supplies a commit author - it's always the
@@ -860,6 +884,65 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
       reply.code(502);
       return { error: result.message, reason: result.outcome };
     });
+
+    // Own namespace (/:id/menus/*, not wedged into /:id/drafts/*),
+    // matching the agent's own /v1/menus route - a menu has no draft
+    // state (docs/cms-build-plan.md), so this commits immediately, the
+    // same way redirects do above, unlike a page save. path (the
+    // wildcard) is relative to the full content root (e.g.
+    // "menus/main.json"), the same convention every other client path
+    // already uses - saveSiteMenu strips the "menus/" prefix itself
+    // before calling the agent, since /v1/menus/* is rooted at
+    // menusRoot specifically.
+    app.put<{ Params: { id: string; '*': string } }>(
+      '/:id/menus/*',
+      { preHandler: [requireAuth, requireSiteAccess] },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const ifMatch = request.headers['if-match'];
+        if (typeof ifMatch !== 'string' || ifMatch.trim() === '') {
+          reply.code(428);
+          return {
+            statusCode: 428,
+            error: 'Precondition Required',
+            message: 'An If-Match header is required to save a menu',
+          };
+        }
+
+        const body = parseSaveMenuBody(request.body);
+        if (!body) {
+          reply.code(400);
+          return { statusCode: 400, error: 'Bad Request', message: 'content and message are both required' };
+        }
+
+        const author = requireCommitAuthor(request.currentUser);
+        const result = await saveSiteMenu(site, request.params['*'], body.content, ifMatch, body.message, author);
+
+        if (result.outcome === 'ok') {
+          reply.header('etag', result.etag);
+          return { ok: true };
+        }
+        if (result.outcome === 'not-found') {
+          reply.code(404);
+          return { error: result.message, reason: 'not-found' };
+        }
+        if (result.outcome === 'conflict') {
+          reply.code(409);
+          return { statusCode: 409, error: 'Conflict', message: result.message };
+        }
+        if (result.outcome === 'invalid') {
+          reply.code(400);
+          return { statusCode: 400, error: 'Bad Request', message: result.message };
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
 
     // I2, I3, I4: what the schema-driven section/block editor is
     // built from - a single read-only pass-through, no query params.

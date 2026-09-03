@@ -12,7 +12,6 @@ import { ManageSitesPage } from './pages/settings/ManageSitesPage.tsx';
 import { ManageSitePage } from './pages/settings/ManageSitePage.tsx';
 import { PagesHubPage } from './pages/PagesHubPage.tsx';
 import { MediaLibraryPage } from './pages/MediaLibraryPage.tsx';
-import { MenuEditorPage } from './pages/MenuEditorPage.tsx';
 import { PageEditorPage } from './pages/PageEditorPage.tsx';
 import { RequireAuth } from './auth/RequireAuth.tsx';
 import { RequireDeveloper } from './auth/RequireDeveloper.tsx';
@@ -73,7 +72,6 @@ export const routes: RouteObject[] = [
           },
           { path: '/sites/:siteId/content', element: <PagesHubPage /> },
           { path: '/sites/:siteId/media', element: <MediaLibraryPage /> },
-          { path: '/sites/:siteId/menus/edit', element: <MenuEditorPage /> },
           { path: '/sites/:siteId/editor', element: <PageEditorPage /> },
         ],
       },

@@ -2301,4 +2301,129 @@ describe('sites routes', () => {
 
     await app.close();
   });
+
+  const MENU_CONTENT = { schemaVersion: 1, items: [{ label: 'Home', url: '/' }] };
+
+  it('PUT /api/sites/:id/menus/*path sends the logged-in admin\'s own name/email as author, never something the caller supplied', async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedBody: Record<string, unknown> = {};
+    let receivedPath = '';
+    fakeSite = createServer((req, res) => {
+      // See the redirects tests above for why the capabilities
+      // pre-check from registration needs its own, separate branch.
+      if (req.method !== 'PUT' || !req.url?.startsWith('/v1/menus/')) {
+        sendJson(res, 200, { agentVersion: '1.0.0', contentSchemaVersion: 3, sqliteDriver: 'node:sqlite' });
+        return;
+      }
+      receivedPath = req.url;
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        receivedBody = JSON.parse(Buffer.concat(chunks).toString());
+        res.writeHead(200, { etag: '"new-etag"' });
+        res.end(JSON.stringify({ ok: true }));
+      });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/sites/${id}/menus/menus/main.json`,
+      headers: { cookie, 'if-match': '"old-etag"' },
+      payload: { content: MENU_CONTENT, message: 'Update menu items', author: { name: 'Attacker', email: 'x@x.com' } },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { ok: true });
+    assert.equal(response.headers.etag, '"new-etag"');
+    // menus/ is stripped before this reaches the agent - main.json,
+    // not menus/main.json, matching manage-menus.ts's own menusRoot.
+    assert.equal(receivedPath, '/v1/menus/main.json');
+    assert.equal(receivedBody.author && (receivedBody.author as { name: string }).name, 'Jane Editor');
+    assert.deepEqual(receivedBody.content, MENU_CONTENT);
+
+    await app.close();
+  });
+
+  it('PUT /api/sites/:id/menus/*path requires an If-Match header, without ever calling the site', async () => {
+    const { app, cookie } = await buildTestServer();
+    const id = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/sites/${id}/menus/menus/main.json`,
+      headers: { cookie },
+      payload: { content: MENU_CONTENT, message: 'Update menu items' },
+    });
+
+    assert.equal(response.statusCode, 428);
+
+    await app.close();
+  });
+
+  it('PUT /api/sites/:id/menus/*path rejects a missing content/message with 400, without ever calling the site', async () => {
+    const { app, cookie } = await buildTestServer();
+    const id = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/sites/${id}/menus/menus/main.json`,
+      headers: { cookie, 'if-match': '"etag"' },
+      payload: { content: MENU_CONTENT },
+    });
+
+    assert.equal(response.statusCode, 400);
+
+    await app.close();
+  });
+
+  it('PUT /api/sites/:id/menus/*path forwards a site 409 as a real conflict, with the site\'s own message', async () => {
+    const { app, cookie } = await buildTestServer();
+    fakeSite = createServer((_req, res) => sendJson(res, 409, { message: 'This menu changed since you opened it' }));
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/sites/${id}/menus/menus/main.json`,
+      headers: { cookie, 'if-match': '"stale-etag"' },
+      payload: { content: MENU_CONTENT, message: 'Update menu items' },
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(response.json().message, 'This menu changed since you opened it');
+
+    await app.close();
+  });
+
+  it('PUT /api/sites/:id/menus/*path returns 404 when the site reports not-found', async () => {
+    const { app, cookie } = await buildTestServer();
+    fakeSite = createServer((_req, res) => sendJson(res, 404, { message: 'No menu found at that path' }));
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/sites/${id}/menus/menus/gone.json`,
+      headers: { cookie, 'if-match': '"etag"' },
+      payload: { content: MENU_CONTENT, message: 'Update menu items' },
+    });
+
+    assert.equal(response.statusCode, 404);
+
+    await app.close();
+  });
 });

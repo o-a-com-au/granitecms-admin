@@ -136,6 +136,19 @@
   white-space: nowrap;
 }
 
+/* MenusTabPanel.tsx's own expanded menu row - wraps both the nested
+   item list and the "Add Menu Item"/"No items yet." line below it in
+   one indented block, matching instance-rows.css's own
+   .instance-list-nested margin/padding/border exactly, just applied
+   one level up so both children share the same indent rather than
+   needing a second sibling-combinator rule the way BlockList.tsx's own
+   .instance-list-nested + .instance-add-menu-wrap does. */
+.menus-tab-items {
+  margin: var(--space-xs) 0 0 var(--space-lg);
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--colour-border);
+}
+
 /* Phone (this app's established 720px breakpoint) - a small side gap
    (requested directly), matching editor-layout.css's own .editor-
    shell/.editor-sidebar mobile treatment: padding on the parent
