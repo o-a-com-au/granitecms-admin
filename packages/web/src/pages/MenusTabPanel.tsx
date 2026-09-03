@@ -1,16 +1,14 @@
 import { useState, type KeyboardEvent } from 'react';
 import { useSiteMenus } from '../menus/useSiteMenus.ts';
 import { MenuItemFormModal } from '../menus/MenuItemFormModal.tsx';
+import { MenuItemList } from '../menus/MenuItemList.tsx';
 import { saveSiteMenuItems, type MenuItem, type SiteMenu } from '../api/site-menus.ts';
-import { buildRemoveMenuItemMessage } from '../menus/buildMenuItemMessage.ts';
+import { buildRemoveMenuItemMessage, buildReorderMenuItemsMessage } from '../menus/buildMenuItemMessage.ts';
 import { usePreview } from '../layout/PreviewContext.tsx';
 import { deriveMenuName } from './deriveMenuName.ts';
 import { NewMenuModal } from './NewMenuModal.tsx';
 import { AccordionArrowIcon } from '../sections/AccordionArrowIcon.tsx';
 import { AddIcon } from '../sections/AddIcon.tsx';
-import { EditIcon } from '../sections/EditIcon.tsx';
-import { TrashIcon } from '../sections/TrashIcon.tsx';
-import { InstanceRowActions } from '../sections/InstanceRowActions.tsx';
 import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
 import { buildLoadErrorActions, loadErrorMessage } from '../sites/site-load-error.ts';
@@ -39,10 +37,10 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
   const [expandedPath, setExpandedPath] = useState<string | null>(null);
   const [newMenuModalOpen, setNewMenuModalOpen] = useState(false);
   const [itemModalState, setItemModalState] = useState<ItemModalState>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   async function handleDeleteItem(menu: SiteMenu, index: number, item: MenuItem): Promise<void> {
-    setDeleteError(null);
+    setActionError(null);
     const menuName = deriveMenuName(menu.path);
     const items = menu.items.filter((_, i) => i !== index);
     try {
@@ -56,7 +54,23 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
       // something else happened to reload it.
       bumpPreview();
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Failed to delete that menu item');
+      setActionError(err instanceof Error ? err.message : 'Failed to delete that menu item');
+    }
+  }
+
+  // MenuItemList.tsx only computes the new order (drag-and-drop maths,
+  // no network of its own) - saving it is the same read-modify-write
+  // against the whole items array every other menu-item mutation here
+  // already goes through.
+  async function handleReorderItems(menu: SiteMenu, items: MenuItem[]): Promise<void> {
+    setActionError(null);
+    const menuName = deriveMenuName(menu.path);
+    try {
+      await saveSiteMenuItems(siteId, menu.path, menu.envelope, items, menu.etag, buildReorderMenuItemsMessage(menuName));
+      refresh();
+      bumpPreview();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to reorder menu items');
     }
   }
 
@@ -76,7 +90,7 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
 
   return (
     <div className="pages-hub-tab">
-      {deleteError && <p role="alert">{deleteError}</p>}
+      {actionError && <p role="alert">{actionError}</p>}
       {menus.length === 0 ? (
         <p>No menus found.</p>
       ) : (
@@ -129,54 +143,12 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
                     {menu.items.length === 0 ? (
                       <p>No items yet.</p>
                     ) : (
-                      <ul className="instance-list instance-list-nested">
-                        {menu.items.map((item, index) => (
-                          // No stable id in the data model (menu.schema.json's
-                          // items are additionalProperties: false - a
-                          // client-side id has nowhere to live, same
-                          // constraint the old MenuEditorPage.tsx's own item
-                          // list had) - index is the only key available, an
-                          // accepted trade-off for a short, non-reorderable
-                          // list.
-                          <li className="instance-row" key={index}>
-                            <div className="instance-row-main">
-                              {/* An item never nests, but every
-                                  instance-row now reserves this column
-                                  regardless (requested directly - "clean
-                                  this up so they are all rendered the
-                                  same way"), matching Sections/Blocks/
-                                  Pages/Redirects. */}
-                              <span className="instance-row-chevron-spacer" aria-hidden="true" />
-                              {/* Reuses redirects-tab-row-label as-is
-                                  (pages-hub.css) - a generic single-line
-                                  label row shape, not actually redirect-
-                                  specific despite the name. Just the
-                                  label, no url subtext (requested
-                                  directly - a second pass). */}
-                              <span className="redirects-tab-row-label">
-                                <strong>{item.label || 'Untitled'}</strong>
-                              </span>
-                              <InstanceRowActions
-                                actions={[
-                                  {
-                                    key: 'edit',
-                                    label: `Edit ${item.label || 'menu item'}`,
-                                    icon: <EditIcon />,
-                                    onClick: () => setItemModalState({ mode: 'edit', menu, index, item }),
-                                  },
-                                  {
-                                    key: 'delete',
-                                    label: `Delete ${item.label || 'menu item'}`,
-                                    icon: <TrashIcon />,
-                                    variant: 'destructive',
-                                    onClick: () => void handleDeleteItem(menu, index, item),
-                                  },
-                                ]}
-                              />
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
+                      <MenuItemList
+                        items={menu.items}
+                        onReorder={(items) => void handleReorderItems(menu, items)}
+                        onEdit={(index, item) => setItemModalState({ mode: 'edit', menu, index, item })}
+                        onDelete={(index, item) => void handleDeleteItem(menu, index, item)}
+                      />
                     )}
                     <button type="button" className="instance-add-button" onClick={() => setItemModalState({ mode: 'create', menu })}>
                       <AddIcon />

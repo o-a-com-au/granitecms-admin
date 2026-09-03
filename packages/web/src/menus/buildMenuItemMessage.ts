@@ -13,3 +13,7 @@ export function buildUpdateMenuItemMessage(menuName: string, label: string): str
 export function buildRemoveMenuItemMessage(menuName: string, label: string): string {
   return `Remove "${label}" from ${menuName}`;
 }
+
+export function buildReorderMenuItemsMessage(menuName: string): string {
+  return `Reorder items in ${menuName}`;
+}

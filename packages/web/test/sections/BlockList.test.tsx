@@ -400,13 +400,15 @@ describe('BlockList', () => {
     );
 
     // group nests further blocks (a real arrow, collapsed by default) -
-    // button doesn't (BLOCK_TYPES above), so it gets the spacer instead.
+    // button doesn't (BLOCK_TYPES above), so it gets no arrow/space for
+    // one at all - a block is a second-level instance-row, which never
+    // reserves that column the way Sections/Pages still do.
     expect(screen.getByRole('button', { name: 'Expand' })).toBeDefined();
     const rows = screen.getAllByRole('button', { name: /^Edit /i });
     expect(rows[0]?.querySelector('.instance-row-chevron')).not.toBeNull();
     expect(rows[0]?.querySelector('.instance-row-chevron-spacer')).toBeNull();
     expect(rows[1]?.querySelector('.instance-row-chevron')).toBeNull();
-    expect(rows[1]?.querySelector('.instance-row-chevron-spacer')).not.toBeNull();
+    expect(rows[1]?.querySelector('.instance-row-chevron-spacer')).toBeNull();
   });
 
   it('expanding one block\'s nested blocks collapses whichever sibling block was already open - an accordion, not independent per-row state', () => {

@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { MenusTabPanel } from '../../src/pages/MenusTabPanel.tsx';
 import { PreviewProvider, usePreview } from '../../src/layout/PreviewContext.tsx';
+import { createFakeDataTransfer } from '../helpers/fakeDataTransfer.ts';
 
 // Renders previewGeneration as plain text - PreviewContext.tsx's own
 // bumpPreview has no visible effect of its own to assert on directly
@@ -115,8 +116,8 @@ describe('MenusTabPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand Main' }));
 
-    expect(screen.getByText('Home')).toBeDefined();
-    expect(screen.getByText('About')).toBeDefined();
+    expect(screen.getByText('Home', { selector: 'strong' })).toBeDefined();
+    expect(screen.getByText('About', { selector: 'strong' })).toBeDefined();
     expect(screen.queryByText('/')).toBeNull();
     expect(screen.queryByText('/about')).toBeNull();
   });
@@ -167,7 +168,7 @@ describe('MenusTabPanel', () => {
     renderPanel();
     await waitFor(() => expect(screen.getByText('Main')).toBeDefined());
     fireEvent.click(screen.getByRole('button', { name: 'Expand Main' }));
-    expect(screen.getByText('Home')).toBeDefined();
+    expect(screen.getByText('Home', { selector: 'strong' })).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Menu Item' }));
     expect(screen.getByRole('heading', { name: 'Add Menu Item' })).toBeDefined();
@@ -177,7 +178,7 @@ describe('MenusTabPanel', () => {
     expect(screen.getByTestId('preview-generation').textContent).toBe('0');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    await waitFor(() => expect(screen.getByText('Contact')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('Contact', { selector: 'strong' })).toBeDefined());
     const putCall = calls.find((call) => call.method === 'PUT');
     expect(putCall?.url).toBe('/api/sites/site-1/menus/menus/main.json');
     expect(putCall?.body).toMatchObject({
@@ -221,14 +222,57 @@ describe('MenusTabPanel', () => {
     renderPanel();
     await waitFor(() => expect(screen.getByText('Main')).toBeDefined());
     fireEvent.click(screen.getByRole('button', { name: 'Expand Main' }));
-    expect(screen.getByText('Home')).toBeDefined();
+    expect(screen.getByText('Home', { selector: 'strong' })).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete Home' }));
 
-    await waitFor(() => expect(screen.queryByText('Home')).toBeNull());
-    expect(screen.getByText('About')).toBeDefined();
+    await waitFor(() => expect(screen.queryByText('Home', { selector: 'strong' })).toBeNull());
+    expect(screen.getByText('About', { selector: 'strong' })).toBeDefined();
     const putCall = calls.find((call) => call.method === 'PUT');
     expect(putCall?.body).toMatchObject({ content: { items: [{ label: 'About', url: '/about' }] } });
+    expect(screen.getByTestId('preview-generation').textContent).toBe('1');
+  });
+
+  it('dragging a menu item to reorder it PUTs the new array order and bumps the preview generation', async () => {
+    const { calls } = installFakeApi([MAIN_MENU_ENTRY], {
+      'menus/main.json': {
+        content: {
+          schemaVersion: 1,
+          items: [{ label: 'Home', url: '/' }, { label: 'About', url: '/about' }, { label: 'Contact', url: '/contact' }],
+        },
+        etag: '"etag-1"',
+      },
+    });
+
+    renderPanel();
+    await waitFor(() => expect(screen.getByText('Main')).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Main' }));
+    await waitFor(() => expect(screen.getByText('Home', { selector: 'strong' })).toBeDefined());
+
+    const handles = screen.getAllByRole('button', { name: /^Drag to reorder /i });
+    const rows = handles.map((handle) => handle.closest('li') as HTMLElement);
+    vi.spyOn(rows[2] as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+      top: 0,
+      height: 40,
+      bottom: 40,
+      left: 0,
+      right: 0,
+      width: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    fireEvent.dragStart(handles[0] as HTMLElement, { dataTransfer: createFakeDataTransfer() });
+    fireEvent.dragOver(rows[2] as HTMLElement, { clientY: 35 });
+    fireEvent.drop(rows[2] as HTMLElement);
+
+    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+    const putCall = calls.find((call) => call.method === 'PUT');
+    expect(putCall?.url).toBe('/api/sites/site-1/menus/menus/main.json');
+    expect(putCall?.body).toMatchObject({
+      content: { items: [{ label: 'About', url: '/about' }, { label: 'Contact', url: '/contact' }, { label: 'Home', url: '/' }] },
+    });
     expect(screen.getByTestId('preview-generation').textContent).toBe('1');
   });
 

@@ -168,7 +168,14 @@ function BlockRow({
             <DragHandleIcon />
           </span>
         </span>
-        {acceptsNestedBlocks ? (
+        {/* No spacer for a block that doesn't accept nested blocks -
+            unlike Sections/Pages (top-level rows, where a mix of
+            chevron/no-chevron siblings share one list and need to
+            align), a block is a second-level instance-row and never
+            reserves this column at all when unused (requested directly
+            - collapses the same way the drag handle now does when
+            absent). */}
+        {acceptsNestedBlocks && (
           <button
             type="button"
             className="instance-row-chevron"
@@ -180,12 +187,6 @@ function BlockRow({
               <AccordionArrowIcon />
             </span>
           </button>
-        ) : (
-          // Same box as the real button above, empty - so a block with
-          // no nested blocks still reserves the arrow's column, and
-          // every row's label lines up in the same place regardless of
-          // whether that particular row has one.
-          <span className="instance-row-chevron-spacer" aria-hidden="true" />
         )}
         <strong title={displayName}>{displayName}</strong>
         <button type="button" className="instance-row-remove" aria-label="Remove block" onClick={handleRemove}>
