@@ -446,25 +446,28 @@ function PagesHubTreeRow({
             </span>
           </span>
         )}
-        <span className="page-tree-cell">
-          {hasChildren ? (
-            <button
-              type="button"
-              className="instance-row-chevron"
-              aria-expanded={!collapsed}
-              aria-label={collapsed ? `Expand ${entry.name || entry.path}` : `Collapse ${entry.name || entry.path}`}
-              onClick={handleToggleClick}
-            >
-              <span className={`instance-row-chevron-icon${collapsed ? '' : ' is-expanded'}`}>
-                <AccordionArrowIcon />
-              </span>
-            </button>
-          ) : (
-            <span className="instance-row-chevron-spacer" aria-hidden="true" />
-          )}
-          <span className="page-tree-title" title={entry.name || entry.path}>
-            {entry.name || entry.path}
-          </span>
+        {/* No wrapping span any more - chevron/spacer and title are
+            direct flex children of .instance-row-main, matching
+            SectionList.tsx/BlockList.tsx's own <strong> sibling
+            exactly (reported directly - Pages was the one row type
+            still nesting these in an extra "cell" layer). */}
+        {hasChildren ? (
+          <button
+            type="button"
+            className="instance-row-chevron"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? `Expand ${entry.name || entry.path}` : `Collapse ${entry.name || entry.path}`}
+            onClick={handleToggleClick}
+          >
+            <span className={`instance-row-chevron-icon${collapsed ? '' : ' is-expanded'}`}>
+              <AccordionArrowIcon />
+            </span>
+          </button>
+        ) : (
+          <span className="instance-row-chevron-spacer" aria-hidden="true" />
+        )}
+        <span className="page-tree-title" title={entry.name || entry.path}>
+          {entry.name || entry.path}
         </span>
         <Link
           to={editorHref}

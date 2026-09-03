@@ -107,30 +107,14 @@
   color: var(--colour-muted);
 }
 
-/* The Pages tree's Name cell (docs/design/Pages.png's chevron on
-   "Home"). The toggle itself is now button.instance-row-chevron
-   (instance-rows.css), the exact same expand/collapse affordance
-   Sections/Blocks already use (AccordionArrowIcon, an SVG rather than
-   a plain '›'/'⌄' character, rotating rather than swapping glyphs) -
-   requested directly, so every instance-row's own accordion arrow
-   looks and behaves identically rather than the page tree keeping a
-   parallel, slowly-drifting implementation of its own. */
-/* flex: 1; min-width: 0 - without this, the cell sizes to its content's
-   natural width (its default flex-basis: auto) rather than shrinking to
-   fit .instance-row-main's own available space, which meant the Link
-   inside it (pages-hub.css's .instance-row-main a, overflow: hidden;
-   text-overflow: ellipsis) never actually had a bounded width to
-   truncate against - a long page title just overflowed the row and the
-   panel entirely instead of ellipsising. Confirmed live: "Granite CMS -
-   Solid foundations for client sites." bled past the panel's own right
-   edge. */
-.page-tree-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex: 1;
-  min-width: 0;
-}
+/* .page-tree-cell retired - PagesTabPanel.tsx's chevron/spacer and
+   .page-tree-title are direct flex children of .instance-row-main now,
+   matching SectionList.tsx/BlockList.tsx's own <strong> sibling
+   exactly, rather than nesting them in an extra wrapper span only this
+   row type had (reported directly). The flex:1/min-width:0 truncation
+   behaviour this wrapper used to provide now lives directly on
+   .page-tree-title itself (pages-hub.css) - it already declared both,
+   they just had no effect until it became a direct flex child. */
 
 .content-search {
   flex: 1;
