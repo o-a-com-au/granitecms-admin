@@ -111,6 +111,13 @@ button.colour-field-preview--none:hover {
   text-transform: lowercase;
 }
 
+/* CloseIcon now (not a bespoke × glyph - reported directly as an
+   inconsistency across the app's various Close/Clear buttons) -
+   font-size/line-height dropped, they only ever sized the old text
+   glyph. Colour stays --colour-danger, not the icon-muted/opacity
+   convention every other Close button here uses - this one clears a
+   real value, closer in spirit to a destructive action than a plain
+   dismiss. */
 .colour-field-clear {
   flex: 0 0 auto;
   width: 2.25rem;
@@ -120,8 +127,6 @@ button.colour-field-preview--none:hover {
   align-items: center;
   justify-content: center;
   color: var(--colour-danger);
-  font-size: 1.1rem;
-  line-height: 1;
 }
 
 /* ----- Custom colour popover (ColorPickerPopover.tsx) ----- */

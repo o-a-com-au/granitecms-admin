@@ -46,15 +46,31 @@
 }
 
 /* button.add-section-modal-close, same specificity-tie reasoning as
-   button.add-section-item above. */
+   button.add-section-item above. Same icon-button shape as every other
+   Close/Clear cross in the app now (CloseIcon, not a bespoke &times; -
+   reported directly as an inconsistency) - flex centring plus an
+   explicit box instead of the old font-size/line-height, which only
+   ever sized a text glyph. Opacity, not a colour swap, for hover
+   feedback - same rest/hover pattern as address-bar-search.css's own
+   button.address-search-close. */
 button.add-section-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
   background: none;
   border: none;
-  color: var(--colour-muted);
-  font-size: 1.3rem;
-  line-height: 1;
+  border-radius: var(--radius-xs);
+  color: var(--colour-icon-muted);
+  opacity: 0.6;
   padding: 0;
   cursor: pointer;
+}
+
+button.add-section-modal-close:hover {
+  background: none;
+  opacity: 1;
 }
 
 .add-section-search {

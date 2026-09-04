@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { CloseIcon } from './CloseIcon.tsx';
 import { schemaTitle, type ThemeTypeSchemas } from './instance-types.ts';
 
 export interface AddSectionModalProps {
@@ -47,7 +48,7 @@ export function AddSectionModal({ sectionTypes, onSelect, onClose }: AddSectionM
         <div className="add-section-modal-header">
           <h2 id="add-section-heading">Add a Section</h2>
           <button type="button" className="add-section-modal-close" aria-label="Close" onClick={onClose}>
-            &times;
+            <CloseIcon />
           </button>
         </div>
         <input

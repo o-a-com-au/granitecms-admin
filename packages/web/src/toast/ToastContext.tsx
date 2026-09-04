@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { CloseIcon } from '../sections/CloseIcon.tsx';
 
 export type ToastVariant = 'error' | 'success';
 
@@ -41,7 +42,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div key={toast.id} className={`toast toast-${toast.variant}`}>
             <p>{toast.message}</p>
             <button type="button" className="toast-dismiss" aria-label="Dismiss" onClick={() => dismissToast(toast.id)}>
-              ×
+              <CloseIcon />
             </button>
           </div>
         ))}

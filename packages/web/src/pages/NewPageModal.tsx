@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { saveSiteDraft, SiteEditorError } from '../api/site-editor.ts';
 import { fetchSitePageTemplates, type PageTemplate } from '../api/site-page-templates.ts';
+import { CloseIcon } from '../sections/CloseIcon.tsx';
 import { slugify } from './slugify.ts';
 
 export interface NewPageModalProps {
@@ -136,7 +137,7 @@ export function NewPageModal({ siteId, onClose }: NewPageModalProps) {
           <div className="add-section-modal-header">
             <h2 id="new-page-heading">New Page</h2>
             <button type="button" className="add-section-modal-close" aria-label="Close" onClick={onClose}>
-              &times;
+              <CloseIcon />
             </button>
           </div>
           <div className="add-section-grid">

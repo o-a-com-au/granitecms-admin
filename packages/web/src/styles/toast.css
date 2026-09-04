@@ -64,13 +64,24 @@
   border: 1px solid rgba(62, 207, 110, 0.35);
 }
 
+/* CloseIcon now (not a bespoke × glyph - reported directly as an
+   inconsistency across the app's various Close/Clear buttons) -
+   font-size/line-height dropped, they only ever sized the old text
+   glyph; flex centring added in their place. color: inherit stays -
+   this dismiss button still tints to match its own toast's error/
+   success colour, not the icon-muted convention every other plain
+   Close button here uses. */
 .toast-dismiss {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
   background: none;
   border: none;
   color: inherit;
   cursor: pointer;
-  font-size: 1.1rem;
-  line-height: 1;
   padding: 0;
 }
 

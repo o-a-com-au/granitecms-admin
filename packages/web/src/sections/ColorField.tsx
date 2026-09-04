@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CloseIcon } from './CloseIcon.tsx';
 import { ColorPickerPopover } from './ColorPickerPopover.tsx';
 import { normalizeHex } from './colour-utils.ts';
 
@@ -161,7 +162,7 @@ function ColorHexRow({ current, hasValue, labelledBy, onChange }: VariantProps) 
         />
         {hasValue && (
           <button type="button" className="colour-field-clear" aria-label="Clear colour" onClick={() => onChange('')}>
-            ×
+            <CloseIcon />
           </button>
         )}
       </div>
