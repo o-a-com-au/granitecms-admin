@@ -32,16 +32,26 @@
   text-overflow: ellipsis;
 }
 
-/* A faint 20% wash of the pressed button's own background (below),
-   not a second literal colour - color-mix so it can never drift out
-   of step with --colour-surface-hover itself (same reasoning
-   instance-rows.css's own .instance-row-main.is-drop-target uses).
-   :not([aria-pressed='true']) - the pressed button already has that
-   background at full strength; this is only for telling an unpressed
-   button apart from a plain rest state on hover, not stacking another
-   wash on top of the one that's already active (requested directly). */
+/* A faint wash of the pressed button's own background (below), not a
+   second literal colour - color-mix so it can never drift out of step
+   with --colour-surface-hover itself (same reasoning instance-rows.css's
+   own .instance-row-main.is-drop-target uses). :not([aria-pressed=
+   'true']) - the pressed button already has that background at full
+   strength; this is only for telling an unpressed button apart from a
+   plain rest state on hover, not stacking another wash on top of the
+   one that's already active (requested directly). */
 .select-field-tabs button:hover:not([aria-pressed='true']) {
   background: color-mix(in srgb, var(--colour-surface-hover) 20%, transparent);
+}
+
+/* Light theme's own --colour-surface-hover (--grey-100, #e7e8e9) is
+   already so close to white that the 20% wash above (~4% of the way
+   from white to that grey) read as barely-there against the field's
+   own white background - reported directly. A higher percentage here,
+   not a different colour, keeps this in the same "wash of the active
+   background" spirit while actually reading as a rollover. */
+[data-theme='light'] .select-field-tabs button:hover:not([aria-pressed='true']) {
+  background: color-mix(in srgb, var(--colour-surface-hover) 45%, transparent);
 }
 
 .select-field-tabs button[aria-pressed='true'] {
