@@ -146,8 +146,18 @@
   margin-bottom: 1.5rem;
 }
 
+/* background/padding match this toolbar's own plain button exactly
+   (base.css's button[type='button']: background: var(--colour-surface),
+   same padding) - requested directly, with a mockup, so the two
+   controls read as a matching pair rather than the input's own
+   slightly-darker default (--colour-input-background, base.css's
+   generic input rule) standing out next to it. border/border-radius
+   already matched beforehand (both reach for --colour-border/
+   --radius-xs already), so only these two needed to change. */
 .media-library-toolbar .content-search {
   flex: 1;
+  padding: 0.5rem 1.1rem;
+  background: var(--colour-surface);
 }
 
 .media-library-errors {
