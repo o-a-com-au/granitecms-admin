@@ -85,6 +85,7 @@
      line, not a hunt through every component's own CSS. T-shirt sizes,
      not numbered steps, so a call site (e.g. padding: var(--space-md))
      reads as a size, not an arbitrary index. */
+  --space-2xs: 0.1rem;
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;
   --space-md: 1rem;
@@ -122,6 +123,7 @@
   --gradient-pill-active: linear-gradient(0deg, var(--colour-primary-dark), var(--colour-primary));
   --gradient-viewport: linear-gradient(0deg, var(--grey-100), var(--grey-200));
   --gradient-panel-heading: linear-gradient(0deg, var(--grey-750), var(--colour-surface));
+  --gradient-panel-toolbar: linear-gradient(0deg, var(--grey-850), var(--colour-surface));
 }
 
 [data-theme='light'] {
@@ -149,4 +151,5 @@
   --gradient-pill-active: linear-gradient(0deg, var(--colour-primary-dark), var(--colour-primary));
     --gradient-viewport: linear-gradient(0deg, var(--grey-100), var(--grey-200));
   --gradient-panel-heading: linear-gradient(0deg, var(--grey-50), var(--colour-surface));
+   --gradient-panel-toolbar: linear-gradient(0deg, var(--grey-50), var(--colour-surface));
 }

@@ -140,8 +140,10 @@
   flex-direction: column;
   padding: var(--space-lg) var(--space-md);
   background: var(--colour-surface);
-  /*border: 1px solid var(--colour-border);*/
+  position: relative;
 }
+
+
 
 /* Wraps .panel-heading-bar (editor-tabs.css) + .editor-tab-content as
    one panel with a single shared radius/shadow around both, not a
