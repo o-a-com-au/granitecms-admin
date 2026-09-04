@@ -73,15 +73,18 @@ button.add-section-modal-close:hover {
   opacity: 1;
 }
 
+/* Now applied to SearchInput.tsx's own .search-input wrapper (passed
+   as its className prop), not the <input> directly - that wrapper is
+   this modal's actual flex child these days, .content-search's own
+   flex: 1 (pages-list.css) only ever reaching this wrapper's own width
+   now, one level removed. Still needed for the same original reason:
+   .add-section-modal is a flex column with a defined height (min(85vh,
+   640px) above), so without an explicit flex: none here, the search
+   row competed with .add-section-grid's own flex: 1 for the modal's
+   leftover vertical space instead of staying a single input row -
+   found live, it rendered as a tall black rectangle instead of a
+   search field. */
 .add-section-search {
-  /* Overrides .content-search's own flex: 1 (pages-list.css) - harmless
-     there and everywhere else that class is used so far, since none of
-     those parents had a defined height for "flex: 1" to actually claim
-     space against. .add-section-modal now does (height: min(85vh,
-     640px) above), so without this override the search bar competed
-     with .add-section-grid's own flex: 1 for the modal's leftover
-     vertical space instead of staying a single input row - found live,
-     it rendered as a tall black rectangle instead of a search field. */
   flex: none;
   width: 100%;
   margin-bottom: var(--space-md);

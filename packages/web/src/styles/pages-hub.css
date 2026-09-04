@@ -87,7 +87,19 @@
   flex: 0 0 auto;
   gap: var(--space-sm);
   padding: var(--space-md);
-  background: var(--colour-surface);
+  background: var(--gradient-panel-toolbar);
+  position: relative;
+}
+
+
+/* .search-input (search-input.css), not .content-search directly, is
+   now this toolbar's own flex item - SearchInput.tsx wraps the input
+   in that extra div for its own clear-button positioning, so the
+   "claim the row's leftover width" job moves up onto it; .content-
+   search's own flex: 1 (pages-list.css) still separately fills that
+   wrapper's own width same as before, just one level removed. */
+.panel-toolbar .search-input {
+  flex: 1;
 }
 
 /* padding matches this toolbar's own plain button exactly (base.css's
@@ -99,7 +111,6 @@
    identical fill - the input stays visibly the darker of the two
    (requested directly, with a mockup). */
 .panel-toolbar .content-search {
-  flex: 1;
   padding: 0.5rem 1.1rem;
 }
 

@@ -19,7 +19,7 @@ const SECTION_TYPES: ThemeTypeSchemas = {
 function cards(): HTMLElement[] {
   return within(screen.getByRole('dialog', { name: 'Add a Section' }))
     .getAllByRole('button')
-    .filter((button) => button.getAttribute('aria-label') !== 'Close');
+    .filter((button) => !['Close', 'Clear search'].includes(button.getAttribute('aria-label') ?? ''));
 }
 
 describe('AddSectionModal', () => {

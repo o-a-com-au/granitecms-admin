@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react';
 import { deleteSiteMedia, uploadSiteMedia, type MediaItem } from '../api/site-media.ts';
 import { useSiteMedia } from './useSiteMedia.ts';
+import { SearchInput } from '../components/SearchInput.tsx';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
 import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
@@ -76,13 +77,7 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
   const toolbar = useMemo(
     () => (
       <div className="panel-toolbar">
-        <input
-          type="search"
-          className="content-search"
-          placeholder="Search media"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
+        <SearchInput value={search} onChange={setSearch} placeholder="Search media" />
         {/* Plain button (no .button-primary) - requested directly, with
             a mockup: a neutral box matching this toolbar's own search
             field in height/border, not the app's accent blue. */}

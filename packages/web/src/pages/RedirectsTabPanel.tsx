@@ -3,6 +3,7 @@ import { deleteSiteRedirect, type RedirectEntry } from '../api/site-redirects.ts
 import { useSiteRedirects } from '../redirects/useSiteRedirects.ts';
 import { buildDeleteRedirectMessage } from '../redirects/buildRedirectMessage.ts';
 import { RedirectFormModal } from '../redirects/RedirectFormModal.tsx';
+import { SearchInput } from '../components/SearchInput.tsx';
 import { EditIcon } from '../sections/EditIcon.tsx';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
 import { InstanceRowActions } from '../sections/InstanceRowActions.tsx';
@@ -60,13 +61,7 @@ export function RedirectsTabPanel({ siteId, onUtilitiesChange }: RedirectsTabPan
   const utilities = useMemo(
     () => (
       <div className="panel-toolbar">
-        <input
-          type="search"
-          className="content-search"
-          placeholder="Search redirects"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
+        <SearchInput value={search} onChange={setSearch} placeholder="Search redirects" />
         <button type="button" onClick={() => setModalState({ mode: 'create' })}>
           Add
         </button>

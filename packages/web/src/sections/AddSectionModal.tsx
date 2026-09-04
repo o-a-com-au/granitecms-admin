@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { SearchInput } from '../components/SearchInput.tsx';
 import { CloseIcon } from './CloseIcon.tsx';
 import { schemaTitle, type ThemeTypeSchemas } from './instance-types.ts';
 
@@ -51,13 +52,7 @@ export function AddSectionModal({ sectionTypes, onSelect, onClose }: AddSectionM
             <CloseIcon />
           </button>
         </div>
-        <input
-          type="search"
-          className="content-search add-section-search"
-          placeholder="Search sections"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
+        <SearchInput value={query} onChange={setQuery} placeholder="Search sections" className="add-section-search" />
         {visibleTypes.length === 0 && <p className="add-section-empty">No sections match &quot;{query}&quot;.</p>}
         <div className="add-section-grid">
           {visibleTypes.map(({ type, title }) => (

@@ -1,0 +1,69 @@
+/* SearchInput.tsx - wraps a type="search" input with our own CloseIcon
+   clear button in place of the browser's native cancel glyph, which
+   can't be restyled to match (only hidden outright, never given a
+   different icon). Reported directly: every other Clear/Close cross
+   in the app had already been brought onto CloseIcon, but this one -
+   the browser's own default search-field "x" used by every
+   .content-search field (Redirects/Media/Add Section) - was native
+   chrome, not one of this app's own buttons, so it had been missed.
+
+   .search-input, not .content-search itself, is now the flex item
+   within whatever row this sits in (.panel-toolbar, .add-section-
+   modal) - every existing "how much space does this field take" rule
+   (pages-hub.css's own .panel-toolbar .content-search, add-section-
+   modal.css's own .add-section-search) moves onto this wrapper to
+   match, since .content-search's own flex/width no longer has
+   .panel-toolbar/.add-section-modal to reach - its immediate parent is
+   this wrapper now. .content-search's own base flex: 1 (pages-list.css)
+   stays as-is and still does real work here: with the clear button
+   taken out of flow (position: absolute, below), the input is
+   .search-input's only real flex child, so that same flex: 1 still
+   just means "fill the wrapper" - exactly the width it always had. */
+.search-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Hides the native cancel button - can't be restyled to use CloseIcon,
+   only ever shown as-is or hidden, so SearchInput.tsx renders its own
+   button in its place instead (conditionally, on value !== '').
+   Firefox has no equivalent pseudo-element - there's no native cancel
+   button there to hide in the first place. */
+.search-input input[type='search']::-webkit-search-cancel-button {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* Room for the clear button so typed text never runs under it. */
+.search-input .content-search {
+  padding-right: 2rem;
+}
+
+/* button.search-input-clear, not the bare class - base.css's own
+   button[type='button']/:hover rule (element+attribute) otherwise wins
+   the specificity tie against a bare class, the same recurring gotcha
+   this app has hit repeatedly elsewhere. Same rest/hover opacity
+   pattern as every other icon-only Close/Clear button in the app
+   (address-bar-search.css's own button.address-search-close etc). */
+button.search-input-clear {
+  position: absolute;
+  right: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--colour-icon-muted);
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+button.search-input-clear:hover {
+  background: none;
+  opacity: 1;
+}
