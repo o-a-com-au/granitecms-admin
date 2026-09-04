@@ -85,7 +85,7 @@
      line, not a hunt through every component's own CSS. T-shirt sizes,
      not numbered steps, so a call site (e.g. padding: var(--space-md))
      reads as a size, not an arbitrary index. */
-  --space-2xs: 0.1rem;
+  --space-2xs: 0.13rem;
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;
   --space-md: 1rem;

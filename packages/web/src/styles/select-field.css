@@ -37,5 +37,5 @@
 .select-field-tabs button[aria-pressed='true'] {
   background: var(--colour-surface-hover);
   color: var(--colour-text);
-  font-weight: 700;
+  border: 1px solid var(--colour-tab-border);
 }
