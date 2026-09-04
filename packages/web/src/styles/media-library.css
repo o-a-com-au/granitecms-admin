@@ -154,8 +154,20 @@
    convention), not just a button - a generous dashed border only
    appears once a drag is actually in progress, so the empty/idle
    state doesn't look like a permanent upload box. */
+/* margin-bottom, not relying on .editor-tab-content's own bottom
+   padding (editor-layout.css) - a scrolling flex container's own
+   trailing padding doesn't reliably show up once its content actually
+   overflows (a real, long-standing browser quirk: the scrollable
+   region is measured to the last child's own border edge, not the
+   container's padding box), so the grid sat flush against the browser
+   window's bottom edge once scrolled all the way down (reported
+   directly, live). A margin on this, the last real content in that
+   scroll area, doesn't have that problem - it's part of this
+   element's own layout box, so it's included in the scrollable area
+   like any other content. */
 .media-library-dropzone {
   min-height: 240px;
+  margin-bottom: var(--space-lg);
   border-radius: var(--radius-sm);
   border: 2px dashed transparent;
   transition: border-color 0.15s ease, background 0.15s ease;
