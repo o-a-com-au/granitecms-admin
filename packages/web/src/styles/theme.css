@@ -106,35 +106,12 @@
   --colour-tab-border: var(--grey-500);
   --colour-muted: var(--grey-500);
   --colour-text: var(--grey-200);
-  /* Row-level icons (instance-rows.css's chevron/remove/edit/drag
-     glyphs) want white here, not --colour-muted's grey - on the dark
-     surfaces this theme uses everywhere, a grey glyph reads as
-     washed-out/hard to place, where white reads clearly as an icon at
-     rest even before its own hover/opacity treatment kicks in. Light
-     mode's own block below keeps these on --colour-muted instead,
-     where grey already reads fine against a light surface. */
   --colour-icon-muted: #fff;
-  /* The "blue text button" rollover (Add Section, Delete Section,
-     settings-text-link etc - a bare colour swap, no background of its
-     own) wants a lighter blue here, not --colour-primary-hover's own
-     darker one - that token stays as-is for solid/filled buttons
-     (base.css's button:hover), where darkening on hover is the
-     established convention regardless of theme; a text-only rollover
-     against this theme's dark surfaces reads better brightening
-     instead. */
   --colour-text-button-hover: #628bf8;
-  /* instance-rows.css's own drag handle - a permanent wash behind the
-     grip icon, not a hover state, so the handle reads as its own
-     distinct "zone" of the row at rest (requested directly, with a
-     mockup). --colour-surface-hover (grey-600) is lighter than this
-     theme's own --gradient-pill (grey-700/650), so it reads as a
-     lightening wash here - the opposite direction from light mode's
-     own block below, which needs a different source token entirely to
-     read as a wash in the same sense (see that block's own comment). */
   --colour-drag-handle-wash: color-mix(in srgb, var(--colour-surface-hover) 70%, transparent);
   --colour-input-background: var(--grey-900);
   --colour-drag-handle-background: rgba(255, 255, 255, 0.1);
-
+  --colour-modal-background: var(--grey-900);
   --colour-table-header: var(--grey-900);
   --colour-table-background: var(--grey-850);
   --colour-table-row-divider: var(--grey-800);
@@ -143,13 +120,7 @@
   --shadow-panel: 0 2px 3px rgba(0, 0, 0, 0.3);
   --gradient-pill: linear-gradient(0deg, var(--grey-700), var(--grey-650));
   --gradient-pill-active: linear-gradient(0deg, var(--colour-primary-dark), var(--colour-primary));
-    --gradient-viewport: linear-gradient(0deg, var(--grey-100), var(--grey-200));
-
-  /* .panel-heading-bar's own background (editor-tabs.css) - direction
-     flipped from the first pass, per feedback: --colour-surface itself
-     (matching the panel it now merges into, below) sits at the top,
-     darkening slightly toward the bar's own bottom edge rather than
-     lightening. */
+  --gradient-viewport: linear-gradient(0deg, var(--grey-100), var(--grey-200));
   --gradient-panel-heading: linear-gradient(0deg, var(--grey-750), var(--colour-surface));
 }
 
@@ -162,27 +133,12 @@
   --colour-tab-border: var(--grey-200);
   --colour-muted: var(--grey-500);
   --colour-text: var(--grey-700);
-  /* See the dark block's own comment above - light mode keeps the
-     row-level icon glyphs on the ordinary muted grey, which already
-     reads fine against this theme's light surfaces. */
   --colour-icon-muted: var(--colour-muted);
-  /* See the dark block's own comment above - light mode keeps the
-     text-button rollover on the same darker blue solid buttons
-     already use here, which already reads correctly against a light
-     surface. */
   --colour-text-button-hover: var(--colour-primary-hover);
-  /* See the dark block's own comment - --colour-surface-hover
-     (grey-100) is a touch DARKER than this theme's own --gradient-pill
-     (grey-50/#fff), which would read as a dulling wash rather than the
-     requested "tint it brighter" - --colour-surface itself (plain
-     white) sits at or above the pill's own lightness instead, so it
-     reads as a brightening wash here, the opposite source token from
-     dark mode's, in service of the same "stands out as lighter/
-     brighter than the row around it" effect in both themes. */
   --colour-drag-handle-wash: color-mix(in srgb, var(--colour-surface) 80%, transparent);
   --colour-input-background: #fff;
   --colour-drag-handle-background: rgba(0, 0, 0, 0.03);
-
+  --colour-modal-background: #fff;
   --colour-table-header: var(--grey-50);
   --colour-table-background: var(--grey-100);
   --colour-table-row-divider: var(--grey-200);
@@ -192,6 +148,5 @@
   --gradient-pill: linear-gradient(0deg, var(--grey-50), #fff);
   --gradient-pill-active: linear-gradient(0deg, var(--colour-primary-dark), var(--colour-primary));
     --gradient-viewport: linear-gradient(0deg, var(--grey-100), var(--grey-200));
-  /* See the dark block's own comment above. */
   --gradient-panel-heading: linear-gradient(0deg, var(--grey-50), var(--colour-surface));
 }

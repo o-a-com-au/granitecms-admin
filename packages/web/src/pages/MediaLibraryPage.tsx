@@ -42,12 +42,14 @@ export function MediaLibraryPage() {
   return (
     <div className="media-hub">
       <div className="media-hub-panel">
-        <div className="panel-heading-bar">
-          <h2 className="panel-heading">Media</h2>
-        </div>
-        <div className="editor-tab-content">
-          <div className="editor-tab-panel media-hub-tab">
-            <MediaLibrary siteId={siteId} mode="panel" selectedItem={selectedItem} onSelectedItemChange={setSelectedItem} />
+        <div className="panel-tab-shell">
+          <div className="panel-heading-bar">
+            <h2 className="panel-heading">Media</h2>
+          </div>
+          <div className="editor-tab-content">
+            <div className="editor-tab-panel media-hub-tab">
+              <MediaLibrary siteId={siteId} mode="panel" selectedItem={selectedItem} onSelectedItemChange={setSelectedItem} />
+            </div>
           </div>
         </div>
       </div>

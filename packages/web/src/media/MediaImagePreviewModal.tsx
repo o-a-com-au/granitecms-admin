@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import type { MediaItem } from '../api/site-media.ts';
+import { CloseIcon } from '../sections/CloseIcon.tsx';
 
 export interface MediaImagePreviewModalProps {
   item: MediaItem;
@@ -16,19 +17,24 @@ export interface MediaImagePreviewModalProps {
 // MediaPickerModal.tsx's own docblock explains - reachable from deep
 // inside a transformed ancestor whose own position: fixed containing-
 // block would otherwise misplace it.
+//
+// No header bar any more (requested directly, with a mockup) - Close
+// floats over the image's own top-right corner instead of sitting in a
+// row above it, and the filename moves to a caption below the image.
+// aria-label replaces the old aria-labelledby (which pointed at the
+// now-removed heading) - the dialog's own accessible name still needs
+// to be the file name somewhere, just not visibly rendered as a <h2>.
 export function MediaImagePreviewModal({ item, onClose }: MediaImagePreviewModalProps) {
   return createPortal(
     <div className="modal-overlay">
-      <div className="media-image-preview-modal" role="dialog" aria-modal="true" aria-labelledby="media-image-preview-heading">
-        <div className="media-image-preview-modal-header">
-          <h2 id="media-image-preview-heading">{item.name}</h2>
-          <button type="button" className="media-image-preview-modal-close" onClick={onClose} aria-label="Close">
-            &times;
-          </button>
-        </div>
-        <div className="media-image-preview-modal-body">
+      <div className="media-image-preview-modal" role="dialog" aria-modal="true" aria-label={item.name}>
+        <button type="button" className="media-image-preview-modal-close" onClick={onClose} aria-label="Close">
+          <CloseIcon />
+        </button>
+        <div className="media-image-preview-modal-body" data-theme="light">
           <img src={item.url} alt={item.name} />
         </div>
+        <p className="media-image-preview-modal-filename">{item.name}</p>
       </div>
     </div>,
     document.body,

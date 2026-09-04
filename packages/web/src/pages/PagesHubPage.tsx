@@ -91,16 +91,18 @@ export function PagesHubPage() {
             </button>
           </div>
         </div>
-        <div className="panel-heading-bar">
-          <h2 className="panel-heading">{tab === 'pages' ? 'Pages' : tab === 'menus' ? 'Menus' : 'Redirects'}</h2>
-        </div>
-        <div className="editor-tab-content">
-          <div className="editor-tab-panel">
-            {tab === 'pages' && (
-              <PagesTabPanel siteId={siteId} onPreview={handlePreview} onMaxDepthChange={setPagesTreeDepth} activeUrl={previewUrl} />
-            )}
-            {tab === 'menus' && <MenusTabPanel siteId={siteId} />}
-            {tab === 'redirects' && <RedirectsTabPanel siteId={siteId} />}
+        <div className="panel-tab-shell">
+          <div className="panel-heading-bar">
+            <h2 className="panel-heading">{tab === 'pages' ? 'Pages' : tab === 'menus' ? 'Menus' : 'Redirects'}</h2>
+          </div>
+          <div className="editor-tab-content">
+            <div className="editor-tab-panel">
+              {tab === 'pages' && (
+                <PagesTabPanel siteId={siteId} onPreview={handlePreview} onMaxDepthChange={setPagesTreeDepth} activeUrl={previewUrl} />
+              )}
+              {tab === 'menus' && <MenusTabPanel siteId={siteId} />}
+              {tab === 'redirects' && <RedirectsTabPanel siteId={siteId} />}
+            </div>
           </div>
         </div>
       </div>

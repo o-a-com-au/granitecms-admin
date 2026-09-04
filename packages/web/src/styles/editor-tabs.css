@@ -77,21 +77,24 @@
    PageEditorPage.tsx; Pages/Menus/Redirects in PagesHubPage.tsx;
    Media in MediaLibraryPage.tsx) - a sibling rendered directly above
    .editor-tab-content, not its first child any more, so it never
-   scrolls with the row list beneath it. flex: 0 0 auto - each of
-   those parents is a flex column (.editor-sidebar/.pages-hub-panel/
-   .media-hub-panel), and this needs to keep its own natural height
-   rather than stretching to share the column's remaining space with
-   .editor-tab-content. */
-/* No margin-bottom/box-shadow/bottom radius of its own - sits flush
-   against .editor-tab-content directly below (editor-layout.css),
-   which owns the bottom corners and the one shared shadow between the
-   two, so together they read as a single panel with a header, not two
-   separate floating boxes (reported directly - the first pass had a
-   visible gap and its own shadow, looking like two stacked pills). */
+   scrolls with the row list beneath it. flex: 0 0 auto - its own
+   parent now is .panel-tab-shell (editor-layout.css), a flex column,
+   and this needs to keep its own natural height rather than
+   stretching to share the column's remaining space with
+   .editor-tab-content.
+   No radius/shadow/margin of its own any more - .panel-tab-shell (the
+   shared wrapper around this and .editor-tab-content) owns the one
+   shared radius/shadow between the two instead, so together they read
+   as a single panel with a header, not two separate floating boxes
+   (this used to be split across the two elements directly - the top
+   corners here, the bottom corners and the one shadow on
+   .editor-tab-content - which left the shadow only ever wrapping the
+   lower box, never the header above it; reported directly, alongside
+   the original two-stacked-pills report this same split was already
+   fixing). */
 .panel-heading-bar {
   flex: 0 0 auto;
   padding: var(--space-md);
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   background: var(--gradient-panel-heading);
 }
 

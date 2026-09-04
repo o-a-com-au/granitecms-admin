@@ -127,11 +127,11 @@
   color: var(--colour-text);
 }
 
-/* border-radius/box-shadow here are shared with .panel-heading-bar
-   directly above (editor-tabs.css) - only the bottom corners are
-   rounded here (the bar owns the top ones), and only this element
-   carries the shadow, so the pair reads as one panel with a header,
-   not two stacked boxes each shadowed on their own. */
+/* .panel-tab-shell (below) now owns the one shared radius/shadow
+   between this and .panel-heading-bar directly above it - this keeps
+   only its own scrolling behaviour (flex: 1; min-height: 0;
+   overflow-y: auto is what actually needs to live on the element that
+   scrolls, not the shell wrapping it). */
 .editor-tab-content {
   flex: 1;
   min-height: 0;
@@ -141,7 +141,34 @@
   padding: var(--space-lg) var(--space-md);
   background: var(--colour-surface);
   /*border: 1px solid var(--colour-border);*/
-  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+/* Wraps .panel-heading-bar (editor-tabs.css) + .editor-tab-content as
+   one panel with a single shared radius/shadow around both, not a
+   heading bar and a content box each partially rounded/shadowed on
+   their own (reported directly, live - the shadow only ever wrapped
+   the content box, never the header above it). Mirrors
+   .editor-fields-panel's own identical shape below - one shell owning
+   radius/shadow/overflow:hidden, a non-scrolling header and a
+   scrolling body as plain children with no radius/shadow of their
+   own. overflow: hidden is what actually clips the two children's own
+   square corners into this shell's single rounded rectangle - safe to
+   add here since .editor-tab-content was already the nearest
+   scrolling ancestor for anything inside it that might overflow
+   (verified live: the Add Section/Add Block type-picker popovers and
+   the instance-row "more actions" kebab menu all still open and
+   remain fully visible/clickable). flex: 1; min-height: 0 is this
+   shell's own sizing within ITS OWN parent's flex column
+   (.editor-sidebar/.pages-hub-panel/.media-hub-panel) - unrelated to
+   .editor-tab-content's identical-looking pair just above, which is
+   sizing itself within THIS shell instead. */
+.panel-tab-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-panel);
 }
 

@@ -899,74 +899,78 @@ export function PageEditorPage() {
               </div>
             </div>
 
-            {/* A sibling of .editor-tab-content, not its scrollable
-                first child any more - stays visible while whichever
-                tab's own row list/form scrolls beneath it (requested
-                directly). 'raw' reads as "Sections" - it's shown while
-                that tab button stays selected (see effectiveViewMode's
-                own comment), just with the fallback textarea in place
-                of the structured editor. */}
-            <div className="panel-heading-bar">
-              <h2 className="panel-heading">
-                {effectiveViewMode === 'metafields' ? 'Page attributes' : effectiveViewMode === 'history' ? 'History' : 'Sections'}
-              </h2>
-            </div>
+            {/* panel-tab-shell wraps this and .editor-tab-content as one
+                shared-shadow/radius panel (editor-layout.css) - this bar
+                itself is a sibling of .editor-tab-content within it, not
+                its scrollable first child, so it stays visible while
+                whichever tab's own row list/form scrolls beneath it
+                (requested directly). 'raw' reads as "Sections" - it's
+                shown while that tab button stays selected (see
+                effectiveViewMode's own comment), just with the fallback
+                textarea in place of the structured editor. */}
+            <div className="panel-tab-shell">
+              <div className="panel-heading-bar">
+                <h2 className="panel-heading">
+                  {effectiveViewMode === 'metafields' ? 'Page attributes' : effectiveViewMode === 'history' ? 'History' : 'Sections'}
+                </h2>
+              </div>
 
-            {/* Once revealed, the sidebar stays put across a later page
-                change - only this inner content area blanks while that
-                specific page's own content is (re)loading. TopLoadingBar
-                lives here now, not in the shared viewport (previewBodyNode
-                above) - the iframe was never actually blocked on this
-                fetch, only this panel's own Page Meta/Sections/History
-                content is. Its own built-in 300ms delay means a fast
-                local load (the common case) never shows it at all. */}
-            <div className="editor-tab-content">
-              {isContentPlaceholder ? (
-                status === 'loading' && <TopLoadingBar active />
-              ) : (
-                <div className="editor-tab-panel" ref={tabPanelRef}>
-                  {effectiveViewMode === 'metafields' && (
-                    <PageMetadataPanel
-                      key={path}
-                      content={content}
-                      setContent={setContent}
-                      siteId={siteId}
-                      path={path}
-                      previewUrl={previewUrl}
-                      renameDisabled={hasPendingChanges}
-                      onRenamed={handleRenamed}
-                    />
-                  )}
-                  {effectiveViewMode === 'sections' && (
-                    <PageSectionsEditor
-                      siteId={siteId}
-                      content={content}
-                      setContent={setContent}
-                      validationErrors={validationErrors}
-                      onEditInstance={handleEditInstance}
-                      onHighlightSection={handleHighlightFromAdmin}
-                      highlightedSectionId={highlightedSectionId}
-                      selectedInstanceId={selectedInstanceId}
-                    />
-                  )}
-                  {effectiveViewMode === 'raw' && (
-                    <label className="raw-json-label">
-                      Content
-                      <textarea value={content} onChange={(event) => setContent(event.target.value)} />
-                    </label>
-                  )}
-                  {effectiveViewMode === 'history' && (
-                    <PageHistoryTab
-                      siteId={siteId}
-                      path={path}
-                      previewRef={historyPreviewRef}
-                      hasDraft={source === 'draft'}
-                      onSelectRevision={setHistoryPreviewRef}
-                      onRestored={reloadLatest}
-                    />
-                  )}
-                </div>
-              )}
+              {/* Once revealed, the sidebar stays put across a later page
+                  change - only this inner content area blanks while that
+                  specific page's own content is (re)loading. TopLoadingBar
+                  lives here now, not in the shared viewport (previewBodyNode
+                  above) - the iframe was never actually blocked on this
+                  fetch, only this panel's own Page Meta/Sections/History
+                  content is. Its own built-in 300ms delay means a fast
+                  local load (the common case) never shows it at all. */}
+              <div className="editor-tab-content">
+                {isContentPlaceholder ? (
+                  status === 'loading' && <TopLoadingBar active />
+                ) : (
+                  <div className="editor-tab-panel" ref={tabPanelRef}>
+                    {effectiveViewMode === 'metafields' && (
+                      <PageMetadataPanel
+                        key={path}
+                        content={content}
+                        setContent={setContent}
+                        siteId={siteId}
+                        path={path}
+                        previewUrl={previewUrl}
+                        renameDisabled={hasPendingChanges}
+                        onRenamed={handleRenamed}
+                      />
+                    )}
+                    {effectiveViewMode === 'sections' && (
+                      <PageSectionsEditor
+                        siteId={siteId}
+                        content={content}
+                        setContent={setContent}
+                        validationErrors={validationErrors}
+                        onEditInstance={handleEditInstance}
+                        onHighlightSection={handleHighlightFromAdmin}
+                        highlightedSectionId={highlightedSectionId}
+                        selectedInstanceId={selectedInstanceId}
+                      />
+                    )}
+                    {effectiveViewMode === 'raw' && (
+                      <label className="raw-json-label">
+                        Content
+                        <textarea value={content} onChange={(event) => setContent(event.target.value)} />
+                      </label>
+                    )}
+                    {effectiveViewMode === 'history' && (
+                      <PageHistoryTab
+                        siteId={siteId}
+                        path={path}
+                        previewRef={historyPreviewRef}
+                        hasDraft={source === 'draft'}
+                        onSelectRevision={setHistoryPreviewRef}
+                        onRestored={reloadLatest}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
