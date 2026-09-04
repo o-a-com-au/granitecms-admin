@@ -8,9 +8,11 @@ afterEach(() => {
 
 describe('SchemaField', () => {
   // Real fixture schema: fixtures/demo-site/theme/blocks/button.liquid's
-  // style field - 3 short options, so SelectField auto-picks tabs over
-  // a <select> (SelectField.test.tsx covers the decision logic itself
-  // in full; this just confirms SchemaField actually wires enum to it).
+  // style field. Renders as a <select>, not tabs, despite only 3 options -
+  // "secondary" is 9 characters, over the 8-character limit 3 options
+  // share a row under (SelectField.test.tsx covers that decision logic
+  // itself in full; this just confirms SchemaField wires enum to
+  // SelectField at all, whichever presentation it picks).
   it('I3: renders an enum field via SelectField, sourced from the real button.style schema', () => {
     const onChange = vi.fn();
     render(
@@ -23,8 +25,8 @@ describe('SchemaField', () => {
       />,
     );
 
-    expect(screen.queryByRole('combobox')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'on-dark' }));
+    expect(screen.getByRole('combobox')).toBeDefined();
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'on-dark' } });
     expect(onChange).toHaveBeenCalledWith('on-dark');
   });
 
@@ -37,19 +39,22 @@ describe('SchemaField', () => {
   // showed the 1st as hovered). ColorField/RichTextField already get a
   // plain <div> wrapper for the same reason - SelectField's tabs now do
   // too, whenever it actually renders that way (a plain <select> still
-  // gets the real <label>, covered by the very next test).
+  // gets the real <label>, covered by the previous test). 3 short
+  // options here, not button.style's own - none of "left"/"center"/
+  // "right" trips the 8-character limit 3 options share a row under,
+  // so this one genuinely renders as tabs.
   it("wraps the tabs variant in a plain <div>, not a <label> - a native label would forward :hover to the first tab regardless of which one's actually under the cursor", () => {
     const { container } = render(
       <SchemaField
         siteId="site-1"
-        label="Style"
-        schema={{ type: 'string', enum: ['primary', 'secondary', 'on-dark'] }}
-        value="primary"
+        label="Align"
+        schema={{ type: 'string', enum: ['left', 'center', 'right'] }}
+        value="left"
         onChange={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'primary' }).closest('label')).toBeNull();
+    expect(screen.getByRole('button', { name: 'left' }).closest('label')).toBeNull();
     expect(container.querySelector('.schema-field-label')?.tagName).toBe('DIV');
   });
 

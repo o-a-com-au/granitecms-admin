@@ -46,6 +46,31 @@ describe('SelectField', () => {
     expect(screen.getByRole('combobox')).toBeDefined();
   });
 
+  // The longest label 3 tabs can share a row with is shorter than what
+  // 2 can - three even thirds have far less room per tab than two even
+  // halves (requested directly): 8 characters for 3 options, 14 for 2.
+  it('with 3 options, an 8-character label still renders as tabs but a 9-character one falls back to a <select>', () => {
+    const { rerender } = render(
+      <SelectField value="a" options={['a', 'b', '12345678']} labelledBy="x" onChange={vi.fn()} />,
+    );
+    expect(document.querySelector('.select-field-tabs')).not.toBeNull();
+
+    rerender(<SelectField value="a" options={['a', 'b', '123456789']} labelledBy="x" onChange={vi.fn()} />);
+    expect(document.querySelector('.select-field-tabs')).toBeNull();
+    expect(screen.getByRole('combobox')).toBeDefined();
+  });
+
+  it('with 2 options, a 14-character label still renders as tabs but a 15-character one falls back to a <select>', () => {
+    const { rerender } = render(
+      <SelectField value="a" options={['a', '12345678901234']} labelledBy="x" onChange={vi.fn()} />,
+    );
+    expect(document.querySelector('.select-field-tabs')).not.toBeNull();
+
+    rerender(<SelectField value="a" options={['a', '123456789012345']} labelledBy="x" onChange={vi.fn()} />);
+    expect(document.querySelector('.select-field-tabs')).toBeNull();
+    expect(screen.getByRole('combobox')).toBeDefined();
+  });
+
   it('the <select> path still round-trips a selection through onChange', () => {
     const onChange = vi.fn();
     render(<SelectField value="a" options={['a', 'b', 'c', 'd']} labelledBy="x" onChange={onChange} />);

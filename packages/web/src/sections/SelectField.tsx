@@ -11,17 +11,28 @@ export interface SelectFieldProps {
 // author never has to choose. A short list of short labels reads fine
 // as tabs at a glance; a long list, or even one long label, gets
 // cramped and wraps awkwardly as tabs, so it falls back to a dropdown
-// instead. Both thresholds are arbitrary judgement calls, not derived
+// instead. These thresholds are arbitrary judgement calls, not derived
 // from anything - tune here if a real theme's enum sits right on the
 // boundary and looks wrong either way.
 const MAX_TAB_OPTIONS = 3;
-const MAX_TAB_LABEL_LENGTH = 12;
+
+// How long a label can be before it's too cramped to read as a tab
+// shrinks as more tabs have to share the same row - three even thirds
+// have far less room per tab than two even halves (requested
+// directly): 3 options tolerate up to 8 characters each; 2 tolerate up
+// to 14. A single option is never actually cramped for space the way
+// multiple tabs sharing a row are, so it keeps that same, looser
+// 2-option threshold rather than a third number nobody asked for.
+function maxTabLabelLength(optionCount: number): number {
+  return optionCount === 3 ? 8 : 14;
+}
 
 export function shouldRenderAsTabs(options: unknown[]): boolean {
   if (options.length === 0 || options.length > MAX_TAB_OPTIONS) {
     return false;
   }
-  return options.every((option) => String(option).length <= MAX_TAB_LABEL_LENGTH);
+  const maxLength = maxTabLabelLength(options.length);
+  return options.every((option) => String(option).length <= maxLength);
 }
 
 // Native <select>/tab button values are always strings - map back to
