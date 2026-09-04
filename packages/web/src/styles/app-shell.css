@@ -497,11 +497,25 @@ button.app-avatar:hover {
    properly sized box to animate within. Reset back to full width on
    mobile, below - the sidebar's own mobile override already goes
    full-bleed there, and this must make room for it. */
+/* overflow: clip, not hidden, with overflow-clip-margin below -
+   .editor-sidebar sits flush against this element's own top/right
+   edges (zero margin on those sides, tuned to match this rule's own
+   width/height exactly), so .panel-tab-shell's box-shadow had nowhere
+   to bleed into before being clipped away entirely on those two sides
+   (reported directly, diagnosed live - .panel-tab-shell's own
+   overflow: hidden doesn't clip its own box-shadow, an ancestor's does
+   when there's no margin between them). overflow-clip-margin lets the
+   shadow's own paint (not layout/scroll) bleed a few px past this
+   box's edge before clipping - 8px comfortably covers --shadow-panel's
+   largest blur+offset in both themes. overflow: clip (not hidden) is
+   at least as strict for the "must never scroll" reasoning below, so
+   this is a safe swap, not a loosening. */
 .app-content:has(.editor-page) {
   flex: 0 0 calc(var(--editor-sidebar-width) + var(--space-sm));
   max-width: none;
   padding: 0;
-  overflow: hidden;
+  overflow: clip;
+  overflow-clip-margin: 8px;
   display: flex;
   flex-direction: column;
 }
@@ -552,11 +566,16 @@ button.app-avatar:hover {
    sits in (the same row .shared-preview-region shares - AppShell.tsx),
    so an unusually deep tree can shrink the live preview but never
    swallow it entirely. */
+/* overflow: clip + overflow-clip-margin - same .panel-tab-shell
+   shadow-clipping fix as .app-content:has(.editor-page) above (see its
+   own comment for the full diagnosis); .pages-hub-panel is flush
+   against this element's top/left/right edges. */
 .app-content:has(.pages-hub) {
   flex: 0 0 min(calc(var(--editor-sidebar-width) + var(--space-sm) + var(--pages-hub-extra-width, 0px)), 45%);
   max-width: none;
   padding: 0;
-  overflow: hidden;
+  overflow: clip;
+  overflow-clip-margin: 8px;
   display: flex;
   flex-direction: column;
 }
@@ -569,11 +588,16 @@ button.app-avatar:hover {
    dedicated custom property - there's nothing else this width needs to
    stay in sync with). Same concrete-length reasoning as Pages hub's own
    rule just above - this must interpolate against, not snap. */
+/* overflow: clip + overflow-clip-margin - same .panel-tab-shell
+   shadow-clipping fix as .app-content:has(.editor-page) above (see its
+   own comment for the full diagnosis); .media-hub-panel is flush
+   against this element's top/right edges. */
 .app-content:has(.media-hub) {
   flex: 0 0 calc(var(--editor-sidebar-width) * 1.5 + var(--space-sm));
   max-width: none;
   padding: 0;
-  overflow: hidden;
+  overflow: clip;
+  overflow-clip-margin: 8px;
   display: flex;
   flex-direction: column;
 }
