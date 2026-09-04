@@ -28,7 +28,12 @@ export function MediaImagePreviewModal({ item, onClose }: MediaImagePreviewModal
   return createPortal(
     <div className="modal-overlay">
       <div className="media-image-preview-modal" role="dialog" aria-modal="true" aria-label={item.name}>
-        <button type="button" className="media-image-preview-modal-close" onClick={onClose} aria-label="Close">
+        <button
+          type="button"
+          className="media-image-preview-modal-close image-overlay-button"
+          onClick={onClose}
+          aria-label="Close"
+        >
           <CloseIcon />
         </button>
         <div className="media-image-preview-modal-body" data-theme="light">

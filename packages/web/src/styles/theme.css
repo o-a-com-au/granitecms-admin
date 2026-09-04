@@ -110,6 +110,17 @@
   --colour-icon-muted: #fff;
   --colour-text-button-hover: #628bf8;
   --colour-drag-handle-wash: color-mix(in srgb, var(--colour-surface-hover) 70%, transparent);
+  /* Buttons that float directly over an arbitrary photo (media grid's
+     own delete button, the preview popup's own close button) - a
+     dark chip with a light icon here, the reverse in light theme
+     (requested directly), not this app's usual muted-icon/hover-reveal
+     treatment, since it has to read clearly regardless of what's in
+     the photo beneath it. --grey-950 (near-black, not a literal #000)
+     and white are themselves theme-independent - only which one plays
+     "background" vs "icon" flips between the two themes. */
+  --colour-image-overlay-bg: color-mix(in srgb, var(--grey-950) 50%, transparent);
+  --colour-image-overlay-bg-hover: var(--grey-950);
+  --colour-image-overlay-icon: #fff;
   --colour-input-background: var(--grey-900);
   --colour-drag-handle-background: rgba(255, 255, 255, 0.1);
   --colour-modal-background: var(--grey-900);
@@ -138,6 +149,11 @@
   --colour-icon-muted: var(--colour-muted);
   --colour-text-button-hover: var(--colour-primary-hover);
   --colour-drag-handle-wash: color-mix(in srgb, var(--colour-surface) 80%, transparent);
+  /* Same photo-overlay chrome as the dark theme's own set just above -
+     see that comment - just white-on-dark-icon instead of the reverse. */
+  --colour-image-overlay-bg: color-mix(in srgb, white 50%, transparent);
+  --colour-image-overlay-bg-hover: white;
+  --colour-image-overlay-icon: var(--grey-900);
   --colour-input-background: #fff;
   --colour-drag-handle-background: rgba(0, 0, 0, 0.03);
   --colour-modal-background: #fff;

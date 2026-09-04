@@ -74,15 +74,34 @@
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
 }
 
+/* Any button that floats directly over an arbitrary photo - this
+   close button, and button.media-library-item-delete below - shares
+   this one treatment rather than each inventing its own (reported
+   directly as an inconsistency): a 50%-opacity chip in the theme's own
+   "dark" or "white" (--colour-image-overlay-bg, theme.css - dark chip/
+   light icon in dark mode, the reverse in light mode), rolling to
+   fully solid on hover, since a fixed-opacity chip has to read clearly
+   regardless of what's in the photo beneath it - this app's usual
+   muted-icon/hover-reveal treatment doesn't have that guarantee.
+   Positioning/size/etc still belong to each button's own class - only
+   the shared background/icon/hover behaviour lives here.
+   button.image-overlay-button, not the bare class - base.css's own
+   button[type='button']/:hover rule (element+attribute) otherwise wins
+   the specificity tie against a bare class, the same recurring gotcha
+   this app has hit repeatedly elsewhere. */
+button.image-overlay-button {
+  border: none;
+  background: var(--colour-image-overlay-bg);
+  color: var(--colour-image-overlay-icon);
+}
+
+button.image-overlay-button:hover {
+  background: var(--colour-image-overlay-bg-hover);
+}
+
 /* Floats over the image canvas's own top-right corner (requested
    directly, with a mockup) rather than sitting in a header row above
-   it - a solid dark chip with a white icon regardless of theme, not
-   this app's usual muted-icon/hover-reveal treatment, since it has to
-   read clearly sitting on top of an arbitrary photo rather than this
-   app's own themed chrome. That's also why the colour is a literal
-   here rather than a --colour-* token - it isn't part of the app's own
-   theme, it's photo-viewer overlay chrome that must look the same
-   regardless of theme or of what's in the photo beneath it. */
+   it. */
 .media-image-preview-modal-close {
   position: absolute;
   top: calc(var(--space-lg) + var(--space-xs));
@@ -94,14 +113,7 @@
   width: 2rem;
   height: 2rem;
   padding: 0;
-  border: none;
   border-radius: var(--radius-xs);
-  background: rgba(0, 0, 0, 0.7);
-  color: #fff;
-}
-
-.media-image-preview-modal-close:hover {
-  background: rgba(0, 0, 0, 0.85);
 }
 
 /* Same "contain, don't crop or stretch" treatment
@@ -243,7 +255,11 @@ button.media-library-item-thumb {
    thumb button itself - the thumb's own overflow: hidden would clip it
    at the square's edge, and a <button> can't nest another <button>. It
    still lands on the image's top-right corner since the thumb is the
-   flex column's first child. */
+   flex column's first child. This element's own opacity (0 until the
+   card is hovered/focused) is a separate concern from
+   .image-overlay-button's own background-alpha rollover just above -
+   this one controls whether the button is visible at all, that one
+   how solid its own chip looks once it is. */
 button.media-library-item-delete {
   position: absolute;
   top: 0.4rem;
@@ -254,9 +270,6 @@ button.media-library-item-delete {
   width: 1.75rem;
   height: 1.75rem;
   padding: 0;
-  border-color: transparent;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
   opacity: 0;
   transition: opacity 0.15s ease;
 }

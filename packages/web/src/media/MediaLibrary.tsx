@@ -266,7 +266,7 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
                   <span className="media-library-item-name">{item.name}</span>
                   <button
                     type="button"
-                    className="media-library-item-delete"
+                    className="media-library-item-delete image-overlay-button"
                     aria-label={`Delete ${item.name}`}
                     onClick={() => void handleDelete(item.name)}
                   >
