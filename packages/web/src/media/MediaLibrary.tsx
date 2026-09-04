@@ -160,7 +160,7 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange 
 
   return (
     <div className="media-library">
-      <div className="media-library-toolbar">
+      <div className="panel-toolbar">
         <input
           type="search"
           className="content-search"

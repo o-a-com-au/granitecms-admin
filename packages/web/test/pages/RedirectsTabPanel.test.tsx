@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { RedirectsTabPanel } from '../../src/pages/RedirectsTabPanel.tsx';
 
 const ENTRY = { from: '/old', to: '/new', note: 'moved page' };
+const OTHER_ENTRY = { from: '/team', to: '/about/team' };
 
 function installFakeApi(initialEntries: Array<{ from: string; to: string; note?: string }> = [ENTRY]) {
   let entries = [...initialEntries];
@@ -72,12 +73,12 @@ describe('RedirectsTabPanel', () => {
     await waitFor(() => expect(screen.getByText('No redirects yet.')).toBeDefined());
   });
 
-  it('Add Redirect opens the form, and saving refreshes the list', async () => {
+  it('Add opens the form, and saving refreshes the list', async () => {
     installFakeApi([]);
     renderPanel();
     await waitFor(() => expect(screen.getByText('No redirects yet.')).toBeDefined());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add Redirect' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     expect(screen.getByRole('heading', { name: 'Add Redirect' })).toBeDefined();
 
     fireEvent.change(screen.getByLabelText('From'), { target: { value: '/old' } });
@@ -100,6 +101,35 @@ describe('RedirectsTabPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(screen.getByText('/newer')).toBeDefined());
+  });
+
+  it('filters the list by From or To, and shows a distinct message when nothing matches', async () => {
+    installFakeApi([ENTRY, OTHER_ENTRY]);
+    renderPanel();
+    await waitFor(() => expect(screen.getByText('/old')).toBeDefined());
+    expect(screen.getByText('/team')).toBeDefined();
+
+    fireEvent.change(screen.getByPlaceholderText('Search redirects'), { target: { value: 'team' } });
+    expect(screen.queryByText('/old')).toBeNull();
+    expect(screen.getByText('/team')).toBeDefined();
+
+    fireEvent.change(screen.getByPlaceholderText('Search redirects'), { target: { value: 'nothing-matches-this' } });
+    expect(screen.getByText('No redirects match your search.')).toBeDefined();
+
+    fireEvent.change(screen.getByPlaceholderText('Search redirects'), { target: { value: '' } });
+    expect(screen.getByText('/old')).toBeDefined();
+    expect(screen.getByText('/team')).toBeDefined();
+  });
+
+  it('matches against To as well as From', async () => {
+    installFakeApi([ENTRY, OTHER_ENTRY]);
+    renderPanel();
+    await waitFor(() => expect(screen.getByText('/old')).toBeDefined());
+
+    fireEvent.change(screen.getByPlaceholderText('Search redirects'), { target: { value: 'about/team' } });
+
+    expect(screen.queryByText('/old')).toBeNull();
+    expect(screen.getByText('/team')).toBeDefined();
   });
 
   it('deletes a redirect with no confirmation step', async () => {

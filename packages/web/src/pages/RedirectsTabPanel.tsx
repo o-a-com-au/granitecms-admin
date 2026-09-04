@@ -3,7 +3,6 @@ import { deleteSiteRedirect, type RedirectEntry } from '../api/site-redirects.ts
 import { useSiteRedirects } from '../redirects/useSiteRedirects.ts';
 import { buildDeleteRedirectMessage } from '../redirects/buildRedirectMessage.ts';
 import { RedirectFormModal } from '../redirects/RedirectFormModal.tsx';
-import { AddIcon } from '../sections/AddIcon.tsx';
 import { EditIcon } from '../sections/EditIcon.tsx';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
 import { InstanceRowActions } from '../sections/InstanceRowActions.tsx';
@@ -17,6 +16,18 @@ export interface RedirectsTabPanelProps {
 
 type ModalState = { mode: 'create' } | { mode: 'edit'; entry: RedirectEntry } | null;
 
+// Matches either side of the redirect, not just From - MediaLibrary.tsx's
+// own matchesSearch is the closest precedent (also a single case-
+// insensitive substring check), but a redirect has no one "name" field
+// the way a media file does.
+function matchesSearch(entry: RedirectEntry, query: string): boolean {
+  if (query.trim() === '') {
+    return true;
+  }
+  const needle = query.trim().toLowerCase();
+  return entry.from.toLowerCase().includes(needle) || entry.to.toLowerCase().includes(needle);
+}
+
 // From becomes the row's own primary label, To renders as smaller
 // muted text underneath it (a two-line row, not a separate column) -
 // Note is dropped from the visible list entirely. Edit/Delete go
@@ -27,8 +38,10 @@ type ModalState = { mode: 'create' } | { mode: 'edit'; entry: RedirectEntry } | 
 // --editor-sidebar-width side by side.
 export function RedirectsTabPanel({ siteId }: RedirectsTabPanelProps) {
   const { entries, loading, loadError, refresh } = useSiteRedirects(siteId);
+  const [search, setSearch] = useState('');
   const [modalState, setModalState] = useState<ModalState>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const filteredEntries = entries.filter((entry) => matchesSearch(entry, search));
 
   // No confirmation dialog - matches this app's own established
   // precedent for both Media deletion and the project owner's explicit
@@ -58,12 +71,31 @@ export function RedirectsTabPanel({ siteId }: RedirectsTabPanelProps) {
 
   return (
     <div className="pages-hub-tab">
+      {/* .panel-toolbar (pages-hub.css) - shared with MediaLibrary.tsx's
+          own search+action toolbar (requested directly, with a
+          mockup): search field + a plain "Add" button here, in place
+          of the old text-link "Add Redirect" at the bottom of the
+          list. */}
+      <div className="panel-toolbar">
+        <input
+          type="search"
+          className="content-search"
+          placeholder="Search redirects"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <button type="button" onClick={() => setModalState({ mode: 'create' })}>
+          Add
+        </button>
+      </div>
       {deleteError && <p role="alert">{deleteError}</p>}
       {entries.length === 0 ? (
         <p>No redirects yet.</p>
+      ) : filteredEntries.length === 0 ? (
+        <p>No redirects match your search.</p>
       ) : (
         <ul className="instance-list">
-          {entries.map((entry) => (
+          {filteredEntries.map((entry) => (
             <li className="instance-row" key={entry.from}>
               <div className="instance-row-main">
                 {/* No chevron/spacer - Redirects never have anything to
@@ -98,10 +130,6 @@ export function RedirectsTabPanel({ siteId }: RedirectsTabPanelProps) {
           ))}
         </ul>
       )}
-      <button type="button" className="instance-add-button" onClick={() => setModalState({ mode: 'create' })}>
-        <AddIcon />
-        Add Redirect
-      </button>
       {modalState && (
         <RedirectFormModal
           siteId={siteId}

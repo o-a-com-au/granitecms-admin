@@ -67,6 +67,30 @@
   gap: 1.25rem;
 }
 
+/* A generic "search + one action button" toolbar - originally
+   MediaLibrary.tsx's own .media-library-toolbar, generalised here once
+   RedirectsTabPanel.tsx needed the identical shape (requested directly,
+   with a mockup) rather than a second, near-identical rule under its
+   own name. */
+.panel-toolbar {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: 1.5rem;
+}
+
+/* padding matches this toolbar's own plain button exactly (base.css's
+   button[type='button']) so the two share a height - background is
+   deliberately left on the input's own darker default
+   (--colour-input-background, base.css's generic input rule) rather
+   than matched to the button's --colour-surface: the two read as a
+   pair via matching border/radius (already shared) and height, not an
+   identical fill - the input stays visibly the darker of the two
+   (requested directly, with a mockup). */
+.panel-toolbar .content-search {
+  flex: 1;
+  padding: 0.5rem 1.1rem;
+}
+
 /* The page-tree/menu-list rows reuse .instance-row/.instance-row-main
    (instance-rows.css) as-is, but neither carries a <strong> label the
    way a section/block row does - .page-tree-title fills that "label
