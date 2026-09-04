@@ -17,7 +17,7 @@ export interface SelectFieldProps {
 const MAX_TAB_OPTIONS = 3;
 const MAX_TAB_LABEL_LENGTH = 12;
 
-function shouldRenderAsTabs(options: unknown[]): boolean {
+export function shouldRenderAsTabs(options: unknown[]): boolean {
   if (options.length === 0 || options.length > MAX_TAB_OPTIONS) {
     return false;
   }

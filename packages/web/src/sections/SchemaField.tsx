@@ -3,7 +3,7 @@ import { ColorField } from './ColorField.tsx';
 import { ImageField } from './ImageField.tsx';
 import { RangeField } from './RangeField.tsx';
 import { RichTextField } from './RichTextField.tsx';
-import { SelectField } from './SelectField.tsx';
+import { SelectField, shouldRenderAsTabs } from './SelectField.tsx';
 import { ToggleField } from './ToggleField.tsx';
 
 export interface SchemaFieldProps {
@@ -207,22 +207,30 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
   // it. RichTextField already sets aria-labelledby on its own editor
   // element, so it doesn't need the native label association here -
   // every other field type still does, and keeps the <label> wrapper.
-  // SelectField's own tabs don't need this treatment despite also
-  // being a group of several controls: they're plain <button>s (a
-  // labelable element per that same spec list), not nested <label>s
-  // like the old radio widget's per-option labels were - a native
-  // <label> wrapping several buttons is valid HTML, and clicking any
-  // one of them directly still just fires that button's own handler.
-  // ColorField needs it for a different reason again: a native
-  // <label> forwards :hover (not just click) to its first labelable
-  // descendant - now the "No colour"/preview button, since it's first
-  // in the DOM - so hovering anywhere in the label's own box (which
-  // can extend past the field's actual visible width, up to
+  // ColorField needs the same div treatment for a different reason: a
+  // native <label> forwards :hover (not just click) to its first
+  // labelable descendant - the "No colour"/preview button, since it's
+  // first in the DOM - so hovering anywhere in the label's own box
+  // (which can extend past the field's actual visible width, up to
   // .schema-field-label's own max-width: 420px) lit up that button's
   // hover style with the cursor nowhere near it. Confirmed live.
   // ColorField sets its own aria-labelledby (via the labelledBy prop)
   // in place of the native association this removes.
-  const isCompoundField = (format === 'richtext' && type === 'string') || (format === 'color' && type === 'string');
+  // SelectField's own tabs need it for the identical reason, once they
+  // render as a segmented control (shouldRenderAsTabs) rather than a
+  // plain <select> - previously believed safe here on the theory that
+  // clicking any one of several plain <button>s inside one <label>
+  // still just fires that button's own handler (true, and still why a
+  // <select> alone doesn't need this), but that reasoning only covered
+  // click, not :hover - the exact same forwarding-to-the-first-
+  // labelable-descendant behaviour applies to hover too, it just had
+  // no visible effect here until .select-field-tabs button gained its
+  // own hover style (select-field.css) - reported directly, live: with
+  // the 2nd of 3 tabs pressed, hovering the 3rd also lit up the 1st.
+  const isCompoundField =
+    (format === 'richtext' && type === 'string') ||
+    (format === 'color' && type === 'string') ||
+    (isEnumSchema(schema) && shouldRenderAsTabs(schema.enum));
   const Wrapper = isCompoundField ? 'div' : 'label';
 
   // base.css styles every plain <label> (layout, muted colour,

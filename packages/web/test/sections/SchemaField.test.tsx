@@ -28,6 +28,31 @@ describe('SchemaField', () => {
     expect(onChange).toHaveBeenCalledWith('on-dark');
   });
 
+  // A native <label> forwards :hover (not just click) to its first
+  // labelable descendant - harmless while SelectField's tabs had no
+  // hover style of their own, but once one existed (select-field.css)
+  // it meant hovering ANY tab also lit up the first one's hover state,
+  // since the whole three-button group sat inside one <label> (reported
+  // directly, live: with the 2nd of 3 pressed, hovering the 3rd also
+  // showed the 1st as hovered). ColorField/RichTextField already get a
+  // plain <div> wrapper for the same reason - SelectField's tabs now do
+  // too, whenever it actually renders that way (a plain <select> still
+  // gets the real <label>, covered by the very next test).
+  it("wraps the tabs variant in a plain <div>, not a <label> - a native label would forward :hover to the first tab regardless of which one's actually under the cursor", () => {
+    const { container } = render(
+      <SchemaField
+        siteId="site-1"
+        label="Style"
+        schema={{ type: 'string', enum: ['primary', 'secondary', 'on-dark'] }}
+        value="primary"
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'primary' }).closest('label')).toBeNull();
+    expect(container.querySelector('.schema-field-label')?.tagName).toBe('DIV');
+  });
+
   // Real fixture schema: fixtures/demo-site/theme/blocks/pricing-tier.liquid's highlighted field.
   it('I3: renders a checkbox for a boolean field', () => {
     const onChange = vi.fn();
@@ -261,6 +286,10 @@ describe('SchemaField', () => {
     );
 
     expect(screen.getByLabelText('Size').tagName).toBe('SELECT');
+    // The plain <select> case still gets the real <label> - only the
+    // tabs variant needs the div workaround (previous test), since a
+    // single <select> genuinely benefits from label-forwarded clicks.
+    expect(screen.getByLabelText('Size').closest('label')).not.toBeNull();
   });
 
   it('I5: shows a field-specific error message when one is passed, not a generic banner', () => {
