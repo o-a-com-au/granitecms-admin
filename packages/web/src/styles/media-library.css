@@ -77,7 +77,7 @@
 /* Any button that floats directly over an arbitrary photo - this
    close button, and button.media-library-item-delete below - shares
    this one treatment rather than each inventing its own (reported
-   directly as an inconsistency): a 50%-opacity chip in the theme's own
+   directly as an inconsistency): an 80%-opacity chip in the theme's own
    "dark" or "white" (--colour-image-overlay-bg, theme.css - dark chip/
    light icon in dark mode, the reverse in light mode), rolling to
    fully solid on hover, since a fixed-opacity chip has to read clearly

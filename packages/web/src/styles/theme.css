@@ -118,7 +118,7 @@
      the photo beneath it. --grey-950 (near-black, not a literal #000)
      and white are themselves theme-independent - only which one plays
      "background" vs "icon" flips between the two themes. */
-  --colour-image-overlay-bg: color-mix(in srgb, var(--grey-950) 50%, transparent);
+  --colour-image-overlay-bg: color-mix(in srgb, var(--grey-950) 80%, transparent);
   --colour-image-overlay-bg-hover: var(--grey-950);
   --colour-image-overlay-icon: #fff;
   --colour-input-background: var(--grey-900);
@@ -151,7 +151,7 @@
   --colour-drag-handle-wash: color-mix(in srgb, var(--colour-surface) 80%, transparent);
   /* Same photo-overlay chrome as the dark theme's own set just above -
      see that comment - just white-on-dark-icon instead of the reverse. */
-  --colour-image-overlay-bg: color-mix(in srgb, white 50%, transparent);
+  --colour-image-overlay-bg: color-mix(in srgb, white 80%, transparent);
   --colour-image-overlay-bg-hover: white;
   --colour-image-overlay-icon: var(--grey-900);
   --colour-input-background: #fff;
