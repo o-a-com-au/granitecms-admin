@@ -74,7 +74,6 @@ label,
 }
 
 input,
-select,
 textarea {
   font: inherit;
   color: var(--colour-text);
@@ -82,6 +81,36 @@ textarea {
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-xs);
   background: var(--colour-input-background);
+}
+
+/* A custom chevrons-up-down (https://lucide.dev, ISC licensed) in
+   place of the browser's own native dropdown arrow, requested
+   directly with a reference image. appearance: none turns the native
+   one off - the icon comes back as a background-image instead, since
+   a <select> can't hold arbitrary child elements the way a real icon
+   component elsewhere in this app can, and ::before/::after on a
+   <select> itself isn't reliably rendered across browsers. Embedded
+   as a data URI, so its own stroke colour has to be a literal hex,
+   not var(--colour-muted) - a background-image can't resolve a CSS
+   custom property. #797c7d is that token's own current value, which
+   happens to be identical in both themes today (--grey-500, theme.css)
+   - if it's ever tuned to differ between light/dark, this needs its
+   own [data-theme] override to match, by hand. Rounder corners
+   (--radius-md, not every other input/textarea's --radius-xs) and
+   extra right padding for the icon, both matching the reference image. */
+select {
+  font: inherit;
+  color: var(--colour-text);
+  padding: 0.5rem 2rem 0.5rem 0.65rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-md);
+  background-color: var(--colour-input-background);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23797c7d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 15 5 5 5-5'/%3E%3Cpath d='m7 9 5-5 5 5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1.1rem 1.1rem;
 }
 
 input:focus,
