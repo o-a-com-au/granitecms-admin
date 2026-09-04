@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 import { usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
@@ -44,6 +44,16 @@ export function PagesHubPage() {
   // plain inline style set locally here.
   const [pagesTreeDepth, setPagesTreeDepth] = useState(0);
   usePagesTreeDepth(pagesTreeDepth);
+  // Whichever tab is currently mounted registers its own search/add
+  // toolbar here (RedirectsTabPanel.tsx's own onUtilitiesChange) rather
+  // than rendering it as part of its own content - .panel-heading-utilities
+  // (below) sits between the heading bar and .editor-tab-content
+  // specifically so it doesn't scroll away with the list beneath it
+  // (requested directly). Clears itself automatically on a tab switch:
+  // the outgoing tab's own component unmounts, running its
+  // registration effect's cleanup. Pages/Menus don't have one of their
+  // own yet, so this stays null while either is active.
+  const [tabUtilities, setTabUtilities] = useState<ReactNode>(null);
 
   // The shared viewport already shows whatever page was last active for
   // this site (PreviewContext.tsx seeds itself from the same
@@ -95,13 +105,14 @@ export function PagesHubPage() {
           <div className="panel-heading-bar">
             <h2 className="panel-heading">{tab === 'pages' ? 'Pages' : tab === 'menus' ? 'Menus' : 'Redirects'}</h2>
           </div>
+          {tabUtilities && <div className="panel-heading-utilities">{tabUtilities}</div>}
           <div className="editor-tab-content">
             <div className="editor-tab-panel">
               {tab === 'pages' && (
                 <PagesTabPanel siteId={siteId} onPreview={handlePreview} onMaxDepthChange={setPagesTreeDepth} activeUrl={previewUrl} />
               )}
               {tab === 'menus' && <MenusTabPanel siteId={siteId} />}
-              {tab === 'redirects' && <RedirectsTabPanel siteId={siteId} />}
+              {tab === 'redirects' && <RedirectsTabPanel siteId={siteId} onUtilitiesChange={setTabUtilities} />}
             </div>
           </div>
         </div>

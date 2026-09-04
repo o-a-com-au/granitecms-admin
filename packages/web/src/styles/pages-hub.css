@@ -71,11 +71,12 @@
    MediaLibrary.tsx's own .media-library-toolbar, generalised here once
    RedirectsTabPanel.tsx needed the identical shape (requested directly,
    with a mockup) rather than a second, near-identical rule under its
-   own name. */
+   own name. No margin of its own any more - .panel-heading-utilities
+   (editor-layout.css) is this toolbar's only parent now in both its
+   real uses, and owns the spacing around it instead. */
 .panel-toolbar {
   display: flex;
   gap: var(--space-sm);
-  margin-bottom: 1.5rem;
 }
 
 /* padding matches this toolbar's own plain button exactly (base.css's

@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react';
 import { deleteSiteMedia, uploadSiteMedia, type MediaItem } from '../api/site-media.ts';
 import { useSiteMedia } from './useSiteMedia.ts';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
@@ -14,6 +14,15 @@ export interface MediaLibraryProps {
   // GET /media call to resolve what was clicked.
   selectedItem?: MediaItem | null;
   onSelectedItemChange?: (item: MediaItem | null) => void;
+  // Registers this panel's own search+Upload toolbar into
+  // MediaLibraryPage.tsx's .panel-heading-utilities slot instead of
+  // rendering it as part of this component's own (scrolling) content -
+  // same treatment as RedirectsTabPanel.tsx's identical toolbar, same
+  // reason (requested directly: it shouldn't scroll away with the
+  // grid). Left undefined by MediaPickerModal's own picker-mode usage,
+  // which has no such slot to register into at all - the toolbar
+  // renders inline there instead, same as before.
+  onUtilitiesChange?: (node: ReactNode | null) => void;
 }
 
 // Fast client-side feedback only - the agent stays the real authority
@@ -40,7 +49,7 @@ function matchesSearch(item: MediaItem, query: string): boolean {
   return item.name.toLowerCase().includes(query.trim().toLowerCase());
 }
 
-export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange }: MediaLibraryProps) {
+export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange, onUtilitiesChange }: MediaLibraryProps) {
   const { items, loading, loadError, maxUploadBytes, refresh } = useSiteMedia(siteId);
   const [search, setSearch] = useState('');
   const [fileErrors, setFileErrors] = useState<FileError[]>([]);
@@ -52,6 +61,58 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange 
   // the classic flicker.
   const dragCounter = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // useMemo, not a bare JSX expression - see RedirectsTabPanel.tsx's
+  // identical toolbar for the full explanation of why (the registration
+  // effect below depends on this node by reference). maxUploadBytes is
+  // a dependency too, not just search - handleFileInputChange (below,
+  // not itself memoized) closes over it via handleFiles, and it starts
+  // undefined until useSiteMedia's own fetch resolves. Missing it here
+  // meant the toolbar's very first render captured that permanently
+  // stale (undefined -> Infinity cap) closure and never picked up the
+  // real limit once it arrived, since nothing else this toolbar
+  // actually renders ever changes again to force a recompute - caught
+  // by this file's own "rejects an oversized file" test.
+  const toolbar = useMemo(
+    () => (
+      <div className="panel-toolbar">
+        <input
+          type="search"
+          className="content-search"
+          placeholder="Search media"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        {/* Plain button (no .button-primary) - requested directly, with
+            a mockup: a neutral box matching this toolbar's own search
+            field in height/border, not the app's accent blue. */}
+        <button type="button" onClick={() => fileInputRef.current?.click()}>
+          Upload
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          multiple
+          hidden
+          onChange={handleFileInputChange}
+        />
+      </div>
+    ),
+    [search, maxUploadBytes],
+  );
+
+  // Registered unconditionally (same "every hook runs in the same
+  // order every render" reasoning as RedirectsTabPanel.tsx) whenever a
+  // slot is actually supplied - picker mode passes none, so this is a
+  // no-op there and the toolbar renders inline below instead.
+  useEffect(() => {
+    if (!onUtilitiesChange) {
+      return;
+    }
+    onUtilitiesChange(toolbar);
+    return () => onUtilitiesChange(null);
+  }, [onUtilitiesChange, toolbar]);
 
   async function handleFiles(fileList: FileList | null): Promise<void> {
     if (!fileList || fileList.length === 0) {
@@ -160,29 +221,11 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange 
 
   return (
     <div className="media-library">
-      <div className="panel-toolbar">
-        <input
-          type="search"
-          className="content-search"
-          placeholder="Search media"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-        {/* Plain button (no .button-primary) - requested directly, with
-            a mockup: a neutral box matching this toolbar's own search
-            field in height/border, not the app's accent blue. */}
-        <button type="button" onClick={() => fileInputRef.current?.click()}>
-          Upload
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp"
-          multiple
-          hidden
-          onChange={handleFileInputChange}
-        />
-      </div>
+      {/* Rendered inline only when there's no slot to register into
+          (picker mode) - panel mode's toolbar lives in
+          .panel-heading-utilities instead (see the registration effect
+          above). */}
+      {!onUtilitiesChange && toolbar}
 
       {loadError && <p role="alert">{loadErrorMessage(loadError)}</p>}
       {deleteError && <p role="alert">{deleteError}</p>}

@@ -1,7 +1,23 @@
+import { useState, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { RedirectsTabPanel } from '../../src/pages/RedirectsTabPanel.tsx';
+
+// RedirectsTabPanel no longer renders its own toolbar inline - it
+// registers it via onUtilitiesChange (PagesHubPage.tsx's own
+// .panel-heading-utilities slot in real use) instead. This stands in
+// for that slot so the existing search/Add-button tests still find it
+// somewhere in the DOM.
+function RedirectsTabPanelWithUtilities({ siteId }: { siteId: string }) {
+  const [utilities, setUtilities] = useState<ReactNode>(null);
+  return (
+    <>
+      {utilities}
+      <RedirectsTabPanel siteId={siteId} onUtilitiesChange={setUtilities} />
+    </>
+  );
+}
 
 const ENTRY = { from: '/old', to: '/new', note: 'moved page' };
 const OTHER_ENTRY = { from: '/team', to: '/about/team' };
@@ -45,7 +61,7 @@ function renderPanel() {
   return render(
     <MemoryRouter initialEntries={['/sites/site-1/content']}>
       <Routes>
-        <Route path="/sites/:siteId/content" element={<RedirectsTabPanel siteId="site-1" />} />
+        <Route path="/sites/:siteId/content" element={<RedirectsTabPanelWithUtilities siteId="site-1" />} />
       </Routes>
     </MemoryRouter>,
   );

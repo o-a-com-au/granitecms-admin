@@ -141,6 +141,18 @@
 }
 
 
+/* MediaPickerModal's own picker-mode usage has no .panel-heading-bar/
+   .panel-tab-shell structure at all, so MediaLibrary.tsx renders its
+   toolbar inline here (a direct child of .media-library) rather than
+   registering it into .panel-heading-utilities (editor-layout.css) the
+   way panel mode does - that wrapper is this toolbar's only other
+   parent, and owns the spacing there instead, so this margin only
+   needs to apply to the picker-mode case, scoped via the direct-child
+   selector rather than living on .panel-toolbar itself. */
+.media-library > .panel-toolbar {
+  margin-bottom: 1.5rem;
+}
+
 .media-library-errors {
   margin: 0 0 1rem;
   padding: 0.75rem 1rem;

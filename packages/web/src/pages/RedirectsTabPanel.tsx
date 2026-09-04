@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { deleteSiteRedirect, type RedirectEntry } from '../api/site-redirects.ts';
 import { useSiteRedirects } from '../redirects/useSiteRedirects.ts';
 import { buildDeleteRedirectMessage } from '../redirects/buildRedirectMessage.ts';
@@ -12,6 +12,14 @@ import { buildLoadErrorActions, loadErrorMessage } from '../sites/site-load-erro
 
 export interface RedirectsTabPanelProps {
   siteId: string;
+  // Registers this panel's own search+Add toolbar into PagesHubPage.tsx's
+  // .panel-heading-utilities slot instead of rendering it as part of
+  // this component's own (scrolling) content - requested directly, so
+  // it stays visible above the list rather than scrolling away with
+  // it. Optional purely so this component still renders sensibly if
+  // ever used somewhere with no such slot to register into (nothing
+  // does today).
+  onUtilitiesChange?: (node: ReactNode | null) => void;
 }
 
 type ModalState = { mode: 'create' } | { mode: 'edit'; entry: RedirectEntry } | null;
@@ -36,12 +44,47 @@ function matchesSearch(entry: RedirectEntry, query: string): boolean {
 // for Edit purely because it produced the same-looking box - none of
 // the old four columns (From/To/Note/actions) fit this panel's own
 // --editor-sidebar-width side by side.
-export function RedirectsTabPanel({ siteId }: RedirectsTabPanelProps) {
+export function RedirectsTabPanel({ siteId, onUtilitiesChange }: RedirectsTabPanelProps) {
   const { entries, loading, loadError, refresh } = useSiteRedirects(siteId);
   const [search, setSearch] = useState('');
   const [modalState, setModalState] = useState<ModalState>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const filteredEntries = entries.filter((entry) => matchesSearch(entry, search));
+
+  // useMemo, not a bare JSX expression - the registration effect below
+  // depends on this node by reference, and a fresh element every
+  // render would re-register (and so re-render the parent) on every
+  // render in turn, an infinite loop - see PagesHubPage.tsx's own
+  // deviceToggleNode/PageEditorPage.tsx's identical precedent for the
+  // fuller explanation of this exact pitfall.
+  const utilities = useMemo(
+    () => (
+      <div className="panel-toolbar">
+        <input
+          type="search"
+          className="content-search"
+          placeholder="Search redirects"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <button type="button" onClick={() => setModalState({ mode: 'create' })}>
+          Add
+        </button>
+      </div>
+    ),
+    [search],
+  );
+
+  // Registered unconditionally, before either early return below (React's
+  // own rule - every hook call must run in the same order on every
+  // render) - PagesHubPage.tsx's slot naturally shows nothing while
+  // this returns null, same as any other unmount, so a loading/error
+  // state simply hides the toolbar along with everything else rather
+  // than needing its own separate branch here.
+  useEffect(() => {
+    onUtilitiesChange?.(utilities);
+    return () => onUtilitiesChange?.(null);
+  }, [onUtilitiesChange, utilities]);
 
   // No confirmation dialog - matches this app's own established
   // precedent for both Media deletion and the project owner's explicit
@@ -71,23 +114,6 @@ export function RedirectsTabPanel({ siteId }: RedirectsTabPanelProps) {
 
   return (
     <div className="pages-hub-tab">
-      {/* .panel-toolbar (pages-hub.css) - shared with MediaLibrary.tsx's
-          own search+action toolbar (requested directly, with a
-          mockup): search field + a plain "Add" button here, in place
-          of the old text-link "Add Redirect" at the bottom of the
-          list. */}
-      <div className="panel-toolbar">
-        <input
-          type="search"
-          className="content-search"
-          placeholder="Search redirects"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-        <button type="button" onClick={() => setModalState({ mode: 'create' })}>
-          Add
-        </button>
-      </div>
       {deleteError && <p role="alert">{deleteError}</p>}
       {entries.length === 0 ? (
         <p>No redirects yet.</p>

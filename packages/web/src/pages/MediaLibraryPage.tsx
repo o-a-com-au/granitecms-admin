@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import type { MediaItem } from '../api/site-media.ts';
 import { MediaLibrary } from '../media/MediaLibrary.tsx';
@@ -22,6 +22,10 @@ import { usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
 export function MediaLibraryPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
+  // MediaLibrary's own search/Upload toolbar registers itself here
+  // instead of rendering inline - same treatment, same reasoning as
+  // PagesHubPage.tsx's own tabUtilities.
+  const [utilities, setUtilities] = useState<ReactNode>(null);
   const { device, setDevice } = usePreview();
 
   usePreviewVisible(true);
@@ -46,9 +50,16 @@ export function MediaLibraryPage() {
           <div className="panel-heading-bar">
             <h2 className="panel-heading">Media</h2>
           </div>
+          {utilities && <div className="panel-heading-utilities">{utilities}</div>}
           <div className="editor-tab-content">
             <div className="editor-tab-panel media-hub-tab">
-              <MediaLibrary siteId={siteId} mode="panel" selectedItem={selectedItem} onSelectedItemChange={setSelectedItem} />
+              <MediaLibrary
+                siteId={siteId}
+                mode="panel"
+                selectedItem={selectedItem}
+                onSelectedItemChange={setSelectedItem}
+                onUtilitiesChange={setUtilities}
+              />
             </div>
           </div>
         </div>
