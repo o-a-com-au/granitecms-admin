@@ -46,10 +46,12 @@ export function PagesHubPage() {
   usePagesTreeDepth(pagesTreeDepth);
   // Whichever tab is currently mounted registers its own search/add
   // toolbar here (RedirectsTabPanel.tsx's own onUtilitiesChange) rather
-  // than rendering it as part of its own content - .panel-heading-utilities
-  // (below) sits between the heading bar and .editor-tab-content
-  // specifically so it doesn't scroll away with the list beneath it
-  // (requested directly). Clears itself automatically on a tab switch:
+  // than rendering it as part of its own content - rendered directly
+  // between the heading bar and .editor-tab-content (below) so it
+  // doesn't scroll away with the list beneath it (requested directly).
+  // The registered node is .panel-toolbar itself, which owns its own
+  // padding/background/flex-sizing now (pages-hub.css) - no wrapper div
+  // needed here any more. Clears itself automatically on a tab switch:
   // the outgoing tab's own component unmounts, running its
   // registration effect's cleanup. Pages/Menus don't have one of their
   // own yet, so this stays null while either is active.
@@ -105,7 +107,7 @@ export function PagesHubPage() {
           <div className="panel-heading-bar">
             <h2 className="panel-heading">{tab === 'pages' ? 'Pages' : tab === 'menus' ? 'Menus' : 'Redirects'}</h2>
           </div>
-          {tabUtilities && <div className="panel-heading-utilities">{tabUtilities}</div>}
+          {tabUtilities}
           <div className="editor-tab-content">
             <div className="editor-tab-panel">
               {tab === 'pages' && (

@@ -14,14 +14,14 @@ export interface MediaLibraryProps {
   // GET /media call to resolve what was clicked.
   selectedItem?: MediaItem | null;
   onSelectedItemChange?: (item: MediaItem | null) => void;
-  // Registers this panel's own search+Upload toolbar into
-  // MediaLibraryPage.tsx's .panel-heading-utilities slot instead of
-  // rendering it as part of this component's own (scrolling) content -
-  // same treatment as RedirectsTabPanel.tsx's identical toolbar, same
-  // reason (requested directly: it shouldn't scroll away with the
-  // grid). Left undefined by MediaPickerModal's own picker-mode usage,
-  // which has no such slot to register into at all - the toolbar
-  // renders inline there instead, same as before.
+  // Registers this panel's own search+Upload toolbar (.panel-toolbar)
+  // up into MediaLibraryPage.tsx instead of rendering it as part of
+  // this component's own (scrolling) content - same treatment as
+  // RedirectsTabPanel.tsx's identical toolbar, same reason (requested
+  // directly: it shouldn't scroll away with the grid). Left undefined
+  // by MediaPickerModal's own picker-mode usage, which has nowhere to
+  // register into at all - the toolbar renders inline there instead,
+  // same as before.
   onUtilitiesChange?: (node: ReactNode | null) => void;
 }
 
@@ -222,8 +222,8 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
   return (
     <div className="media-library">
       {/* Rendered inline only when there's no slot to register into
-          (picker mode) - panel mode's toolbar lives in
-          .panel-heading-utilities instead (see the registration effect
+          (picker mode) - panel mode registers it up into
+          MediaLibraryPage.tsx instead (see the registration effect
           above). */}
       {!onUtilitiesChange && toolbar}
 

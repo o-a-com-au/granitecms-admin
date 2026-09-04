@@ -71,12 +71,23 @@
    MediaLibrary.tsx's own .media-library-toolbar, generalised here once
    RedirectsTabPanel.tsx needed the identical shape (requested directly,
    with a mockup) rather than a second, near-identical rule under its
-   own name. No margin of its own any more - .panel-heading-utilities
-   (editor-layout.css) is this toolbar's only parent now in both its
-   real uses, and owns the spacing around it instead. */
+   own name. Registered directly as a .panel-tab-shell child (panel
+   mode - RedirectsTabPanel.tsx/MediaLibrary.tsx's own onUtilitiesChange)
+   with no separate .panel-heading-utilities wrapper any more
+   (requested directly, a second pass - that wrapper existed only to
+   carry this same padding/background/sizing, so it's simpler for this
+   class to own them itself instead of a parent div nobody else uses).
+   flex: 0 0 auto - sized to its own content within .panel-tab-shell's
+   flex column, same as .panel-heading-bar above it. Picker mode
+   (MediaLibrary.tsx's inline fallback, a plain child of .media-library)
+   isn't a flex item there, so this is a no-op in that context - the
+   padding/background still apply regardless of which parent it's in. */
 .panel-toolbar {
   display: flex;
+  flex: 0 0 auto;
   gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--colour-surface);
 }
 
 /* padding matches this toolbar's own plain button exactly (base.css's

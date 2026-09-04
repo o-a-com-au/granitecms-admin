@@ -172,23 +172,6 @@
   box-shadow: var(--shadow-panel);
 }
 
-/* Whichever tab is mounted (RedirectsTabPanel.tsx, MediaLibrary.tsx in
-   panel mode) registers its own search/action toolbar (.panel-toolbar)
-   here rather than rendering it as part of its own scrolling content -
-   requested directly: it should stay visible above the list, not
-   scroll away with it. Sits between .panel-heading-bar and
-   .editor-tab-content as a third .panel-tab-shell child, so it's
-   non-scrolling like the heading bar above it. flex: 0 0 auto - sized
-   to its own content, same as .panel-heading-bar. Only horizontal
-   padding plus top padding of its own - .editor-tab-content directly
-   below still supplies its own top padding (space-lg), which is this
-   toolbar's real bottom margin instead of a bottom padding on this
-   element repeating it. */
-.panel-heading-utilities {
-  flex: 0 0 auto;
-  padding: var(--space-md) var(--space-md) 0;
-}
-
 /* Fades in from the right on every Page/Sections/Fields tab switch.
    Kept on an inner wrapper (not .editor-tab-content itself) so the
    animation's transform can't fight the scroll container's own

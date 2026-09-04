@@ -12,13 +12,13 @@ import { buildLoadErrorActions, loadErrorMessage } from '../sites/site-load-erro
 
 export interface RedirectsTabPanelProps {
   siteId: string;
-  // Registers this panel's own search+Add toolbar into PagesHubPage.tsx's
-  // .panel-heading-utilities slot instead of rendering it as part of
-  // this component's own (scrolling) content - requested directly, so
-  // it stays visible above the list rather than scrolling away with
-  // it. Optional purely so this component still renders sensibly if
-  // ever used somewhere with no such slot to register into (nothing
-  // does today).
+  // Registers this panel's own search+Add toolbar (.panel-toolbar) up
+  // into PagesHubPage.tsx instead of rendering it as part of this
+  // component's own (scrolling) content - requested directly, so it
+  // stays visible above the list rather than scrolling away with it.
+  // Optional purely so this component still renders sensibly if ever
+  // used somewhere with no such slot to register into (nothing does
+  // today).
   onUtilitiesChange?: (node: ReactNode | null) => void;
 }
 

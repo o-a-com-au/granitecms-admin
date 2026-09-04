@@ -5,10 +5,10 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { RedirectsTabPanel } from '../../src/pages/RedirectsTabPanel.tsx';
 
 // RedirectsTabPanel no longer renders its own toolbar inline - it
-// registers it via onUtilitiesChange (PagesHubPage.tsx's own
-// .panel-heading-utilities slot in real use) instead. This stands in
-// for that slot so the existing search/Add-button tests still find it
-// somewhere in the DOM.
+// registers it via onUtilitiesChange (rendered directly by
+// PagesHubPage.tsx in real use) instead. This stands in for that
+// registration so the existing search/Add-button tests still find the
+// toolbar somewhere in the DOM.
 function RedirectsTabPanelWithUtilities({ siteId }: { siteId: string }) {
   const [utilities, setUtilities] = useState<ReactNode>(null);
   return (
