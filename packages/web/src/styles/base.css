@@ -96,14 +96,14 @@ textarea {
    happens to be identical in both themes today (--grey-500, theme.css)
    - if it's ever tuned to differ between light/dark, this needs its
    own [data-theme] override to match, by hand. Rounder corners
-   (--radius-md, not every other input/textarea's --radius-xs) and
+   (--radius-sm, not every other input/textarea's --radius-xs) and
    extra right padding for the icon, both matching the reference image. */
 select {
   font: inherit;
   color: var(--colour-text);
   padding: 0.5rem 2rem 0.5rem 0.65rem;
   border: 1px solid var(--colour-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background-color: var(--colour-input-background);
   appearance: none;
   -webkit-appearance: none;
