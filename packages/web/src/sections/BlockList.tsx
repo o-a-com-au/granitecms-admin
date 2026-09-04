@@ -330,6 +330,17 @@ export function BlockList({
     toggleAddMenu();
   }
 
+  // Same reasoning as the click-skips-the-menu behaviour above - once
+  // there's only one real choice, "Add Block" is a needless extra
+  // word: the button already names the one thing it does (requested
+  // directly, e.g. "Add Button" instead of "Add Block" when Button is
+  // the only allowed type here). Falls back to the generic label the
+  // moment there's an actual choice to present.
+  const addButtonLabel =
+    blockTypeNames.length === 1
+      ? `Add ${schemaTitle(blockTypes.schemas[blockTypeNames[0] as string], blockTypeNames[0] as string)}`
+      : 'Add Block';
+
   function handleDragOver(event: DragEvent<HTMLLIElement>, index: number): void {
     event.preventDefault();
     setDropIndex(computeDropIndex(event.clientY, event.currentTarget.getBoundingClientRect(), index));
@@ -471,7 +482,7 @@ export function BlockList({
             onClick={handleAddButtonClick}
           >
             <AddIcon />
-            Add Block
+            {addButtonLabel}
           </button>
         </div>
       )}

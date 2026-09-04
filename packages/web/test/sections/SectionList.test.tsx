@@ -466,7 +466,9 @@ describe('SectionList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
 
-    expect(screen.getByRole('button', { name: 'Add Block' })).toBeDefined();
+    // 'Add button', not 'Add Block' - BLOCK_TYPES declares only one
+    // type (schemaTitle falls back to the raw slug, no title declared).
+    expect(screen.getByRole('button', { name: 'Add button' })).toBeDefined();
   });
 
   it('reserves the arrow\'s column with an empty spacer on a row whose type has no blocks, so every label still lines up', () => {
@@ -540,11 +542,12 @@ describe('SectionList', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Edit hero' }).className).toContain('is-selected');
-    // Auto-expanded - the chevron now reads "Collapse", and Add Block
-    // (only rendered once expanded, per I4 above) is reachable without
-    // an extra click.
+    // Auto-expanded - the chevron now reads "Collapse", and Add button
+    // (only rendered once expanded, per I4 above; 'Add button' not
+    // 'Add Block' - BLOCK_TYPES declares only one type) is reachable
+    // without an extra click.
     expect(screen.getByRole('button', { name: 'Collapse' })).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Add Block' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Add button' })).toBeDefined();
   });
 
   it('selecting a different section does not force a section the user manually collapsed back open', () => {
@@ -695,9 +698,9 @@ describe('SectionList', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
-    // BLOCK_TYPES here declares only one type - Add Block skips the
-    // picker and adds it directly.
-    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+    // BLOCK_TYPES here declares only one type - the button reads 'Add
+    // button' and skips the picker, adding it directly.
+    fireEvent.click(screen.getByRole('button', { name: 'Add button' }));
 
     expect(onChange).toHaveBeenCalledTimes(1);
     const [[updatedSections]] = onChange.mock.calls as [[Instance[]]];
@@ -806,11 +809,11 @@ describe('SectionList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
     // Restricted down to exactly one type ('button', out of the two
-    // twoBlockTypes declares overall) - Add Block skips the picker and
-    // adds it directly, so there's no menu left to assert against
-    // here; onChange having been called with a 'button' block is the
-    // restriction actually taking effect.
-    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+    // twoBlockTypes declares overall) - the button reads 'Add button'
+    // and skips the picker, adding it directly, so there's no menu
+    // left to assert against here; onChange having been called with a
+    // 'button' block is the restriction actually taking effect.
+    fireEvent.click(screen.getByRole('button', { name: 'Add button' }));
 
     const [[updatedSections]] = onChange.mock.calls as [[Instance[]]];
     expect(updatedSections[0]?.blocks?.[0]?.type).toBe('button');

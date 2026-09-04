@@ -281,7 +281,10 @@ describe('BlockList', () => {
       <BlockList blocks={[]} blockTypes={BLOCK_TYPES} allowedTypes={['button']} onChange={onChange} onEditInstance={vi.fn()} />,
     );
 
-    const addButton = screen.getByRole('button', { name: 'Add Block' });
+    // 'Add button', not 'Add Block' - the single available type's own
+    // name (schemaTitle falls back to the raw type slug here, since
+    // BLOCK_TYPES declares no title for it).
+    const addButton = screen.getByRole('button', { name: 'Add button' });
     // No popup to announce - aria-haspopup/aria-expanded would be
     // actively misleading on a button that never opens one.
     expect(addButton.getAttribute('aria-haspopup')).toBeNull();
@@ -312,9 +315,10 @@ describe('BlockList', () => {
     const onChange = vi.fn();
     render(<BlockList blocks={[]} blockTypes={typesWithDefaults} onChange={onChange} onEditInstance={vi.fn()} />);
 
-    // Only one type is declared here - Add Block skips the picker
-    // entirely and adds it directly (see the dedicated test for that).
-    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+    // Only one type is declared here - the button reads 'Add button'
+    // and skips the picker entirely, adding it directly (see the
+    // dedicated test for that).
+    fireEvent.click(screen.getByRole('button', { name: 'Add button' }));
 
     const [newBlocks] = onChange.mock.calls[0] as [Instance[]];
     expect(newBlocks[0]?.settings).toEqual({ label: 'Learn more', url: '#' });
@@ -625,11 +629,11 @@ describe('BlockList', () => {
     const onChange = vi.fn();
     render(<BlockList blocks={[]} blockTypes={BLOCK_TYPES} allowedTypes={['button']} onChange={onChange} onEditInstance={vi.fn()} />);
 
-    // Restricted down to exactly one type - Add Block skips the picker
-    // and adds it directly, so there's no menu left to assert against
-    // here; onChange having been called with a 'button' block is the
-    // restriction actually taking effect.
-    fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
+    // Restricted down to exactly one type - the button reads 'Add
+    // button' and skips the picker, adding it directly, so there's no
+    // menu left to assert against here; onChange having been called
+    // with a 'button' block is the restriction actually taking effect.
+    fireEvent.click(screen.getByRole('button', { name: 'Add button' }));
 
     const [newBlocks] = onChange.mock.calls[0] as [Instance[]];
     expect(newBlocks[0]?.type).toBe('button');
@@ -667,14 +671,14 @@ describe('BlockList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add Block' }));
 
     // The nested add-menu, inside the group block, is restricted to
-    // its own allowedBlocks - down to exactly one type here, so Add
-    // Block there skips the picker and adds it directly (same as any
-    // other single-type list) rather than opening a one-item menu. It
-    // sits inside the row's own <li>, so it precedes the outer
-    // add-button (rendered after the whole <ul>) in DOM order.
+    // its own allowedBlocks - down to exactly one type here, so it
+    // reads 'Add button' and skips the picker, adding it directly
+    // (same as any other single-type list) rather than opening a
+    // one-item menu - a distinct label from the outer (still
+    // unrestricted, still 'Add Block') button, not just a matching
+    // one at a different DOM position.
     fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
-    const addButtons = screen.getAllByRole('button', { name: 'Add Block' });
-    fireEvent.click(addButtons[0] as HTMLElement);
+    fireEvent.click(screen.getByRole('button', { name: 'Add button' }));
 
     const [newBlocks] = onChange.mock.calls[0] as [Instance[]];
     expect(newBlocks[0]?.blocks?.[0]?.type).toBe('button');
