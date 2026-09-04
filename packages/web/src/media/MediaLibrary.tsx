@@ -168,8 +168,11 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange 
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
-        <button type="button" className="button-primary" onClick={() => fileInputRef.current?.click()}>
-          Select Files
+        {/* Plain button (no .button-primary) - requested directly, with
+            a mockup: a neutral box matching this toolbar's own search
+            field in height/border, not the app's accent blue. */}
+        <button type="button" onClick={() => fileInputRef.current?.click()}>
+          Upload
         </button>
         <input
           ref={fileInputRef}
@@ -202,7 +205,7 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange 
       >
         {!loadError && filteredItems.length === 0 && (
           <p className="media-library-empty">
-            {items.length === 0 ? 'No media files yet. Drag images here or use Select Files.' : 'No media files match your search.'}
+            {items.length === 0 ? 'No media files yet. Drag images here or use Upload.' : 'No media files match your search.'}
           </p>
         )}
         {filteredItems.length > 0 && (
