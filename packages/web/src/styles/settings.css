@@ -111,11 +111,19 @@
   gap: 0.25rem;
 }
 
+/* Same font/size/style as .panel-heading (editor-tabs.css, e.g.
+   "PAGES"/"SECTIONS") - requested directly. Values copied rather than
+   sharing that class directly - this shell deliberately has no
+   dependency on editor-tabs.css/app-shell.css at all (see this file's
+   own .settings-shell comment), and isn't worth breaking for one
+   heading. */
 .settings-sidebar h1 {
-  margin-bottom: 1rem;
-  color: var(--colour-muted);
-  font-size: 1.1rem;
-  font-weight: 400;
+  margin: 0 0 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--colour-text);
 }
 
 /* No border/background at all any more - opacity is the only signal
