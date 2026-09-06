@@ -322,19 +322,9 @@
   margin: 0 0 0.35rem;
 }
 
-.settings-site-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
 /* Manage Access / Pending invites (ManageSitePage) - one shared box
-   around the whole list, matching the design, unlike
-   .settings-site-list's separately-boxed rows above - rows divide on
-   their own border-bottom (further down this file) rather than a gap
+   around the whole list, matching the design - rows divide on their
+   own border-bottom (further down this file) rather than a gap
    between list items. */
 .settings-access-list {
   list-style: none;
@@ -347,33 +337,231 @@
   background: var(--colour-surface);
 }
 
-.settings-site-row {
+/* RegisterSitePage.tsx's own way back to the registry it was reached
+   from - a plain muted link, not a full button, since this is a
+   secondary "change your mind" action next to the real primary one
+   (the form's own Submit). */
+.settings-back-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: var(--colour-muted);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.settings-back-link:hover {
+  color: var(--colour-text);
+}
+
+/* ManageSitesPage.tsx's own registry - the last-active site gets the
+   full status card (.website-status-card), everything else a compact
+   row (.website-status-row); both are list items sharing this same
+   gap, matching every other list of separately-boxed rows in this app
+   (settings-access-list's own sibling boxes aside, which divide
+   internally instead). */
+.website-status-list {
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.website-status-domain {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+  color: var(--colour-text);
+}
+
+/* Bordered/highlighted (a visibly thicker, brighter border than the
+   plain --colour-border every other card here uses) - requested
+   directly, with a mockup, so the one site actually being worked in
+   reads as clearly distinct from the plain rows below it. */
+.website-status-card {
+  border: 1px solid var(--colour-text);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
+  overflow: hidden;
+}
+
+.website-status-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  background: var(--colour-surface-hover);
+}
+
+.website-status-active-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--colour-muted);
+}
+
+.website-status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--colour-ok);
+}
+
+.website-status-card-body {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1.25rem;
+}
+
+.website-status-card-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* dt/dd pairs on one row, a thin divider between them - same shape as
+   .settings-status-list further down this file (ManageSitePage's own
+   copy of this same Agent/Schema/Node list), kept separate rather than
+   shared since that one also carries a Status row this card doesn't
+   (SiteConnectionPanel is this card's own equivalent, styled as its
+   own box rather than a fourth dt/dd pair). */
+.website-status-meta {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.website-status-meta > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--colour-border);
+  font-size: 0.85rem;
+}
+
+.website-status-meta > div:last-child {
+  border-bottom: none;
+}
+
+.website-status-meta dt {
+  color: var(--colour-muted);
+}
+
+.website-status-meta dd {
+  margin: 0;
+  color: var(--colour-text);
+}
+
+/* button.settings-manage-link, not the bare class - base.css's own
+   button[type='button']/:hover rule (element+attribute) otherwise wins
+   the specificity tie against a bare class, the same recurring gotcha
+   this app has hit repeatedly elsewhere - moot for this one (it's
+   always a <Link>, never a <button>), kept as a plain class for that
+   reason, matching .settings-back-link/.settings-edit-link's own
+   precedent of an anchor-only class needing no such guard. */
+.settings-manage-link {
+  align-self: flex-start;
+  padding: 0.6rem 1.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--colour-primary);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.settings-manage-link:hover {
+  background: var(--colour-primary-hover);
+  color: #fff;
+}
+
+/* The active card's own connection-health companion
+   (SiteConnectionPanel.tsx) - a fixed-width box beside the metadata
+   list, matching the mockup's own side-by-side layout. */
+.website-status-connection {
+  flex: 0 0 auto;
+  width: 11rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface-hover);
+  text-align: center;
+}
+
+.website-status-connection p {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.website-status-connection-icon {
+  position: relative;
+  width: 3.5rem;
+  height: 3.5rem;
+  color: var(--colour-muted);
+}
+
+/* Badge sits over the monitor icon's own bottom-right corner, same
+   "float a small chip over a bigger icon" shape this app already uses
+   for instance-row-delete etc, just not hover-revealed here - this one
+   is always visible, it's the whole point of the panel. is-ok/
+   is-warning/is-danger set only the fill colour - the icon inside
+   (check/triangle-alert/x, SiteConnectionPanel.tsx) is what actually
+   tells the states apart, colour is reinforcement, not the only signal. */
+.website-status-connection-badge {
+  position: absolute;
+  right: -0.25rem;
+  bottom: -0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0.3rem;
+  border-radius: 50%;
+  border: 2px solid var(--colour-surface-hover);
+  color: #fff;
+}
+
+.website-status-connection-badge.is-ok {
+  background: var(--colour-ok);
+}
+
+.website-status-connection-badge.is-warning {
+  background: var(--colour-warning);
+}
+
+.website-status-connection-badge.is-danger {
+  background: var(--colour-danger);
+}
+
+.website-status-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1.25rem;
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
   background: var(--colour-surface);
 }
 
-.settings-site-actions {
+.website-status-row-actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
-.settings-edit-link {
-  padding: 0.5rem 1.1rem;
-  border: 1px solid var(--colour-border);
-  border-radius: var(--radius-sm);
-  color: var(--colour-text);
-  text-decoration: none;
-}
-
-.settings-edit-link:hover {
-  background: var(--colour-surface-hover);
+.settings-add-website-link {
+  font-weight: 600;
 }
 
 .settings-status-list {

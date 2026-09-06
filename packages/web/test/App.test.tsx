@@ -56,8 +56,9 @@ describe('App', () => {
     // A genuinely empty registry lands on the bare first-run welcome
     // screen at /onboarding (OnboardingPage.tsx) - distinct from
     // Settings > Manage Sites (ManageSitesPage.tsx), which always shows
-    // the normal "Register a website" registry view even with zero
-    // sites, reserved for a developer deliberately navigating there.
+    // the normal registry view (even with zero sites) reserved for a
+    // developer deliberately navigating there - registration itself
+    // now lives on its own route, RegisterSitePage.tsx.
     await waitFor(() => expect(screen.getByText(/Welcome to Granite CMS/)).toBeDefined());
     expect(screen.queryByRole('heading', { name: 'Login to Granite' })).toBeNull();
   });
@@ -134,13 +135,14 @@ describe('App', () => {
 
     // Gates on auth resolving (RequireAuth) - the heading/sidebar
     // themselves don't depend on the sites fetch below.
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Register a website' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Active websites' })).toBeDefined());
     expect(screen.getByRole('link', { name: 'Personal Details' })).toBeDefined();
     expect(screen.queryByText(/Welcome to Granite CMS/)).toBeNull();
     // A second, separate gate - "Nothing registered yet." additionally
     // depends on the /api/sites fetch resolving, which can still be
     // in flight at the moment the heading above first appears.
     await waitFor(() => expect(screen.getByText('Nothing registered yet.')).toBeDefined());
+    expect(screen.getByRole('link', { name: '+ Add Website' }).getAttribute('href')).toBe('/settings/sites/new');
   });
 
   it('B1: /login itself is reachable while unauthenticated - the one exempt route', async () => {

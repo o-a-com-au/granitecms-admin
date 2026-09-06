@@ -9,6 +9,7 @@ import { PersonalDetailsPage } from './pages/settings/PersonalDetailsPage.tsx';
 import { PasswordSecurityPage } from './pages/settings/PasswordSecurityPage.tsx';
 import { SubscriptionPage } from './pages/settings/SubscriptionPage.tsx';
 import { ManageSitesPage } from './pages/settings/ManageSitesPage.tsx';
+import { RegisterSitePage } from './pages/settings/RegisterSitePage.tsx';
 import { ManageSitePage } from './pages/settings/ManageSitePage.tsx';
 import { PagesHubPage } from './pages/PagesHubPage.tsx';
 import { MediaLibraryPage } from './pages/MediaLibraryPage.tsx';
@@ -57,6 +58,7 @@ export const routes: RouteObject[] = [
             element: <RequireDeveloper />,
             children: [
               { path: 'sites', element: <ManageSitesPage /> },
+              { path: 'sites/new', element: <RegisterSitePage /> },
               { path: 'sites/:siteId', element: <ManageSitePage /> },
             ],
           },

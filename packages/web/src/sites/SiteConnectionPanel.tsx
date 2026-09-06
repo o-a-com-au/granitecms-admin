@@ -1,0 +1,74 @@
+import type { ReactNode } from 'react';
+import type { SiteStatus } from '../api/sites.ts';
+import { CloseIcon } from '../sections/CloseIcon.tsx';
+
+// Single-use icons (only ever rendered here) - same convention
+// IconRail.tsx already established for its own single-use icons.
+// Lucide's own "monitor"/"check"/"triangle-alert"
+// (https://lucide.dev, ISC licensed), 1.75 stroke matching every other
+// row-level icon's own convention. width/height 100%, not a fixed
+// pixel value - MonitorIcon renders at whatever size this panel's own
+// CSS gives it, not a size baked into the icon itself.
+function MonitorIcon() {
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect width="20" height="14" x="2" y="3" rx="2" />
+      <line x1="8" x2="16" y1="21" y2="21" />
+      <line x1="12" x2="12" y1="17" y2="21" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function TriangleAlertIcon() {
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
+    </svg>
+  );
+}
+
+// One shared "monitor + badge" shape for every SiteStatus.state, not a
+// different base icon per state - only the corner badge (icon +
+// colour) and caption change. Reuses CloseIcon (sections/CloseIcon.tsx)
+// for the two failure states rather than a second, near-identical "x"
+// - same Lucide glyph either way.
+function badgeFor(status: SiteStatus): { icon: ReactNode; className: string; caption: string } {
+  switch (status.state) {
+    case 'ok':
+      return { icon: <CheckIcon />, className: 'is-ok', caption: 'Strong Connection' };
+    case 'unauthorized':
+      return { icon: <TriangleAlertIcon />, className: 'is-warning', caption: 'Check Token' };
+    case 'unreachable':
+      return { icon: <CloseIcon />, className: 'is-danger', caption: 'Unreachable' };
+    case 'error':
+      return { icon: <CloseIcon />, className: 'is-danger', caption: 'Connection Error' };
+  }
+}
+
+// The active site's own "how healthy is the live connection" panel
+// (ManageSitesPage.tsx) - a friendlier, at-a-glance companion to
+// SiteStatusBadge.tsx's own technical label, not a replacement for it
+// (that badge's fuller detail still has its place on the per-site
+// Manage page). Requested directly, with a mockup.
+export function SiteConnectionPanel({ status }: { status: SiteStatus }) {
+  const badge = badgeFor(status);
+  return (
+    <div className="website-status-connection">
+      <div className="website-status-connection-icon">
+        <MonitorIcon />
+        <span className={`website-status-connection-badge ${badge.className}`}>{badge.icon}</span>
+      </div>
+      <p>{badge.caption}</p>
+    </div>
+  );
+}
