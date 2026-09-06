@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useSites } from '../../sites/useSites.ts';
 import { SiteConnectionPanel } from '../../sites/SiteConnectionPanel.tsx';
-import { readLastSiteId, writeLastSiteId } from '../../sites/currentSite.ts';
+import { readLastSiteId, resolveEditorHref, writeLastSiteId } from '../../sites/currentSite.ts';
 import { AddIcon } from '../../sections/AddIcon.tsx';
 
 // Single-use icon (only ever rendered here) - same convention
@@ -34,13 +35,26 @@ function GlobeIcon() {
 export function ManageSitesPage() {
   const { sites, error } = useSites();
   const navigate = useNavigate();
+  // Seeded from localStorage once, then updated locally on Switch -
+  // readLastSiteId() only reads localStorage, it doesn't observe it,
+  // so calling writeLastSiteId() alone wouldn't re-render this page
+  // with the newly-switched site's own card expanded (requested
+  // directly: Switch should just change which card is active here, not
+  // navigate away the way registering a new site or Edit Content do).
+  const [activeSiteId, setActiveSiteId] = useState(() => readLastSiteId());
 
-  // Same "make this the current site, then go there" move
-  // RegisterSitePage.tsx does right after registering - Switch is
-  // just that same action for a site that's already registered.
+  // Makes this site "the" current one (same remembered value
+  // AppShell's own top bar, PreviewContext etc all read) without
+  // leaving this page - Edit Content below is the one action that
+  // actually takes you into it.
   function handleSwitch(siteId: string): void {
     writeLastSiteId(siteId);
-    navigate('/');
+    setActiveSiteId(siteId);
+  }
+
+  function handleEditContent(siteId: string): void {
+    writeLastSiteId(siteId);
+    navigate(resolveEditorHref(siteId));
   }
 
   return (
@@ -50,12 +64,11 @@ export function ManageSitesPage() {
       {sites === null && !error && <p>Loading...</p>}
       {sites !== null && sites.length === 0 && <p>Nothing registered yet.</p>}
       {sites !== null && sites.length > 0 && (() => {
-        // The last site actually worked in, falling back to the first
-        // registered one so there's always an expanded card to show -
-        // a brand new registration (no "last site" remembered yet)
-        // shouldn't render every site as a plain collapsed row.
-        const lastSiteId = readLastSiteId();
-        const activeSite = sites.find((site) => site.id === lastSiteId) ?? sites[0]!;
+        // The site last switched/registered into, falling back to the
+        // first registered one so there's always an expanded card to
+        // show - a brand new registration (no "last site" remembered
+        // yet) shouldn't render every site as a plain collapsed row.
+        const activeSite = sites.find((site) => site.id === activeSiteId) ?? sites[0]!;
         const otherSites = sites.filter((site) => site.id !== activeSite.id);
 
         return (
@@ -91,9 +104,14 @@ export function ManageSitesPage() {
                       </>
                     )}
                   </dl>
-                  <Link to={`/settings/sites/${activeSite.id}`} className="button-primary">
-                    Manage
-                  </Link>
+                  <div className="website-status-card-actions">
+                    <button type="button" onClick={() => handleEditContent(activeSite.id)}>
+                      Edit Content
+                    </button>
+                    <Link to={`/settings/sites/${activeSite.id}`} className="button-primary">
+                      Manage
+                    </Link>
+                  </div>
                 </div>
                 <SiteConnectionPanel status={activeSite.status} />
               </div>

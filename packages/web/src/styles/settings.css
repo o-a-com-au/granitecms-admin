@@ -463,14 +463,17 @@
   color: var(--colour-text);
 }
 
-/* The active card's own Manage link (a.button-primary, base.css) sits
-   in a flex column (.website-status-card-main) with no align-items of
-   its own, so it would otherwise stretch to the full width of the
-   metadata list above it rather than staying its own natural button
-   width - the collapsed rows' own Manage doesn't need this, sitting in
-   a row (.website-status-row-actions) instead, which stretch doesn't
-   affect the same way. */
-.website-status-card-main .button-primary {
+/* Edit Content + Manage, side by side - the active card's own way into
+   actually working on the site (Edit Content, plain/secondary - same
+   look as the collapsed rows' own Switch) versus managing its
+   registration (Manage, the primary action). align-self: flex-start,
+   not the default stretch its own parent's flex column
+   (.website-status-card-main, no align-items of its own) would
+   otherwise apply - this row should size to its own content, not the
+   full width of the metadata list above it. */
+.website-status-card-actions {
+  display: flex;
+  gap: 0.75rem;
   align-self: flex-start;
 }
 

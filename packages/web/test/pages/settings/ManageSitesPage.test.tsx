@@ -98,7 +98,7 @@ describe('ManageSitesPage', () => {
     expect(screen.queryByText('Agent')).toBeNull();
   });
 
-  it('clicking Switch on another site makes it the current one and navigates home', async () => {
+  it('clicking Switch makes that site the active card in place - it does not navigate away', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     installFakeSitesApi([
       { id: 'site-1', url: 'https://one.example.com', createdAt: '', updatedAt: '', status: okStatus() },
@@ -109,8 +109,33 @@ describe('ManageSitesPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Switch' }));
 
-    await waitFor(() => expect(screen.getByText('redirected home')).toBeDefined());
+    // Still on this page - Switch only changes which card is active,
+    // Edit Content (below) is the one action that actually navigates.
+    expect(screen.queryByText('redirected home')).toBeNull();
     expect(localStorage.getItem('cms-admin-last-site')).toBe('site-2');
+    // site-2 is now the expanded card; site-1 is the collapsed row.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Switch' })).toBeDefined());
+    const rows = screen.getAllByText(/example\.com/);
+    expect(rows[0]?.textContent).toBe('https://two.example.com');
+  });
+
+  it('Edit Content on the active card takes you into that site\'s editor and remembers it as current', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    installFakeSitesApi([{ id: 'site-1', url: 'https://one.example.com', createdAt: '', updatedAt: '', status: okStatus() }]);
+    render(
+      <MemoryRouter initialEntries={['/settings/sites']}>
+        <Routes>
+          <Route path="/settings/sites" element={<ManageSitesPage />} />
+          <Route path="/sites/:siteId/editor" element={<div>the editor</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit Content' })).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Content' }));
+
+    await waitFor(() => expect(screen.getByText('the editor')).toBeDefined());
+    expect(localStorage.getItem('cms-admin-last-site')).toBe('site-1');
   });
 
   it('each site (active card and collapsed row alike) links Manage to its own Manage Site page', async () => {
