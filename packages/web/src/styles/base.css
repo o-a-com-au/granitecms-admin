@@ -165,16 +165,36 @@ button[type='button']:hover {
    because it isn't inside a form. The button/class/pseudo-class
    combinators here are deliberate, not decorative - each needs to
    out-specificity the same-tier button[type='button'] rule above
-   while still losing cleanly to :disabled's own grey-out. */
-button.button-primary {
+   while still losing cleanly to :disabled's own grey-out.
+   a.button-primary is the same look for a link styled as the primary
+   action instead of a real <button> (ManageSitesPage.tsx's own
+   "Manage", which navigates rather than doing something in place) -
+   reported directly, asking why that one had grown its own separate
+   style rather than reusing this. An <a> gets none of a <button>'s own
+   base padding/border/radius/cursor (base.css's bare button rule,
+   above), so unlike button.button-primary - which only ever needs to
+   override colour, everything else already comes from that bare rule -
+   this needs the full box declared itself. */
+button.button-primary,
+a.button-primary {
+  padding: 0.5rem 1.1rem;
+  border: 1px solid var(--colour-primary);
+  border-radius: var(--radius-xs);
   background: var(--colour-primary);
-  border-color: var(--colour-primary);
   color: #fff;
+  cursor: pointer;
 }
 
-button.button-primary:hover {
+a.button-primary {
+  display: inline-block;
+  text-decoration: none;
+}
+
+button.button-primary:hover,
+a.button-primary:hover {
   background: var(--colour-primary-hover);
   border-color: var(--colour-primary-hover);
+  color: #fff;
 }
 
 button.button-primary:disabled {

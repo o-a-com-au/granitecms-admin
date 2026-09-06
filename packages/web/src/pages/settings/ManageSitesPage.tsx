@@ -91,7 +91,7 @@ export function ManageSitesPage() {
                       </>
                     )}
                   </dl>
-                  <Link to={`/settings/sites/${activeSite.id}`} className="settings-manage-link">
+                  <Link to={`/settings/sites/${activeSite.id}`} className="button-primary">
                     Manage
                   </Link>
                 </div>
@@ -108,7 +108,7 @@ export function ManageSitesPage() {
                   <button type="button" onClick={() => handleSwitch(site.id)}>
                     Switch
                   </button>
-                  <Link to={`/settings/sites/${site.id}`} className="settings-manage-link">
+                  <Link to={`/settings/sites/${site.id}`} className="button-primary">
                     Manage
                   </Link>
                 </div>

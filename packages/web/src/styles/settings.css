@@ -463,26 +463,15 @@
   color: var(--colour-text);
 }
 
-/* button.settings-manage-link, not the bare class - base.css's own
-   button[type='button']/:hover rule (element+attribute) otherwise wins
-   the specificity tie against a bare class, the same recurring gotcha
-   this app has hit repeatedly elsewhere - moot for this one (it's
-   always a <Link>, never a <button>), kept as a plain class for that
-   reason, matching .settings-back-link/.settings-edit-link's own
-   precedent of an anchor-only class needing no such guard. */
-.settings-manage-link {
+/* The active card's own Manage link (a.button-primary, base.css) sits
+   in a flex column (.website-status-card-main) with no align-items of
+   its own, so it would otherwise stretch to the full width of the
+   metadata list above it rather than staying its own natural button
+   width - the collapsed rows' own Manage doesn't need this, sitting in
+   a row (.website-status-row-actions) instead, which stretch doesn't
+   affect the same way. */
+.website-status-card-main .button-primary {
   align-self: flex-start;
-  padding: 0.6rem 1.5rem;
-  border-radius: var(--radius-sm);
-  background: var(--colour-primary);
-  color: #fff;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.settings-manage-link:hover {
-  background: var(--colour-primary-hover);
-  color: #fff;
 }
 
 /* The active card's own connection-health companion
