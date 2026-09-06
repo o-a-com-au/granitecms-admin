@@ -348,7 +348,9 @@
    list, matching the design - rows divide on their own border-bottom
    (further down this file) rather than a gap between list items.
    Active Users used to share this too, until it got its own
-   individually-boxed rows instead (.manage-site-user-row, below). */
+   individually-boxed rows instead, and now the same shared instance-
+   row-* shapes every editor list already uses (requested directly -
+   "give it the same visual treatment as the instance-rows"). */
 .settings-access-list {
   list-style: none;
   margin: 0;
@@ -708,42 +710,21 @@
   border-bottom: none;
 }
 
-/* Active Users (ManageSitePage.tsx) - each person their own boxed row
-   rather than one shared box with internal dividers
-   (.settings-access-list above, still used for Pending invites) -
-   requested directly, with a mockup. */
-.manage-site-user-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.manage-site-user-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 1.25rem;
-  border: 1px solid var(--colour-border);
-  border-radius: var(--radius-sm);
-  background: var(--colour-surface-hover);
-}
+/* Active Users (ManageSitePage.tsx) - now the shared instance-list/
+   instance-row-main shapes every editor list (Sections, Blocks,
+   Pages, Menus, Redirects) already uses, rather than this page's own
+   bespoke boxed row (requested directly - "the same visual treatment
+   as the instance-rows in the editor"). Only the owner's highlight
+   below is specific to this page. */
 
 /* Same "brighter border marks the one that matters" language as
    .website-status-card.is-active - here, the owner's own row, so it
-   reads as clearly distinct from an ordinary invited client. */
-.manage-site-user-row.is-owner {
+   reads as clearly distinct from an ordinary invited client. Scoped to
+   .manage-site-panel rather than a bare .is-owner, since that's a
+   generic enough name that a future instance-row elsewhere (Sections,
+   Blocks) could plausibly want it to mean something else entirely. */
+.manage-site-panel .instance-row-main.is-owner {
   border-color: var(--colour-text);
-}
-
-.manage-site-user-name {
-  font-weight: 600;
-}
-
-.manage-site-user-row .settings-muted {
-  flex: 1;
 }
 
 /* A single row - input then Invite - not the old stacked label+

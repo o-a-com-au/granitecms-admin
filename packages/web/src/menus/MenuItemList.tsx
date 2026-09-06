@@ -59,7 +59,7 @@ function MenuItemRow({ item, isDragging, onDragStart, onDragOver, onDrop, onDrag
             <DragHandleIcon />
           </span>
         </span>
-        <span className="redirects-tab-row-label">
+        <span className="instance-row-label">
           <strong>{label}</strong>
         </span>
         <InstanceRowActions

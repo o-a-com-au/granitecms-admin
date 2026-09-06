@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router';
 import { useSites } from '../../sites/useSites.ts';
 import { deleteSite, rotateSiteToken } from '../../api/sites.ts';
 import { listSiteClients, revokeSiteClient, type SiteClient, type SiteOwner } from '../../api/site-users.ts';
+import { InstanceRowActions } from '../../sections/InstanceRowActions.tsx';
+import { TrashIcon } from '../../sections/TrashIcon.tsx';
 import {
   createSiteInvite,
   listSiteInvites,
@@ -232,26 +234,40 @@ export function ManageSitePage() {
         {clientsError && <p role="alert">{clientsError}</p>}
         {clients === null && !clientsError && <p>Loading...</p>}
         {clients !== null && (
-          <ul className="manage-site-user-list">
+          <ul className="instance-list">
             {owner && (
-              <li className="manage-site-user-row is-owner">
-                <span className="manage-site-user-name">{formatFullName(owner.firstName, owner.lastName)} (Owner)</span>
-                <span className="settings-muted">{owner.email}</span>
+              <li className="instance-row">
+                <div className="instance-row-main is-owner">
+                  <span className="instance-row-label">
+                    <strong>{formatFullName(owner.firstName, owner.lastName)} (Owner)</strong>
+                    <span className="instance-row-label-sub">{owner.email}</span>
+                  </span>
+                  {/* No action here at all - there's nothing to action
+                      against the owner themselves (requested directly,
+                      a deliberate deviation from the mockup, which
+                      shows one on every row purely for symmetry). */}
+                </div>
               </li>
             )}
             {clients.map((client) => (
-              <li key={client.id} className="manage-site-user-row">
-                <span className="manage-site-user-name">{formatFullName(client.firstName, client.lastName)}</span>
-                <span className="settings-muted">{client.email}</span>
-                {/* "Actions", not "Revoke Access" (requested directly,
-                    with a mockup) - Revoke is the only action a client
-                    row has today, so this triggers it directly rather
-                    than opening a one-item menu for its own sake. The
-                    owner row above has no button at all - there's
-                    nothing to action against the owner themselves. */}
-                <button type="button" onClick={() => void handleRevoke(client)}>
-                  Actions
-                </button>
+              <li key={client.id} className="instance-row">
+                <div className="instance-row-main">
+                  <span className="instance-row-label">
+                    <strong>{formatFullName(client.firstName, client.lastName)}</strong>
+                    <span className="instance-row-label-sub">{client.email}</span>
+                  </span>
+                  <InstanceRowActions
+                    actions={[
+                      {
+                        key: 'remove',
+                        label: `Remove ${formatFullName(client.firstName, client.lastName)}'s access`,
+                        icon: <TrashIcon />,
+                        variant: 'destructive',
+                        onClick: () => void handleRevoke(client),
+                      },
+                    ]}
+                  />
+                </div>
               </li>
             ))}
           </ul>

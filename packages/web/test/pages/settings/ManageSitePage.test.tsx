@@ -196,7 +196,7 @@ describe('ManageSitePage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Rotate token' })).toBeDefined());
   });
 
-  it('Active Users lists the owner first, with no action button, then clients with an Actions button each', async () => {
+  it('Active Users lists the owner first, with no action button, then clients with a remove-access button each', async () => {
     const state = installFakeApi();
     state.clients.push({
       id: 'client-1',
@@ -211,14 +211,16 @@ describe('ManageSitePage', () => {
     await waitFor(() => expect(screen.getByText('Jane Owner (Owner)')).toBeDefined());
 
     expect(screen.getByText('Existing Client')).toBeDefined();
-    // Actions triggers the only real action a client row has (revoke)
-    // directly, rather than opening a one-item menu for its own sake -
-    // the owner has none at all, so only one Actions button exists.
-    const actionButtons = screen.getAllByRole('button', { name: 'Actions' });
-    expect(actionButtons.length).toBe(1);
+    // The icon-only remove-access button (same instance-row-remove
+    // shape every editor list uses) triggers the only real action a
+    // client row has (revoke) directly, rather than opening a one-item
+    // menu for its own sake - the owner has none at all, so only one
+    // such button exists.
+    const removeButtons = screen.getAllByRole('button', { name: "Remove Existing Client's access" });
+    expect(removeButtons.length).toBe(1);
   });
 
-  it('revoking a client (via Actions) removes them from the Active Users list', async () => {
+  it("revoking a client (via the remove-access button) removes them from the Active Users list", async () => {
     const state = installFakeApi();
     state.clients.push({
       id: 'client-1',
@@ -233,7 +235,7 @@ describe('ManageSitePage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Existing Client')).toBeDefined());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Actions' }));
+    fireEvent.click(screen.getByRole('button', { name: "Remove Existing Client's access" }));
 
     await waitFor(() => expect(screen.queryByText('Existing Client')).toBeNull());
     expect(state.clients.length).toBe(0);

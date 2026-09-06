@@ -160,31 +160,6 @@
   color: #fff;
 }
 
-.redirects-tab-row-label {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  overflow: hidden;
-  padding: var(--space-xs) var(--space-md) var(--space-xs) var(--space-sm);
-}
-
-.redirects-tab-row-label strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding-left: 0;
-}
-
-.redirects-tab-row-to {
-  color: var(--colour-muted);
-  font-size: 0.75rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* MenusTabPanel.tsx's own expanded menu row - a plain grouping div with
    no styling of its own any more (was a single bordered block wrapping
    both the item list AND the "Add Menu Item"/"No items yet." line

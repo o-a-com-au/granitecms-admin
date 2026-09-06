@@ -181,6 +181,43 @@
 
 }
 
+/* A two-line label (a title plus a smaller secondary line beneath it)
+   for any instance-row whose title alone doesn't say enough -
+   Redirects' own destination, Settings' Active Users list showing
+   each person's email under their name. Generalised out of Redirects'
+   own once-specific .redirects-tab-row-label/-to (moved here, renamed,
+   from pages-hub.css) now that Menus' single-line rows and Settings'
+   Active Users both need the identical shape too, rather than a third
+   near-identical rule appearing wherever the next row needs one.
+   Overrides .instance-row-main strong's own flex/padding above via
+   source order (equal specificity, declared later in this same file) -
+   inside this column-flex wrapper, the title is a plain block, not a
+   flex item competing with a sibling icon for space. */
+.instance-row-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  overflow: hidden;
+  padding: var(--space-xs) var(--space-md) var(--space-xs) var(--space-sm);
+}
+
+.instance-row-label strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 0;
+}
+
+.instance-row-label-sub {
+  color: var(--colour-muted);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* button.instance-row-chevron, not just .instance-row-chevron - the
    extra element in the selector is deliberate, matching
    button[type='button']'s own specificity (which otherwise wins and

@@ -125,9 +125,9 @@ export function RedirectsTabPanel({ siteId, onUtilitiesChange }: RedirectsTabPan
                     SAME list needs to stay aligned), so there's no
                     alignment case to serve by reserving the column here
                     at all (requested directly - a second pass). */}
-                <span className="redirects-tab-row-label">
+                <span className="instance-row-label">
                   <strong>{entry.from}</strong>
-                  <span className="redirects-tab-row-to">{entry.to}</span>
+                  <span className="instance-row-label-sub">{entry.to}</span>
                 </span>
                 <InstanceRowActions
                   actions={[
