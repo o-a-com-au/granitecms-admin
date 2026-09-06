@@ -155,8 +155,13 @@ button[type='button'] {
   border-color: var(--colour-border);
 }
 
+/* --colour-button-hover, not --colour-surface-hover - the latter is
+   lighter than this button's own rest background in dark theme (it's
+   reused elsewhere for a genuine "lit up" look), which read as this
+   button glowing rather than pressing down - reported directly. See
+   that token's own comment (theme.css) for the full reasoning. */
 button[type='button']:hover {
-  background: var(--colour-surface-hover);
+  background: var(--colour-button-hover);
 }
 
 /* Opts a type='button' element back into the primary (blue) treatment

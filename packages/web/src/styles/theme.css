@@ -103,6 +103,15 @@
   --colour-bg: var(--grey-900);
   --colour-surface: var(--grey-800);
   --colour-surface-hover: var(--grey-600);
+  /* Plain/secondary buttons (button[type='button'], base.css - "Edit
+     Content"/"Activate" etc, anything with no button-primary of its
+     own) darken on hover here, not lighten - reported directly.
+     --colour-surface-hover is deliberately not reused for this: it's
+     lighter than --colour-surface in this theme (used elsewhere for a
+     genuine "lit up" hover/pressed look, e.g. .select-field-tabs'
+     own pressed tab), which is exactly the effect this button hover
+     shouldn't have. One step darker than --colour-surface itself. */
+  --colour-button-hover: var(--grey-850);
   --colour-border: var(--grey-700);
   --colour-tab-border: var(--grey-500);
   --colour-muted: var(--grey-500);
@@ -142,6 +151,10 @@
   --colour-bg: var(--grey-50);
   --colour-surface: #fff;
   --colour-surface-hover: var(--grey-100);
+  /* Already darker than --colour-surface in this theme (white), so
+     button hover just reuses it here - see the dark theme's own
+     --colour-button-hover comment for why that one can't. */
+  --colour-button-hover: var(--grey-100);
   --colour-border: var(--grey-200);
   --colour-tab-border: var(--grey-200);
   --colour-muted: var(--grey-500);
