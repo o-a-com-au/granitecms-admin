@@ -560,8 +560,23 @@
   gap: 0.75rem;
 }
 
+/* Same look as Add Section/Add Block (button.instance-add-button,
+   instance-rows.css) - requested directly. A plain class here, not
+   button.settings-add-website-link - this is always a <Link> (an
+   anchor), never a <button>, so it never meets that rule's own
+   button[type='button'] specificity tie in the first place. */
 .settings-add-website-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--colour-primary);
+  padding: 0.5rem 0;
   font-weight: 600;
+  text-decoration: none;
+}
+
+.settings-add-website-link:hover {
+  color: var(--colour-text-button-hover);
 }
 
 .settings-status-list {

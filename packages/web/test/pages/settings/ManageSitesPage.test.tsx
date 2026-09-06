@@ -53,7 +53,7 @@ describe('ManageSitesPage', () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText('Nothing registered yet.')).toBeDefined());
-    expect(screen.getByRole('link', { name: '+ Add Website' }).getAttribute('href')).toBe('/settings/sites/new');
+    expect(screen.getByRole('link', { name: 'Add Website' }).getAttribute('href')).toBe('/settings/sites/new');
   });
 
   it('with no last-active site remembered, the first registered site gets the expanded status card', async () => {

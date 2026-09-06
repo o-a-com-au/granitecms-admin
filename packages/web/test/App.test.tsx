@@ -142,7 +142,7 @@ describe('App', () => {
     // depends on the /api/sites fetch resolving, which can still be
     // in flight at the moment the heading above first appears.
     await waitFor(() => expect(screen.getByText('Nothing registered yet.')).toBeDefined());
-    expect(screen.getByRole('link', { name: '+ Add Website' }).getAttribute('href')).toBe('/settings/sites/new');
+    expect(screen.getByRole('link', { name: 'Add Website' }).getAttribute('href')).toBe('/settings/sites/new');
   });
 
   it('B1: /login itself is reachable while unauthenticated - the one exempt route', async () => {

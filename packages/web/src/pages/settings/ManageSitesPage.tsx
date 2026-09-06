@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router';
 import { useSites } from '../../sites/useSites.ts';
 import { SiteConnectionPanel } from '../../sites/SiteConnectionPanel.tsx';
 import { readLastSiteId, writeLastSiteId } from '../../sites/currentSite.ts';
+import { AddIcon } from '../../sections/AddIcon.tsx';
 
 // Single-use icon (only ever rendered here) - same convention
 // IconRail.tsx already established for its own single-use icons.
@@ -117,7 +118,8 @@ export function ManageSitesPage() {
         );
       })()}
       <Link to="/settings/sites/new" className="settings-add-website-link">
-        + Add Website
+        <AddIcon />
+        Add Website
       </Link>
     </section>
   );
