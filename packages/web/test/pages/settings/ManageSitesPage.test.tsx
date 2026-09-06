@@ -67,10 +67,14 @@ describe('ManageSitesPage', () => {
     expect(screen.getByText('Active')).toBeDefined();
     expect(screen.getByText('Agent')).toBeDefined();
     expect(screen.getByText('1.0.0')).toBeDefined();
-    expect(screen.getByText('Strong Connection')).toBeDefined();
-    // site-2 is the collapsed row - Switch, not a status card.
+    // SiteConnectionPanel's own brief "checking" beat (see its own test
+    // file for that in detail) delays the real caption slightly - a
+    // generous real-timer waitFor here rather than fake timers, to
+    // keep this integration test simple.
+    await waitFor(() => expect(screen.getByText('Strong Connection')).toBeDefined(), { timeout: 2000 });
+    // site-2 is the collapsed row - Activate, not a status card.
     expect(screen.getByText('https://two.example.com')).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Switch' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Activate' })).toBeDefined();
   });
 
   it('the site remembered as last-active gets the expanded card, not whichever comes first in the list', async () => {
@@ -84,7 +88,7 @@ describe('ManageSitesPage', () => {
 
     await waitFor(() => expect(screen.getByText('https://two.example.com')).toBeDefined());
     expect(screen.getByText('Active')).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Switch' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Activate' })).toBeDefined();
   });
 
   it('an unreachable/unauthorized active site shows the matching connection caption, and no Agent/Schema/Node (nothing to show)', async () => {
@@ -94,27 +98,27 @@ describe('ManageSitesPage', () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText('https://one.example.com')).toBeDefined());
-    expect(screen.getByText('Check Token')).toBeDefined();
+    await waitFor(() => expect(screen.getByText('Check Token')).toBeDefined(), { timeout: 2000 });
     expect(screen.queryByText('Agent')).toBeNull();
   });
 
-  it('clicking Switch makes that site the active card in place - it does not navigate away', async () => {
+  it('clicking Activate makes that site the active card in place - it does not navigate away', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     installFakeSitesApi([
       { id: 'site-1', url: 'https://one.example.com', createdAt: '', updatedAt: '', status: okStatus() },
       { id: 'site-2', url: 'https://two.example.com', createdAt: '', updatedAt: '', status: okStatus() },
     ]);
     renderPage();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Switch' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Activate' })).toBeDefined());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Switch' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Activate' }));
 
-    // Still on this page - Switch only changes which card is active,
+    // Still on this page - Activate only changes which card is active,
     // Edit Content (below) is the one action that actually navigates.
     expect(screen.queryByText('redirected home')).toBeNull();
     expect(localStorage.getItem('cms-admin-last-site')).toBe('site-2');
     // site-2 is now the expanded card; site-1 is the collapsed row.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Switch' })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Activate' })).toBeDefined());
     const rows = screen.getAllByText(/example\.com/);
     expect(rows[0]?.textContent).toBe('https://two.example.com');
   });

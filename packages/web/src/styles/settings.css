@@ -380,11 +380,25 @@
    plain --colour-border every other card here uses) - requested
    directly, with a mockup, so the one site actually being worked in
    reads as clearly distinct from the plain rows below it. */
+/* Replays on every mount, not just the page's first load - keyed on
+   the active site's own id (ManageSitesPage.tsx), this remounts fresh
+   each time Activate switches which site is expanded here, so the
+   same fade-up that plays once on first load also plays every time the
+   active card changes (requested directly: a visible transition when
+   a different site becomes active). Reuses pages-list.css's own
+   keyframe by name rather than redeclaring an equivalent one. */
 .website-status-card {
   border: 1px solid var(--colour-text);
   border-radius: var(--radius-sm);
   background: var(--colour-surface);
   overflow: hidden;
+  animation: list-page-fade-up 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .website-status-card {
+    animation: none;
+  }
 }
 
 /* Same padding/background as .panel-heading-bar (editor-tabs.css) -
@@ -490,7 +504,7 @@
   gap: 0.75rem;
   padding: 1.5rem 1rem;
   border-radius: var(--radius-sm);
-  background: var(--colour-surface-hover);
+  background: var(--grey-850);
   text-align: center;
 }
 
@@ -539,6 +553,57 @@
 
 .website-status-connection-badge.is-danger {
   background: var(--colour-danger);
+}
+
+/* A brief "checking" beat (SiteConnectionPanel.tsx) before the real
+   icon/caption - requested directly. Same 3.5rem box the real
+   .website-status-connection-icon fills, so the panel doesn't change
+   size when it swaps from one to the other. */
+.website-status-connection-spinner {
+  width: 3.5rem;
+  height: 3.5rem;
+  border: 3px solid var(--colour-border);
+  border-top-color: var(--colour-primary);
+  border-radius: 50%;
+  animation: website-status-connection-spin 0.8s linear infinite;
+}
+
+@keyframes website-status-connection-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The real result, once the checking beat above finishes - its own
+   wrapper (not just the icon/caption as plain siblings) so this whole
+   group reliably mounts fresh - and so replays this fade-in - the
+   moment "checking" flips to false, rather than depending on whether
+   React happens to reuse the caption <p> across that swap. */
+.website-status-connection-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  animation: website-status-connection-fade-in 0.3s ease-out;
+}
+
+@keyframes website-status-connection-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .website-status-connection-spinner {
+    animation: none;
+  }
+
+  .website-status-connection-result {
+    animation: none;
+  }
 }
 
 .website-status-row {

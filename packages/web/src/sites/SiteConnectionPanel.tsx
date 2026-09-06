@@ -1,6 +1,13 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { SiteStatus } from '../api/sites.ts';
 import { CloseIcon } from '../sections/CloseIcon.tsx';
+
+// Purely cosmetic - status (below) is already loaded by useSites(), not
+// re-fetched here. A brief "checking" beat before the real icon/
+// caption reads as this panel actively confirming the connection right
+// when a site becomes active, rather than the result just silently
+// already being there (requested directly).
+const CHECK_DELAY_MS = 700;
 
 // Single-use icons (only ever rendered here) - same convention
 // IconRail.tsx already established for its own single-use icons.
@@ -61,14 +68,34 @@ function badgeFor(status: SiteStatus): { icon: ReactNode; className: string; cap
 // (that badge's fuller detail still has its place on the per-site
 // Manage page). Requested directly, with a mockup.
 export function SiteConnectionPanel({ status }: { status: SiteStatus }) {
+  // Runs once per mount, not on every status change - ManageSitesPage.tsx
+  // remounts this whole component (key={activeSite.id}) each time a
+  // different site becomes active, so a fresh checking beat naturally
+  // happens exactly then, with no extra prop/token needed to tell this
+  // component "something changed" the way a stable key wouldn't.
+  const [checking, setChecking] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setChecking(false), CHECK_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   const badge = badgeFor(status);
   return (
     <div className="website-status-connection">
-      <div className="website-status-connection-icon">
-        <MonitorIcon />
-        <span className={`website-status-connection-badge ${badge.className}`}>{badge.icon}</span>
-      </div>
-      <p>{badge.caption}</p>
+      {checking ? (
+        <>
+          <span className="website-status-connection-spinner" aria-hidden="true" />
+          <p>Checking connection...</p>
+        </>
+      ) : (
+        <div className="website-status-connection-result">
+          <div className="website-status-connection-icon">
+            <MonitorIcon />
+            <span className={`website-status-connection-badge ${badge.className}`}>{badge.icon}</span>
+          </div>
+          <p>{badge.caption}</p>
+        </div>
+      )}
     </div>
   );
 }

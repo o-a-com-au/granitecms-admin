@@ -35,19 +35,20 @@ function GlobeIcon() {
 export function ManageSitesPage() {
   const { sites, error } = useSites();
   const navigate = useNavigate();
-  // Seeded from localStorage once, then updated locally on Switch -
+  // Seeded from localStorage once, then updated locally on Activate -
   // readLastSiteId() only reads localStorage, it doesn't observe it,
   // so calling writeLastSiteId() alone wouldn't re-render this page
-  // with the newly-switched site's own card expanded (requested
-  // directly: Switch should just change which card is active here, not
-  // navigate away the way registering a new site or Edit Content do).
+  // with the newly-activated site's own card expanded (requested
+  // directly: Activate should just change which card is active here,
+  // not navigate away the way registering a new site or Edit Content
+  // do).
   const [activeSiteId, setActiveSiteId] = useState(() => readLastSiteId());
 
   // Makes this site "the" current one (same remembered value
   // AppShell's own top bar, PreviewContext etc all read) without
   // leaving this page - Edit Content below is the one action that
   // actually takes you into it.
-  function handleSwitch(siteId: string): void {
+  function handleActivate(siteId: string): void {
     writeLastSiteId(siteId);
     setActiveSiteId(siteId);
   }
@@ -73,7 +74,19 @@ export function ManageSitesPage() {
 
         return (
           <ul className="website-status-list">
-            <li className="website-status-card">
+            {/* Keyed on the active site's own id, not a stable literal
+                key - Activate should read as visibly switching to a
+                different site (requested directly, a fade-in
+                transition), not the same card silently swapping its
+                own text out from under you. Remounting on every
+                activation is what makes that happen for free (a fresh
+                mount replays this card's own entrance animation,
+                below, and SiteConnectionPanel's own "just activated"
+                checking beat, both restarting exactly when this key
+                changes), rather than needing a separate token/effect
+                to detect "something changed" the way a stable key
+                wouldn't. */}
+            <li className="website-status-card" key={activeSite.id}>
               <div className="website-status-card-header">
                 <span className="website-status-domain">
                   <GlobeIcon />
@@ -123,8 +136,8 @@ export function ManageSitesPage() {
                   {site.url}
                 </span>
                 <div className="website-status-row-actions">
-                  <button type="button" onClick={() => handleSwitch(site.id)}>
-                    Switch
+                  <button type="button" onClick={() => handleActivate(site.id)}>
+                    Activate
                   </button>
                   <Link to={`/settings/sites/${site.id}`} className="button-primary">
                     Manage
