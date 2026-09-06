@@ -220,13 +220,16 @@
   padding: 0;
 }
 
-/* Aligns "Personal Details" (the first content heading) with
-   "SETTINGS" in the sidebar - both would otherwise sit right after
-   .list-page-inner's own top padding, but h2's own margin-top
-   (base.css) doesn't collapse into that padding here since
-   .settings-content is a flex child, not a block box. */
-.settings-content > section:first-of-type > h2 {
+/* Every settings page heading (Personal Details, Manage Website,
+   Register a website, etc.) gets the same spacing, regardless of
+   whether the page wraps it in a <section> or renders it as a direct
+   child - no margin-top, since it would otherwise sit right after
+   .list-page-inner's own top padding (h2's own margin-top in base.css
+   doesn't collapse into that padding here, as .settings-content is a
+   flex child, not a block box), and a consistent 2rem below it. */
+.settings-content h2 {
   margin-top: 0;
+  margin-bottom: 2rem;
 }
 
 /* base.css's bare `label` selector caps every label (and its input/
