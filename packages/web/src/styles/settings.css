@@ -387,12 +387,18 @@
   overflow: hidden;
 }
 
+/* Same padding/background as .panel-heading-bar (editor-tabs.css) -
+   requested directly, for the same "heading bar" look every other
+   panel heading in the app already has. flex/align/justify are this
+   header's own, not copied from that rule - it needs to lay out the
+   domain and the Active badge side by side, which a plain heading bar
+   elsewhere never has to. */
 .website-status-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.25rem;
-  background: var(--colour-surface-hover);
+  padding: var(--space-md);
+  background: var(--gradient-panel-heading);
 }
 
 .website-status-active-badge {
