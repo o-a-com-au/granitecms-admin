@@ -554,8 +554,8 @@
 
 .website-status-connection-icon {
   position: relative;
-  width: 4.5rem;
-  height: 4.5rem;
+  width: 5.4rem;
+  height: 5.4rem;
   color: var(--colour-muted);
 }
 
@@ -594,12 +594,12 @@
 }
 
 /* A brief "checking" beat (SiteConnectionPanel.tsx) before the real
-   icon/caption - requested directly. Same 4.5rem box the real
+   icon/caption - requested directly. Same 5.4rem box the real
    .website-status-connection-icon fills, so the panel doesn't change
    size when it swaps from one to the other. */
 .website-status-connection-spinner {
-  width: 4.5rem;
-  height: 4.5rem;
+  width: 5.4rem;
+  height: 5.4rem;
   border: 3px solid var(--colour-border);
   border-top-color: var(--colour-primary);
   border-radius: 50%;

@@ -14,14 +14,14 @@ const CHECK_DELAY_MS = 700;
 // Lucide's own "monitor"/"check"/"triangle-alert"
 // (https://lucide.dev, ISC licensed). width/height 100%, not a fixed
 // pixel value - MonitorIcon renders at whatever size this panel's own
-// CSS gives it, not a size baked into the icon itself. A thinner
-// 1.25 stroke here (not this app's usual row-level-icon 1.75) -
+// CSS gives it, not a size baked into the icon itself. A much thinner
+// 0.75 stroke here (not this app's usual row-level-icon 1.75) -
 // requested directly, since this one renders much larger than a
 // typical inline icon (settings.css's own .website-status-connection-
 // icon), where the same stroke would otherwise look heavy-handed.
 function MonitorIcon() {
   return (
-    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.25} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={0.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect width="20" height="14" x="2" y="3" rx="2" />
       <line x1="8" x2="16" y1="21" y2="21" />
       <line x1="12" x2="12" y1="17" y2="21" />
