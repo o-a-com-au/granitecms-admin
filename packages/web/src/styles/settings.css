@@ -494,16 +494,14 @@
   flex-direction: column;
 }
 
+/* Every row gets its own divider, Node included (requested directly) -
+   no :last-child exception removing the last one. */
 .website-status-meta > div {
   display: flex;
   justify-content: space-between;
   padding: 0.5rem 0;
   border-bottom: 1px solid var(--colour-border);
   font-size: 0.85rem;
-}
-
-.website-status-meta > div:last-child {
-  border-bottom: none;
 }
 
 .website-status-meta dt {
