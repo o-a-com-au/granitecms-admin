@@ -68,83 +68,98 @@ export function ManageSitesPage() {
         // The site last switched/registered into, falling back to the
         // first registered one so there's always an expanded card to
         // show - a brand new registration (no "last site" remembered
-        // yet) shouldn't render every site as a plain collapsed row.
-        const activeSite = sites.find((site) => site.id === activeSiteId) ?? sites[0]!;
-        const otherSites = sites.filter((site) => site.id !== activeSite.id);
+        // yet) shouldn't leave every site looking like a plain
+        // collapsed row.
+        const resolvedActiveId = sites.some((site) => site.id === activeSiteId) ? activeSiteId : sites[0]!.id;
 
         return (
           <ul className="website-status-list">
-            {/* Keyed on the active site's own id, not a stable literal
-                key - Activate should read as visibly switching to a
-                different site (requested directly, a fade-in
-                transition), not the same card silently swapping its
-                own text out from under you. Remounting on every
-                activation is what makes that happen for free (a fresh
-                mount replays this card's own entrance animation,
-                below, and SiteConnectionPanel's own "just activated"
-                checking beat, both restarting exactly when this key
-                changes), rather than needing a separate token/effect
-                to detect "something changed" the way a stable key
-                wouldn't. */}
-            <li className="website-status-card" key={activeSite.id}>
-              <div className="website-status-card-header">
-                <span className="website-status-domain">
-                  <GlobeIcon />
-                  {activeSite.url}
-                </span>
-                <span className="website-status-active-badge">
-                  <span className="website-status-dot" aria-hidden="true" />
-                  Active
-                </span>
-              </div>
-              <div className="website-status-card-body">
-                <div className="website-status-card-main">
-                  <dl className="website-status-meta">
-                    {activeSite.status.state === 'ok' && (
-                      <>
-                        <div>
-                          <dt>Agent</dt>
-                          <dd>{activeSite.status.agentVersion}</dd>
-                        </div>
-                        <div>
-                          <dt>Schema</dt>
-                          <dd>v{activeSite.status.contentSchemaVersion}</dd>
-                        </div>
-                        <div>
-                          <dt>Node</dt>
-                          <dd>{activeSite.status.sqliteDriver}</dd>
-                        </div>
-                      </>
+            {/* Every site renders in its own registry position, active
+                or not (requested directly - Activate used to move the
+                activated site to the top of the list, which read as
+                the whole list reordering itself rather than one site
+                changing; leaving every row where it already was and
+                just transitioning that one row's own shape reads as
+                the intended, calmer effect instead). Each <li> keeps
+                one stable key across its whole lifetime - only its
+                is-active class and its own children change - so the
+                shape transition below is a real CSS transition on one
+                persistent element, not a mount/unmount swap. */}
+            {sites.map((site) => {
+              const isActive = site.id === resolvedActiveId;
+              return (
+                <li key={site.id} className={`website-status-card${isActive ? ' is-active' : ''}`}>
+                  <div className="website-status-card-header">
+                    <span className="website-status-domain">
+                      <GlobeIcon />
+                      {site.url}
+                    </span>
+                    {isActive ? (
+                      <span className="website-status-active-badge">
+                        <span className="website-status-dot" aria-hidden="true" />
+                        Active
+                      </span>
+                    ) : (
+                      <div className="website-status-row-actions">
+                        <button type="button" onClick={() => handleActivate(site.id)}>
+                          Activate
+                        </button>
+                        <Link to={`/settings/sites/${site.id}`} className="button-primary">
+                          Manage
+                        </Link>
+                      </div>
                     )}
-                  </dl>
-                  <div className="website-status-card-actions">
-                    <button type="button" onClick={() => handleEditContent(activeSite.id)}>
-                      Edit Content
-                    </button>
-                    <Link to={`/settings/sites/${activeSite.id}`} className="button-primary">
-                      Manage
-                    </Link>
                   </div>
-                </div>
-                <SiteConnectionPanel status={activeSite.status} />
-              </div>
-            </li>
-            {otherSites.map((site) => (
-              <li key={site.id} className="website-status-row">
-                <span className="website-status-domain">
-                  <GlobeIcon />
-                  {site.url}
-                </span>
-                <div className="website-status-row-actions">
-                  <button type="button" onClick={() => handleActivate(site.id)}>
-                    Activate
-                  </button>
-                  <Link to={`/settings/sites/${site.id}`} className="button-primary">
-                    Manage
-                  </Link>
-                </div>
-              </li>
-            ))}
+                  {/* Always in the DOM, collapsed to zero height via
+                      CSS (settings.css's own grid-template-rows
+                      trick) rather than only mounted while active -
+                      an element that doesn't exist yet can't be
+                      CSS-transitioned into existence. The real content
+                      inside it still only mounts while isActive, so
+                      SiteConnectionPanel still gets a fresh "just
+                      activated" checking beat each time this
+                      particular site becomes active, the same as
+                      before. */}
+                  <div className="website-status-card-collapse">
+                    <div className="website-status-card-collapse-inner">
+                      {isActive && (
+                        <div className="website-status-card-body">
+                          <div className="website-status-card-main">
+                            <dl className="website-status-meta">
+                              {site.status.state === 'ok' && (
+                                <>
+                                  <div>
+                                    <dt>Agent</dt>
+                                    <dd>{site.status.agentVersion}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Schema</dt>
+                                    <dd>v{site.status.contentSchemaVersion}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Node</dt>
+                                    <dd>{site.status.sqliteDriver}</dd>
+                                  </div>
+                                </>
+                              )}
+                            </dl>
+                            <div className="website-status-card-actions">
+                              <button type="button" onClick={() => handleEditContent(site.id)}>
+                                Edit Content
+                              </button>
+                              <Link to={`/settings/sites/${site.id}`} className="button-primary">
+                                Manage
+                              </Link>
+                            </div>
+                          </div>
+                          <SiteConnectionPanel status={site.status} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         );
       })()}

@@ -353,12 +353,12 @@
   color: var(--colour-text);
 }
 
-/* ManageSitesPage.tsx's own registry - the last-active site gets the
-   full status card (.website-status-card), everything else a compact
-   row (.website-status-row); both are list items sharing this same
-   gap, matching every other list of separately-boxed rows in this app
-   (settings-access-list's own sibling boxes aside, which divide
-   internally instead). */
+/* ManageSitesPage.tsx's own registry - every site keeps its own
+   registry position, active or not (requested directly - reordering
+   the list to put whichever site was activated at the top read as the
+   whole list shuffling rather than one site changing shape). Each row
+   is the same .website-status-card, just plain or .is-active - see
+   that rule's own comment for how the shape change itself animates. */
 .website-status-list {
   list-style: none;
   margin: 0 0 1.25rem;
@@ -376,36 +376,47 @@
   color: var(--colour-text);
 }
 
-/* Bordered/highlighted (a visibly thicker, brighter border than the
-   plain --colour-border every other card here uses) - requested
-   directly, with a mockup, so the one site actually being worked in
-   reads as clearly distinct from the plain rows below it. */
-/* Replays on every mount, not just the page's first load - keyed on
-   the active site's own id (ManageSitesPage.tsx), this remounts fresh
-   each time Activate switches which site is expanded here, so the
-   same fade-up that plays once on first load also plays every time the
-   active card changes (requested directly: a visible transition when
-   a different site becomes active). Reuses pages-list.css's own
-   keyframe by name rather than redeclaring an equivalent one. */
+/* border-color transitions between the plain --colour-border every
+   card starts with and the visibly thicker- reading, brighter
+   --colour-text border .is-active gets (requested directly, with a
+   mockup, so the one site actually being worked on reads as clearly
+   distinct from the rest) - one part of "transition the shape of the
+   active one" (requested directly); .website-status-card-collapse
+   below is the other part, animating the body's own height in or out
+   rather than mounting/unmounting it outright. Only plays once per
+   card now, on this page's own first load - every card keeps one
+   stable key for its whole lifetime (ManageSitesPage.tsx), so Activate
+   no longer remounts anything, this transition is what shows the
+   change instead. Reuses pages-list.css's own fade-up keyframe by name
+   rather than redeclaring an equivalent one, just for that one-time
+   entrance. */
 .website-status-card {
-  border: 1px solid var(--colour-text);
+  border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
   background: var(--colour-surface);
   overflow: hidden;
   animation: list-page-fade-up 0.3s ease-out;
+  transition: border-color 0.3s ease;
+}
+
+.website-status-card.is-active {
+  border-color: var(--colour-text);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .website-status-card {
     animation: none;
+    transition: none;
   }
 }
 
 /* Same padding/background as .panel-heading-bar (editor-tabs.css) -
    requested directly, for the same "heading bar" look every other
-   panel heading in the app already has. flex/align/justify are this
-   header's own, not copied from that rule - it needs to lay out the
-   domain and the Active badge side by side, which a plain heading bar
+   panel heading in the app already has - shared by every card now,
+   active or not, rather than only the one that used to be expanded.
+   flex/align/justify are this header's own, not copied from that rule
+   - it needs to lay out the domain and whichever of Active/Activate+
+   Manage belongs on the other side, which a plain heading bar
    elsewhere never has to. */
 .website-status-card-header {
   display: flex;
@@ -413,6 +424,33 @@
   justify-content: space-between;
   padding: var(--space-md);
   background: var(--gradient-panel-heading);
+}
+
+/* The grid-template-rows 0fr/1fr trick - animates smoothly to and from
+   an intrinsic ("auto") height, which a plain height/max-height
+   transition can't do without either guessing a max-height or
+   measuring in JS. .is-active is the only state that ever needs this
+   file's own overflow: hidden on the inner wrapper to actually clip
+   the collapsed 0fr row down to nothing. */
+.website-status-card-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease;
+}
+
+.website-status-card.is-active .website-status-card-collapse {
+  grid-template-rows: 1fr;
+}
+
+.website-status-card-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .website-status-card-collapse {
+    transition: none;
+  }
 }
 
 .website-status-active-badge {
@@ -606,17 +644,11 @@
   }
 }
 
-.website-status-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.85rem 1.25rem;
-  border: 1px solid var(--colour-border);
-  border-radius: var(--radius-sm);
-  background: var(--colour-surface);
-}
-
+/* Activate + Manage, in an inactive card's own header (the active
+   card shows the Active badge in this same spot instead,
+   ManageSitesPage.tsx) - kept its original name even though it's no
+   longer a distinct ".website-status-row" element of its own, just
+   this particular header's own right-hand content now. */
 .website-status-row-actions {
   display: flex;
   align-items: center;

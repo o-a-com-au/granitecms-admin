@@ -102,7 +102,7 @@ describe('ManageSitesPage', () => {
     expect(screen.queryByText('Agent')).toBeNull();
   });
 
-  it('clicking Activate makes that site the active card in place - it does not navigate away', async () => {
+  it('clicking Activate makes that site active in place - it neither navigates away nor reorders the list', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     installFakeSitesApi([
       { id: 'site-1', url: 'https://one.example.com', createdAt: '', updatedAt: '', status: okStatus() },
@@ -117,10 +117,37 @@ describe('ManageSitesPage', () => {
     // Edit Content (below) is the one action that actually navigates.
     expect(screen.queryByText('redirected home')).toBeNull();
     expect(localStorage.getItem('cms-admin-last-site')).toBe('site-2');
-    // site-2 is now the expanded card; site-1 is the collapsed row.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Activate' })).toBeDefined());
+    // site-1 stays first in the list (its own original registry
+    // position, not reshuffled to the back) - only its own shape
+    // changes, from the expanded card back to a plain row with its own
+    // Activate button again.
     const rows = screen.getAllByText(/example\.com/);
-    expect(rows[0]?.textContent).toBe('https://two.example.com');
+    expect(rows.map((row) => row.textContent)).toEqual(['https://one.example.com', 'https://two.example.com']);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Activate' })).toBeDefined());
+  });
+
+  it('activating a different site collapses the previously-active one back to a plain row', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    installFakeSitesApi([
+      { id: 'site-1', url: 'https://one.example.com', createdAt: '', updatedAt: '', status: { state: 'ok', agentVersion: '1.0.0', contentSchemaVersion: 1, sqliteDriver: 'node:sqlite' } },
+      { id: 'site-2', url: 'https://two.example.com', createdAt: '', updatedAt: '', status: { state: 'ok', agentVersion: '2.0.0', contentSchemaVersion: 1, sqliteDriver: 'node:sqlite' } },
+    ]);
+    renderPage();
+    // site-1 starts active (the fallback default) - only one Activate
+    // button exists (site-2's own row), and site-1's own metadata is
+    // showing.
+    await waitFor(() => expect(screen.getByText('1.0.0')).toBeDefined());
+    expect(screen.queryAllByRole('button', { name: 'Activate' })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Activate' }));
+
+    // site-2 is now active - its own metadata replaces site-1's, and
+    // site-1 has collapsed back to a plain row with its own Activate
+    // button (still one Activate button total, just the other site's
+    // now).
+    await waitFor(() => expect(screen.getByText('2.0.0')).toBeDefined());
+    expect(screen.queryByText('1.0.0')).toBeNull();
+    expect(screen.queryAllByRole('button', { name: 'Activate' })).toHaveLength(1);
   });
 
   it('Edit Content on the active card takes you into that site\'s editor and remembers it as current', async () => {
