@@ -325,15 +325,27 @@
   font-size: 0.85rem;
 }
 
-.settings-site-url {
-  font-weight: 600;
-  margin: 0 0 0.35rem;
+/* ManageSitePage.tsx's own three sections (Website Details/Active
+   Users/Invite Users) - requested directly, with a mockup, each its
+   own boxed panel rather than a plain heading floating over unboxed
+   content the way every other Settings page's own sections still are.
+   .settings-content section's own reset (above) still applies first -
+   this re-establishes a real box for just these three. */
+.settings-content section.manage-site-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
 }
 
-/* Manage Access / Pending invites (ManageSitePage) - one shared box
-   around the whole list, matching the design - rows divide on their
-   own border-bottom (further down this file) rather than a gap
-   between list items. */
+/* Pending invites (ManageSitePage) - one shared box around the whole
+   list, matching the design - rows divide on their own border-bottom
+   (further down this file) rather than a gap between list items.
+   Active Users used to share this too, until it got its own
+   individually-boxed rows instead (.manage-site-user-row, below). */
 .settings-access-list {
   list-style: none;
   margin: 0;
@@ -490,12 +502,14 @@
   gap: 1.25rem;
 }
 
-/* dt/dd pairs on one row, a thin divider between them - same shape as
-   .settings-status-list further down this file (ManageSitePage's own
-   copy of this same Agent/Schema/Node list), kept separate rather than
-   shared since that one also carries a Status row this card doesn't
-   (SiteConnectionPanel is this card's own equivalent, styled as its
-   own box rather than a fourth dt/dd pair). */
+/* dt/dd pairs on one row, a thin divider between them - shared with
+   ManageSitePage.tsx's own Website Details panel (Domain/Agent/Schema/
+   Node/Registered) now that both pages show the same shape of list;
+   the old .settings-status-list this file used to keep separate for
+   that page carried a Status row this one never has (SiteConnectionPanel
+   is this card's own equivalent, its own box rather than a dt/dd pair),
+   but that row is gone now too - Website Details doesn't repeat the
+   live-connection info the Manage Websites list already shows. */
 .website-status-meta {
   margin: 0;
   display: flex;
@@ -679,28 +693,6 @@
   color: var(--colour-text-button-hover);
 }
 
-.settings-status-list {
-  margin: 1rem 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.settings-status-list > div {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--colour-table-row-divider);
-}
-
-.settings-status-list dt {
-  color: var(--colour-muted);
-}
-
-.settings-status-list dd {
-  margin: 0;
-}
-
 .settings-access-list li {
   display: flex;
   align-items: center;
@@ -713,11 +705,73 @@
   border-bottom: none;
 }
 
-/* Shared by "Revoke Access", "Cancel invite", and "Delete this
-   website" - a plain text link in the accent colour, not a bordered
-   button. ConfirmDialog.tsx's own comment already established this
-   app has no second/danger accent colour - the mockups agree,
-   showing "Delete this website" in the same blue as everything else.
+/* Active Users (ManageSitePage.tsx) - each person their own boxed row
+   rather than one shared box with internal dividers
+   (.settings-access-list above, still used for Pending invites) -
+   requested directly, with a mockup. */
+.manage-site-user-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.manage-site-user-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface-hover);
+}
+
+/* Same "brighter border marks the one that matters" language as
+   .website-status-card.is-active - here, the owner's own row, so it
+   reads as clearly distinct from an ordinary invited client. */
+.manage-site-user-row.is-owner {
+  border-color: var(--colour-text);
+}
+
+.manage-site-user-name {
+  font-weight: 600;
+}
+
+.manage-site-user-row .settings-muted {
+  flex: 1;
+}
+
+/* A single row - input then Invite - not the old stacked label+
+   textarea+button (requested directly, with a mockup). Still accepts
+   several comma-separated addresses in one paste (parseEmailAddresses,
+   ManageSitePage.tsx) - only genuinely lost the newline-separated form
+   a <textarea> allowed, since a single-line input can't hold one. */
+/* flex-direction/align-items explicitly set, not left at this rule's
+   own defaults - base.css's own bare `form` element rule sets both to
+   a stacked-column layout (every other form in this app is a plain
+   label-input-button column), and this class's own lower specificity
+   loss there was silently stacking input-then-button instead of
+   sitting them side by side (found live - the input rendered at its
+   own cramped intrinsic width, with the button below it, not beside
+   it). */
+.manage-site-invite-form {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.manage-site-invite-form input {
+  flex: 1;
+}
+
+/* Shared by "Cancel invite" and "Delete Website" - a plain text link
+   in the accent colour, not a bordered button. ConfirmDialog.tsx's own
+   comment already established this app has no second/danger accent
+   colour - the mockups agree, showing "Delete Website" in the same
+   blue as everything else.
    button.settings-text-link, not the bare class - base.css's
    button[type='button'] (element+attribute) sets its own background/
    border-color/padding at the same specificity as a bare element+class

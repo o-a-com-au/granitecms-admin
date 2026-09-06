@@ -171,12 +171,16 @@ afterEach(() => {
 });
 
 describe('ManageSitePage', () => {
-  it("shows the site's URL and live status", async () => {
+  it('Website Details shows the domain, agent/schema/node, and when it was registered', async () => {
     installFakeApi();
     renderPage();
 
     await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
-    expect(screen.getByText(/OK - agent 1\.0\.0/)).toBeDefined();
+    expect(screen.getByText('1.0.0')).toBeDefined();
+    expect(screen.getByText('v1')).toBeDefined();
+    expect(screen.getByText('node:sqlite')).toBeDefined();
+    // SITE.createdAt is 2026-01-01, en-AU day/month/year.
+    expect(screen.getByText('1 Jan 2026')).toBeDefined();
   });
 
   it('rotating the token submits the new value and closes back to the normal action', async () => {
@@ -192,7 +196,7 @@ describe('ManageSitePage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Rotate token' })).toBeDefined());
   });
 
-  it('Manage Access lists the owner first, non-revocable, then clients with Revoke Access', async () => {
+  it('Active Users lists the owner first, with no action button, then clients with an Actions button each', async () => {
     const state = installFakeApi();
     state.clients.push({
       id: 'client-1',
@@ -204,14 +208,17 @@ describe('ManageSitePage', () => {
     });
 
     renderPage();
-    await waitFor(() => expect(screen.getByText('Jane Owner (owner)')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('Jane Owner (Owner)')).toBeDefined());
 
     expect(screen.getByText('Existing Client')).toBeDefined();
-    const revokeButtons = screen.getAllByRole('button', { name: 'Revoke Access' });
-    expect(revokeButtons.length).toBe(1);
+    // Actions triggers the only real action a client row has (revoke)
+    // directly, rather than opening a one-item menu for its own sake -
+    // the owner has none at all, so only one Actions button exists.
+    const actionButtons = screen.getAllByRole('button', { name: 'Actions' });
+    expect(actionButtons.length).toBe(1);
   });
 
-  it('revoking a client removes them from the Manage Access list', async () => {
+  it('revoking a client (via Actions) removes them from the Active Users list', async () => {
     const state = installFakeApi();
     state.clients.push({
       id: 'client-1',
@@ -226,7 +233,7 @@ describe('ManageSitePage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Existing Client')).toBeDefined());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Revoke Access' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Actions' }));
 
     await waitFor(() => expect(screen.queryByText('Existing Client')).toBeNull());
     expect(state.clients.length).toBe(0);
@@ -237,14 +244,17 @@ describe('ManageSitePage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
 
+    // Comma-separated only now, not newline-separated - Invite Users
+    // is a single-line input (requested directly, with a mockup), not
+    // the old multi-row textarea a newline needed.
     fireEvent.change(screen.getByLabelText('Email addresses'), {
-      target: { value: 'one@example.com, two@example.com\nthree@example.com' },
+      target: { value: 'one@example.com, two@example.com, three@example.com' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Invite' }));
 
     await waitFor(() => expect(screen.getByText('3 invites sent')).toBeDefined());
     expect(state.invites.map((invite) => invite.email).sort()).toEqual(['one@example.com', 'three@example.com', 'two@example.com']);
-    expect((screen.getByLabelText('Email addresses') as HTMLTextAreaElement).value).toBe('');
+    expect((screen.getByLabelText('Email addresses') as HTMLInputElement).value).toBe('');
   });
 
   it('an address that fails is reported in the failure summary without blocking the others', async () => {
@@ -288,7 +298,7 @@ describe('ManageSitePage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete this website' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Website' }));
 
     await waitFor(() => expect(screen.getByText('site list')).toBeDefined());
   });
@@ -299,7 +309,7 @@ describe('ManageSitePage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete this website' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Website' }));
 
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(screen.getByText('https://client-one.example.com')).toBeDefined();

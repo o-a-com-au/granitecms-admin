@@ -1,7 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useSites } from '../../sites/useSites.ts';
-import { SiteStatusBadge } from '../../sites/SiteStatusBadge.tsx';
 import { deleteSite, rotateSiteToken } from '../../api/sites.ts';
 import { listSiteClients, revokeSiteClient, type SiteClient, type SiteOwner } from '../../api/site-users.ts';
 import {
@@ -167,76 +166,91 @@ export function ManageSitePage() {
     );
   }
 
+  // en-AU, day/month/year, matching every other date this app shows a
+  // person (history/buildRestoreMessage.ts's own identical call) -
+  // just the date, no time, since "when was this registered" doesn't
+  // need minute-level precision the way a commit timestamp does.
+  const registeredOn = new Date(site.createdAt).toLocaleDateString('en-AU', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
   return (
     <>
-      <section>
-        <h2>Website Status</h2>
-        <div className="settings-card">
-          <p className="settings-site-url">{site.url}</p>
-          <dl className="settings-status-list">
-            <div>
-              <dt>Status</dt>
-              <dd>
-                <SiteStatusBadge status={site.status} />
-              </dd>
-            </div>
-            {site.status.state === 'ok' && (
-              <>
-                <div>
-                  <dt>Agent</dt>
-                  <dd>{site.status.agentVersion}</dd>
-                </div>
-                <div>
-                  <dt>Schema</dt>
-                  <dd>v{site.status.contentSchemaVersion}</dd>
-                </div>
-                <div>
-                  <dt>Node</dt>
-                  <dd>{site.status.sqliteDriver}</dd>
-                </div>
-              </>
-            )}
-          </dl>
-          {rotating ? (
-            <form onSubmit={handleRotateSubmit}>
-              <label>
-                New API token
-                <input value={rotateToken} onChange={(event) => setRotateToken(event.target.value)} required />
-              </label>
-              {rotateError && <p role="alert">{rotateError}</p>}
-              <button type="submit">Save</button>
-              <button type="button" onClick={() => setRotating(false)}>
-                Cancel
-              </button>
-            </form>
-          ) : (
-            <button type="button" onClick={() => setRotating(true)}>
-              Rotate token
-            </button>
+      <h2>Manage Website</h2>
+
+      <section className="manage-site-panel">
+        <h3 className="panel-heading">Website Details</h3>
+        <dl className="website-status-meta">
+          <div>
+            <dt>Domain</dt>
+            <dd>{site.url}</dd>
+          </div>
+          {site.status.state === 'ok' && (
+            <>
+              <div>
+                <dt>Agent</dt>
+                <dd>{site.status.agentVersion}</dd>
+              </div>
+              <div>
+                <dt>Schema</dt>
+                <dd>v{site.status.contentSchemaVersion}</dd>
+              </div>
+              <div>
+                <dt>Node</dt>
+                <dd>{site.status.sqliteDriver}</dd>
+              </div>
+            </>
           )}
-        </div>
+          <div>
+            <dt>Registered</dt>
+            <dd>{registeredOn}</dd>
+          </div>
+        </dl>
+        {rotating ? (
+          <form onSubmit={handleRotateSubmit}>
+            <label>
+              New API token
+              <input value={rotateToken} onChange={(event) => setRotateToken(event.target.value)} required />
+            </label>
+            {rotateError && <p role="alert">{rotateError}</p>}
+            <button type="submit">Save</button>
+            <button type="button" onClick={() => setRotating(false)}>
+              Cancel
+            </button>
+          </form>
+        ) : (
+          <button type="button" onClick={() => setRotating(true)}>
+            Rotate token
+          </button>
+        )}
       </section>
 
-      <section>
-        <h2>Manage Access</h2>
+      <section className="manage-site-panel">
+        <h3 className="panel-heading">Active Users</h3>
         {clientsError && <p role="alert">{clientsError}</p>}
         {clients === null && !clientsError && <p>Loading...</p>}
         {clients !== null && (
-          <ul className="settings-access-list">
+          <ul className="manage-site-user-list">
             {owner && (
-              <li>
-                <span>
-                  {formatFullName(owner.firstName, owner.lastName)} (owner)
-                </span>
+              <li className="manage-site-user-row is-owner">
+                <span className="manage-site-user-name">{formatFullName(owner.firstName, owner.lastName)} (Owner)</span>
                 <span className="settings-muted">{owner.email}</span>
               </li>
             )}
             {clients.map((client) => (
-              <li key={client.id}>
-                <span>{formatFullName(client.firstName, client.lastName)}</span>
+              <li key={client.id} className="manage-site-user-row">
+                <span className="manage-site-user-name">{formatFullName(client.firstName, client.lastName)}</span>
                 <span className="settings-muted">{client.email}</span>
-                <button type="button" className="settings-text-link" onClick={() => void handleRevoke(client)}>
-                  Revoke Access
+                {/* "Actions", not "Revoke Access" (requested directly,
+                    with a mockup) - Revoke is the only action a client
+                    row has today, so this triggers it directly rather
+                    than opening a one-item menu for its own sake. The
+                    owner row above has no button at all - there's
+                    nothing to action against the owner themselves. */}
+                <button type="button" onClick={() => void handleRevoke(client)}>
+                  Actions
                 </button>
               </li>
             ))}
@@ -244,33 +258,30 @@ export function ManageSitePage() {
         )}
       </section>
 
-      <section>
-        <h2>Invite Access</h2>
-        <form onSubmit={handleInviteSubmit} className="settings-card">
-          <label>
-            Email addresses
-            <textarea
-              value={inviteAddresses}
-              onChange={(event) => setInviteAddresses(event.target.value)}
-              placeholder="Enter email addresses"
-              rows={3}
-            />
-          </label>
-          {inviteError && <p role="alert">{inviteError}</p>}
-          {inviteResult && (
-            <p role="status" className="success-notice">
-              {inviteResult}
-            </p>
-          )}
+      <section className="manage-site-panel">
+        <h3 className="panel-heading">Invite Users</h3>
+        <form onSubmit={handleInviteSubmit} className="manage-site-invite-form">
+          <input
+            value={inviteAddresses}
+            onChange={(event) => setInviteAddresses(event.target.value)}
+            placeholder="Enter Email Address"
+            aria-label="Email addresses"
+          />
           <button type="submit" className="button-primary" disabled={inviting}>
             Invite
           </button>
         </form>
+        {inviteError && <p role="alert">{inviteError}</p>}
+        {inviteResult && (
+          <p role="status" className="success-notice">
+            {inviteResult}
+          </p>
+        )}
 
         {pendingInvitesError && <p role="alert">{pendingInvitesError}</p>}
         {pendingInvites !== null && pendingInvites.filter((invite) => !invite.claimedAt).length > 0 && (
           <>
-            <h3>Pending invites</h3>
+            <h4>Pending invites</h4>
             <ul className="settings-access-list">
               {pendingInvites
                 .filter((invite) => !invite.claimedAt)
@@ -288,7 +299,7 @@ export function ManageSitePage() {
       </section>
 
       <button type="button" className="settings-text-link" onClick={() => void handleDelete()}>
-        Delete this website
+        Delete Website
       </button>
     </>
   );
