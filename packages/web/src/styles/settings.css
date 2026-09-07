@@ -575,6 +575,19 @@
   margin: 0;
   font-weight: 600;
   font-size: 0.75rem;
+  /* Explicit, not just inherited from body's own color: var(--colour-
+     text) (base.css) - Settings forces data-theme="dark" on its own
+     root (SettingsLayout.tsx's .settings-shell) regardless of the
+     app's real toggle, but that only re-resolves var(--colour-text)
+     for elements that reference it directly; anything relying on
+     plain inheritance instead keeps whatever colour body picked up
+     from the REAL app theme. Reported directly: this caption read
+     fine in dark mode purely by coincidence (the two theme's text
+     colours happened to both read against --grey-850), and turned
+     illegible - dark grey on dark grey - the moment the app's real
+     theme is light. Same fix .instance-row-label strong
+     (instance-rows.css) needed for the identical reason. */
+  color: var(--colour-text);
 }
 
 .website-status-connection-icon {

@@ -208,6 +208,22 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   padding-left: 0;
+  /* Explicit, not just inherited from body's own color: var(--colour-
+     text) (base.css) - that inherited value is frozen at whatever
+     --colour-text was AT BODY, which only matches this element's own
+     current value when nothing between them forces a different theme.
+     Settings (SettingsLayout.tsx's .settings-shell) does exactly that
+     - data-theme="dark" regardless of the app's real toggle - so
+     Active Users' own label (the one current user of this class inside
+     Settings) rendered in whatever colour body picked up from the
+     REAL app theme, not the forced-dark one it actually sits in
+     (reported directly: readable in dark mode purely by coincidence,
+     broken - dark text on a dark row - the moment the app's real theme
+     is light). Re-declaring color here makes var(--colour-text)
+     re-resolve against this element's own nearest theme scope, the
+     same fix .page-tree-title (pages-hub.css) already has for its own
+     single-line rows. */
+  color: var(--colour-text);
 }
 
 .instance-row-label-sub {
