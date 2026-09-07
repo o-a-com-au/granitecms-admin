@@ -28,7 +28,7 @@ export function SubscriptionPage() {
     <section>
       <h2>Manage Subscription</h2>
       <div className="settings-card">
-        <h3>Your Plan</h3>
+        <h3 className="panel-heading">Your Plan</h3>
         <p className="settings-muted">Plan and billing management is coming soon.</p>
         <button type="button" className="button-primary" onClick={() => setConfirmingPause(true)}>
           Pause Subscription
