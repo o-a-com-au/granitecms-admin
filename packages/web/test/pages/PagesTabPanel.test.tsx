@@ -136,6 +136,17 @@ describe('PagesTabPanel', () => {
     expect(screen.getByRole('button', { name: 'Contact' }).className).not.toContain('is-selected');
   });
 
+  it('dims an unpublished page (is-unpublished) and leaves a published one alone', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE, ENTRY_TWO]), { status: 200 })));
+
+    renderPanel();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+
+    // ENTRY_ONE (About) is published, ENTRY_TWO (Contact) is not.
+    expect(screen.getByRole('button', { name: 'About' }).className).not.toContain('is-unpublished');
+    expect(screen.getByRole('button', { name: 'Contact' }).className).toContain('is-unpublished');
+  });
+
   it('excludes menus entirely - they live in the Menus tab instead', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE, MENU_ENTRY]), { status: 200 })));
 

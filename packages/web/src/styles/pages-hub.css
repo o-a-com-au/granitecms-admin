@@ -160,6 +160,19 @@
   color: #fff;
 }
 
+/* PagesTabPanel.tsx's own draft-only pages (ContentListEntry.published
+   false) - dims the whole row (icons, drag handle and all, not just
+   the label) so an unpublished page reads as visually absent/inactive
+   in the tree at a glance, with a strikethrough on the title itself
+   as the second, more specific cue (requested directly). */
+.instance-row-main.is-unpublished {
+  opacity: 0.3;
+}
+
+.instance-row-main.is-unpublished .page-tree-title {
+  text-decoration: line-through;
+}
+
 /* MenusTabPanel.tsx's own expanded menu row - a plain grouping div with
    no styling of its own any more (was a single bordered block wrapping
    both the item list AND the "Add Menu Item"/"No items yet." line
