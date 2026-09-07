@@ -7,9 +7,9 @@ describe('isMenuPath', () => {
     expect(isMenuPath('menus/footer-resources.json')).toBe(true);
   });
 
-  it('is false for pages and posts', () => {
+  it('is false for pages', () => {
     expect(isMenuPath('pages/about.json')).toBe(false);
-    expect(isMenuPath('posts/hello-world.json')).toBe(false);
+    expect(isMenuPath('pages/blog/hello-world.json')).toBe(false);
   });
 });
 

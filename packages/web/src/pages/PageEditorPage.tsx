@@ -376,10 +376,9 @@ export function PageEditorPage() {
   // just once on load - viewing an untouched page must never silently
   // create a draft, but the moment the user actually changes anything,
   // the save that follows must not fail purely because older content
-  // never had this field. Posts are excluded (post.schema.json has no
-  // "name" property at all and rejects it as an unknown one) - matches
-  // the agent's own path-prefix dispatch (validateContent) rather than
-  // trusting the content's own unconstrained "type" string.
+  // never had this field. Every page requires "name" now (there is no
+  // longer a distinct post type with its own schema excluding it), so
+  // this applies unconditionally, regardless of path.
   //
   // useCallback (not a plain function) because SectionFieldsPanel now
   // reaches this page via useFieldsPanel's memoised node, below - an
@@ -387,9 +386,9 @@ export function PageEditorPage() {
   // render, undoing the whole point of memoising it.
   const setContent = useCallback(
     (value: string) => {
-      setContentRaw(path.startsWith('posts/') ? value : backfillPageName(value));
+      setContentRaw(backfillPageName(value));
     },
-    [path, setContentRaw],
+    [setContentRaw],
   );
 
   // Sections is only ever an option when the content is actually a

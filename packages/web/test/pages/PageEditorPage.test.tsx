@@ -337,14 +337,17 @@ describe('PageEditorPage', () => {
     );
   });
 
-  it('does not backfill "name" for a post - posts have no "name" property and reject unknown ones', async () => {
+  it('backfills "name" for a page nested under /blog/ too - there is no longer a distinct post type excluded from this', async () => {
     const api = installFakeEditorApi({ content: '{"title":"Hi"}', etag: '"etag-1"', source: 'draft' });
-    renderPage('/sites/site-1/editor?path=posts%2Fhello-world.json');
+    renderPage('/sites/site-1/editor?path=pages%2Fblog%2Fhello-world.json');
     await waitFor(() => expect(screen.getByLabelText('Content')).toBeDefined());
 
     fireEvent.change(screen.getByLabelText('Content'), { target: { value: '{"title":"Edited"}' } });
 
-    await waitFor(() => expect(api.state.content).toBe('{"title":"Edited"}'), PAST_DEBOUNCE);
+    await waitFor(
+      () => expect(api.state.content).toBe(JSON.stringify({ title: 'Edited', name: 'Edited' }, null, 2)),
+      PAST_DEBOUNCE,
+    );
   });
 
   it('Save Changes is disabled while the last save failed, so publishing a draft that was never actually saved is impossible', async () => {

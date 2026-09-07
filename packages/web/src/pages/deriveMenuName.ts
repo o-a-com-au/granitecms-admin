@@ -4,8 +4,8 @@
 // entry.type is always '' for every menu. Filtering by path prefix
 // against the menusRoot-derived "menus/" path is the only reliable
 // signal, confirmed directly against the agent's own content-listing
-// service (three separately-walked roots - pages/posts/menus - all
-// flattened to paths relative to contentRoot). Shared by MenusPage.tsx
+// service (two separately-walked roots - pages/menus - both flattened
+// to paths relative to contentRoot). Shared by MenusPage.tsx
 // and ContentBrowserPage.tsx, not duplicated between them.
 export function isMenuPath(path: string): boolean {
   return path.startsWith('menus/');
