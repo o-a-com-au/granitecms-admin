@@ -56,15 +56,20 @@
    no natural "mount" moment for an animation to hook. Same distance/
    easing as list-page-fade-up (12px, ease-out) regardless, so the two
    read as the same fade-up treatment despite the different mechanism. */
+/* No left margin - flush against the icon rail, matching Pages hub's
+   own .pages-hub-panel (pages-hub.css), rather than the var(--space-sm)
+   gap this used to leave there (reported directly as an inconsistency:
+   Editor/Media both had it, Pages didn't). app-shell.css's own
+   .app-content:has(.editor-page) sizing drops the same var(--space-sm)
+   from its own width to match, so the reveal still lands flush right
+   too, not just shifted left by the removed gap. */
 .editor-sidebar {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   width: var(--editor-sidebar-width);
-  margin: var(--space-sm);
-  margin-top: 0;
-  margin-right: 0;
+  margin: 0 0 var(--space-sm) 0;
   transform: translateY(12px);
   opacity: 0;
   display: flex;

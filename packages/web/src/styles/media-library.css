@@ -23,15 +23,21 @@
    width is governed by its deepest non-wrapping content (a long
    filename, say), letting the whole panel grow past its own flex basis
    instead of that content truncating within a genuinely fixed width. */
+/* No left margin - flush against the icon rail, matching Pages hub's
+   own .pages-hub-panel, rather than the var(--space-sm) gap this used
+   to leave there alongside Editor's own identical one (reported
+   directly as an inconsistency: Editor/Media both had it, Pages
+   didn't). app-shell.css's own .app-content:has(.media-hub) sizing
+   drops the same var(--space-sm) from its own width to match, so the
+   panel still ends flush right too, not just shifted left by the
+   removed gap. */
 .media-hub-panel {
   flex: 0 0 calc(var(--editor-sidebar-width) * 1.5);
   min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  margin: var(--space-sm);
-  margin-top: 0;
-  margin-right: 0;
+  margin: 0 0 var(--space-sm) 0;
   /* Fades in on every fresh mount - see pages-hub.css's own
      .pages-hub-panel for the identical reasoning (reusing the same
      keyframe by name, defined in pages-list.css). */

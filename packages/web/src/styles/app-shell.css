@@ -492,16 +492,17 @@ button.app-avatar:hover {
    .editor-sidebar (position: absolute inside .editor-shell - see
    editor-layout.css - so it contributes no intrinsic width of its own),
    and needs an explicit size to reveal into rather than collapsing to
-   nothing. Matches .editor-sidebar's own width plus its left margin
-   (its right margin is 0) exactly, so its slide-in reveal has a
+   nothing. Matches .editor-sidebar's own width exactly (it has no left
+   margin of its own any more, flush against this column's own left
+   edge - see that file's own comment), so its slide-in reveal has a
    properly sized box to animate within. Reset back to full width on
    mobile, below - the sidebar's own mobile override already goes
    full-bleed there, and this must make room for it. */
 /* overflow: clip, not hidden, with overflow-clip-margin below -
-   .editor-sidebar sits flush against this element's own top/right
-   edges (zero margin on those sides, tuned to match this rule's own
+   .editor-sidebar sits flush against this element's own top/left/right
+   edges (zero margin on all three, tuned to match this rule's own
    width/height exactly), so .panel-tab-shell's box-shadow had nowhere
-   to bleed into before being clipped away entirely on those two sides
+   to bleed into before being clipped away entirely on those sides
    (reported directly, diagnosed live - .panel-tab-shell's own
    overflow: hidden doesn't clip its own box-shadow, an ancestor's does
    when there's no margin between them). overflow-clip-margin lets the
@@ -511,7 +512,7 @@ button.app-avatar:hover {
    at least as strict for the "must never scroll" reasoning below, so
    this is a safe swap, not a loosening. */
 .app-content:has(.editor-page) {
-  flex: 0 0 calc(var(--editor-sidebar-width) + var(--space-sm));
+  flex: 0 0 var(--editor-sidebar-width);
   max-width: none;
   padding: 0;
   overflow: clip;
@@ -591,9 +592,10 @@ button.app-avatar:hover {
 /* overflow: clip + overflow-clip-margin - same .panel-tab-shell
    shadow-clipping fix as .app-content:has(.editor-page) above (see its
    own comment for the full diagnosis); .media-hub-panel is flush
-   against this element's top/right edges. */
+   against this element's top/left/right edges (no left margin of its
+   own any more - see media-library.css's own comment). */
 .app-content:has(.media-hub) {
-  flex: 0 0 calc(var(--editor-sidebar-width) * 1.5 + var(--space-sm));
+  flex: 0 0 calc(var(--editor-sidebar-width) * 1.5);
   max-width: none;
   padding: 0;
   overflow: clip;
