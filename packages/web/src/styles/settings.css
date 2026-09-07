@@ -283,7 +283,7 @@
 
 .onboarding-step-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-sm);
 }
 
 /* Applied to .onboarding-content itself (heading included), not just
@@ -550,7 +550,7 @@
    full width of the metadata list above it. */
 .website-status-card-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-sm);
   align-self: flex-start;
 }
 
@@ -689,7 +689,7 @@
 .website-status-row-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-sm);
 }
 
 /* Same look as Add Section/Add Block (button.instance-add-button,

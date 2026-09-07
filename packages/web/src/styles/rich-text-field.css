@@ -200,7 +200,7 @@
 .richtext-link-popover-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
+  gap: var(--space-sm);
 }
 
 /* Deliberately no min-height/rows - a settings field editor, not a

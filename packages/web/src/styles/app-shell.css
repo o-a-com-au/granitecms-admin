@@ -264,7 +264,7 @@
 .app-topbar-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-sm);
 }
 
 /* white-space: nowrap - .app-topbar-end (this sits inside) can now
