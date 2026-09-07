@@ -218,8 +218,17 @@
   height: 1.1rem;
 }
 
+/* flex: 0 1 auto, not the old flex: 1 - stretching to fill the bar
+   pushed the external-link icon after it out to the far edge, well
+   past the end of a short URL's own text (reported directly, with a
+   screenshot). Sized to its own content instead, so the icon sits
+   right against it; min-width: 0 (kept) still lets it shrink and
+   ellipsis-truncate under real width pressure, or for a genuinely long
+   URL. .app-topbar-device-toggle's own margin-left: auto below is what
+   still pins the device toggle to the bar's far right now that this no
+   longer does that job as a side effect. */
 .app-address-bar-label {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -284,7 +293,14 @@
 
 /* PageEditorPage's own device-size toggle (usePageDeviceToggle,
    PageActionsContext.tsx), now rendered inside the address bar rather
-   than as its own separate top-bar slot. */
+   than as its own separate top-bar slot. margin-left: auto pins it to
+   the bar's far right - .app-address-bar-label above no longer stretches
+   to do that as a side effect (it sizes to its own content now, so the
+   external-link icon can sit right against a short URL's own text). */
+.app-topbar-device-toggle {
+  margin-left: auto;
+}
+
 .app-topbar-device-toggle:empty {
   display: none;
 }
