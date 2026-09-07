@@ -17,7 +17,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 interface LocationState {
-  from?: { pathname: string };
+  from?: { pathname: string; search: string };
 }
 
 export function LoginPage() {
@@ -42,7 +42,13 @@ export function LoginPage() {
     };
   }, []);
 
-  const from = (location.state as LocationState | null)?.from?.pathname ?? '/';
+  // RequireAuth stashes the whole originally-requested location before
+  // bouncing here, including its query string (e.g. ?site=... from a
+  // site's own /admin redirect) - .pathname alone used to be read back
+  // out here, silently dropping it on every login, not just this one
+  // feature's own query param.
+  const fromLocation = (location.state as LocationState | null)?.from;
+  const from = fromLocation ? fromLocation.pathname + fromLocation.search : '/';
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -95,8 +101,18 @@ export function LoginPage() {
             {oauthProviders.map((provider) => (
               // A real full-page link, not a fetch-triggering button -
               // this starts a genuine browser redirect into the OAuth
-              // authorization flow, not an XHR.
-              <a key={provider} className="login-oauth-button" href={`/api/auth/${provider}`}>
+              // authorization flow, not an XHR. fromLocation.search
+              // (e.g. ?site=...) rides along so the backend can stash
+              // it server-side (routes/oauth.ts's own session) and
+              // restore it after the provider round trip - the
+              // plain-login "from" state above can't survive a full
+              // page navigation away and back the way this does.
+              <a
+                key={provider}
+                className="login-oauth-button"
+                href={`/api/auth/${provider}${fromLocation?.search ?? ''}`}
+              >
+
                 {PROVIDER_LABELS[provider] ?? `Sign in with ${provider}`}
               </a>
             ))}

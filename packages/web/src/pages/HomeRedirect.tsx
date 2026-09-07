@@ -1,7 +1,23 @@
-import { Navigate } from 'react-router';
+import { Navigate, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { useSites } from '../sites/useSites.ts';
 import { readLastSiteId, resolveEditorHref } from '../sites/currentSite.ts';
+
+// Matches a site's own registered url (returned by GET /api/sites,
+// already scoped to what this logged-in user can access - no new
+// backend lookup or access-control surface needed) against the ?site=
+// query param a site's own GET /admin redirect appends (the agent
+// repo's routes/admin-redirect.ts uses request.host, so this compares
+// host, not the full URL - scheme/path differences don't matter).
+// Malformed stored data shouldn't crash this page - a site with an
+// unparseable url just never matches.
+function hostOf(url: string): string | null {
+  try {
+    return new URL(url).host;
+  } catch {
+    return null;
+  }
+}
 
 // "/" is never rendered directly for an authenticated visitor - it's
 // always an immediate redirect, either into whichever site's editor
@@ -27,9 +43,21 @@ export function HomeRedirect() {
   const { user } = useAuth();
   const { sites, error } = useSites();
   const lastSiteId = readLastSiteId();
+  const [searchParams] = useSearchParams();
+  const siteParam = searchParams.get('site');
 
   if (sites === null && !error) {
     return null;
+  }
+
+  // Checked before the last-visited-site branch below: the whole
+  // point of a site's own /admin link is "go straight into managing
+  // this specific site," which should win over whatever was open
+  // last. No match (including no ?site= at all) falls through to
+  // every existing branch completely unchanged.
+  const siteParamMatch = siteParam ? sites?.find((site) => hostOf(site.url) === siteParam) : undefined;
+  if (siteParamMatch) {
+    return <Navigate to={resolveEditorHref(siteParamMatch.id)} replace />;
   }
 
   const lastSiteStillExists = lastSiteId !== null && sites?.some((site) => site.id === lastSiteId);

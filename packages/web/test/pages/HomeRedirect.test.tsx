@@ -1,25 +1,30 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useParams } from 'react-router';
 import { AuthProvider } from '../../src/auth/AuthContext.tsx';
 import { HomeRedirect } from '../../src/pages/HomeRedirect.tsx';
 import { createFakeStorage } from '../helpers/fakeStorage.ts';
 
-function renderHome() {
+function EditorPageStub() {
+  const { siteId } = useParams<{ siteId: string }>();
+  return <div>editor page for {siteId}</div>;
+}
+
+function renderHome(initialEntry = '/') {
   return render(
     <AuthProvider>
-      <MemoryRouter initialEntries={['/']}>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/onboarding" element={<div>onboarding page</div>} />
-          <Route path="/sites/:siteId/editor" element={<div>editor page</div>} />
+          <Route path="/sites/:siteId/editor" element={<EditorPageStub />} />
         </Routes>
       </MemoryRouter>
     </AuthProvider>,
   );
 }
 
-function stubApi(user: Record<string, unknown>, sites: Array<{ id: string }> = []) {
+function stubApi(user: Record<string, unknown>, sites: Array<{ id: string; url?: string }> = []) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
@@ -55,7 +60,7 @@ describe('HomeRedirect', () => {
 
     renderHome();
 
-    await waitFor(() => expect(screen.getByText('editor page')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('editor page for site-1')).toBeDefined());
   });
 
   // The actual bug this covers: readLastSiteId() only ever changes via
@@ -79,7 +84,7 @@ describe('HomeRedirect', () => {
 
     renderHome();
 
-    await waitFor(() => expect(screen.getByText('editor page')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('editor page for site-1')).toBeDefined());
   });
 
   it('a client with no remembered site and no granted sites at all sees a plain message, not a crash or a loop', async () => {
@@ -98,6 +103,31 @@ describe('HomeRedirect', () => {
 
     renderHome();
 
-    await waitFor(() => expect(screen.getByText('editor page')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('editor page for site-2')).toBeDefined());
+  });
+
+  it('a ?site= matching a registered site\'s own url wins over a different remembered last-site - the whole point of a site\'s own /admin link', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    localStorage.setItem('cms-admin-last-site', 'site-1');
+    stubApi({ id: 'dev-1', username: 'dev-1', role: 'developer', status: 'active' }, [
+      { id: 'site-1', url: 'https://other-site.example.com' },
+      { id: 'site-2', url: 'https://mysite.example.com' },
+    ]);
+
+    renderHome('/?site=mysite.example.com');
+
+    await waitFor(() => expect(screen.getByText('editor page for site-2')).toBeDefined());
+  });
+
+  it('a ?site= matching nothing this user can access falls through to existing behaviour unchanged', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    localStorage.setItem('cms-admin-last-site', 'site-1');
+    stubApi({ id: 'dev-1', username: 'dev-1', role: 'developer', status: 'active' }, [
+      { id: 'site-1', url: 'https://other-site.example.com' },
+    ]);
+
+    renderHome('/?site=unregistered.example.com');
+
+    await waitFor(() => expect(screen.getByText('editor page for site-1')).toBeDefined());
   });
 });

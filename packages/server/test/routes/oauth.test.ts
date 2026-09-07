@@ -178,6 +178,44 @@ describe('oauth routes', () => {
     await app.close();
   });
 
+  it('a ?site= the user arrived with survives the full provider round trip - a site\'s own /admin redirect otherwise couldn\'t land the user back on the right site', async () => {
+    const { url } = await startFakeTokenEndpoint({ access_token: 'fake-token' });
+    const { app } = await buildTestServer([fakeProvider(url, { email: 'irrelevant@example.com', firstName: 'Irrelevant', lastName: '' })]);
+
+    const startResponse = await app.inject({ method: 'GET', url: '/api/auth/google?site=mysite.example.com' });
+    const cookie = extractCookie(startResponse.headers['set-cookie']);
+    const state = new URL(startResponse.headers.location as string).searchParams.get('state')!;
+
+    const callbackResponse = await app.inject({
+      method: 'GET',
+      url: `/api/auth/google/callback?code=fake-code&state=${state}`,
+      headers: { cookie },
+    });
+    assert.equal(callbackResponse.statusCode, 302);
+    assert.equal(callbackResponse.headers.location, '/?site=mysite.example.com');
+
+    await app.close();
+  });
+
+  it('starting OAuth with no ?site= at all still redirects to / on callback, unchanged', async () => {
+    const { url } = await startFakeTokenEndpoint({ access_token: 'fake-token' });
+    const { app } = await buildTestServer([fakeProvider(url, { email: 'irrelevant@example.com', firstName: 'Irrelevant', lastName: '' })]);
+
+    const startResponse = await app.inject({ method: 'GET', url: '/api/auth/google' });
+    const cookie = extractCookie(startResponse.headers['set-cookie']);
+    const state = new URL(startResponse.headers.location as string).searchParams.get('state')!;
+
+    const callbackResponse = await app.inject({
+      method: 'GET',
+      url: `/api/auth/google/callback?code=fake-code&state=${state}`,
+      headers: { cookie },
+    });
+    assert.equal(callbackResponse.statusCode, 302);
+    assert.equal(callbackResponse.headers.location, '/');
+
+    await app.close();
+  });
+
   it('callback with a valid code and no matching email creates a new role: developer account', async () => {
     const { url } = await startFakeTokenEndpoint({ access_token: 'fake-token' });
     const { app, deps } = await buildTestServer([fakeProvider(url, { email: 'brand-new@example.com', firstName: 'Brand', lastName: 'New' })]);

@@ -13,6 +13,9 @@ import type { OAuthProvider } from '../auth/oauth-provider.ts';
 // B check), which pattern-matches any .get(<string literal>) call in
 // routes/, not just app.get.
 const OAUTH_STATE_SESSION_KEY = 'oauthState';
+// Same reasoning as OAUTH_STATE_SESSION_KEY above - a named constant,
+// not a literal, at both session.get/set call sites below.
+const OAUTH_RETURN_TO_SITE_SESSION_KEY = 'oauthReturnToSite';
 
 function buildAuthorizeUrl(provider: OAuthProvider, redirectUri: string, state: string): string {
   const url = new URL(provider.authorizeUrl);
@@ -100,9 +103,15 @@ export function createOAuthRoutes(providers: OAuthProvider[], usersStore: UserSt
     for (const provider of providers) {
       const redirectUri = `${baseUrl}/api/auth/${provider.id}/callback`;
 
-      app.get(`/${provider.id}`, async (request, reply) => {
+      app.get<{ Querystring: { site?: string } }>(`/${provider.id}`, async (request, reply) => {
         const state = randomBytes(24).toString('base64url');
         request.session.set(OAUTH_STATE_SESSION_KEY, state);
+        // Stashed alongside the CSRF state, not encoded into it - a
+        // real full-page round trip through the provider and back
+        // means this can't ride in React Router state the way a
+        // plain-login redirect does, but the session already
+        // survives that trip for oauthState's own sake.
+        request.session.set(OAUTH_RETURN_TO_SITE_SESSION_KEY, request.query.site ?? null);
         await reply.redirect(buildAuthorizeUrl(provider, redirectUri, state));
       });
 
@@ -117,6 +126,8 @@ export function createOAuthRoutes(providers: OAuthProvider[], usersStore: UserSt
           return { error: 'Invalid OAuth state' };
         }
         request.session.set(OAUTH_STATE_SESSION_KEY, undefined);
+        const returnToSite = request.session.get(OAUTH_RETURN_TO_SITE_SESSION_KEY) as string | null | undefined;
+        request.session.set(OAUTH_RETURN_TO_SITE_SESSION_KEY, undefined);
 
         const tokenResponse = await exchangeCodeForToken(provider, code, redirectUri);
         const identity = await provider.resolveIdentity(tokenResponse);
@@ -124,7 +135,12 @@ export function createOAuthRoutes(providers: OAuthProvider[], usersStore: UserSt
 
         await request.session.regenerate();
         request.session.set('userId', user.id);
-        await reply.redirect('/');
+        // returnToSite is only ever consumed downstream as a plain
+        // string comparison against registered site URLs
+        // (HomeRedirect's own hostname match) - never used to build a
+        // redirect target itself, so there's no open-redirect risk in
+        // carrying it through unvalidated.
+        await reply.redirect(returnToSite ? `/?site=${encodeURIComponent(returnToSite)}` : '/');
       });
     }
   };

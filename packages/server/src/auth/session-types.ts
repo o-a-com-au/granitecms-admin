@@ -12,5 +12,12 @@ declare module 'fastify' {
     // (routes/oauth.ts): set right before redirecting to the
     // provider, checked back on callback.
     oauthState?: string;
+    // The ?site= a user arrived with before starting an OAuth login
+    // (routes/oauth.ts) - a real full-page round trip through the
+    // provider and back, so this can't ride in React Router state the
+    // way a plain-login redirect's destination does. null (not
+    // undefined) when the user started OAuth with no ?site= at all,
+    // distinct from never having started OAuth.
+    oauthReturnToSite?: string | null;
   }
 }
