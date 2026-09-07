@@ -237,6 +237,13 @@
   color: var(--colour-text);
 }
 
+/* Hover-reveal, not always visible - the same rest/hover opacity pair
+   every instance-row action already uses (instance-rows.css's own
+   button.instance-row-remove et al) rather than a permanent icon
+   competing with the URL text for attention (requested directly).
+   opacity, not display/visibility, keeps it in the tab order -
+   :focus-visible below reveals it for keyboard users independently of
+   the address bar's own hover. */
 .app-address-bar-external-link {
   display: flex;
   flex: 0 0 auto;
@@ -247,11 +254,19 @@
   padding: 0.25rem;
   border-radius: var(--radius-xs);
   color: var(--colour-muted);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.app-topbar-address-bar:hover .app-address-bar-external-link:not(:hover),
+.app-address-bar-external-link:focus-visible {
+  opacity: 0.5;
 }
 
 .app-address-bar-external-link:hover {
   background: var(--colour-surface-hover);
   color: var(--colour-text);
+  opacity: 1;
 }
 
 /* flex: 1 1 0, no min-width: 0 - see .app-topbar-start's own comment
