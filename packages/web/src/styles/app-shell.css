@@ -264,7 +264,6 @@
 }
 
 .app-address-bar-external-link:hover {
-  background: var(--colour-surface-hover);
   color: var(--colour-text);
   opacity: 1;
 }
