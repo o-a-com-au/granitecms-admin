@@ -315,6 +315,7 @@ export function ManageSitePage() {
       </section>
 
       <button type="button" className="settings-text-link" onClick={() => void handleDelete()}>
+        <TrashIcon />
         Delete Website
       </button>
     </>

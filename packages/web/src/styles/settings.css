@@ -776,6 +776,9 @@
    stylesheet load order (the same fix already applied to
    button.password-toggle in password-field.css). */
 button.settings-text-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
   padding: 0;
   border: none;
   background: none;
