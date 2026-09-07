@@ -35,8 +35,11 @@
   height: 2rem;
 }
 
+/* Half the strength of the pressed state's own background below - a
+   plain hover shouldn't read as strongly as "this is the active tier"
+   (requested directly; the two were previously identical). */
 .device-toggle button:hover {
-  background: var(--colour-surface-hover);
+  background: color-mix(in srgb, var(--colour-surface-hover) 50%, transparent);
 }
 
 .device-toggle button[aria-pressed='true'] {
