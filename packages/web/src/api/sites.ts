@@ -59,3 +59,22 @@ export async function deleteSite(id: string): Promise<void> {
     throw new Error(await parseErrorMessage(response, 'Failed to delete the website'));
   }
 }
+
+// The server keys this route's own rate limit by site, not by caller
+// (routes/sites.ts) - several admins reindexing the same site in a
+// burst share one cooldown, so a 429 here is an expected, everyday
+// outcome, not a fault. Read the standard Retry-After response header
+// (seconds) for a friendly wait-time message rather than falling
+// through to the generic parseErrorMessage fallback, which has nothing
+// useful to say about a body @fastify/rate-limit generates itself.
+export async function reindexSite(id: string): Promise<void> {
+  const response = await fetch(`/api/sites/${encodeURIComponent(id)}/search/rebuild`, { method: 'POST' });
+  if (response.status === 429) {
+    const retryAfterSeconds = Number(response.headers.get('retry-after'));
+    const wait = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? `${retryAfterSeconds}s` : 'a moment';
+    throw new Error(`Search was reindexed recently - try again in ${wait}.`);
+  }
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, 'Failed to reindex search'));
+  }
+}

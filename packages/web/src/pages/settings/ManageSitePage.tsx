@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useSites } from '../../sites/useSites.ts';
-import { deleteSite, rotateSiteToken } from '../../api/sites.ts';
+import { deleteSite, reindexSite, rotateSiteToken } from '../../api/sites.ts';
 import { listSiteClients, revokeSiteClient, type SiteClient, type SiteOwner } from '../../api/site-users.ts';
 import { InstanceRowActions } from '../../sections/InstanceRowActions.tsx';
 import { TrashIcon } from '../../sections/TrashIcon.tsx';
@@ -39,6 +39,10 @@ export function ManageSitePage() {
   const [rotating, setRotating] = useState(false);
   const [rotateToken, setRotateToken] = useState('');
   const [rotateError, setRotateError] = useState<string | null>(null);
+
+  const [reindexing, setReindexing] = useState(false);
+  const [reindexResult, setReindexResult] = useState<string | null>(null);
+  const [reindexError, setReindexError] = useState<string | null>(null);
 
   const [owner, setOwner] = useState<SiteOwner | null>(null);
   const [clients, setClients] = useState<SiteClient[] | null>(null);
@@ -93,6 +97,26 @@ export function ManageSitePage() {
       await refreshSites();
     } catch (err) {
       setRotateError(err instanceof Error ? err.message : 'Failed to rotate the token');
+    }
+  }
+
+  // The server rate-limits this per site, not per admin (routes/sites.ts) -
+  // a 429 (Search was reindexed recently...) is an expected, everyday
+  // outcome when another admin already triggered one, so it renders the
+  // same as any other reindexError rather than needing its own special
+  // case here.
+  async function handleReindex(): Promise<void> {
+    if (!siteId) return;
+    setReindexError(null);
+    setReindexResult(null);
+    setReindexing(true);
+    try {
+      await reindexSite(siteId);
+      setReindexResult('Search index rebuilt.');
+    } catch (err) {
+      setReindexError(err instanceof Error ? err.message : 'Failed to reindex search');
+    } finally {
+      setReindexing(false);
     }
   }
 
@@ -223,9 +247,20 @@ export function ManageSitePage() {
             </button>
           </form>
         ) : (
-          <button type="button" onClick={() => setRotating(true)}>
-            Rotate token
-          </button>
+          <>
+            <button type="button" onClick={() => setRotating(true)}>
+              Rotate token
+            </button>
+            <button type="button" onClick={() => void handleReindex()} disabled={reindexing}>
+              {reindexing ? 'Reindexing…' : 'Reindex Search'}
+            </button>
+            {reindexResult && (
+              <p role="status" className="success-notice">
+                {reindexResult}
+              </p>
+            )}
+            {reindexError && <p role="alert">{reindexError}</p>}
+          </>
         )}
       </section>
 

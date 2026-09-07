@@ -1417,6 +1417,136 @@ describe('sites routes', () => {
     await app.close();
   });
 
+  async function startFakeSearchSite(acceptedToken: string, onRebuild?: () => void): Promise<string> {
+    fakeSite = createServer((req, res) => {
+      if (req.url === '/v1/capabilities') {
+        sendJson(res, 200, { agentVersion: '1.0.0', contentSchemaVersion: 3, sqliteDriver: 'node:sqlite' });
+        return;
+      }
+      if (req.url === '/v1/content') {
+        sendJson(res, req.headers.authorization === `Bearer ${acceptedToken}` ? 200 : 401, []);
+        return;
+      }
+      if (req.method === 'POST' && req.url === '/v1/search/rebuild') {
+        onRebuild?.();
+        sendJson(res, req.headers.authorization === `Bearer ${acceptedToken}` ? 200 : 401, { ok: true });
+        return;
+      }
+      sendJson(res, 404, { error: 'not found' });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    return `http://127.0.0.1:${address.port}`;
+  }
+
+  it('POST /api/sites/:id/search/rebuild reindexes the site using the stored token', async () => {
+    const { app, cookie } = await buildTestServer();
+    let rebuildCalled = false;
+    const siteUrl = await startFakeSearchSite('the-token', () => {
+      rebuildCalled = true;
+    });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/search/rebuild`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { ok: true });
+    assert.equal(rebuildCalled, true);
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/search/rebuild returns 404 for an unknown site', async () => {
+    const { app, cookie } = await buildTestServer();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sites/does-not-exist/search/rebuild',
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 404);
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/search/rebuild with no session is rejected with 401', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeSearchSite('the-token');
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({ method: 'POST', url: `/api/sites/${id}/search/rebuild` });
+
+    assert.equal(response.statusCode, 401);
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/search/rebuild is rate-limited per site, not per caller - a second attempt from a DIFFERENT IP still 429s', async () => {
+    const { app, cookie } = await buildTestServer();
+    let rebuildCount = 0;
+    const siteUrl = await startFakeSearchSite('the-token', () => {
+      rebuildCount += 1;
+    });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const first = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/search/rebuild`,
+      headers: { cookie },
+      remoteAddress: '10.0.0.1',
+    });
+    assert.equal(first.statusCode, 200);
+
+    // A different simulated source IP - if the limit were keyed by IP
+    // (the plugin's own default), this would be a fresh bucket and
+    // would succeed too. It must not: several different admin users,
+    // each from their own browser/IP, reindexing the same site in a
+    // burst is exactly the case this guards against.
+    const second = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/search/rebuild`,
+      headers: { cookie },
+      remoteAddress: '10.0.0.2',
+    });
+    assert.equal(second.statusCode, 429);
+    assert.ok(second.headers['retry-after'], 'expected a Retry-After header on the 429');
+
+    // The site itself was only ever actually called once - the second
+    // attempt was short-circuited by the rate limiter before the
+    // handler (or the site) ran at all.
+    assert.equal(rebuildCount, 1);
+
+    // startFakeSearchSite reassigns the shared fakeSite variable
+    // (afterEach, above, only ever closes whichever server it points to
+    // when the test ends) - close the first site's own server
+    // explicitly before starting a second one, so it doesn't leak a
+    // listening socket for the rest of the test run.
+    const firstFakeSite = fakeSite;
+    await new Promise<void>((resolve) => firstFakeSite!.close(() => resolve()));
+
+    // A different SITE's own bucket is untouched by the first site's
+    // limit having been hit.
+    const otherSiteUrl = await startFakeSearchSite('other-token');
+    const otherId = await registerSite(app, cookie, otherSiteUrl, 'other-token');
+    const otherSiteResponse = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${otherId}/search/rebuild`,
+      headers: { cookie },
+      remoteAddress: '10.0.0.1',
+    });
+    assert.equal(otherSiteResponse.statusCode, 200);
+
+    await app.close();
+  });
+
   it('H1: GET /api/sites/:id/history/* lists commits from the real git log route', async () => {
     const { app, cookie } = await buildTestServer();
     const siteUrl = await startFakeGitSite({ acceptedToken: 'the-token' });

@@ -51,16 +51,20 @@ const OWNER: FakeOwner = { id: 'owner-1', firstName: 'Jane', lastName: 'Owner', 
 // register -> rotate -> invite -> revoke -> delete sequences, not
 // canned single responses, mirroring this project's own
 // "empirical over mocked" bias even on the frontend.
-function installFakeApi(options: { site?: FakeSite; owner?: FakeOwner | null } = {}): {
+function installFakeApi(
+  options: { site?: FakeSite; owner?: FakeOwner | null; reindexResponse?: () => Response } = {},
+): {
   sites: FakeSite[];
   clients: FakeClient[];
   invites: FakeInvite[];
+  reindexCallCount: number;
 } {
   const state = {
     sites: [options.site ?? SITE],
     clients: [] as FakeClient[],
     invites: [] as FakeInvite[],
     owner: options.owner === undefined ? OWNER : options.owner,
+    reindexCallCount: 0,
   };
   let nextId = 1;
 
@@ -142,6 +146,14 @@ function installFakeApi(options: { site?: FakeSite; owner?: FakeOwner | null } =
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       }
 
+      const reindexMatch = /^\/api\/sites\/([^/]+)\/search\/rebuild$/.exec(url);
+      if (reindexMatch && method === 'POST') {
+        state.reindexCallCount += 1;
+        return options.reindexResponse
+          ? options.reindexResponse()
+          : new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+
       const deleteMatch = /^\/api\/sites\/([^/]+)$/.exec(url);
       if (deleteMatch && method === 'DELETE') {
         state.sites = state.sites.filter((site) => site.id !== deleteMatch[1]);
@@ -194,6 +206,50 @@ describe('ManageSitePage', () => {
 
     await waitFor(() => expect(state.sites[0]?.updatedAt).not.toBe('2026-01-01T00:00:00.000Z'));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Rotate token' })).toBeDefined());
+  });
+
+  it('Reindex Search shows a success message and disables the button while in flight', async () => {
+    const state = installFakeApi();
+    renderPage();
+    await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reindex Search' }));
+
+    expect(screen.getByRole('button', { name: 'Reindexing…' })).toHaveProperty('disabled', true);
+    await waitFor(() => expect(screen.getByText('Search index rebuilt.')).toBeDefined());
+    expect(state.reindexCallCount).toBe(1);
+    expect(screen.getByRole('button', { name: 'Reindex Search' })).toHaveProperty('disabled', false);
+  });
+
+  it('Reindex Search surfaces a friendly cooldown message on a 429, using the Retry-After header', async () => {
+    installFakeApi({
+      reindexResponse: () =>
+        new Response(JSON.stringify({ statusCode: 429, error: 'Too Many Requests' }), {
+          status: 429,
+          headers: { 'retry-after': '42' },
+        }),
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reindex Search' }));
+
+    await waitFor(() =>
+      expect(screen.getByText('Search was reindexed recently - try again in 42s.')).toBeDefined(),
+    );
+  });
+
+  it('Reindex Search surfaces the site-reported message on a real failure', async () => {
+    installFakeApi({
+      reindexResponse: () =>
+        new Response(JSON.stringify({ error: 'Could not reach the site' }), { status: 502 }),
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByText('https://client-one.example.com')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reindex Search' }));
+
+    await waitFor(() => expect(screen.getByText('Could not reach the site')).toBeDefined());
   });
 
   it('Active Users lists the owner first, with no action button, then clients with a remove-access button each', async () => {

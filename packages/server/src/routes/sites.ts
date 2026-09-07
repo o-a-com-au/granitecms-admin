@@ -20,6 +20,7 @@ import { fetchSitePreviewRevision } from '../sites/site-preview-revision.ts';
 import { publishSite } from '../sites/site-publish.ts';
 import { discardSiteDraft } from '../sites/site-draft-discard.ts';
 import { unpublishSite } from '../sites/site-unpublish.ts';
+import { reindexSite } from '../sites/site-search.ts';
 import type { CommitAuthor } from '../sites/commit-author.ts';
 import { fetchSiteHistory } from '../sites/site-history.ts';
 import { fetchSiteRevision } from '../sites/site-revision.ts';
@@ -644,6 +645,47 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
         if (result.outcome === 'not-found') {
           reply.code(404);
           return { error: result.message, reason: 'not-found' };
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
+
+    // app-granite-cms/docs/phase-3-checklist.md Group R - rebuilds the
+    // site's own derived search index (never a git commit, unlike every
+    // other action on this route file). max: 1 per minute, keyed by
+    // site id rather than the plugin's own default (source IP) - a
+    // plain per-route override would still let each admin USER hit this
+    // once per minute from their own browser/IP, which does nothing to
+    // stop several different admins all reindexing the SAME site in a
+    // burst. Keying by site id instead means every attempt against this
+    // one site shares a single bucket regardless of who made it -
+    // @fastify/rate-limit (registered globally in server.ts) returns
+    // 429 with a Retry-After header on the second attempt within the
+    // window, before this handler (or the site itself) is ever touched.
+    app.post<{ Params: { id: string } }>(
+      '/:id/search/rebuild',
+      {
+        preHandler: [requireAuth, requireSiteAccess],
+        config: {
+          rateLimit: {
+            max: 1,
+            timeWindow: '1 minute',
+            keyGenerator: (request) => `search-rebuild:${(request.params as { id: string }).id}`,
+          },
+        },
+      },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const result = await reindexSite(site);
+
+        if (result.outcome === 'ok') {
+          return { ok: true };
         }
 
         reply.code(502);
