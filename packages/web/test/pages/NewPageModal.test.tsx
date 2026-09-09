@@ -90,7 +90,7 @@ describe('NewPageModal', () => {
     expect(screen.queryByLabelText('Title')).toBeNull();
   });
 
-  it('creates a blank page (schemaVersion 5, published false) and navigates to the editor for it', async () => {
+  it('creates a blank page (schemaVersion 6, published false) and navigates to the editor for it', async () => {
     const { getReceivedSaveBody } = installFakeFetch({ templates: [] });
     const { router } = renderModal();
 
@@ -102,7 +102,7 @@ describe('NewPageModal', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/sites/site-1/editor'));
     expect(router.state.location.search).toBe('?path=pages%2Fmy-page.json&url=%2Fmy-page');
     expect(getReceivedSaveBody()).toEqual({
-      schemaVersion: 5,
+      schemaVersion: 6,
       name: 'My Page',
       title: 'My Page',
       type: 'page',
@@ -133,7 +133,7 @@ describe('NewPageModal', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/sites/site-1/editor'));
     expect(getReceivedSaveBody()).toEqual({
-      schemaVersion: 5,
+      schemaVersion: 6,
       name: 'My Post',
       title: 'My Post',
       type: 'page',

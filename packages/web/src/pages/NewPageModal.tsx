@@ -10,12 +10,15 @@ export interface NewPageModalProps {
   onClose: () => void;
 }
 
-// "Always 5 for newly-authored content" - app-granite-cms's own
+// "Always 6 for newly-authored content" - app-granite-cms's own
 // docs/guide-content-authoring.md. Not the exact number a template's
 // own file happens to declare (see buildPageContent below) - every
 // page this modal creates, template or blank, is authored fresh right
-// now.
-const PAGE_SCHEMA_VERSION = 5;
+// now. No live source to read this from yet (the site's own
+// GET /v1/capabilities response isn't threaded into this modal) -
+// bump this by hand alongside app-granite-cms's own
+// CURRENT_SCHEMA_VERSION until it is.
+const PAGE_SCHEMA_VERSION = 6;
 
 const BLANK_PAGE_BASE = { type: 'page', layout: 'theme', sections: [] };
 
