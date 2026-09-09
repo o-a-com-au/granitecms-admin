@@ -26,7 +26,7 @@ would hit an "embedded repository" problem the moment anything tried to
 - Site URL: `http://localhost:3891`
 - API token: printed to your terminal by `npm run demo:setup` the first time
   it creates `.demo-runtime` (via `mint-token` - see the sibling agent repo's
-  `docs/hosting.md`). Not committed anywhere: this tracked template's own
+  `docs/guide-hosting.md`). Not committed anywhere: this tracked template's own
   `vhost/site.config.json` ships with an empty `tokens` array, and a fresh
   token is minted per developer instead of every clone of this repo sharing
   one static, publicly-known credential.
