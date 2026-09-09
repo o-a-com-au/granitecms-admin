@@ -11,7 +11,7 @@ export interface NewPageModalProps {
 }
 
 // "Always 5 for newly-authored content" - app-granite-cms's own
-// docs/content-authoring-guide.md. Not the exact number a template's
+// docs/guide-content-authoring.md. Not the exact number a template's
 // own file happens to declare (see buildPageContent below) - every
 // page this modal creates, template or blank, is authored fresh right
 // now.
