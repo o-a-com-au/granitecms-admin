@@ -180,6 +180,47 @@ describe('SchemaField', () => {
     expect((screen.getByLabelText('Extra') as HTMLTextAreaElement).tagName).toBe('TEXTAREA');
   });
 
+  // Real-world trigger: an AI-authored theme's own "frames" gallery
+  // setting - "type": "array", "items": { "type": "object", "format":
+  // "image" }, no separate opt-in on the array itself (same as the
+  // string-array case above).
+  it('renders GalleryField for an array of images, not the raw JSON fallback', () => {
+    render(
+      <SchemaField
+        siteId="site-1"
+        label="Frames"
+        schema={{ type: 'array', minItems: 2, maxItems: 4, items: { type: 'object', format: 'image' } }}
+        value={[{ url: 'https://example.com/a.jpg', focalX: 0.5, focalY: 0.5 }]}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('group', { name: 'Frames' })).toBeDefined();
+    expect(document.querySelector('textarea')).toBeNull();
+    expect(document.querySelector('.gallery-field-box')).not.toBeNull();
+  });
+
+  it('an array of objects with additional properties beyond a plain image still falls through to the raw JSON fallback', () => {
+    render(
+      <SchemaField
+        siteId="site-1"
+        label="Frames"
+        schema={{
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { image: { type: 'object', format: 'image' }, alt: { type: 'string' } },
+          },
+        }}
+        value={[{ image: { url: 'https://example.com/a.jpg' }, alt: 'A' }]}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelector('.gallery-field-box')).toBeNull();
+    expect((screen.getByLabelText('Frames') as HTMLTextAreaElement).tagName).toBe('TEXTAREA');
+  });
+
   it('I3: falls back to a raw JSON textarea for an unrecognised schema shape, never dropping the field', () => {
     const onChange = vi.fn();
     render(<SchemaField siteId="site-1" label="Extra" schema={{ type: 'object' }} value={{ nested: true }} onChange={onChange} />);

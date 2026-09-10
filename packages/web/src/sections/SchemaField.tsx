@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { ColorField } from './ColorField.tsx';
+import { GalleryField } from './GalleryField.tsx';
 import { ImageField } from './ImageField.tsx';
 import { RangeField } from './RangeField.tsx';
 import { RichTextField } from './RichTextField.tsx';
@@ -57,6 +58,25 @@ function isStringArraySchema(
 ): schema is Record<string, unknown> & { items: Record<string, unknown> } {
   const items = schema.items;
   return typeof items === 'object' && items !== null && (items as Record<string, unknown>).type === 'string';
+}
+
+// Same reasoning as isStringArraySchema above, extended to images: an
+// array whose items are exactly the shape a lone `format: "image"`
+// field already stores (`items.type === 'object', items.format ===
+// 'image'`) gets GalleryField unconditionally, no separate opt-in on
+// the array itself. An items shape with additional properties beyond
+// what a plain image needs (an AI-authored theme's own real attempt at
+// this - alt text, a caption, anything else) isn't recognised here -
+// see GalleryField.tsx's own comment for why that's a job for blocks,
+// not a wider array-item schema.
+function isImageArraySchema(schema: Record<string, unknown>): boolean {
+  const items = schema.items;
+  return (
+    typeof items === 'object' &&
+    items !== null &&
+    (items as Record<string, unknown>).type === 'object' &&
+    (items as Record<string, unknown>).format === 'image'
+  );
 }
 
 // I3: an invalid settings shape (object/array, or a schema this
@@ -194,6 +214,17 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
     );
   } else if (format === 'date' && type === 'string') {
     control = <input type="date" value={typeof value === 'string' ? value : ''} onChange={(event) => onChange(event.target.value)} />;
+  } else if (type === 'array' && isImageArraySchema(schema)) {
+    control = (
+      <GalleryField
+        siteId={siteId}
+        value={value}
+        minItems={typeof schema.minItems === 'number' ? schema.minItems : undefined}
+        maxItems={typeof schema.maxItems === 'number' ? schema.maxItems : undefined}
+        labelledBy={fieldId}
+        onChange={onChange}
+      />
+    );
   } else if (type === 'array' && isStringArraySchema(schema)) {
     control = (
       <StringListField
@@ -258,6 +289,7 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
     (format === 'richtext' && type === 'string') ||
     (format === 'color' && type === 'string') ||
     (type === 'array' && isStringArraySchema(schema)) ||
+    (type === 'array' && isImageArraySchema(schema)) ||
     (isEnumSchema(schema) && shouldRenderAsTabs(schema.enum));
   const Wrapper = isCompoundField ? 'div' : 'label';
 

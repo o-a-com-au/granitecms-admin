@@ -129,8 +129,9 @@ function clamp01(fraction: number): number {
 // frame rather than blocking on it). A url that fails to parse against
 // siteUrl (malformed input mid-edit) falls back to the raw value
 // rather than throwing - still broken, but no worse than before this
-// existed, and never crashes the field.
-function resolveImageSrc(url: string, siteUrl: string | undefined): string {
+// existed, and never crashes the field. Exported: GalleryField.tsx
+// needs the exact same resolution for each of its own thumbnails.
+export function resolveImageSrc(url: string, siteUrl: string | undefined): string {
   if (/^(https?:)?\/\//i.test(url) || url.startsWith('data:') || !siteUrl) {
     return url;
   }
@@ -147,8 +148,9 @@ function resolveImageSrc(url: string, siteUrl: string | undefined): string {
 // sub-values (a value the field has never touched, or content authored
 // some other way) default to url: '' and a centred 0.5/0.5 focal
 // point, the same convention SchemaField's own string-field fallback
-// uses for an absent value.
-function coerceImageValue(value: unknown): ImageFieldValue {
+// uses for an absent value. Exported: GalleryField.tsx reuses this to
+// coerce each entry of its own array of image objects the same way.
+export function coerceImageValue(value: unknown): ImageFieldValue {
   const record = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
   const url = typeof record.url === 'string' ? record.url : '';
   const focalX = typeof record.focalX === 'number' ? record.focalX : 0.5;
