@@ -5,6 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { PagesHubPage } from '../../src/pages/PagesHubPage.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider } from '../../src/layout/PageActionsContext.tsx';
 import { PreviewProvider, SharedPreviewRegion } from '../../src/layout/PreviewContext.tsx';
+import { ToastProvider } from '../../src/toast/ToastContext.tsx';
 import { readLastEditorLocation } from '../../src/sites/currentSite.ts';
 import { createFakeStorage } from '../helpers/fakeStorage.ts';
 
@@ -33,16 +34,24 @@ function installFakeContentApi() {
 // PageEditorPage's identical bug - see PagesHubPage.tsx's own
 // deviceToggleNode comment). This harness would hang/throw "Maximum
 // update depth exceeded" if that regressed.
+//
+// ToastProvider: useSectionClickToEdit (shared with Media's own drop-
+// to-replace-image feature) calls useToast() unconditionally now, so
+// any tree that renders it needs a real provider ancestor, same as
+// main.tsx's own nesting - not just PagesHubPage's own drag/drop path,
+// which this file never exercises.
 function Host({ children }: { children: ReactNode }) {
   const [, setActions] = useState<ReactNode>(null);
   const [, setDeviceToggle] = useState<ReactNode>(null);
   return (
-    <PreviewProvider siteId="site-1">
-      <PageActionsProvider setActions={setActions}>
-        <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>{children}</PageDeviceToggleProvider>
-      </PageActionsProvider>
-      <SharedPreviewRegion siteId="site-1" />
-    </PreviewProvider>
+    <ToastProvider>
+      <PreviewProvider siteId="site-1">
+        <PageActionsProvider setActions={setActions}>
+          <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>{children}</PageDeviceToggleProvider>
+        </PageActionsProvider>
+        <SharedPreviewRegion siteId="site-1" />
+      </PreviewProvider>
+    </ToastProvider>
   );
 }
 

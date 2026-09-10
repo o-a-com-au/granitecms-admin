@@ -255,13 +255,24 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
                   <button
                     type="button"
                     className="media-library-item-thumb"
+                    draggable
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = 'copy';
+                      event.dataTransfer.setData('application/x-cms-media-url', item.url);
+                    }}
                     onClick={() => {
                       if (isSelectable) {
                         onSelectedItemChange?.(item);
                       }
                     }}
                   >
-                    <img src={item.url} alt={item.name} loading="lazy" />
+                    {/* draggable=false: the button above already carries an
+                        explicit drag payload (dropping onto the live preview
+                        replaces an image there) - without this, the browser's
+                        own default drag-an-<img> behaviour on the nested img
+                        would compete with it, since the innermost draggable
+                        element wins. */}
+                    <img src={item.url} alt={item.name} loading="lazy" draggable={false} />
                   </button>
                   <span className="media-library-item-name">{item.name}</span>
                   <button

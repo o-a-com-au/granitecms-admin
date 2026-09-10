@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { MediaLibraryPage } from '../../src/pages/MediaLibraryPage.tsx';
 import { PreviewProvider, SharedPreviewRegion } from '../../src/layout/PreviewContext.tsx';
+import { ToastProvider } from '../../src/toast/ToastContext.tsx';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -14,6 +15,11 @@ afterEach(() => {
 // provider would throw. SharedPreviewRegion here is the exact same
 // component AppShell.tsx renders in the real app - kept in this harness
 // to prove opening the image popup below doesn't disturb it.
+//
+// ToastProvider: useSectionClickToEdit (shared with Media's own drop-
+// to-replace-image feature) calls useToast() unconditionally now, same
+// reasoning as PagesHubPage.test.tsx's identical addition - matches
+// main.tsx's own real provider nesting.
 function renderPage() {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     expect(input.toString()).toBe('/api/sites/site-1/media');
@@ -29,12 +35,14 @@ function renderPage() {
 
   return render(
     <MemoryRouter initialEntries={['/sites/site-1/media']}>
-      <PreviewProvider siteId="site-1">
-        <Routes>
-          <Route path="/sites/:siteId/media" element={<MediaLibraryPage />} />
-        </Routes>
-        <SharedPreviewRegion siteId="site-1" />
-      </PreviewProvider>
+      <ToastProvider>
+        <PreviewProvider siteId="site-1">
+          <Routes>
+            <Route path="/sites/:siteId/media" element={<MediaLibraryPage />} />
+          </Routes>
+          <SharedPreviewRegion siteId="site-1" />
+        </PreviewProvider>
+      </ToastProvider>
     </MemoryRouter>,
   );
 }
