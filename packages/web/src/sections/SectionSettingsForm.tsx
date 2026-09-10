@@ -36,7 +36,7 @@ function UnknownTypeFallback({ settings, onChange }: Pick<SectionSettingsFormPro
   return (
     <div className="section-settings-form">
       <p role="alert">Unknown type - editing raw settings.</p>
-      <textarea value={text} onChange={(event) => handleChange(event.target.value)} />
+      <textarea className="textarea-monospace" value={text} onChange={(event) => handleChange(event.target.value)} />
       {invalid && <p role="alert">Not valid JSON yet - not saved.</p>}
     </div>
   );

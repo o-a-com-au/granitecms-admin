@@ -954,7 +954,7 @@ export function PageEditorPage() {
                     {effectiveViewMode === 'raw' && (
                       <label className="raw-json-label">
                         Content
-                        <textarea value={content} onChange={(event) => setContent(event.target.value)} />
+                        <textarea className="textarea-monospace" value={content} onChange={(event) => setContent(event.target.value)} />
                       </label>
                     )}
                     {effectiveViewMode === 'history' && (

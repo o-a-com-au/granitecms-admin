@@ -83,7 +83,7 @@ function RawJsonFallback({ value, onChange }: { value: unknown; onChange: (value
 
   return (
     <>
-      <textarea value={text} onChange={(event) => handleChange(event.target.value)} />
+      <textarea className="textarea-monospace" value={text} onChange={(event) => handleChange(event.target.value)} />
       {invalid && <p role="alert">Not valid JSON yet - not saved.</p>}
     </>
   );

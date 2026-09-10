@@ -123,6 +123,17 @@ textarea:focus {
 
 textarea {
   max-width: 100%;
+}
+
+/* Opt-in, not the textarea default above - a plain prose textarea
+   (format: "textarea", the page meta description field) should read
+   the same as a regular text input, same font/size as `input,
+   textarea`'s own font: inherit rule already gives it. Reserved for
+   the few textareas that are genuinely raw JSON, where a monospace
+   face actually earns its keep (RawJsonFallback and
+   SectionSettingsForm's own "unknown type" fallback in SchemaField.tsx
+   plus PageEditorPage.tsx's own raw content view). */
+.textarea-monospace {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85rem;
 }
