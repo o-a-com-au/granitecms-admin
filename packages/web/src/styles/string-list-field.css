@@ -52,11 +52,13 @@ button.string-list-field-chip-remove {
   border: none;
   background: none;
   color: var(--colour-icon-muted);
+  opacity: 0.5;
   cursor: pointer;
 }
 
 button.string-list-field-chip-remove:hover {
   color: var(--colour-text);
+  opacity: 1;
 }
 
 .string-list-field-add-row {
