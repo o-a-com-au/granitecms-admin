@@ -4,6 +4,7 @@ import { ImageField } from './ImageField.tsx';
 import { RangeField } from './RangeField.tsx';
 import { RichTextField } from './RichTextField.tsx';
 import { SelectField, shouldRenderAsTabs } from './SelectField.tsx';
+import { StringListField } from './StringListField.tsx';
 import { ToggleField } from './ToggleField.tsx';
 
 export interface SchemaFieldProps {
@@ -42,6 +43,20 @@ function colorSwatches(value: unknown): string[] {
     return [];
   }
   return value.filter((entry): entry is string => typeof entry === 'string');
+}
+
+// No format opt-in needed - same reasoning enum already gets none of
+// (see this file's own comment below): there's only one sensible
+// widget for "a list of short strings", so nothing for a theme author
+// to choose between. An array whose items are anything other than a
+// plain string (missing items.type, or object/array items) still
+// falls through to the raw-JSON fallback below, unchanged - a
+// materially bigger feature (nested widgets) nobody has asked for.
+function isStringArraySchema(
+  schema: Record<string, unknown>,
+): schema is Record<string, unknown> & { items: Record<string, unknown> } {
+  const items = schema.items;
+  return typeof items === 'object' && items !== null && (items as Record<string, unknown>).type === 'string';
 }
 
 // I3: an invalid settings shape (object/array, or a schema this
@@ -179,6 +194,18 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
     );
   } else if (format === 'date' && type === 'string') {
     control = <input type="date" value={typeof value === 'string' ? value : ''} onChange={(event) => onChange(event.target.value)} />;
+  } else if (type === 'array' && isStringArraySchema(schema)) {
+    control = (
+      <StringListField
+        value={value}
+        minItems={typeof schema.minItems === 'number' ? schema.minItems : undefined}
+        maxItems={typeof schema.maxItems === 'number' ? schema.maxItems : undefined}
+        minLength={typeof schema.items.minLength === 'number' ? schema.items.minLength : undefined}
+        maxLength={typeof schema.items.maxLength === 'number' ? schema.items.maxLength : undefined}
+        labelledBy={fieldId}
+        onChange={onChange}
+      />
+    );
   } else if (type === 'string') {
     control = (
       <input
@@ -230,6 +257,7 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
   const isCompoundField =
     (format === 'richtext' && type === 'string') ||
     (format === 'color' && type === 'string') ||
+    (type === 'array' && isStringArraySchema(schema)) ||
     (isEnumSchema(schema) && shouldRenderAsTabs(schema.enum));
   const Wrapper = isCompoundField ? 'div' : 'label';
 

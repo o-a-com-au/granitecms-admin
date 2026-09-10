@@ -141,6 +141,43 @@ describe('SchemaField', () => {
     expect((screen.getByLabelText('Font size') as HTMLInputElement).type).toBe('number');
   });
 
+  // Real-world trigger: an AI-authored theme's own multi-line animated
+  // headline setting - "type": "array", "items": { "type": "string" },
+  // no format opt-in at all (same as enum - there's only one sensible
+  // widget for a list of short strings).
+  it('renders StringListField for an array of strings, not the raw JSON fallback', () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaField
+        siteId="site-1"
+        label="Heading"
+        schema={{ type: 'array', minItems: 1, maxItems: 4, items: { type: 'string', minLength: 1 } }}
+        value={['New section']}
+        onChange={onChange}
+      />,
+    );
+
+    expect(screen.getByRole('group', { name: 'Heading' })).toBeDefined();
+    expect(document.querySelector('textarea')).toBeNull();
+    fireEvent.change(screen.getByDisplayValue('New section'), { target: { value: 'Changed' } });
+    expect(onChange).toHaveBeenCalledWith(['Changed']);
+  });
+
+  it('an array schema whose items are not plain strings still falls through to the raw JSON fallback', () => {
+    render(
+      <SchemaField
+        siteId="site-1"
+        label="Extra"
+        schema={{ type: 'array', items: { type: 'object' } }}
+        value={[{ a: 1 }]}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelector('.string-list-field')).toBeNull();
+    expect((screen.getByLabelText('Extra') as HTMLTextAreaElement).tagName).toBe('TEXTAREA');
+  });
+
   it('I3: falls back to a raw JSON textarea for an unrecognised schema shape, never dropping the field', () => {
     const onChange = vi.fn();
     render(<SchemaField siteId="site-1" label="Extra" schema={{ type: 'object' }} value={{ nested: true }} onChange={onChange} />);

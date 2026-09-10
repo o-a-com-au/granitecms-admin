@@ -1,0 +1,13 @@
+/* StringListField.tsx - a repeatable list of plain text lines
+   (add/remove/drag to reorder), reusing instance-rows.css's own row
+   chrome. Only the bits that chrome doesn't already cover: the input
+   itself filling the row, and spacing before the "Add line" button. */
+.string-list-field-row .string-list-field-input {
+  flex: 1;
+  min-width: 0;
+  margin-right: var(--space-xs);
+}
+
+.string-list-field .instance-add-button {
+  margin-top: var(--space-xs);
+}
