@@ -159,8 +159,10 @@ describe('SchemaField', () => {
 
     expect(screen.getByRole('group', { name: 'Heading' })).toBeDefined();
     expect(document.querySelector('textarea')).toBeNull();
-    fireEvent.change(screen.getByDisplayValue('New section'), { target: { value: 'Changed' } });
-    expect(onChange).toHaveBeenCalledWith(['Changed']);
+    expect(screen.getByText('New section')).toBeDefined();
+    fireEvent.change(screen.getByPlaceholderText('New text here'), { target: { value: 'Second line' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onChange).toHaveBeenCalledWith(['New section', 'Second line']);
   });
 
   it('an array schema whose items are not plain strings still falls through to the raw JSON fallback', () => {

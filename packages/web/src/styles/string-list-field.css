@@ -1,13 +1,70 @@
-/* StringListField.tsx - a repeatable list of plain text lines
-   (add/remove/drag to reorder), reusing instance-rows.css's own row
-   chrome. Only the bits that chrome doesn't already cover: the input
-   itself filling the row, and spacing before the "Add line" button. */
-.string-list-field-row .string-list-field-input {
-  flex: 1;
-  min-width: 0;
-  margin-right: var(--space-xs);
+/* StringListField.tsx - a bordered box styled like a plain textarea,
+   holding existing entries as wrapped, draggable, removable chips, with
+   a separate text input + "Add" control beneath it for new entries. */
+.string-list-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
 }
 
-.string-list-field .instance-add-button {
-  margin-top: var(--space-xs);
+.string-list-field-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: var(--space-xs);
+  min-height: 5.5rem;
+  padding: var(--space-sm);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-xs);
+  background: var(--colour-input-background);
+}
+
+.string-list-field-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  max-width: 100%;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface);
+  cursor: grab;
+}
+
+.string-list-field-chip.is-dragging {
+  opacity: 0.4;
+}
+
+.string-list-field-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* button, not just .string-list-field-chip-remove - the extra element
+   in the selector wins over base.css's own bare `button` rule (same
+   reason instance-rows.css needs button.instance-add-button - a bare
+   class alone loses to a plain element selector at equal specificity
+   otherwise, found live there first). */
+button.string-list-field-chip-remove {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--colour-icon-muted);
+  cursor: pointer;
+}
+
+button.string-list-field-chip-remove:hover {
+  color: var(--colour-text);
+}
+
+.string-list-field-add-row {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.string-list-field-add-row input {
+  flex: 1;
+  min-width: 0;
 }
