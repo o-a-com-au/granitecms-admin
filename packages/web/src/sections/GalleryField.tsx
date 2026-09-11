@@ -2,7 +2,7 @@ import { useRef, useState, type DragEvent } from 'react';
 import { MediaPickerModal } from '../media/MediaPickerModal.tsx';
 import type { MediaItem } from '../api/site-media.ts';
 import { useSites } from '../sites/useSites.ts';
-import { coerceImageValue, resolveImageSrc } from './ImageField.tsx';
+import { coerceImageValue, resolveImageSrc, toStoredImageUrl } from './ImageField.tsx';
 import type { ImageFieldValue } from './ImageField.tsx';
 import { CloseIcon } from './CloseIcon.tsx';
 import { computeDropIndex, reorderList } from './drag-reorder.ts';
@@ -132,8 +132,11 @@ export function GalleryField({ siteId, value, minItems, maxItems, labelledBy, on
   const canAdd = maxItems === undefined || items.length < maxItems;
   const canRemove = minItems === undefined || items.length > minItems;
 
+  // item.url always arrives absolute - see toStoredImageUrl's own
+  // comment (ImageField.tsx) for why that's converted back to
+  // site-relative before it's written into content.
   function handlePickerSelect(item: MediaItem): void {
-    onChange([...items, { url: item.url, focalX: 0.5, focalY: 0.5 }]);
+    onChange([...items, { url: toStoredImageUrl(item.url, siteUrl), focalX: 0.5, focalY: 0.5 }]);
     setPickerOpen(false);
   }
 

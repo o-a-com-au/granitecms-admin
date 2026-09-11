@@ -99,9 +99,12 @@ describe('GalleryField', () => {
     fireEvent.click(screen.getByAltText('chosen.jpg'));
     fireEvent.click(screen.getByRole('button', { name: 'Select' }));
 
+    // The picker's own MediaItem.url arrives absolute - stored as
+    // site-relative instead, same conversion ImageField.tsx applies
+    // (toStoredImageUrl).
     expect(onChange).toHaveBeenCalledWith([
       { url: 'https://example.com/a.jpg', focalX: 0.5, focalY: 0.5 },
-      { url: 'http://site.example/media/chosen.jpg', focalX: 0.5, focalY: 0.5 },
+      { url: '/media/chosen.jpg', focalX: 0.5, focalY: 0.5 },
     ]);
     expect(screen.queryByRole('dialog', { name: 'Choose an image' })).toBeNull();
   });

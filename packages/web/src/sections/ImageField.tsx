@@ -29,11 +29,12 @@ export interface ImageFieldProps {
 export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
   const coerced = coerceImageValue(value);
   const [pickerOpen, setPickerOpen] = useState(false);
-  // Tracks the specific url that failed, not a bare boolean - comparing
-  // it against coerced.url below means picking a new image (or typing
-  // a corrected one) automatically gives that new url a fresh chance
-  // to load, with no separate reset-on-change effect needed.
-  const [erroredUrl, setErroredUrl] = useState<string | null>(null);
+  // Tracks the specific *resolved* src that failed, not the raw stored
+  // url - a site-relative stored value resolves to a different src
+  // once siteUrl below finishes loading, and comparing against the raw
+  // url would leave a transient failure from before that load latched
+  // forever, long after the correctly-resolved src would have worked.
+  const [erroredSrc, setErroredSrc] = useState<string | null>(null);
   // A picked-from-the-library url always arrives already absolute
   // (the backend's own media list route resolves it against the real
   // site before this component ever sees it), but a theme's own
@@ -46,6 +47,16 @@ export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
   // is what turns that into a working preview instead of a broken icon.
   const { sites } = useSites();
   const siteUrl = sites?.find((site) => site.id === siteId)?.url;
+  const resolvedSrc = resolveImageSrc(coerced.url, siteUrl);
+  // useSites() starts out null while /api/sites is still in flight. A
+  // site-relative stored url resolves to something meaningless against
+  // the admin's own origin until that finishes - rendering it as a real
+  // <img src> for that one window would fire a spurious onError that
+  // (keyed on the eventual correct resolvedSrc or not) has nothing to
+  // do with whether the image itself is actually broken. Absolute/data
+  // urls need no such wait, since resolveImageSrc never touches siteUrl
+  // for those.
+  const awaitingSiteUrl = sites === null && isSiteRelativeUrl(coerced.url);
 
   function handleUrlChange(event: React.ChangeEvent<HTMLInputElement>): void {
     onChange({ ...coerced, url: event.target.value });
@@ -60,9 +71,13 @@ export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
 
   // Only the url changes - an existing focal point (from a previous
   // image) is preserved, same merge convention handleUrlChange already
-  // uses for typed input.
+  // uses for typed input. item.url always arrives absolute (see
+  // toStoredImageUrl's own comment below) - converted back to
+  // site-relative before it's ever written into content, so a page's
+  // stored settings read the same way regardless of whether the image
+  // was picked through the library or seeded by some other tool.
   function handlePickerSelect(item: MediaItem): void {
-    onChange({ ...coerced, url: item.url });
+    onChange({ ...coerced, url: toStoredImageUrl(item.url, siteUrl) });
     setPickerOpen(false);
   }
 
@@ -92,7 +107,7 @@ export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
       <div className={`image-field-card${hasImage ? ' image-field-card--attached' : ''}`}>
         {hasImage && (
           <div className="image-field-preview">
-            {erroredUrl === coerced.url ? (
+            {erroredSrc === resolvedSrc ? (
               // Same size/background as a real loaded image, not the
               // browser's own tiny broken-image glyph collapsing the
               // well down to almost nothing - reported directly.
@@ -100,13 +115,19 @@ export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
                 <ImageOffIcon />
                 <span>Image failed to load</span>
               </div>
+            ) : awaitingSiteUrl ? (
+              // Same box, no verdict yet either way - rendering the
+              // <img> now would mean attempting a site-relative path
+              // against the admin's own origin, a guaranteed failure
+              // that says nothing about whether the real image is fine.
+              <div className="image-field-preview-error" />
             ) : (
               <>
                 <img
-                  src={resolveImageSrc(coerced.url, siteUrl)}
+                  src={resolvedSrc}
                   alt="Click to set focal point"
                   onClick={handleImageClick}
-                  onError={() => setErroredUrl(coerced.url)}
+                  onError={() => setErroredSrc(resolvedSrc)}
                   draggable={false}
                 />
                 <span
@@ -144,14 +165,15 @@ function clamp01(fraction: number): number {
 // Absolute (http(s):// or data:) urls pass through untouched - only a
 // bare site-relative path needs resolving, and only once siteUrl has
 // actually loaded (useSites() starts out null on first render; the
-// unresolved relative path is still a reasonable img src for that one
-// frame rather than blocking on it). A url that fails to parse against
-// siteUrl (malformed input mid-edit) falls back to the raw value
-// rather than throwing - still broken, but no worse than before this
-// existed, and never crashes the field. Exported: GalleryField.tsx
-// needs the exact same resolution for each of its own thumbnails.
+// caller is responsible for not rendering an <img> off the unresolved
+// relative path in the meantime - see ImageField's own awaitingSiteUrl).
+// A url that fails to parse against siteUrl (malformed input mid-edit)
+// falls back to the raw value rather than throwing - still broken, but
+// no worse than before this existed, and never crashes the field.
+// Exported: GalleryField.tsx needs the exact same resolution for each
+// of its own thumbnails.
 export function resolveImageSrc(url: string, siteUrl: string | undefined): string {
-  if (/^(https?:)?\/\//i.test(url) || url.startsWith('data:') || !siteUrl) {
+  if (!isSiteRelativeUrl(url) || !siteUrl) {
     return url;
   }
   try {
@@ -159,6 +181,42 @@ export function resolveImageSrc(url: string, siteUrl: string | undefined): strin
   } catch {
     return url;
   }
+}
+
+// A bare site-relative path ("/media/a.jpg") is the only shape
+// resolveImageSrc's siteUrl argument actually matters for - an
+// absolute http(s) url or a data: url means whatever siteUrl says.
+function isSiteRelativeUrl(url: string): boolean {
+  return !/^(https?:)?\/\//i.test(url) && !url.startsWith('data:');
+}
+
+// The media list route (site-media.ts's toAbsoluteUrl) deliberately
+// hands back an already-absolute url for every MediaItem, since the
+// picker/library's own grid thumbnails load them directly cross-origin
+// from the site, never through this admin's own backend - but that
+// same absolute form has no business ending up in a page's stored
+// settings, where it'd sit next to plenty of other images stored as a
+// bare "/media/<name>" path (seeded some other way, or authored before
+// this existed), and would break entirely if the site were ever served
+// from a different host. Undoes that resolution at the one point a
+// picked url is about to be written down, not at the source - the
+// picker/library still needs the absolute form for its own display.
+// Only strips it down when it actually resolves back to the site's own
+// origin; a url pointing somewhere else entirely (shouldn't happen
+// today, but not this function's job to assume) is left absolute.
+export function toStoredImageUrl(absoluteUrl: string, siteUrl: string | undefined): string {
+  if (!siteUrl) {
+    return absoluteUrl;
+  }
+  try {
+    const picked = new URL(absoluteUrl);
+    if (picked.origin === new URL(siteUrl).origin) {
+      return picked.pathname + picked.search + picked.hash;
+    }
+  } catch {
+    // Malformed input - leave it exactly as it arrived.
+  }
+  return absoluteUrl;
 }
 
 // Merges into whatever's already there rather than resetting - typing

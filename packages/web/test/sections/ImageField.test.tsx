@@ -193,7 +193,7 @@ describe('ImageField', () => {
     await waitFor(() => expect(screen.getByText('chosen.jpg')).toBeDefined());
   });
 
-  it('selecting an image from the picker sets the url and preserves the existing focal point', async () => {
+  it('selecting an image from the picker converts its absolute url back to site-relative before storing it', async () => {
     const { onChange } = renderField({ url: 'https://example.com/a.jpg', focalX: 0.2, focalY: 0.8 });
 
     fireEvent.click(screen.getByRole('button', { name: 'Change Image' }));
@@ -201,8 +201,13 @@ describe('ImageField', () => {
     fireEvent.click(screen.getByAltText('chosen.jpg'));
     fireEvent.click(screen.getByRole('button', { name: 'Select' }));
 
+    // The picker's own MediaItem.url arrives absolute
+    // (http://site.example/media/chosen.jpg) - stored content keeps
+    // just the site-relative path, same shape as an image seeded some
+    // other way, so resolveImageSrc can turn it back into a working
+    // preview src regardless of which site currently serves it.
     expect(onChange).toHaveBeenCalledWith({
-      url: 'http://site.example/media/chosen.jpg',
+      url: '/media/chosen.jpg',
       focalX: 0.2,
       focalY: 0.8,
     });
@@ -242,6 +247,21 @@ describe('ImageField', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
 
     expect(onChange).toHaveBeenCalledWith({ url: '', focalX: 0.5, focalY: 0.5 });
+  });
+
+  it('does not show the fallback for a valid site-relative url while siteUrl is still loading', async () => {
+    renderField({ url: '/media/real.jpg', focalX: 0.5, focalY: 0.5 });
+
+    // Before useSites() resolves, there's no correct src to attempt yet
+    // (a bare relative path would only be meaningful against the
+    // admin's own origin, not the site's) - neither the broken-image
+    // fallback nor a doomed <img> should render for that window.
+    expect(screen.queryByText('Image failed to load')).toBeNull();
+    expect(screen.queryByRole('img')).toBeNull();
+
+    const img = (await screen.findByRole('img')) as HTMLImageElement;
+    expect(img.src).toBe('http://site.example/media/real.jpg');
+    expect(screen.queryByText('Image failed to load')).toBeNull();
   });
 
   it('resolves a bare site-relative url against the current site before using it as the preview src', async () => {
