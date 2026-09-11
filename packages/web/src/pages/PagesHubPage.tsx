@@ -1,10 +1,11 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
-import { usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
+import { usePageActions, usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
 import { usePagesTreeDepth, usePreview, usePreviewVisible } from '../layout/PreviewContext.tsx';
 import { useSectionClickToEdit } from '../editor/useSectionClickToEdit.ts';
 import { usePreviewNavigationGuard } from '../editor/usePreviewNavigationGuard.tsx';
+import { DraftActionButtons } from '../editor/DraftActionButtons.tsx';
 import { PagesTabPanel, type PreviewablePage } from './PagesTabPanel.tsx';
 import { MenusTabPanel } from './MenusTabPanel.tsx';
 import { RedirectsTabPanel } from './RedirectsTabPanel.tsx';
@@ -70,8 +71,19 @@ export function PagesHubPage() {
   // page switches the previewed page: a real link clicked inside the
   // preview (useSectionClickToEdit, below) and a row clicked in the
   // Pages list itself (handlePreview, below).
-  const { requestPreviewSwitch, promptElement } = usePreviewNavigationGuard(siteId);
+  const { requestPreviewSwitch, promptElement, hasDraft, actionsBusy, publishCurrent, discardCurrent } =
+    usePreviewNavigationGuard(siteId);
   useSectionClickToEdit(siteId, requestPreviewSwitch);
+  // The same persistent Discard/Save action bar PageEditorPage.tsx
+  // shows in the app header the whole time the current page has an
+  // unpublished draft, not just at the point of leaving - requested
+  // directly, so a drag-drop-created draft is exactly as visible here
+  // as one made by editing a text field in the Editor.
+  const pageActionsNode = useMemo(
+    () => (hasDraft ? <DraftActionButtons busy={actionsBusy} onDiscard={discardCurrent} onPublish={publishCurrent} /> : null),
+    [hasDraft, actionsBusy, discardCurrent, publishCurrent],
+  );
+  usePageActions(pageActionsNode);
   // useMemo, not a bare JSX expression - usePageDeviceToggle's own
   // effect (PageActionsContext.tsx's createChromeSlot) depends on this
   // node by reference. A fresh element every render re-registers on

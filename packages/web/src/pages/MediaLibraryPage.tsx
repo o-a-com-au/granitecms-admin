@@ -7,7 +7,8 @@ import { usePreview, usePreviewVisible } from '../layout/PreviewContext.tsx';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 import { useSectionClickToEdit } from '../editor/useSectionClickToEdit.ts';
 import { usePreviewNavigationGuard } from '../editor/usePreviewNavigationGuard.tsx';
-import { usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
+import { DraftActionButtons } from '../editor/DraftActionButtons.tsx';
+import { usePageActions, usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
 
 // The old full-width photo-grid route becomes a left panel beside the
 // shared preview viewport (AppShell's SharedPreviewRegion), the same
@@ -37,12 +38,23 @@ export function MediaLibraryPage() {
   // gives the Editor route, built for a trigger shape useBlocker can't
   // intercept (switching the shared preview here is a setPreview
   // context update, not a router navigation).
-  const { requestPreviewSwitch, promptElement } = usePreviewNavigationGuard(siteId);
+  const { requestPreviewSwitch, promptElement, hasDraft, actionsBusy, publishCurrent, discardCurrent } =
+    usePreviewNavigationGuard(siteId);
   // Same "hover/click a section in the preview to jump into editing
   // it" interaction Pages hub also gets - the shared viewport can still
   // be showing a real page while browsing Media, so this is available
   // "everywhere the viewport shows a page", not just from Pages hub.
   useSectionClickToEdit(siteId, requestPreviewSwitch);
+  // The same persistent Discard/Save action bar PageEditorPage.tsx
+  // shows in the app header the whole time the current page has an
+  // unpublished draft, not just at the point of leaving - requested
+  // directly, so a drag-drop-created draft is exactly as visible here
+  // as one made by editing a text field in the Editor.
+  const pageActionsNode = useMemo(
+    () => (hasDraft ? <DraftActionButtons busy={actionsBusy} onDiscard={discardCurrent} onPublish={publishCurrent} /> : null),
+    [hasDraft, actionsBusy, discardCurrent, publishCurrent],
+  );
+  usePageActions(pageActionsNode);
   // Same device-size toggle Pages hub already wires up - the shared
   // viewport still shows whatever site page was last active while
   // browsing Media, so the topbar shouldn't drop the one control that

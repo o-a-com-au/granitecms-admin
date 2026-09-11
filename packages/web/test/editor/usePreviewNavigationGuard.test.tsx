@@ -88,7 +88,7 @@ describe('usePreviewNavigationGuard', () => {
   it('switches immediately when the current page has no draft (source: live), no prompt shown', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     seedLastEditorLocation();
-    installFakeFetch({ content: liveContentResponse() });
+    installFakeFetch({ content: () => liveContentResponse() });
     const { result } = renderGuard();
 
     act(() => result.current.requestPreviewSwitch(TARGET));
@@ -97,33 +97,42 @@ describe('usePreviewNavigationGuard', () => {
     expect(result.current.promptElement).toBeNull();
   });
 
-  it('switches immediately with no read at all when nothing was previously previewed', async () => {
+  it('switches immediately with no draft-vs-navigate check at all when nothing was previously previewed', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
-    const fetchMock = installFakeFetch({});
+    // Only needed for the hasDraft-tracking effect's own post-switch
+    // check of the newly-shown page (for the header action bar) - the
+    // switch decision itself has nothing to check against yet.
+    const fetchMock = installFakeFetch({ content: () => liveContentResponse() });
     const { result } = renderGuard();
 
     act(() => result.current.requestPreviewSwitch(TARGET));
 
     await waitFor(() => expect(result.current.previewUrl).toBe(TARGET.url));
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining(TARGET.path));
   });
 
-  it('switches immediately, no read, when the target is the page already being shown', async () => {
+  it('switches immediately, no extra read, when the target is the page already being shown', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     seedLastEditorLocation();
-    const fetchMock = installFakeFetch({});
+    // hasDraft-tracking runs once on mount regardless (to seed the
+    // header action bar for whatever's already showing) - what this
+    // test actually checks is that requestPreviewSwitch's own
+    // same-page short-circuit doesn't trigger a SECOND one.
+    const fetchMock = installFakeFetch({ content: () => liveContentResponse() });
     const { result } = renderGuard();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
     act(() => result.current.requestPreviewSwitch({ path: CURRENT_PATH, url: CURRENT_URL }));
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.current.promptElement).toBeNull();
   });
 
   it('shows the prompt instead of switching when the current page has an unpublished draft', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     seedLastEditorLocation();
-    installFakeFetch({ content: draftContentResponse() });
+    installFakeFetch({ content: () => draftContentResponse() });
     const { result } = renderGuard();
 
     act(() => result.current.requestPreviewSwitch(TARGET));
@@ -136,7 +145,7 @@ describe('usePreviewNavigationGuard', () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     seedLastEditorLocation();
     const fetchMock = installFakeFetch({
-      content: draftContentResponse(),
+      content: () => draftContentResponse(),
       publish: new Response(JSON.stringify({ ok: true }), { status: 200 }),
     });
     const { result } = renderGuard();
@@ -162,7 +171,7 @@ describe('usePreviewNavigationGuard', () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     seedLastEditorLocation();
     const fetchMock = installFakeFetch({
-      content: draftContentResponse(),
+      content: () => draftContentResponse(),
       discard: new Response(null, { status: 204 }),
     });
     const { result } = renderGuard();
@@ -183,7 +192,7 @@ describe('usePreviewNavigationGuard', () => {
   it('Cancel leaves the current page showing, no switch', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     seedLastEditorLocation();
-    installFakeFetch({ content: draftContentResponse() });
+    installFakeFetch({ content: () => draftContentResponse() });
     const { result } = renderGuard();
 
     act(() => result.current.requestPreviewSwitch(TARGET));
@@ -201,12 +210,71 @@ describe('usePreviewNavigationGuard', () => {
   it('fails open (switches immediately) if the current page cannot be read at all', async () => {
     vi.stubGlobal('localStorage', createFakeStorage());
     seedLastEditorLocation();
-    installFakeFetch({ content: new Response(JSON.stringify({ error: 'gone' }), { status: 404 }) });
+    installFakeFetch({ content: () => new Response(JSON.stringify({ error: 'gone' }), { status: 404 }) });
     const { result } = renderGuard();
 
     act(() => result.current.requestPreviewSwitch(TARGET));
 
     await waitFor(() => expect(result.current.previewUrl).toBe(TARGET.url));
     expect(result.current.promptElement).toBeNull();
+  });
+
+  // hasDraft/publishCurrent/discardCurrent - the persistent header
+  // action bar (Media/Pages hub's own DraftActionButtons), shown the
+  // whole time the current page has a draft, not just at the point of
+  // leaving.
+  it('hasDraft reflects the currently shown page, tracked on mount', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    seedLastEditorLocation();
+    installFakeFetch({ content: () => draftContentResponse() });
+    const { result } = renderGuard();
+
+    await waitFor(() => expect(result.current.hasDraft).toBe(true));
+  });
+
+  it('publishCurrent publishes the current page, then the re-check (bumpPreview) picks up it is live and clears hasDraft', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    seedLastEditorLocation();
+    // Stateful, not a fixed response - hasDraft is deliberately never
+    // set optimistically on publish success, only by the real
+    // re-check bumpPreview triggers, so the mock has to actually
+    // reflect the server-side effect of that publish to prove it.
+    let published = false;
+    const fetchMock = installFakeFetch({
+      content: () => (published ? liveContentResponse() : draftContentResponse()),
+      publish: () => {
+        published = true;
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    });
+    const { result } = renderGuard();
+    await waitFor(() => expect(result.current.hasDraft).toBe(true));
+
+    await act(async () => result.current.publishCurrent());
+
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/publish'), expect.objectContaining({ method: 'POST' }));
+    await waitFor(() => expect(result.current.hasDraft).toBe(false));
+    expect(result.current.previewUrl).toBe(CURRENT_URL);
+  });
+
+  it('discardCurrent discards the current page\'s draft, then the re-check (bumpPreview) picks up it is live and clears hasDraft', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    seedLastEditorLocation();
+    let discarded = false;
+    const fetchMock = installFakeFetch({
+      content: () => (discarded ? liveContentResponse() : draftContentResponse()),
+      discard: () => {
+        discarded = true;
+        return new Response(null, { status: 204 });
+      },
+    });
+    const { result } = renderGuard();
+    await waitFor(() => expect(result.current.hasDraft).toBe(true));
+
+    await act(async () => result.current.discardCurrent());
+
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/drafts/'), expect.objectContaining({ method: 'DELETE' }));
+    await waitFor(() => expect(result.current.hasDraft).toBe(false));
+    expect(result.current.previewUrl).toBe(CURRENT_URL);
   });
 });
