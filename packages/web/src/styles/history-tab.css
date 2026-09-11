@@ -56,6 +56,10 @@ button.history-row-restore:hover:not(:disabled) {
 
 .instance-row-main.history-row-main.is-selected button.history-row-restore {
   background: transparent;
-  border-color: transparent;
+  /* A faint keyline, not the row's own solid border colour - there's
+     no longer a background to separate the button from the blue row
+     behind it now that both are transparent, so this is the only thing
+     giving the button its own shape. */
+  border-color: rgba(255, 255, 255, 0.4);
   color: #fff;
 }
