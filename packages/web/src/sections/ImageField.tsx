@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MediaPickerModal } from '../media/MediaPickerModal.tsx';
+import { ImageOffIcon } from './ImageOffIcon.tsx';
 import type { MediaItem } from '../api/site-media.ts';
 import { useSites } from '../sites/useSites.ts';
 
@@ -28,6 +29,11 @@ export interface ImageFieldProps {
 export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
   const coerced = coerceImageValue(value);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Tracks the specific url that failed, not a bare boolean - comparing
+  // it against coerced.url below means picking a new image (or typing
+  // a corrected one) automatically gives that new url a fresh chance
+  // to load, with no separate reset-on-change effect needed.
+  const [erroredUrl, setErroredUrl] = useState<string | null>(null);
   // A picked-from-the-library url always arrives already absolute
   // (the backend's own media list route resolves it against the real
   // site before this component ever sees it), but a theme's own
@@ -86,17 +92,30 @@ export function ImageField({ siteId, value, onChange }: ImageFieldProps) {
       <div className={`image-field-card${hasImage ? ' image-field-card--attached' : ''}`}>
         {hasImage && (
           <div className="image-field-preview">
-            <img
-              src={resolveImageSrc(coerced.url, siteUrl)}
-              alt="Click to set focal point"
-              onClick={handleImageClick}
-              draggable={false}
-            />
-            <span
-              className="image-field-focal-marker"
-              aria-hidden="true"
-              style={{ left: `${coerced.focalX * 100}%`, top: `${coerced.focalY * 100}%` }}
-            />
+            {erroredUrl === coerced.url ? (
+              // Same size/background as a real loaded image, not the
+              // browser's own tiny broken-image glyph collapsing the
+              // well down to almost nothing - reported directly.
+              <div className="image-field-preview-error">
+                <ImageOffIcon />
+                <span>Image failed to load</span>
+              </div>
+            ) : (
+              <>
+                <img
+                  src={resolveImageSrc(coerced.url, siteUrl)}
+                  alt="Click to set focal point"
+                  onClick={handleImageClick}
+                  onError={() => setErroredUrl(coerced.url)}
+                  draggable={false}
+                />
+                <span
+                  className="image-field-focal-marker"
+                  aria-hidden="true"
+                  style={{ left: `${coerced.focalX * 100}%`, top: `${coerced.focalY * 100}%` }}
+                />
+              </>
+            )}
           </div>
         )}
         <input type="text" className="image-field-url-input" placeholder="https://" value={coerced.url} onChange={handleUrlChange} />

@@ -59,13 +59,13 @@ function mockRect(img: HTMLElement, rect: Partial<DOMRect>): void {
 // not a bare sibling <span>/id pairing which has no such resolution
 // for a plain <input>.
 function renderField(value: unknown, onChange = vi.fn()) {
-  render(
+  const result = render(
     <label>
       Poster
       <ImageField siteId="site-1" value={value} onChange={onChange} />
     </label>,
   );
-  return { onChange };
+  return { onChange, rerender: result.rerender };
 }
 
 describe('ImageField', () => {
@@ -132,6 +132,48 @@ describe('ImageField', () => {
     fireEvent.click(img, { clientX: 10, clientY: 10 });
 
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('shows a graceful fallback instead of the broken-image glyph when the url fails to load', () => {
+    renderField({ url: 'https://example.com/gone.jpg', focalX: 0.5, focalY: 0.5 });
+
+    fireEvent.error(screen.getByRole('img'));
+
+    expect(screen.queryByRole('img')).toBeNull();
+    expect(screen.getByText('Image failed to load')).toBeDefined();
+    // The focal marker only makes sense over a real image.
+    expect(document.querySelector('.image-field-focal-marker')).toBeNull();
+  });
+
+  it('a new url after a failed load gets a fresh chance instead of staying on the fallback', () => {
+    const { rerender } = renderField({ url: 'https://example.com/gone.jpg', focalX: 0.5, focalY: 0.5 });
+    fireEvent.error(screen.getByRole('img'));
+    expect(screen.getByText('Image failed to load')).toBeDefined();
+
+    rerender(
+      <label>
+        Poster
+        <ImageField siteId="site-1" value={{ url: 'https://example.com/new.jpg', focalX: 0.5, focalY: 0.5 }} onChange={vi.fn()} />
+      </label>,
+    );
+
+    expect(screen.queryByText('Image failed to load')).toBeNull();
+    expect(screen.getByRole('img')).toBeDefined();
+  });
+
+  it('re-setting the exact same failed url stays on the fallback, not a fresh attempt', () => {
+    const { rerender } = renderField({ url: 'https://example.com/gone.jpg', focalX: 0.5, focalY: 0.5 });
+    fireEvent.error(screen.getByRole('img'));
+
+    rerender(
+      <label>
+        Poster
+        <ImageField siteId="site-1" value={{ url: 'https://example.com/gone.jpg', focalX: 0.5, focalY: 0.5 }} onChange={vi.fn()} />
+      </label>,
+    );
+
+    expect(screen.getByText('Image failed to load')).toBeDefined();
+    expect(screen.queryByRole('img')).toBeNull();
   });
 
   it('positions the focal marker via left/top percentages matching the current focal point', () => {
