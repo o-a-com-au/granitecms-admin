@@ -147,21 +147,22 @@ export function useSectionClickToEdit(siteId: string): void {
       return;
     }
     if (dragHighlightedElementRef.current) {
-      dragHighlightedElementRef.current.style.outline = '';
-      dragHighlightedElementRef.current.style.outlineOffset = '';
+      dragHighlightedElementRef.current.style.opacity = '';
       dragHighlightedElementRef.current = null;
     }
     if (target) {
-      // No outline-offset, unlike the section-hover highlight's own
-      // -2px (setHighlight above) - every [data-cms-image] element
-      // carries the theme's .ri class, which sets overflow: hidden to
-      // crop to its aspect ratio. A negative offset draws the outline
-      // inside the border box, which that same overflow: hidden then
-      // clips - confirmed live, the outline was being set correctly
-      // the whole time, just invisible. Left at the default (drawn
-      // right at the border edge) instead, never subject to the
-      // element's own overflow.
-      target.style.outline = '2px solid #3b6ef6';
+      // A fade, not the section-hover highlight's own outline
+      // (setHighlight above) - confirmed live, an outline can be
+      // clipped away entirely, not just by the picture's own .ri
+      // class (overflow: hidden, for its aspect-ratio crop) but by an
+      // ENCLOSING container too, in a layout where the picture itself
+      // renders enlarged past that ancestor's own visible bounds (e.g.
+      // a cover-style background treatment) - no outline offset fixes
+      // that, since the whole border box can sit outside the clipped
+      // area. Opacity dims the element's actual rendered pixels
+      // instead, so whatever portion is visible through any ancestor's
+      // clipping stays visible, just dimmed.
+      target.style.opacity = '0.5';
       dragHighlightedElementRef.current = target;
     }
   }, []);
