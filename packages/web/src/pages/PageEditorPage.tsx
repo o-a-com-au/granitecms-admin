@@ -626,12 +626,25 @@ export function PageEditorPage() {
   // #11589), not something wrong with this wiring - accepted as a gap
   // rather than chasing a hand-rolled popstate workaround on top of
   // react-router's own history handling.
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      contentLoaded &&
-      hasPendingChanges &&
-      (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search),
-  );
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    if (!contentLoaded || !hasPendingChanges) {
+      return false;
+    }
+    // Pages hub and Media both show this exact page too, with the same
+    // persistent Save/Discard bar (usePreviewNavigationGuard.tsx) - the
+    // draft isn't at risk of being lost or hidden moving to either of
+    // them, only genuinely worth warning about when actually switching
+    // to a DIFFERENT page (a search change on this same route) or
+    // leaving this site's admin session entirely. Reported directly:
+    // Editor -> Pages was prompting even though the page shown, and its
+    // draft, stayed exactly the same either way.
+    const staysWithinThisSitesHub =
+      nextLocation.pathname === `/sites/${siteId}/content` || nextLocation.pathname === `/sites/${siteId}/media`;
+    if (staysWithinThisSitesHub) {
+      return false;
+    }
+    return currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search;
+  });
 
   async function handlePromptSave(): Promise<void> {
     const ok = await handlePublish();
