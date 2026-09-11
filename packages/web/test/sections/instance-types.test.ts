@@ -40,10 +40,15 @@ describe('dataDrivenLabel', () => {
     expect(dataDrivenLabel({ label: 'Learn more' })).toBe('Learn more');
   });
 
-  it('observes the priority order headline > heading > name > label when several are present at once', () => {
-    expect(dataDrivenLabel({ label: 'D', name: 'C', heading: 'B', headline: 'A' })).toBe('A');
-    expect(dataDrivenLabel({ label: 'D', name: 'C', heading: 'B' })).toBe('B');
-    expect(dataDrivenLabel({ label: 'D', name: 'C' })).toBe('C');
+  it('uses "year" when none of headline/heading/name/label are present', () => {
+    expect(dataDrivenLabel({ year: '2023' })).toBe('2023');
+  });
+
+  it('observes the priority order headline > heading > name > label > year when several are present at once', () => {
+    expect(dataDrivenLabel({ year: 'E', label: 'D', name: 'C', heading: 'B', headline: 'A' })).toBe('A');
+    expect(dataDrivenLabel({ year: 'E', label: 'D', name: 'C', heading: 'B' })).toBe('B');
+    expect(dataDrivenLabel({ year: 'E', label: 'D', name: 'C' })).toBe('C');
+    expect(dataDrivenLabel({ year: 'E', label: 'D' })).toBe('D');
   });
 
   it('matches the settings key case-insensitively', () => {
@@ -56,7 +61,7 @@ describe('dataDrivenLabel', () => {
     expect(dataDrivenLabel({ headline: 42, heading: 'Our Team' })).toBe('Our Team');
   });
 
-  it('returns null when none of the four fields are present', () => {
+  it('returns null when none of the five fields are present', () => {
     expect(dataDrivenLabel({ eyebrow: 'About', subheading: 'A team bio' })).toBeNull();
   });
 

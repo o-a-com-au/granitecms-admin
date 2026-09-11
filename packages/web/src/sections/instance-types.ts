@@ -72,7 +72,7 @@ function humanizeFieldKey(key: string): string {
 
 // Checked in this fixed priority order (requested directly, exactly
 // this order) - the first of these whose settings value is a non-empty
-// string wins: headline, heading, name, label. Matched case-
+// string wins: headline, heading, name, label, year. Matched case-
 // insensitively against the instance's own settings keys, not its
 // schema - a theme author's field is almost always camelCase
 // ("headline"), but this tolerates whatever casing a schema happens to
@@ -82,7 +82,7 @@ function humanizeFieldKey(key: string): string {
 // schemaTitle - this function returns null rather than the type name
 // itself, so it stays a pure "did the data provide one" answer with no
 // opinion on what to show otherwise.
-const DATA_LABEL_KEYS = ['headline', 'heading', 'name', 'label'];
+const DATA_LABEL_KEYS = ['headline', 'heading', 'name', 'label', 'year'];
 
 export function dataDrivenLabel(settings: Record<string, unknown> | undefined): string | null {
   if (!settings) {

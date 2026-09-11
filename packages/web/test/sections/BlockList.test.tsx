@@ -17,9 +17,9 @@ const BLOCK_TYPES: ThemeTypeSchemas = {
 };
 
 // settings defaults to {}, not { label: id } - BlockList.tsx's own
-// dataDrivenLabel now prefers a real headline/heading/name/label field
-// over the type's own schema title for a row's display text, so a
-// non-empty default here would silently swap what most of this file's
+// dataDrivenLabel now prefers a real headline/heading/name/label/year
+// field over the type's own schema title for a row's display text, so
+// a non-empty default here would silently swap what most of this file's
 // existing tests are actually asserting on (the type's own title, via
 // schemaTitle) for whatever id string happened to be passed in.
 function block(id: string, type = 'button', settings: Record<string, unknown> = {}): Instance {
