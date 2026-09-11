@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { usePreview, usePreviewFrameHandlers } from '../layout/PreviewContext.tsx';
-import { readLastEditorLocation } from '../sites/currentSite.ts';
+import { readLastEditorLocation, writeLastEditorLocation } from '../sites/currentSite.ts';
 import { useToast } from '../toast/ToastContext.tsx';
 import { replaceInstanceImage } from '../media/replace-instance-image.ts';
 import { SiteEditorError } from '../api/site-editor.ts';
+import { listSiteContent } from '../api/site-content.ts';
 
 // Lets Pages hub/Media's own preview (a page shown read-only, not
 // currently being edited) support the same "hover a section to
@@ -22,9 +23,44 @@ import { SiteEditorError } from '../api/site-editor.ts';
 // now would cost more than it would save.
 export function useSectionClickToEdit(siteId: string): void {
   const navigate = useNavigate();
-  const { iframeRef, bumpPreview } = usePreview();
+  const { iframeRef, bumpPreview, setPreview } = usePreview();
   const { showToast } = useToast();
   const highlightedElementRef = useRef<HTMLElement | null>(null);
+
+  // Same "index every page's live url -> content path once, so a real
+  // link click in the preview can be resolved to something this CMS
+  // actually tracks" PageEditorPage.tsx's own contentIndexRef does, for
+  // the same reason - the agent's content-list endpoint has no
+  // single-url lookup, only a full listing. Kept in a ref, not state -
+  // read from inside a plain DOM event listener (handleAnchorClick,
+  // below), never rendered.
+  const contentIndexRef = useRef<Map<string, string> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    contentIndexRef.current = null;
+    listSiteContent(siteId, {})
+      .then((entries) => {
+        if (cancelled) {
+          return;
+        }
+        const index = new Map<string, string>();
+        for (const entry of entries) {
+          if (entry.url !== null) {
+            index.set(entry.url, entry.path);
+          }
+        }
+        contentIndexRef.current = index;
+      })
+      .catch(() => {
+        // A preview link just won't be recognised as internal
+        // navigation until this loads (or a future siteId change
+        // retries it) - clicking it falls back to opening in a new
+        // tab, same as PageEditorPage.tsx's own identical fallback.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [siteId]);
   // Separate from highlightedElementRef above - a different, narrower
   // granularity (the one [data-cms-image] element under the cursor
   // during a drag, not the whole section/block) and never active at
@@ -183,6 +219,59 @@ export function useSectionClickToEdit(siteId: string): void {
     [siteId, navigate],
   );
 
+  // A click that lands outside any section at all - the theme's own
+  // layout-level header/footer nav, for instance, which sectionIdAt
+  // above has nothing to match against. Left to the browser's own
+  // default navigation, a real link here would send the iframe away
+  // from the admin-proxied preview to the site's actual origin
+  // directly (this preview's own HTML carries a <base href> pointing
+  // there, so relative links resolve to it) - confirmed live, that's
+  // exactly what caused a later SecurityError trying to read the (now
+  // genuinely cross-origin) iframe's contentWindow, and separately
+  // left the admin's own address display/Pages list stuck on the old
+  // page since nothing here ever told it navigation had happened.
+  //
+  // Mirrors PageEditorPage.tsx's own handlePreviewAnchorClick, but
+  // switches the shared preview's own url (setPreview) rather than
+  // navigating this route to the Editor - Pages hub/Media only need to
+  // keep showing the new page, matching what clicking a row in the
+  // Pages list itself already does (PagesHubPage.tsx's handlePreview).
+  const handleAnchorClick = useCallback(
+    (event: MouseEvent, anchor: HTMLAnchorElement, doc: Document): void => {
+      const href = anchor.getAttribute('href');
+      if (href === null) {
+        return;
+      }
+      let resolved: URL;
+      let siteOrigin: string;
+      try {
+        resolved = new URL(href, doc.baseURI);
+        siteOrigin = new URL(doc.baseURI).origin;
+      } catch {
+        return;
+      }
+
+      if (resolved.origin !== siteOrigin) {
+        event.preventDefault();
+        window.open(resolved.href, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      const matchedPath = contentIndexRef.current?.get(resolved.pathname) ?? null;
+      if (matchedPath === null) {
+        event.preventDefault();
+        window.open(resolved.href, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      event.preventDefault();
+      setPreview({ url: resolved.pathname });
+      const params = new URLSearchParams({ path: matchedPath, url: resolved.pathname });
+      writeLastEditorLocation(siteId, `/sites/${siteId}/editor?${params.toString()}`);
+    },
+    [siteId, setPreview],
+  );
+
   const handleFrameLoad = useCallback((): void => {
     const maybeDoc = iframeRef.current?.contentDocument;
     if (!maybeDoc) {
@@ -216,18 +305,27 @@ export function useSectionClickToEdit(siteId: string): void {
     });
     // Capture phase, same reasoning as PageEditorPage's own click
     // listener - fires before a real link/button inside the section
-    // (e.g. a "Get started" button) can act on the click itself.
-    // Deliberately no anchor-link exception here (unlike PageEditorPage's
-    // own handlePreviewAnchorClick) - Pages hub/Media have no in-preview
-    // navigation concept to preserve, so any click inside a section
-    // consistently means "edit this section", full stop.
+    // (e.g. a "Get started" button) can act on the click itself. A
+    // click inside a section still consistently means "edit this
+    // section", full stop, same deliberate choice as ever - only a
+    // click that finds no section at all (see handleAnchorClick above)
+    // falls through to real link-following instead.
     doc.addEventListener(
       'click',
       (event) => {
+        const mouseEvent = event as MouseEvent;
         const id = sectionIdAt(event.target);
         if (id !== null) {
           event.preventDefault();
           navigateToSection(id);
+          return;
+        }
+        const anchor =
+          mouseEvent.target !== null && 'closest' in mouseEvent.target
+            ? (mouseEvent.target as Element).closest<HTMLAnchorElement>('a[href]')
+            : null;
+        if (anchor !== null) {
+          handleAnchorClick(mouseEvent, anchor, doc);
         }
       },
       true,
@@ -253,7 +351,7 @@ export function useSectionClickToEdit(siteId: string): void {
       }
     });
     doc.addEventListener('drop', handleDrop);
-  }, [iframeRef, setHighlight, navigateToSection, setDragHighlight, resolveDropTarget, handleDrop]);
+  }, [iframeRef, setHighlight, navigateToSection, handleAnchorClick, setDragHighlight, resolveDropTarget, handleDrop]);
 
   const handleFrameMouseLeave = useCallback(() => setHighlight(null), [setHighlight]);
 
