@@ -163,6 +163,14 @@ export function PreviewFrame({
 }: PreviewFrameProps) {
   const pendingScrollRef = useRef<{ x: number; y: number } | null>(null);
   const refreshToken = usePreviewRefreshToken(status, refreshGeneration, iframeRef, pendingScrollRef);
+  // Tracks "has the CURRENT document actually finished loading" for the
+  // onFrameLoad-retrigger effect below - deliberately our own flag, not
+  // the iframe's own document.readyState (unreliable to depend on:
+  // jsdom's synthetic iframe documents never report 'complete' at all,
+  // and a real browser's own readyState transitions aren't something
+  // this code should need to reason about beyond "has our own load
+  // handler already run for this document").
+  const hasLoadedRef = useRef(false);
   // Drives a plain CSS opacity transition (device-preview.css) rather
   // than an animation keyed on mount - the iframe element itself is
   // never remounted (src reassignment is a real browser navigation,
@@ -189,16 +197,40 @@ export function PreviewFrame({
       iframeRef?.current?.contentWindow?.scrollTo({ left: pending.x, top: pending.y, behavior: 'instant' });
       pendingScrollRef.current = null;
     }
+    hasLoadedRef.current = true;
     setFrameVisible(true);
     onFrameLoad?.();
   }
+
+  // onFrameLoad only otherwise runs from the iframe's own native load
+  // event (onLoad below) - fine as long as a fresh registration always
+  // coincides with a fresh load, which used to be true, but no longer
+  // is: switching between Editor/Pages/Media while staying on the same
+  // page (now a normal, unblocked path - see PageEditorPage.tsx's own
+  // useBlocker narrowing) swaps which route's handlers are registered
+  // (PreviewContext.tsx's frameHandlers) without the iframe reloading
+  // at all, since it's already showing that exact page. Without this,
+  // the new route's own click/drag listeners never actually get
+  // attached to the (already-loaded, unchanged) document - confirmed
+  // live, reported as "the viewport nav stops working" after switching
+  // tools. Re-runs onFrameLoad immediately whenever it changes, but
+  // only if the document is already fully loaded - otherwise a load is
+  // already in flight and the real onLoad event below will call it
+  // once that completes, same as always.
+  useEffect(() => {
+    if (hasLoadedRef.current) {
+      onFrameLoad?.();
+    }
+    // Only onFrameLoad itself should retrigger this.
+  }, [onFrameLoad]);
 
   // Resets ahead of the src reassignment these three together drive
   // (below) - a real browser navigation inside the iframe, not a fresh
   // element, so nothing else would otherwise clear frameVisible before
   // handleFrameLoad sets it again once the new document is actually
-  // ready.
+  // ready. hasLoadedRef resets alongside it, for the exact same reason.
   useEffect(() => {
+    hasLoadedRef.current = false;
     setFrameVisible(false);
   }, [url, revisionRef, refreshToken]);
 

@@ -234,4 +234,51 @@ describe('PreviewFrame', () => {
     fireEvent.load(iframe);
     expect(iframe.className).toContain('is-visible');
   });
+
+  // Switching between Editor/Pages/Media while staying on the same page
+  // (PageEditorPage.tsx's useBlocker narrowing made this a normal,
+  // unblocked path) swaps which route's handlers are registered
+  // (PreviewContext.tsx's frameHandlers) without the iframe reloading
+  // at all - onFrameLoad only otherwise runs from the iframe's own
+  // native load event, so a fresh registration with no fresh load
+  // would otherwise never actually attach the new route's own
+  // click/drag listeners. Confirmed live: reported as "the viewport
+  // nav stops working" after switching tools.
+  it('re-invokes onFrameLoad when it changes on an already-loaded document, not just on a fresh load', () => {
+    const iframeRef = createRef<HTMLIFrameElement>();
+    const firstOnFrameLoad = vi.fn();
+    const { rerender } = render(
+      <PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" iframeRef={iframeRef} onFrameLoad={firstOnFrameLoad} />,
+    );
+    fireEvent.load(iframeRef.current as HTMLIFrameElement);
+    expect(firstOnFrameLoad).toHaveBeenCalledTimes(1);
+    firstOnFrameLoad.mockClear();
+
+    // A different route's handler, same page - no src change, so no
+    // native load event fires here or ever again for this page.
+    const secondOnFrameLoad = vi.fn();
+    rerender(
+      <PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" iframeRef={iframeRef} onFrameLoad={secondOnFrameLoad} />,
+    );
+
+    expect(secondOnFrameLoad).toHaveBeenCalledTimes(1);
+    expect(firstOnFrameLoad).not.toHaveBeenCalled();
+  });
+
+  it('does not re-invoke onFrameLoad on an unrelated rerender where the callback itself is unchanged', () => {
+    const iframeRef = createRef<HTMLIFrameElement>();
+    const onFrameLoad = vi.fn();
+    const { rerender } = render(
+      <PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" iframeRef={iframeRef} onFrameLoad={onFrameLoad} />,
+    );
+    fireEvent.load(iframeRef.current as HTMLIFrameElement);
+    onFrameLoad.mockClear();
+
+    // Same callback reference, only an unrelated prop (device) changes.
+    rerender(
+      <PreviewFrame siteId="site-1" url="/about" status="ready" device="tablet" iframeRef={iframeRef} onFrameLoad={onFrameLoad} />,
+    );
+
+    expect(onFrameLoad).not.toHaveBeenCalled();
+  });
 });
