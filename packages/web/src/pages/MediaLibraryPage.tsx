@@ -6,6 +6,7 @@ import { MediaImagePreviewModal } from '../media/MediaImagePreviewModal.tsx';
 import { usePreview, usePreviewVisible } from '../layout/PreviewContext.tsx';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 import { useSectionClickToEdit } from '../editor/useSectionClickToEdit.ts';
+import { usePreviewNavigationGuard } from '../editor/usePreviewNavigationGuard.tsx';
 import { usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
 
 // The old full-width photo-grid route becomes a left panel beside the
@@ -31,11 +32,17 @@ export function MediaLibraryPage() {
   const { device, setDevice } = usePreview();
 
   usePreviewVisible(true);
+  // Warns before leaving a page with an unpublished draft behind
+  // unnoticed - the same protection PageEditorPage.tsx's useBlocker
+  // gives the Editor route, built for a trigger shape useBlocker can't
+  // intercept (switching the shared preview here is a setPreview
+  // context update, not a router navigation).
+  const { requestPreviewSwitch, promptElement } = usePreviewNavigationGuard(siteId);
   // Same "hover/click a section in the preview to jump into editing
   // it" interaction Pages hub also gets - the shared viewport can still
   // be showing a real page while browsing Media, so this is available
   // "everywhere the viewport shows a page", not just from Pages hub.
-  useSectionClickToEdit(siteId);
+  useSectionClickToEdit(siteId, requestPreviewSwitch);
   // Same device-size toggle Pages hub already wires up - the shared
   // viewport still shows whatever site page was last active while
   // browsing Media, so the topbar shouldn't drop the one control that
@@ -67,6 +74,7 @@ export function MediaLibraryPage() {
         </div>
       </div>
       {selectedItem !== null && <MediaImagePreviewModal item={selectedItem} onClose={() => setSelectedItem(null)} />}
+      {promptElement}
     </div>
   );
 }

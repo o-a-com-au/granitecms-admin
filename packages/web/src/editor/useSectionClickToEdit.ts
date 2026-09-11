@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { usePreview, usePreviewFrameHandlers } from '../layout/PreviewContext.tsx';
-import { readLastEditorLocation, writeLastEditorLocation } from '../sites/currentSite.ts';
+import { readLastEditorLocation } from '../sites/currentSite.ts';
 import { useToast } from '../toast/ToastContext.tsx';
 import { replaceInstanceImage } from '../media/replace-instance-image.ts';
 import { SiteEditorError } from '../api/site-editor.ts';
 import { listSiteContent } from '../api/site-content.ts';
+import type { PreviewSwitchTarget } from './usePreviewNavigationGuard.tsx';
 
 // Lets Pages hub/Media's own preview (a page shown read-only, not
 // currently being edited) support the same "hover a section to
@@ -21,9 +22,9 @@ import { listSiteContent } from '../api/site-content.ts';
 // guard, internal-link interception for in-preview navigation), and
 // forcing both very different call sites through one abstraction right
 // now would cost more than it would save.
-export function useSectionClickToEdit(siteId: string): void {
+export function useSectionClickToEdit(siteId: string, requestPreviewSwitch: (target: PreviewSwitchTarget) => void): void {
   const navigate = useNavigate();
-  const { iframeRef, bumpPreview, setPreview } = usePreview();
+  const { iframeRef, bumpPreview } = usePreview();
   const { showToast } = useToast();
   const highlightedElementRef = useRef<HTMLElement | null>(null);
 
@@ -233,10 +234,12 @@ export function useSectionClickToEdit(siteId: string): void {
   // page since nothing here ever told it navigation had happened.
   //
   // Mirrors PageEditorPage.tsx's own handlePreviewAnchorClick, but
-  // switches the shared preview's own url (setPreview) rather than
-  // navigating this route to the Editor - Pages hub/Media only need to
-  // keep showing the new page, matching what clicking a row in the
-  // Pages list itself already does (PagesHubPage.tsx's handlePreview).
+  // routes the actual switch through requestPreviewSwitch
+  // (usePreviewNavigationGuard.tsx) rather than calling setPreview
+  // directly - Pages hub/Media only need to keep showing the new page,
+  // matching what clicking a row in the Pages list itself already does
+  // (PagesHubPage.tsx's handlePreview), but only after confirming the
+  // page being left doesn't have an unpublished draft sitting on it.
   const handleAnchorClick = useCallback(
     (event: MouseEvent, anchor: HTMLAnchorElement, doc: Document): void => {
       const href = anchor.getAttribute('href');
@@ -266,11 +269,9 @@ export function useSectionClickToEdit(siteId: string): void {
       }
 
       event.preventDefault();
-      setPreview({ url: resolved.pathname });
-      const params = new URLSearchParams({ path: matchedPath, url: resolved.pathname });
-      writeLastEditorLocation(siteId, `/sites/${siteId}/editor?${params.toString()}`);
+      requestPreviewSwitch({ path: matchedPath, url: resolved.pathname });
     },
-    [siteId, setPreview],
+    [requestPreviewSwitch],
   );
 
   const handleFrameLoad = useCallback((): void => {

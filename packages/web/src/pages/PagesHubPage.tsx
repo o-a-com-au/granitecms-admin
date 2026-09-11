@@ -4,7 +4,7 @@ import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 import { usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
 import { usePagesTreeDepth, usePreview, usePreviewVisible } from '../layout/PreviewContext.tsx';
 import { useSectionClickToEdit } from '../editor/useSectionClickToEdit.ts';
-import { writeLastEditorLocation } from '../sites/currentSite.ts';
+import { usePreviewNavigationGuard } from '../editor/usePreviewNavigationGuard.tsx';
 import { PagesTabPanel, type PreviewablePage } from './PagesTabPanel.tsx';
 import { MenusTabPanel } from './MenusTabPanel.tsx';
 import { RedirectsTabPanel } from './RedirectsTabPanel.tsx';
@@ -62,7 +62,16 @@ export function PagesHubPage() {
   // readLastEditorLocation record PageEditorPage.tsx writes to) - this
   // page just needs to ask for it to be shown at all.
   usePreviewVisible(true);
-  useSectionClickToEdit(siteId);
+  // Warns before leaving a page with an unpublished draft behind
+  // unnoticed - the same protection PageEditorPage.tsx's useBlocker
+  // gives the Editor route, built for a trigger shape useBlocker can't
+  // intercept (switching the shared preview here is a setPreview
+  // context update, not a router navigation). Covers both ways this
+  // page switches the previewed page: a real link clicked inside the
+  // preview (useSectionClickToEdit, below) and a row clicked in the
+  // Pages list itself (handlePreview, below).
+  const { requestPreviewSwitch, promptElement } = usePreviewNavigationGuard(siteId);
+  useSectionClickToEdit(siteId, requestPreviewSwitch);
   // useMemo, not a bare JSX expression - usePageDeviceToggle's own
   // effect (PageActionsContext.tsx's createChromeSlot) depends on this
   // node by reference. A fresh element every render re-registers on
@@ -76,15 +85,16 @@ export function PagesHubPage() {
 
   // The reverse direction: previewing a page here also updates the
   // shared record, so switching Pages -> Editor opens this same page
-  // instead of whatever was last actually edited.
+  // instead of whatever was last actually edited. Routed through
+  // requestPreviewSwitch (unlike the page === null branch, which isn't
+  // really "leaving" anything - just clearing the preview to switch to
+  // the Menus/Redirects tab within this same hub).
   function handlePreview(page: PreviewablePage | null): void {
     if (page === null) {
       setPreview({ url: null });
       return;
     }
-    setPreview({ url: page.url });
-    const params = new URLSearchParams({ path: page.path, url: page.url });
-    writeLastEditorLocation(siteId, `/sites/${siteId}/editor?${params.toString()}`);
+    requestPreviewSwitch({ path: page.path, url: page.url });
   }
 
   return (
@@ -119,6 +129,7 @@ export function PagesHubPage() {
           </div>
         </div>
       </div>
+      {promptElement}
     </div>
   );
 }
