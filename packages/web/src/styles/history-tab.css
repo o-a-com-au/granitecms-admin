@@ -55,6 +55,7 @@ button.history-row-restore:hover:not(:disabled) {
 }
 
 .instance-row-main.history-row-main.is-selected button.history-row-restore {
+  background: transparent;
   border-color: transparent;
   color: #fff;
 }
