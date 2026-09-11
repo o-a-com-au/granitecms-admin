@@ -30,6 +30,10 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Display only - the enum value itself (used for storage and, in a
+     theme's own render output, often a literal CSS class/attribute)
+     stays exactly as authored, lowercase included. */
+  text-transform: capitalize;
 }
 
 /* A faint wash of the pressed button's own background (below), not a
