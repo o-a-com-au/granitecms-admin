@@ -305,6 +305,24 @@ async function startFakeEditorSite(options: FakeEditorSiteOptions): Promise<stri
       return;
     }
 
+    // The twin of the branch above: sets published:true on the live
+    // JSON in place, again leaving any draft completely alone.
+    if (req.method === 'POST' && req.url === '/v1/publish-page/pages/about.json') {
+      req.resume();
+      req.on('end', () => {
+        if (liveContent === null) {
+          sendJson(res, 404, { statusCode: 404, error: 'Not Found', message: 'page-not-found' });
+          return;
+        }
+        const parsed = JSON.parse(liveContent) as Record<string, unknown>;
+        parsed.published = true;
+        liveContent = JSON.stringify(parsed);
+        liveEtag = nextEtag();
+        sendJson(res, 200, { ok: true });
+      });
+      return;
+    }
+
     sendJson(res, 404, { error: 'not found' });
   };
 
@@ -854,6 +872,46 @@ describe('sites routes', () => {
     await app.close();
   });
 
+  // ?source=live answers "has this page ever been published", which the
+  // default read cannot: it returns the draft and never looks at live.
+  // The admin needs it to know whether discarding a draft reverts the
+  // page or deletes it outright.
+  it('?source=live reports a published page as existing', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeEditorSite({ acceptedToken: 'the-token', liveContent: '{"title":"Live"}' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/content/pages/about.json?source=live`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { exists: true });
+
+    await app.close();
+  });
+
+  it('?source=live reports a page that exists only as a draft as not published, rather than reporting the draft', async () => {
+    const { app, cookie } = await buildTestServer();
+    // A draft and no live version at all: this is exactly the page whose
+    // discard deletes it, and the default read would answer "draft" here.
+    const siteUrl = await startFakeEditorSite({ acceptedToken: 'the-token', draftContent: '{"title":"Draft"}' });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/content/pages/about.json?source=live`,
+      headers: { cookie },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { exists: false });
+
+    await app.close();
+  });
+
   it('E2, E3: PUT /api/sites/:id/drafts/* saves with If-Match and returns the new ETag', async () => {
     const { app, cookie } = await buildTestServer();
     const siteUrl = await startFakeEditorSite({ acceptedToken: 'the-token', liveContent: '{"title":"Live"}' });
@@ -1367,6 +1425,67 @@ describe('sites routes', () => {
     const body = JSON.parse(afterRead.body) as { title: string; published: boolean };
     assert.equal(body.title, 'About', 'the file stays - unpublish never deletes it');
     assert.equal(body.published, false);
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/publish-page/* flips published to true on the live page in place', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakeEditorSite({
+      acceptedToken: 'the-token',
+      liveContent: '{"title":"About","published":false}',
+    });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/publish-page/pages/about.json`,
+      headers: { cookie },
+      payload: { message: 'Putting this live' },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { ok: true });
+
+    const afterRead = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/content/pages/about.json`,
+      headers: { cookie },
+    });
+    const body = JSON.parse(afterRead.body) as { title: string; published: boolean };
+    assert.equal(body.published, true);
+    assert.equal(body.title, 'About', 'only the flag changes - nothing else about the page');
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/publish-page/* rejects a missing message with 400, without ever calling the site', async () => {
+    const { app, cookie } = await buildTestServer();
+    let publishPageWasCalled = false;
+    fakeSite = createServer((req, res) => {
+      if (req.method === 'POST' && req.url === '/v1/publish-page/pages/about.json') {
+        publishPageWasCalled = true;
+      }
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'not found' }));
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const siteUrl = `http://127.0.0.1:${address.port}`;
+    const id = await registerSite(app, cookie, siteUrl, 'any-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/publish-page/pages/about.json`,
+      headers: { cookie },
+      payload: {},
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(publishPageWasCalled, false);
 
     await app.close();
   });

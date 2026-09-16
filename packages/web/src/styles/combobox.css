@@ -1,0 +1,99 @@
+/* Combobox.tsx - a text input with a dropdown of values already in use.
+   Shaped to match this app's own restyled <select> (base.css) rather
+   than inventing a second look: same radius, same border, same input
+   background, same chevron position, so a combobox and a select sitting
+   in the same form read as the same family of control. */
+.combobox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* padding-right leaves room for the toggle, matching the space
+   base.css's own select rule reserves for its chevron. */
+.combobox-input {
+  width: 100%;
+  padding-right: 2rem;
+  /* --radius-sm, not the --radius-xs base.css gives every other input:
+     this control is meant to read as one of the app's selects, and the
+     select rule uses the larger radius. Measured against a real select
+     side by side - without this the two differ by 2px, which is exactly
+     the mismatch a custom combobox was chosen to avoid.
+
+     font-size and box-shadow are here for the same reason, and were
+     found the same way: base.css's generic input rule leaves this at
+     13px with no shadow, against the select's own 0.8rem and
+     --shadow-panel. Standing side by side in one row (Page type beside
+     Status) that made the two controls differ in height by 0.31px and
+     carry different depth - invisible alone, wrong as a pair. */
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  box-shadow: var(--shadow-panel);
+}
+
+/* button.combobox-toggle, not the bare class: base.css's own
+   button[type='button'] (element+attribute) is the same specificity as
+   a bare class and would otherwise give this its own grey background
+   and border - the same recurring tie documented in index.css. */
+button.combobox-toggle {
+  position: absolute;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--colour-muted);
+  cursor: pointer;
+}
+
+button.combobox-toggle:hover {
+  background: none;
+  color: var(--colour-text);
+}
+
+/* Same popover treatment as .instance-row-more-menu (instance-rows.css)
+   - one popover look across the app. z-index 20 matches it too, which
+   keeps it above the editor panels it opens inside. */
+.combobox-list {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.4rem;
+  list-style: none;
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* Element-qualified for the same specificity reason as the toggle
+   above. is-active is the keyboard's own position, which is distinct
+   from :hover - both get the same wash so the two never disagree about
+   which row is about to be chosen. */
+button.combobox-option {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--colour-text);
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.combobox-option:hover,
+button.combobox-option.is-active {
+  background: var(--colour-surface-hover);
+}

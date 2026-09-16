@@ -24,10 +24,10 @@ function wrapper({ children }: { children: ReactNode }) {
 // A second hook instance in the same tree, reading the same context, so
 // tests can assert on the actual previewUrl a real consumer would see
 // after a switch - not just that some internal state changed.
-function renderGuard() {
+function renderGuard(onContentChanged?: () => void) {
   return renderHook(
     () => {
-      const guard = usePreviewNavigationGuard(SITE_ID);
+      const guard = usePreviewNavigationGuard(SITE_ID, onContentChanged);
       const { previewUrl } = usePreview();
       return { ...guard, previewUrl };
     },
@@ -37,6 +37,9 @@ function renderGuard() {
 
 function installFakeFetch(handlers: {
   content?: Response | (() => Response);
+  // The ?source=live existence check. Defaults to "yes, published",
+  // which is the state every test written before it assumed.
+  live?: Response | (() => Response);
   publish?: Response | (() => Response);
   discard?: Response | (() => Response);
 }) {
@@ -44,6 +47,13 @@ function installFakeFetch(handlers: {
     const url = typeof input === 'string' ? input : input.toString();
     const method = init?.method ?? 'GET';
 
+    if (method === 'GET' && url.includes('source=live')) {
+      const handler = handlers.live;
+      if (!handler) {
+        return new Response(JSON.stringify({ exists: true }), { status: 200 });
+      }
+      return typeof handler === 'function' ? handler() : handler;
+    }
     if (method === 'GET' && url.includes('/content/')) {
       const handler = handlers.content;
       if (!handler) {
@@ -276,5 +286,107 @@ describe('usePreviewNavigationGuard', () => {
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/drafts/'), expect.objectContaining({ method: 'DELETE' }));
     await waitFor(() => expect(result.current.hasDraft).toBe(false));
     expect(result.current.previewUrl).toBe(CURRENT_URL);
+  });
+});
+
+// Discarding a draft that has no published version under it does not
+// revert the page, it deletes it - the draft was the only copy. These
+// cover the two consequences of that: saying so before it happens, and
+// telling the caller afterwards so a list showing the now-deleted page
+// can stop showing it.
+describe('usePreviewNavigationGuard: a draft with nothing published underneath', () => {
+  it('warns that leaving deletes the page, rather than calling it discarding changes', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    seedLastEditorLocation();
+    installFakeFetch({
+      content: () => draftContentResponse(),
+      live: () => new Response(JSON.stringify({ exists: false }), { status: 200 }),
+    });
+    const { result } = renderGuard();
+
+    act(() => result.current.requestPreviewSwitch(TARGET));
+
+    await waitFor(() => expect(result.current.promptElement).not.toBeNull());
+    const prompt = result.current.promptElement as { props: { neverPublished: boolean } };
+    expect(prompt.props.neverPublished).toBe(true);
+  });
+
+  it('keeps the milder wording when a published version does exist underneath', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    seedLastEditorLocation();
+    installFakeFetch({
+      content: () => draftContentResponse(),
+      live: () => new Response(JSON.stringify({ exists: true }), { status: 200 }),
+    });
+    const { result } = renderGuard();
+
+    act(() => result.current.requestPreviewSwitch(TARGET));
+
+    await waitFor(() => expect(result.current.promptElement).not.toBeNull());
+    const prompt = result.current.promptElement as { props: { neverPublished: boolean } };
+    expect(prompt.props.neverPublished).toBe(false);
+  });
+
+  it('exposes the same distinction for the header bar, which discards without a prompt at all', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    seedLastEditorLocation();
+    installFakeFetch({
+      content: () => draftContentResponse(),
+      live: () => new Response(JSON.stringify({ exists: false }), { status: 200 }),
+    });
+    const { result } = renderGuard();
+
+    await waitFor(() => expect(result.current.neverPublished).toBe(true));
+  });
+
+  it('does not accuse a discard of deleting when the liveness check itself fails', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    seedLastEditorLocation();
+    installFakeFetch({
+      content: () => draftContentResponse(),
+      live: () => new Response(JSON.stringify({ error: 'boom' }), { status: 502 }),
+    });
+    const { result } = renderGuard();
+
+    await waitFor(() => expect(result.current.hasDraft).toBe(true));
+    // An unknown answer stays with the milder, always-true statement.
+    expect(result.current.neverPublished).toBe(false);
+  });
+
+  it('reports that content changed after a discard, so a list showing the deleted page can reload', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    seedLastEditorLocation();
+    const onContentChanged = vi.fn();
+    installFakeFetch({
+      content: () => draftContentResponse(),
+      live: () => new Response(JSON.stringify({ exists: false }), { status: 200 }),
+      discard: new Response(null, { status: 204 }),
+    });
+    const { result } = renderGuard(onContentChanged);
+
+    act(() => result.current.requestPreviewSwitch(TARGET));
+    await waitFor(() => expect(result.current.promptElement).not.toBeNull());
+    await act(async () => {
+      const prompt = result.current.promptElement as { props: { onDiscard: () => void } };
+      prompt.props.onDiscard();
+    });
+
+    await waitFor(() => expect(onContentChanged).toHaveBeenCalled());
+  });
+
+  it('also reports a change after publishing from the header bar, which flips a page to published in the list', async () => {
+    vi.stubGlobal('localStorage', createFakeStorage());
+    seedLastEditorLocation();
+    const onContentChanged = vi.fn();
+    installFakeFetch({
+      content: () => draftContentResponse(),
+      publish: new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    });
+    const { result } = renderGuard(onContentChanged);
+    await waitFor(() => expect(result.current.hasDraft).toBe(true));
+
+    await act(async () => result.current.publishCurrent());
+
+    await waitFor(() => expect(onContentChanged).toHaveBeenCalled());
   });
 });

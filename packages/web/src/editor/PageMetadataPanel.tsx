@@ -1,10 +1,19 @@
 import { useState } from 'react';
+import { Combobox } from '../components/Combobox.tsx';
 import { moveSitePage } from '../api/site-publishing.ts';
 import { SiteEditorError } from '../api/site-editor.ts';
 import { slugify } from '../pages/slugify.ts';
+import { displayPageType, normalisePageType } from '../pages/pageType.ts';
 
 export interface PageMetadataPanelProps {
   content: string;
+  // Every page type already in use on this site, for the Page type
+  // combobox to suggest. Suggestions only - a brand new type is always
+  // allowed, since nothing anywhere registers a fixed set. Optional:
+  // with none supplied the field still works, it simply has nothing to
+  // offer, which is better than a caller without a listing crashing the
+  // whole panel.
+  pageTypes?: string[];
   setContent: (value: string) => void;
   siteId: string;
   path: string;
@@ -38,6 +47,29 @@ function readTitle(content: string): string {
   const parsed = parseObject(content);
   const title = parsed?.title;
   return typeof title === 'string' ? title : '';
+}
+
+// The page's own content type: required by the agent's page schema and
+// indexed as page_type, which is what a theme filters on via
+// GET /search.json?pageType=... - so this is the field that decides
+// which listings a page appears in, not a cosmetic label. Free-form by
+// design: several templates can legitimately share one type (a video
+// article and a text article are both "article"), and nothing anywhere
+// registers a fixed set.
+function readType(content: string): string {
+  const parsed = parseObject(content);
+  const type = parsed?.type;
+  return typeof type === 'string' ? type : '';
+}
+
+// Stored lowercase via normalisePageType, which also covers the empty
+// case ("type" is required with minLength 1, so clearing the field
+// falls back to "page" rather than producing content the site would
+// reject). The field displays it capitalised - see pageType.ts for why
+// the two directions have to stay symmetric.
+function writeType(content: string, type: string): string | null {
+  const parsed = parseObject(content);
+  return parsed ? JSON.stringify({ ...parsed, type: normalisePageType(type) }, null, 2) : null;
 }
 
 // I6: same save path as everything else - parse, mutate a clone,
@@ -108,6 +140,7 @@ function replaceLastSegment(value: string, newSegment: string): string {
 // interactive, but nothing is saved.
 export function PageMetadataPanel({
   content,
+  pageTypes,
   setContent,
   siteId,
   path,
@@ -128,6 +161,12 @@ export function PageMetadataPanel({
   const name = readName(content);
   const nameEditable = writeName(content, name) !== null;
   const published = readPublished(content);
+  const pageType = readType(content);
+  const pageTypeEditable = writeType(content, pageType) !== null;
+  // The current value belongs in its own suggestion list even when no
+  // other page uses it yet, so an unusual type is never missing from
+  // the very page that has it.
+  const typeOptions = [...new Set([...(pageTypes ?? []), pageType].filter((entry) => entry !== ''))].sort();
   const publishedEditable = writePublished(content, published) !== null;
 
   // The name this page already had when the editor opened - auto-
@@ -217,6 +256,24 @@ export function PageMetadataPanel({
           }}
         />
       </label>
+      {/* Beside Status deliberately: both answer "where does this page
+          show up", and neither is about its content. */}
+      <label htmlFor="page-type-field">Page type</label>
+      <Combobox
+        id="page-type-field"
+        value={displayPageType(pageType)}
+        options={typeOptions.map(displayPageType)}
+        disabled={!pageTypeEditable}
+        onChange={(next) => {
+          const updated = writeType(content, next);
+          if (updated !== null) {
+            setContent(updated);
+          }
+        }}
+      />
+      <p className="panel-note">
+        Themes list pages by type, so changing this changes which listings include this page.
+      </p>
       <label>
         Page meta description
         <textarea

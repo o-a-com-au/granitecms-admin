@@ -440,12 +440,41 @@ button.instance-row-more:hover {
   color: var(--colour-text);
   padding: 0.5rem 0.6rem;
   font-weight: 500;
-  font-size: 0.85rem;
+  /* One step down from the 0.85rem row-label size (requested directly).
+     0.8rem rather than a new value: it is already this app's own
+     secondary-text size (add-section-modal.css's own description, the
+     Pages tree's own note), so the menu stays on the existing type
+     scale rather than introducing another step. */
+  font-size: 0.8rem;
   border-radius: var(--radius-xs);
+}
+
+/* Element-qualified on purpose. The bare class above declares
+   background: none, but base.css's own button[type='button']
+   (element+attribute) is more specific and wins, so menu buttons have
+   always actually rendered --colour-surface. An <a> menu item (an
+   action carrying `to`, so middle-click still opens a new tab) matches
+   neither rule and came out transparent and underlined beside them -
+   measured. Declaring both elements explicitly makes the two identical
+   without changing how the existing button items already look. */
+button.instance-row-more-menu-item,
+a.instance-row-more-menu-item {
+  background: var(--colour-surface);
+  color: var(--colour-text);
+  text-decoration: none;
 }
 
 .instance-row-more-menu-item:hover {
   background: var(--colour-surface-hover);
+}
+
+/* base.css's own a:hover (element+pseudo-class) would otherwise
+   recolour a link menu item on hover while its button siblings keep
+   --colour-text. */
+a.instance-row-more-menu-item:hover {
+  background: var(--colour-surface-hover);
+  color: var(--colour-text);
+  text-decoration: none;
 }
 
 .instance-row-more-menu-item-icon {

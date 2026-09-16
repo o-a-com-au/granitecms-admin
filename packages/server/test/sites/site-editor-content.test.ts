@@ -1,7 +1,7 @@
 import { afterEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { fetchSiteEditorContent } from '../../src/sites/site-editor-content.ts';
+import { fetchSiteEditorContent, fetchSiteLiveContentExists } from '../../src/sites/site-editor-content.ts';
 
 type Handler = (req: IncomingMessage, res: ServerResponse) => void;
 
@@ -125,6 +125,51 @@ describe('fetchSiteEditorContent', () => {
     const url = await startServer((_req, res) => sendJson(res, 500, { error: 'boom' }));
 
     const result = await fetchSiteEditorContent({ url, token: 'x' }, 'pages/about.json');
+    assert.equal(result.outcome, 'error');
+  });
+});
+
+describe('fetchSiteLiveContentExists', () => {
+  it('reports a published page as existing, without consulting drafts at all', async () => {
+    let draftWasCalled = false;
+    const url = await startServer((req, res) => {
+      if (req.url?.startsWith('/v1/drafts/')) {
+        draftWasCalled = true;
+      }
+      if (req.url === '/v1/content/pages/about.json') {
+        sendJson(res, 200, { title: 'About' }, '"live-etag"');
+        return;
+      }
+      sendJson(res, 404, { error: 'not found' });
+    });
+
+    const result = await fetchSiteLiveContentExists({ url, token: 't' }, 'pages/about.json');
+
+    assert.deepEqual(result, { outcome: 'ok', exists: true });
+    // The whole point of this call is the live file, so asking about a
+    // draft would be both wasteful and a different question.
+    assert.equal(draftWasCalled, false);
+  });
+
+  it('reports a never-published page as not existing, rather than erroring', async () => {
+    const url = await startServer((req, res) => {
+      sendJson(res, 404, { error: 'not found' });
+    });
+
+    const result = await fetchSiteLiveContentExists({ url, token: 't' }, 'pages/new-page.json');
+
+    // 404 here means "never published", which is a real answer - it is
+    // what tells the admin a discard would delete the page.
+    assert.deepEqual(result, { outcome: 'ok', exists: false });
+  });
+
+  it('surfaces an unexpected status as an error rather than guessing', async () => {
+    const url = await startServer((req, res) => {
+      sendJson(res, 500, { error: 'boom' });
+    });
+
+    const result = await fetchSiteLiveContentExists({ url, token: 't' }, 'pages/about.json');
+
     assert.equal(result.outcome, 'error');
   });
 });

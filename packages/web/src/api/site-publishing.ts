@@ -58,6 +58,31 @@ export async function unpublishSitePage(siteId: string, path: string, message: s
   }
 }
 
+// The twin of unpublishSitePage: sets published:true on the live page
+// in place. Distinct from publishSiteDraft above, which promotes a
+// draft - a page that is live but unpublished has no draft to promote,
+// so that call cannot reach it, and promoting a draft would publish
+// every pending edit alongside the status change. Callers pick between
+// the two on whether the page has a live version at all
+// (siteContentHasLiveVersion, site-editor.ts).
+export async function publishSitePage(siteId: string, path: string, message: string): Promise<void> {
+  const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/publish-page/${encodePathSegments(path)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message }),
+  });
+
+  if (response.status === 400) {
+    throw await reasonFromResponse(response, 'invalid');
+  }
+  if (response.status === 404) {
+    throw await reasonFromResponse(response, 'not-found');
+  }
+  if (!response.ok) {
+    throw await reasonFromResponse(response, 'error');
+  }
+}
+
 // Backs the Slug field's rename-on-save (PageMetadataPanel.tsx) and the
 // page tree's drag-to-reparent feature (PagesTabPanel.tsx). from/to are
 // page URLs ("/about"), not content paths - both call sites already

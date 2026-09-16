@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 import { usePageActions, usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
@@ -71,8 +71,16 @@ export function PagesHubPage() {
   // page switches the previewed page: a real link clicked inside the
   // preview (useSectionClickToEdit, below) and a row clicked in the
   // Pages list itself (handlePreview, below).
-  const { requestPreviewSwitch, promptElement, hasDraft, actionsBusy, publishCurrent, discardCurrent } =
-    usePreviewNavigationGuard(siteId);
+  // Publishing or discarding from the bar/prompt below changes the very
+  // list this panel is showing - and discarding a never-published page
+  // removes it altogether - so the panel is told to reload rather than
+  // left showing a row for a page that no longer exists.
+  const [contentRefreshToken, setContentRefreshToken] = useState(0);
+  const handleContentChanged = useCallback(() => {
+    setContentRefreshToken((token) => token + 1);
+  }, []);
+  const { requestPreviewSwitch, promptElement, hasDraft, neverPublished, actionsBusy, publishCurrent, discardCurrent } =
+    usePreviewNavigationGuard(siteId, handleContentChanged);
   useSectionClickToEdit(siteId, requestPreviewSwitch);
   // The same persistent Discard/Save action bar PageEditorPage.tsx
   // shows in the app header the whole time the current page has an
@@ -80,8 +88,16 @@ export function PagesHubPage() {
   // directly, so a drag-drop-created draft is exactly as visible here
   // as one made by editing a text field in the Editor.
   const pageActionsNode = useMemo(
-    () => (hasDraft ? <DraftActionButtons busy={actionsBusy} onDiscard={discardCurrent} onPublish={publishCurrent} /> : null),
-    [hasDraft, actionsBusy, discardCurrent, publishCurrent],
+    () =>
+      hasDraft ? (
+        <DraftActionButtons
+          busy={actionsBusy}
+          neverPublished={neverPublished}
+          onDiscard={discardCurrent}
+          onPublish={publishCurrent}
+        />
+      ) : null,
+    [hasDraft, neverPublished, actionsBusy, discardCurrent, publishCurrent],
   );
   usePageActions(pageActionsNode);
   // useMemo, not a bare JSX expression - usePageDeviceToggle's own
@@ -133,7 +149,13 @@ export function PagesHubPage() {
           <div className="editor-tab-content">
             <div className="editor-tab-panel">
               {tab === 'pages' && (
-                <PagesTabPanel siteId={siteId} onPreview={handlePreview} onMaxDepthChange={setPagesTreeDepth} activeUrl={previewUrl} />
+                <PagesTabPanel
+                  siteId={siteId}
+                  onPreview={handlePreview}
+                  onMaxDepthChange={setPagesTreeDepth}
+                  activeUrl={previewUrl}
+                  refreshToken={contentRefreshToken}
+                />
               )}
               {tab === 'menus' && <MenusTabPanel siteId={siteId} />}
               {tab === 'redirects' && <RedirectsTabPanel siteId={siteId} onUtilitiesChange={setTabUtilities} />}

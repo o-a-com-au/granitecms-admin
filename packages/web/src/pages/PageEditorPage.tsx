@@ -96,6 +96,10 @@ export function PageEditorPage() {
   // site's content is indexed once per siteId rather than added as a
   // new endpoint on either side.
   const [contentIndex, setContentIndex] = useState<Map<string, string> | null>(null);
+  // Distinct page types already in use on this site, gathered from the
+  // same listing contentIndex is built from - Page Meta's own Page type
+  // combobox suggests these rather than fetching a list of its own.
+  const [pageTypes, setPageTypes] = useState<string[]>([]);
   // The click listener below is attached inside handlePreviewFrameLoad,
   // which only reruns when the iframe's own load event actually fires
   // (a real reload) - not on every render. Editing content doesn't
@@ -122,12 +126,20 @@ export function PageEditorPage() {
           return;
         }
         const index = new Map<string, string>();
+        // Collected from the same listing rather than a second request:
+        // these feed Page Meta's own Page type suggestions, which are
+        // just the types this site already uses.
+        const types = new Set<string>();
         for (const entry of entries) {
           if (entry.url !== null) {
             index.set(entry.url, entry.path);
           }
+          if (entry.path.startsWith('pages/') && entry.type !== '') {
+            types.add(entry.type);
+          }
         }
         setContentIndex(index);
+        setPageTypes([...types].sort());
       })
       .catch(() => {
         // A preview link just won't be recognised as internal
@@ -942,6 +954,7 @@ export function PageEditorPage() {
                   <div className="editor-tab-panel" ref={tabPanelRef}>
                     {effectiveViewMode === 'metafields' && (
                       <PageMetadataPanel
+                        pageTypes={pageTypes}
                         key={path}
                         content={content}
                         setContent={setContent}

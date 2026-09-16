@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePreview } from '../layout/PreviewContext.tsx';
 import { readLastEditorLocation, writeLastEditorLocation } from '../sites/currentSite.ts';
 import { discardSiteDraft, publishSiteDraft } from '../api/site-publishing.ts';
-import { readSiteEditorContent, SiteEditorError } from '../api/site-editor.ts';
+import { readSiteEditorContent, siteContentHasLiveVersion, SiteEditorError } from '../api/site-editor.ts';
 import { buildPublishMessage } from './publishMessage.ts';
 import { UnsavedChangesPrompt } from './UnsavedChangesPrompt.tsx';
 
@@ -14,6 +14,26 @@ export interface PreviewSwitchTarget {
 interface PendingSwitch {
   currentPath: string;
   target: PreviewSwitchTarget;
+  // Captured per-prompt rather than read off the tracked state below,
+  // so the warning describes the page the prompt is actually about.
+  neverPublished: boolean;
+}
+
+// Whether discarding this page's draft would delete the page outright
+// instead of reverting it: a draft with no published version under it
+// is the only copy that exists, so "discard" and "delete" are the same
+// operation here (the agent's own discard unlinks the draft, and the
+// page then exists nowhere).
+//
+// Falls back to false, the milder "discard" wording, when the check
+// itself fails - an unknown answer should not warn about a deletion
+// that may not be about to happen.
+async function neverPublishedFor(siteId: string, path: string): Promise<boolean> {
+  try {
+    return !(await siteContentHasLiveVersion(siteId, path));
+  } catch {
+    return false;
+  }
 }
 
 // Same readLastEditorLocation string requestPreviewSwitch and the
@@ -47,10 +67,21 @@ function currentPathFor(siteId: string): string | null {
 // previewGeneration bumps (PreviewContext.tsx) - the latter covers a
 // drop replacing an image on the SAME page, which reloads the iframe
 // without changing previewUrl at all.
-export function usePreviewNavigationGuard(siteId: string): {
+// onContentChanged fires after any of the four actions that change what
+// is actually on disk (publish or discard, from either the prompt or the
+// header bar). Discarding a never-published page deletes it, so a page
+// list rendered alongside this hook is stale the moment that happens -
+// it kept showing a row for a page that no longer exists anywhere. The
+// hook cannot refresh that list itself (it does not own it), so it says
+// that something changed and lets the owner reload.
+export function usePreviewNavigationGuard(
+  siteId: string,
+  onContentChanged?: () => void,
+): {
   requestPreviewSwitch: (target: PreviewSwitchTarget) => void;
   promptElement: ReactNode;
   hasDraft: boolean;
+  neverPublished: boolean;
   actionsBusy: boolean;
   publishCurrent: () => void;
   discardCurrent: () => void;
@@ -60,23 +91,44 @@ export function usePreviewNavigationGuard(siteId: string): {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
+  const [neverPublished, setNeverPublished] = useState(false);
+  // Held in a ref so a caller passing a fresh arrow function each render
+  // does not rebuild every callback below (and, through them, the
+  // action-bar node those callbacks are memoised into).
+  const onContentChangedRef = useRef(onContentChanged);
+  onContentChangedRef.current = onContentChanged;
 
   useEffect(() => {
     const currentPath = currentPathFor(siteId);
     if (currentPath === null) {
       setHasDraft(false);
+      setNeverPublished(false);
       return;
     }
     let cancelled = false;
     readSiteEditorContent(siteId, currentPath)
-      .then((result) => {
+      .then(async (result) => {
+        if (cancelled) {
+          return;
+        }
+        if (result.source !== 'draft') {
+          setHasDraft(false);
+          setNeverPublished(false);
+          return;
+        }
+        // hasDraft is set before the second (slower) question, so the
+        // action bar appears as promptly as it always did - only its
+        // wording waits on the liveness answer.
+        setHasDraft(true);
+        const deletes = await neverPublishedFor(siteId, currentPath);
         if (!cancelled) {
-          setHasDraft(result.source === 'draft');
+          setNeverPublished(deletes);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setHasDraft(false);
+          setNeverPublished(false);
         }
       });
     return () => {
@@ -106,9 +158,9 @@ export function usePreviewNavigationGuard(siteId: string): {
       }
 
       readSiteEditorContent(siteId, currentPath)
-        .then((result) => {
+        .then(async (result) => {
           if (result.source === 'draft') {
-            setPending({ currentPath, target });
+            setPending({ currentPath, target, neverPublished: await neverPublishedFor(siteId, currentPath) });
           } else {
             performSwitch(target);
           }
@@ -139,6 +191,7 @@ export function usePreviewNavigationGuard(siteId: string): {
         // reverts to whatever's underneath - live if this page has
         // ever been published, but back to not-found otherwise).
         bumpPreview();
+        onContentChangedRef.current?.();
         setBusy(false);
       })
       .catch((err: unknown) => {
@@ -157,6 +210,9 @@ export function usePreviewNavigationGuard(siteId: string): {
     discardSiteDraft(siteId, currentPath)
       .then(() => {
         bumpPreview();
+        // Especially important here: if that draft was the page's only
+        // copy, the page is now gone, not merely reverted.
+        onContentChangedRef.current?.();
         setBusy(false);
       })
       .catch((err: unknown) => {
@@ -179,6 +235,7 @@ export function usePreviewNavigationGuard(siteId: string): {
         // published), so it needs a fresh check of its own regardless.
         performSwitch(pending.target);
         setPending(null);
+        onContentChangedRef.current?.();
         setBusy(false);
       })
       .catch((err: unknown) => {
@@ -197,6 +254,7 @@ export function usePreviewNavigationGuard(siteId: string): {
       .then(() => {
         performSwitch(pending.target);
         setPending(null);
+        onContentChangedRef.current?.();
         setBusy(false);
       })
       .catch((err: unknown) => {
@@ -212,8 +270,15 @@ export function usePreviewNavigationGuard(siteId: string): {
 
   const promptElement =
     pending !== null ? (
-      <UnsavedChangesPrompt busy={busy} error={error} onSave={handleSave} onDiscard={handleDiscard} onCancel={handleCancel} />
+      <UnsavedChangesPrompt
+        busy={busy}
+        error={error}
+        neverPublished={pending.neverPublished}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        onCancel={handleCancel}
+      />
     ) : null;
 
-  return { requestPreviewSwitch, promptElement, hasDraft, actionsBusy: busy, publishCurrent, discardCurrent };
+  return { requestPreviewSwitch, promptElement, hasDraft, neverPublished, actionsBusy: busy, publishCurrent, discardCurrent };
 }

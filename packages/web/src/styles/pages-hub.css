@@ -161,16 +161,49 @@
 }
 
 /* PagesTabPanel.tsx's own draft-only pages (ContentListEntry.published
-   false) - dims the whole row (icons, drag handle and all, not just
-   the label) so an unpublished page reads as visually absent/inactive
-   in the tree at a glance, with a strikethrough on the title itself
-   as the second, more specific cue (requested directly). */
-.instance-row-main.is-unpublished {
-  opacity: 0.3;
+   false). Carried three different treatments over time, all now gone:
+   opacity: 0.3 across the whole row (faded the drag handle, chevron and
+   actions along with the label), a strikethrough on the title, and a
+   fill of its own separating a draft row from a published one. A draft
+   row now paints exactly like any other - the faded label below and the
+   Draft badge carry the meaning between them, which was judged enough
+   without a second background (requested directly).
+
+   :not(.is-selected) matters: this file loads after instance-rows.css,
+   and the plain .instance-row-main.is-selected .page-tree-title rule
+   above is one class less specific than this one, so without it a
+   selected draft row would lose its white title against the blue. */
+/* The title and the badge both sit at 50% (requested directly).
+   color-mix against transparent rather than opacity: 0.5 on the
+   elements: the badge carries a background chip of its own, and a plain
+   opacity would fade that chip along with its text - this fades only
+   what was asked for. Published rows keep their full-strength label. */
+.instance-row-main.is-unpublished:not(.is-selected) .page-tree-title {
+  color: color-mix(in srgb, var(--colour-row-draft-text) 50%, transparent);
 }
 
-.instance-row-main.is-unpublished .page-tree-title {
-  text-decoration: line-through;
+/* The Draft chip, sitting between the title and the row's own actions
+   menu (requested directly). Uppercased in CSS rather than in the
+   markup so the accessible name stays the readable "Draft" - a
+   screen reader should not have to spell out an all-caps word. */
+.page-tree-draft-badge {
+  flex: 0 0 auto;
+  margin-right: var(--space-xs);
+  padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--radius-xs);
+  background: var(--colour-drag-handle-background);
+  color: color-mix(in srgb, var(--colour-row-draft-text) 50%, transparent);
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Same reason .page-tree-title needs its own is-selected override just
+   above: an explicit colour on the element beats the white inherited
+   from the selected row. */
+.instance-row-main.is-selected .page-tree-draft-badge {
+  color: #fff;
 }
 
 /* MenusTabPanel.tsx's own expanded menu row - a plain grouping div with

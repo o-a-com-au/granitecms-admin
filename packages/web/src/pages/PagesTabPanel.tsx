@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { listSiteContent, deleteSitePage, SiteContentError } from '../api/site-content.ts';
 import type { ContentListEntry } from '../api/site-content.ts';
-import { moveSitePage } from '../api/site-publishing.ts';
-import { SiteEditorError } from '../api/site-editor.ts';
+import { moveSitePage, publishSiteDraft, publishSitePage, unpublishSitePage } from '../api/site-publishing.ts';
+import { readSiteEditorContent, saveSiteDraft, siteContentHasLiveVersion, SiteEditorError } from '../api/site-editor.ts';
 import { isMenuPath } from './deriveMenuName.ts';
 import { buildPageTree, flattenVisibleTree, isSelfOrDescendantPage, pageParentPath, relativePagePath, type PageTreeNode } from './pageTree.ts';
-import { NewPageModal } from './NewPageModal.tsx';
+import { NewPageModal, NON_PARENT_PAGE_PATHS } from './NewPageModal.tsx';
 import { AddIcon } from '../sections/AddIcon.tsx';
+import { DuplicateIcon } from '../sections/DuplicateIcon.tsx';
 import { EditIcon } from '../sections/EditIcon.tsx';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
+import { PublishIcon } from '../sections/PublishIcon.tsx';
+import { DraftIcon } from '../sections/DraftIcon.tsx';
 import { DragHandleIcon } from '../sections/DragHandleIcon.tsx';
 import { AccordionArrowIcon } from '../sections/AccordionArrowIcon.tsx';
 import { InstanceRowActions } from '../sections/InstanceRowActions.tsx';
@@ -49,6 +52,13 @@ export interface PagesTabPanelProps {
   // showing (requested directly). null matches nothing, same as no
   // page being previewed at all.
   activeUrl: string | null;
+  // Bumped by PagesHubPage whenever something outside this panel
+  // changes content - today, discarding or publishing the previewed
+  // page's draft through the navigation guard. Without it a discard
+  // that deletes a never-published page leaves its row sitting in this
+  // tree until something else happens to reload, which reads as the
+  // delete having silently failed.
+  refreshToken?: number;
 }
 
 function collectParentPaths(nodes: PageTreeNode[], into: Set<string>): void {
@@ -86,15 +96,69 @@ interface PendingDelete {
   hasChildren: boolean;
 }
 
+// A publish/set-as-draft waiting on the user's own confirmation. Both
+// directions change what the public site actually serves, so neither is
+// confirmation-free - the same reasoning PendingDelete above documents,
+// even though this one is fully reversible (the opposite action is
+// right there in the same menu).
+interface PendingStatusChange {
+  entry: ContentListEntry;
+  next: 'published' | 'draft';
+}
+
 function lastPathSegment(path: string): string {
   const stem = relativePagePath(path).replace(/\.json$/, '');
   const segments = stem.split('/');
   return segments[segments.length - 1] as string;
 }
 
-export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }: PagesTabPanelProps) {
+export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, refreshToken }: PagesTabPanelProps) {
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
   const [newPageModalOpen, setNewPageModalOpen] = useState(false);
+  // The row a new page should be nested under, when the modal was
+  // opened from a row's own "Add Child Page" rather than from the
+  // panel's "Add Page" button. null means top level.
+  const [childParentPath, setChildParentPath] = useState<string | null>(null);
+  // The row being copied, when the modal was opened from "Duplicate
+  // Page". null means this is an ordinary create, not a copy.
+  const [duplicateSource, setDuplicateSource] = useState<ContentListEntry | null>(null);
+  // A page just created, to be revealed in the tree once the reload
+  // below brings it in. Kept in state rather than applied directly
+  // because the collapse-seeding effect re-derives the whole collapsed
+  // set from scratch on every entries change - expanding ancestors
+  // outside that effect would simply be overwritten by it.
+  const [revealPath, setRevealPath] = useState<string | null>(null);
+
+  // Opens the same NewPageModal the panel's own "Add Page" button does,
+  // but pointed at the row it was invoked from. The modal's Parent
+  // dropdown stays editable afterwards, so this only seeds it.
+  function handleRequestChildPage(entry: ContentListEntry): void {
+    setDuplicateSource(null);
+    setChildParentPath(entry.path);
+    setNewPageModalOpen(true);
+  }
+
+  // Stays on this panel rather than following the new page into the
+  // editor (requested directly): reload so the row exists, remember it
+  // so the seeding effect above opens its branch, and preview it, which
+  // is what draws the highlight (activeUrl comes back down from
+  // PagesHubPage).
+  function handleCreated(path: string, url: string): void {
+    setNewPageModalOpen(false);
+    setChildParentPath(null);
+    setDuplicateSource(null);
+    setRevealPath(path);
+    retry();
+    onPreview({ path, url });
+  }
+
+  // The same dialog again, in its duplicate mode - it seeds its own
+  // title and parent from this entry, so nothing else is passed.
+  function handleRequestDuplicate(entry: ContentListEntry): void {
+    setChildParentPath(null);
+    setDuplicateSource(entry);
+    setNewPageModalOpen(true);
+  }
   const [entries, setEntries] = useState<ContentListEntry[] | null>(null);
   const [error, setError] = useState<LoadError | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
@@ -111,6 +175,9 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<PendingStatusChange | null>(null);
+  const [statusBusy, setStatusBusy] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -137,7 +204,7 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }
     return () => {
       cancelled = true;
     };
-  }, [siteId, reloadToken]);
+  }, [siteId, reloadToken, refreshToken]);
 
   useEffect(() => {
     if (entries === null) {
@@ -146,10 +213,24 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }
     const allPages = entries.filter((entry) => !isMenuPath(entry.path));
     const parentPaths = new Set<string>();
     collectParentPaths(buildPageTree(allPages), parentPaths);
+    // Everything starts collapsed except the branch leading to a page
+    // just created, which would otherwise be created and then hidden.
+    // Walks the whole ancestor chain, not just the immediate parent, so
+    // a grandchild is reachable too.
+    if (revealPath !== null) {
+      for (let ancestor = pageParentPath(revealPath); ancestor !== null; ancestor = pageParentPath(ancestor)) {
+        parentPaths.delete(ancestor);
+      }
+    }
     setCollapsedPaths(parentPaths);
-  }, [entries]);
+  }, [entries, revealPath]);
 
   function handleToggle(path: string): void {
+    // An explicit collapse/expand outranks the reveal from a just-created
+    // page. Without this the reveal keeps applying on every later reload
+    // (the seeding effect above keys on it), so a branch deliberately
+    // closed would spring back open after an unrelated delete.
+    setRevealPath(null);
     setCollapsedPaths((current) => {
       const next = new Set(current);
       if (next.has(path)) {
@@ -251,6 +332,57 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }
     setPendingDelete({ entry, hasChildren });
   }
 
+  function handleRequestStatusChange(entry: ContentListEntry): void {
+    setStatusError(null);
+    setPendingStatus({ entry, next: entry.published ? 'draft' : 'published' });
+  }
+
+  async function handleConfirmStatusChange(): Promise<void> {
+    if (!pendingStatus) {
+      return;
+    }
+    const { entry, next } = pendingStatus;
+    const label = entry.name || entry.path;
+    setStatusBusy(true);
+    setStatusError(null);
+    try {
+      if (next === 'draft') {
+        await unpublishSitePage(siteId, entry.path, `Set ${label} as a draft`);
+      } else if (await siteContentHasLiveVersion(siteId, entry.path)) {
+        // The ordinary case: a live page whose published flag is simply
+        // off. Flipped in place, so any unrelated pending draft edits
+        // stay pending rather than going live as a side effect.
+        await publishSitePage(siteId, entry.path, `Publish ${label}`);
+      } else {
+        // A page that has never been published has no live file to flip
+        // at all. Promoting its draft alone would not do it either: that
+        // draft carries published:false, so the page would go live while
+        // still hidden. Set the flag in the draft first, then promote -
+        // one commit, and the same shape NewPageModal.tsx already uses to
+        // create a page as published. Nothing is at risk here the way it
+        // would be over a live page: with no published version, the draft
+        // is the page.
+        const current = await readSiteEditorContent(siteId, entry.path);
+        const parsed = JSON.parse(current.content) as Record<string, unknown>;
+        parsed.published = true;
+        await saveSiteDraft(siteId, entry.path, JSON.stringify(parsed, null, 2), current.etag);
+        await publishSiteDraft(siteId, entry.path, `Publish ${label}`);
+      }
+      setPendingStatus(null);
+      retry();
+    } catch (err) {
+      setStatusError(
+        err instanceof SiteEditorError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : `Failed to ${next === 'draft' ? 'set that page as a draft' : 'publish that page'}`,
+      );
+    } finally {
+      setStatusBusy(false);
+    }
+  }
+
   async function handleConfirmDelete(): Promise<void> {
     if (!pendingDelete) {
       return;
@@ -305,6 +437,7 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }
     <div className="pages-hub-tab">
       {moveError && <p role="alert">{moveError}</p>}
       {deleteError && <p role="alert">{deleteError}</p>}
+      {statusError && <p role="alert">{statusError}</p>}
       {tree !== null && tree.length === 0 ? (
         <p>No pages found.</p>
       ) : (
@@ -321,6 +454,9 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }
               draggedPath={draggedPath}
               dropTargetPath={dropTargetPath}
               onRequestDelete={handleRequestDelete}
+              onRequestChildPage={handleRequestChildPage}
+              onRequestDuplicate={handleRequestDuplicate}
+              onRequestStatusChange={handleRequestStatusChange}
               onRowDragStart={handleRowDragStart}
               onRowDragOver={handleRowDragOver}
               onRowDragLeave={handleRowDragLeave}
@@ -330,11 +466,31 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }
           ))}
         </ul>
       )}
-      <button type="button" className="instance-add-button" onClick={() => setNewPageModalOpen(true)}>
+      <button
+        type="button"
+        className="instance-add-button"
+        onClick={() => {
+          setChildParentPath(null);
+          setDuplicateSource(null);
+          setNewPageModalOpen(true);
+        }}
+      >
         <AddIcon />
         Add Page
       </button>
-      {newPageModalOpen && <NewPageModal siteId={siteId} onClose={() => setNewPageModalOpen(false)} />}
+      {newPageModalOpen && (
+        <NewPageModal
+          siteId={siteId}
+          initialParentPath={childParentPath ?? undefined}
+          duplicateFrom={duplicateSource ?? undefined}
+          onCreated={handleCreated}
+          onClose={() => {
+            setNewPageModalOpen(false);
+            setChildParentPath(null);
+            setDuplicateSource(null);
+          }}
+        />
+      )}
       {pendingMove && (
         <ConfirmDialog
           message={`Move "${pendingMove.entry.name || pendingMove.entry.path}" under "${pendingMove.newParentEntry.name || pendingMove.newParentEntry.path}"? Its path becomes ${relativePagePath(pendingMove.newPath)} and its url becomes ${pendingMove.newUrl}.`}
@@ -355,6 +511,19 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl }
           onCancel={() => setPendingDelete(null)}
         />
       )}
+      {pendingStatus && (
+        <ConfirmDialog
+          message={
+            pendingStatus.next === 'draft'
+              ? `Set "${pendingStatus.entry.name || pendingStatus.entry.path}" as a draft? It stops being visible on the live website, and its url returns a 404 until it is published again.`
+              : `Publish "${pendingStatus.entry.name || pendingStatus.entry.path}"? It becomes visible on the live website.`
+          }
+          confirmLabel={pendingStatus.next === 'draft' ? 'Set as Draft' : 'Publish'}
+          busy={statusBusy}
+          onConfirm={() => void handleConfirmStatusChange()}
+          onCancel={() => setPendingStatus(null)}
+        />
+      )}
     </div>
   );
 }
@@ -369,6 +538,9 @@ interface PagesHubTreeRowProps {
   draggedPath: string | null;
   dropTargetPath: string | null;
   onRequestDelete: (entry: ContentListEntry, hasChildren: boolean) => void;
+  onRequestChildPage: (entry: ContentListEntry) => void;
+  onRequestDuplicate: (entry: ContentListEntry) => void;
+  onRequestStatusChange: (entry: ContentListEntry) => void;
   onRowDragStart: (path: string) => void;
   onRowDragOver: (event: DragEvent, candidate: ContentListEntry) => void;
   onRowDragLeave: (candidatePath: string) => void;
@@ -409,6 +581,9 @@ function PagesHubTreeRow({
   draggedPath,
   dropTargetPath,
   onRequestDelete,
+  onRequestChildPage,
+  onRequestDuplicate,
+  onRequestStatusChange,
   onRowDragStart,
   onRowDragOver,
   onRowDragLeave,
@@ -458,10 +633,6 @@ function PagesHubTreeRow({
   function handleToggleClick(event: MouseEvent): void {
     event.stopPropagation();
     onToggle(entry.path);
-  }
-
-  function handleEditLinkClick(event: MouseEvent): void {
-    event.stopPropagation();
   }
 
   return (
@@ -531,27 +702,73 @@ function PagesHubTreeRow({
         <span className="page-tree-title" title={entry.name || entry.path}>
           {entry.name || entry.path}
         </span>
-        <Link
-          to={editorHref}
-          state={{ initialViewMode: 'metafields' }}
-          className="instance-row-edit"
-          aria-label={`Edit ${entry.name || entry.path}`}
-          onClick={handleEditLinkClick}
-        >
-          <EditIcon />
-        </Link>
-        {/* Edit stays a real <Link> outside InstanceRowActions.tsx (open-
-            in-new-tab/middle-click etc - see button.instance-row-edit's
-            own comment in instance-rows.css), so only Delete goes
-            through it here - a single action still renders as a plain
-            button, no kebab menu needed for just one. */}
+        {/* Sits before the actions menu (requested directly). Keyed off
+            published, the same field that drives .is-unpublished above,
+            so the badge and the row's own draft colouring can never
+            disagree - deliberately not hasDraft, which means "has
+            unpublished edits over a live page", a different state. */}
+        {!entry.published && <span className="page-tree-draft-badge">Draft</span>}
+        {/* One "More actions" menu rather than bare icons (requested
+            directly). InstanceRowActions collapses to a kebab menu on
+            its own once given more than two actions, so this needs no
+            menu of its own. Edit carries `to` rather than an onClick so
+            it still renders as a real anchor inside the menu, keeping
+            middle-click and cmd-click open-in-new-tab - the reason it
+            used to sit outside this component entirely.
+
+            "Add Child Page" is omitted for Home and 404: both are
+            excluded as parents (NewPageModal's own
+            NON_PARENT_PAGE_PATHS - nesting under Home would resolve at
+            /index/<slug>), so offering it here would open a modal that
+            could not honour the parent it was invoked with. */}
         <InstanceRowActions
+          collapse="always"
           actions={[
             {
+              key: 'edit',
+              label: 'Edit Page',
+              icon: <EditIcon />,
+              to: editorHref,
+              state: { initialViewMode: 'metafields' },
+            },
+            ...(NON_PARENT_PAGE_PATHS.includes(entry.path)
+              ? []
+              : [
+                  {
+                    key: 'child',
+                    label: 'Add Child Page',
+                    icon: <AddIcon />,
+                    onClick: () => onRequestChildPage(entry),
+                  },
+                ]),
+            {
+              key: 'duplicate',
+              label: 'Duplicate Page',
+              icon: <DuplicateIcon />,
+              onClick: () => onRequestDuplicate(entry),
+            },
+            // One action, not two disabled ones: InstanceRowAction has no
+            // disabled state, so a row offers whichever direction it can
+            // actually go - the same way Home and 404 simply drop "Add
+            // Child Page" rather than showing it greyed out.
+            entry.published
+              ? {
+                  key: 'draft',
+                  label: 'Set as Draft',
+                  icon: <DraftIcon />,
+                  onClick: () => onRequestStatusChange(entry),
+                }
+              : {
+                  key: 'publish',
+                  label: 'Publish',
+                  icon: <PublishIcon />,
+                  onClick: () => onRequestStatusChange(entry),
+                },
+            {
               key: 'delete',
-              label: `Delete ${entry.name || entry.path}`,
+              label: 'Delete Page',
               icon: <TrashIcon />,
-              variant: 'destructive',
+              variant: 'destructive' as const,
               onClick: () => onRequestDelete(entry, hasChildren),
             },
           ]}
@@ -578,6 +795,9 @@ function PagesHubTreeRow({
               draggedPath={draggedPath}
               dropTargetPath={dropTargetPath}
               onRequestDelete={onRequestDelete}
+              onRequestChildPage={onRequestChildPage}
+              onRequestDuplicate={onRequestDuplicate}
+              onRequestStatusChange={onRequestStatusChange}
               onRowDragStart={onRowDragStart}
               onRowDragOver={onRowDragOver}
               onRowDragLeave={onRowDragLeave}

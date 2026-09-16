@@ -13,13 +13,14 @@ import type { Site } from '../sites/site.ts';
 import { SiteNotFoundError } from '../sites/site-not-found-error.ts';
 import { checkSiteStatus, type SiteStatus } from '../sites/site-status.ts';
 import { fetchSiteContent, type ContentListFilters } from '../sites/site-content.ts';
-import { fetchSiteEditorContent } from '../sites/site-editor-content.ts';
+import { fetchSiteEditorContent, fetchSiteLiveContentExists } from '../sites/site-editor-content.ts';
 import { saveSiteDraft } from '../sites/site-draft-save.ts';
 import { fetchSitePreview } from '../sites/site-preview.ts';
 import { fetchSitePreviewRevision } from '../sites/site-preview-revision.ts';
 import { publishSite } from '../sites/site-publish.ts';
 import { discardSiteDraft } from '../sites/site-draft-discard.ts';
 import { unpublishSite } from '../sites/site-unpublish.ts';
+import { publishSitePage } from '../sites/site-publish-page.ts';
 import { reindexSite } from '../sites/site-search.ts';
 import type { CommitAuthor } from '../sites/commit-author.ts';
 import { fetchSiteHistory } from '../sites/site-history.ts';
@@ -151,11 +152,14 @@ function parsePublishBody(body: unknown): PublishBody | null {
   return { path: record.path, message: record.message };
 }
 
-interface UnpublishBody {
+// Shared by /:id/unpublish/* and /:id/publish-page/* - both take the
+// same { message } body, since the path says which way the published
+// flag is being flipped.
+interface PublishedFlagBody {
   message: string;
 }
 
-function parseUnpublishBody(body: unknown): UnpublishBody | null {
+function parsePublishedFlagBody(body: unknown): PublishedFlagBody | null {
   if (typeof body !== 'object' || body === null) {
     return null;
   }
@@ -401,13 +405,28 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
     // bytes the site returned, byte-for-byte - metadata (etag, which
     // of draft/live it came from) lives in headers, never folded into
     // the document itself.
-    app.get<{ Params: { id: string; '*': string } }>(
+    app.get<{ Params: { id: string; '*': string }; Querystring: { source?: string } }>(
       '/:id/content/*',
       { preHandler: [requireAuth, requireSiteAccess] },
       async (request, reply) => {
         const site = await sitesStore.find(request.params.id);
         if (!site) {
           throw new SiteNotFoundError(request.params.id);
+        }
+
+        // ?source=live asks a different question from the default
+        // draft-if-one-exists read: does a published file exist here at
+        // all. The admin needs that to tell a discard that reverts to
+        // live apart from one that deletes a never-published page, and
+        // the default read cannot answer it - it returns the draft and
+        // never looks at live.
+        if (request.query.source === 'live') {
+          const liveResult = await fetchSiteLiveContentExists(site, request.params['*']);
+          if (liveResult.outcome === 'ok') {
+            return { exists: liveResult.exists };
+          }
+          reply.code(502);
+          return { error: liveResult.message, reason: liveResult.outcome };
         }
 
         const result = await fetchSiteEditorContent(site, request.params['*']);
@@ -626,7 +645,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
           throw new SiteNotFoundError(request.params.id);
         }
 
-        const body = parseUnpublishBody(request.body);
+        const body = parsePublishedFlagBody(request.body);
         if (!body) {
           reply.code(400);
           return { error: 'message is required' };
@@ -637,6 +656,53 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
 
         if (result.outcome === 'ok') {
           return { ok: true };
+        }
+        if (result.outcome === 'invalid') {
+          reply.code(400);
+          return { statusCode: 400, error: 'Bad Request', message: result.message };
+        }
+        if (result.outcome === 'not-found') {
+          reply.code(404);
+          return { error: result.message, reason: 'not-found' };
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
+
+    // The twin of unpublish above: sets published:true on the live file
+    // in place. Deliberately not /:id/publish, which promotes a draft -
+    // an unpublished live page has no draft to promote, and promoting
+    // one would publish any unrelated pending edits along with the
+    // status change.
+    app.post<{ Params: { id: string; '*': string } }>(
+      '/:id/publish-page/*',
+      { preHandler: [requireAuth, requireSiteAccess] },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const body = parsePublishedFlagBody(request.body);
+        if (!body) {
+          reply.code(400);
+          return { error: 'message is required' };
+        }
+
+        const author = requireCommitAuthor(request.currentUser);
+        const result = await publishSitePage(site, request.params['*'], body.message, author);
+
+        if (result.outcome === 'ok') {
+          return { ok: true };
+        }
+        // 501, not 404: the site is reachable and the page is fine, it
+        // simply has no such route yet. message (not error) is what the
+        // browser surfaces - see reasonFromResponse in site-editor.ts.
+        if (result.outcome === 'unsupported') {
+          reply.code(501);
+          return { statusCode: 501, error: 'Not Implemented', message: result.message, reason: 'error' };
         }
         if (result.outcome === 'invalid') {
           reply.code(400);

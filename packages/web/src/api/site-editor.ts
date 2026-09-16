@@ -113,6 +113,29 @@ export async function readSiteEditorContent(siteId: string, path: string): Promi
   return { content: await response.text(), etag, source };
 }
 
+// Whether this page has ever been published, independent of any draft
+// over it. readSiteEditorContent above cannot answer this: it returns
+// the draft when one exists and never looks at live, so its own
+// `source` says "draft" for both an edited live page and a page that
+// has never existed anywhere but drafts.
+//
+// The distinction decides what discarding a draft actually does -
+// revert to the published version, or delete the page outright - so
+// it is asked only at the moment that matters rather than on every
+// preview switch.
+export async function siteContentHasLiveVersion(siteId: string, path: string): Promise<boolean> {
+  const response = await fetch(
+    `/api/sites/${encodeURIComponent(siteId)}/content/${encodePathSegments(path)}?source=live`,
+  );
+
+  if (!response.ok) {
+    throw await reasonFromResponse(response, 'error');
+  }
+
+  const body = (await response.json()) as { exists?: unknown };
+  return body.exists === true;
+}
+
 export async function saveSiteDraft(siteId: string, path: string, content: string, etag: string): Promise<string> {
   const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/drafts/${encodePathSegments(path)}`, {
     method: 'PUT',

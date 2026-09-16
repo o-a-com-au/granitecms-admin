@@ -173,6 +173,14 @@
   --colour-table-row-divider: var(--grey-800);
   --colour-section: var(--grey-700);
   --colour-section-block: var(--grey-800);
+  /* The label and Draft badge on PagesTabPanel.tsx's own draft
+     (unpublished) rows, which pages-hub.css fades to 50% - the row
+     itself is painted no differently from a published one. Replaced a
+     flat opacity: 0.3 over the whole row, which faded the drag handle
+     and actions along with the label (requested directly). A step
+     lighter than --colour-text here, so that half-strength label still
+     holds up against the row's own --gradient-pill. */
+  --colour-row-draft-text: var(--grey-100);
   --shadow-panel: 0 2px 3px rgba(0, 0, 0, 0.3);
   /* Cast down from a dialog header onto the content beneath it
      (requested directly), so a scrolling list stops blending into the
@@ -226,6 +234,11 @@
   --colour-table-row-divider: var(--grey-200);
   --colour-section: var(--grey-100);
   --colour-section-block: var(--grey-50);
+  /* Light-theme counterpart of the dark block's own
+     --colour-row-draft-text, inverted: well below --colour-text
+     (grey-700) on the ladder rather than above it, so the 50% label
+     keeps its weight against a near-white row. */
+  --colour-row-draft-text: var(--grey-900);
   --shadow-panel: 0 2px 5px rgba(0, 0, 0, 0.05); 
   /* Much weaker than the dark theme's own cast: the same alpha over a
      near-white header would read as a grey smear rather than a shadow. */

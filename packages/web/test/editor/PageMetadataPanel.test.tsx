@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { PageMetadataPanel, type PageMetadataPanelProps } from '../../src/editor/PageMetadataPanel.tsx';
 
@@ -18,12 +18,14 @@ function renderPanel(props: RenderPanelProps) {
     previewUrl = '/about',
     renameDisabled = false,
     onRenamed = vi.fn(),
+    pageTypes = [],
     ...rest
   } = props;
   return render(
     <MemoryRouter>
       <PageMetadataPanel
         {...rest}
+        pageTypes={pageTypes}
         siteId={siteId}
         path={path}
         previewUrl={previewUrl}
@@ -44,6 +46,42 @@ describe('PageMetadataPanel', () => {
       const field = screen.getByLabelText(label) as HTMLInputElement | HTMLTextAreaElement;
       expect(field.value).toBe('');
     }
+  });
+
+  it('Page type is seeded from the real content and saved through the same path as Page title', () => {
+    const setContent = vi.fn();
+    renderPanel({ content: '{"title":"About","type":"project"}', setContent, pageTypes: ['page', 'project'] });
+
+    // Shown capitalised, stored lowercase - see pageType.ts.
+    expect((screen.getByLabelText('Page type') as HTMLInputElement).value).toBe('Project');
+
+    fireEvent.change(screen.getByLabelText('Page type'), { target: { value: 'Article' } });
+
+    expect(JSON.parse(setContent.mock.calls[0]?.[0] as string)).toEqual({ title: 'About', type: 'article' });
+  });
+
+  it('suggests the types already in use, including the page\'s own unusual one', () => {
+    renderPanel({ content: '{"title":"A","type":"case-study"}', setContent: vi.fn(), pageTypes: ['page', 'project'] });
+
+    fireEvent.keyDown(screen.getByLabelText('Page type'), { key: 'ArrowDown' });
+
+    // Sorted, deduped, and carrying this page's own type even though no
+    // other page uses it yet.
+    expect(
+      within(screen.getByRole('listbox'))
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Case-study', 'Page', 'Project']);
+  });
+
+  it('clearing Page type falls back to "page" rather than writing a value the site would reject', () => {
+    const setContent = vi.fn();
+    renderPanel({ content: '{"title":"A","type":"project"}', setContent });
+
+    fireEvent.change(screen.getByLabelText('Page type'), { target: { value: '' } });
+
+    // "type" is required with minLength 1 agent-side.
+    expect(JSON.parse(setContent.mock.calls[0]?.[0] as string).type).toBe('page');
   });
 
   it('Status defaults to Draft when published is absent or false', () => {
