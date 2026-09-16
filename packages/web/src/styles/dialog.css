@@ -1,0 +1,138 @@
+/* The shared parts of this app's own dialogs: a shell, a gradient
+   header with a close icon, a content area, and a 50/50 action row.
+   Used by NewPageModal.tsx in full, and by the grid pickers
+   (AddSectionModal.tsx, add-section-modal.css) for the header alone -
+   those bring their own shell, since they are a fixed-size scrolling
+   picker rather than a small form.
+
+   Distinct from .modal (modal.css), which is the older plain
+   "everything in one padded box" dialog ConfirmDialog and friends
+   still use - that one has no header band to separate, so it has
+   nothing to gain from this split. */
+
+/* Small form dialog: the header band runs edge to edge, so the shell
+   carries no padding of its own and clips its children to its own
+   rounded corners instead. --colour-dialog-border matches the grid
+   pickers' own brighter outline. */
+.dialog {
+  width: 100%;
+  max-width: 420px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--colour-dialog-border);
+  background: var(--colour-modal-background);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* The heading and close icon (and, in the grid pickers, a search
+   field) on the panel toolbar's own gradient, so dialogs read as part
+   of the editor's panel family. --space-lg matches what every content
+   area below pairs with it, so the heading, the fields and the buttons
+   all share one left edge. */
+.dialog-header {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--gradient-panel-toolbar);
+}
+
+/* Heading on the left, close button on the right. A plain flex row -
+   the close button doesn't need taking out of flow here. */
+.dialog-header-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+/* The dialogs' own larger, sentence-case heading (requested directly,
+   in preference to .panel-heading's small uppercase label). */
+.dialog-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+/* button.dialog-header-close, not the bare class: base.css's own
+   button[type='button'] (element+attribute) otherwise wins the
+   specificity tie and puts its grey background back - the same
+   recurring gotcha as button.fields-panel-close and friends. Same
+   CloseIcon shape and opacity rest/hover pattern as every other icon-
+   only Close/Clear cross in the app. */
+button.dialog-header-close {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--colour-icon-muted);
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+button.dialog-header-close:hover {
+  background: none;
+  opacity: 1;
+}
+
+/* Deliberately more room above and below than at the sides (requested
+   directly), both from the scale rather than tuned by hand:
+   --space-xl block, --space-lg inline. The inline half matches
+   .dialog-header's own padding exactly, so the fields line up under
+   the heading. */
+.dialog-content {
+  padding: var(--space-xl) var(--space-lg);
+}
+
+/* base.css's own bare `form` is a flex column that packs to the start
+   and caps labels at 420px - neither is right inside a dialog this
+   narrow, where every field should simply fill the width. */
+.dialog-content form {
+  align-items: stretch;
+  gap: var(--space-md);
+}
+
+.dialog-content label {
+  max-width: none;
+}
+
+/* Small print under the fields - the derived-URL line, and any error.
+   Margin cleared: the form's own gap already spaces these. */
+.dialog-content p {
+  margin: 0;
+  color: var(--colour-muted);
+}
+
+/* An even 50/50 split (requested directly), not the usual right-
+   aligned pair .modal-actions gives: a two-column grid rather than
+   flex, so both buttons are exactly equal regardless of how long
+   their labels are. Grid items stretch by default, so neither button
+   needs a width of its own. */
+.dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+/* For a dialog whose body scrolls (the grid pickers), the action row
+   can't sit inside that body or it would scroll away with the content.
+   This is its own non-scrolling strip beneath instead, carrying the
+   same --space-lg gutter the header and content already use so all
+   three line up. margin-top is cleared because this strip's own
+   padding already provides the gap - the .dialog-actions rule above
+   only needs it when it follows a form directly. */
+.dialog-footer {
+  flex: 0 0 auto;
+  padding: var(--space-lg);
+}
+
+.dialog-footer .dialog-actions {
+  margin-top: 0;
+}

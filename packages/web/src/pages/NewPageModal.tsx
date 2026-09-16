@@ -2,7 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { saveSiteDraft, SiteEditorError } from '../api/site-editor.ts';
 import { fetchSitePageTemplates, type PageTemplate } from '../api/site-page-templates.ts';
+import { listSiteContent, type ContentListEntry } from '../api/site-content.ts';
 import { CloseIcon } from '../sections/CloseIcon.tsx';
+import { relativePagePath } from './pageTree.ts';
 import { slugify } from './slugify.ts';
 
 export interface NewPageModalProps {
@@ -46,41 +48,53 @@ function deriveUrlFromPath(path: string): string {
   return `/${withoutPrefix.replace(/\.json$/, '')}`;
 }
 
-// Group Q, revised to a two-step wizard matching AddSectionModal's own
-// grid picker (requested directly, "similar to the Add Section
-// popup"): step one is a centred grid of template cards - a "Blank
-// page" card always first, then whatever real templates this site's
-// theme declares - and clicking one both records the selection and
-// advances to step two, the actual Title/Path form (reusing plain
-// .modal/.modal-actions, RedirectFormModal.tsx's own precedent,
-// rather than the grid step's wider .add-section-modal sizing - a
-// two-field form doesn't need that much room). No auto-skip to step
-// two when a theme has no real templates - the grid still renders
-// with just the one Blank page card, simpler than adding a second
-// code path and avoiding a race against the template fetch (skipping
-// the instant it resolves to empty could otherwise yank a user already
-// looking at the grid onto the form beneath them).
+// One step, not the previous two-step template-grid-then-details
+// wizard (requested directly): a small dialog with Title, an
+// optional Template dropdown, and a Parent dropdown. The
+// slug is derived from the title and never shown as an editable field
+// here - PageMetadataPanel is where a page's slug gets changed after
+// the fact.
+//
+// Nesting is purely path-based, with no parent id anywhere in the
+// content model: a child of pages/about.json is pages/about/<slug>.json,
+// which the agent's own pagePathToUrl resolves at /about/<slug>. That
+// is the same directory-prefix relationship buildPageTree already
+// reads the Pages tree from, so choosing a parent here is literally
+// just choosing a path prefix.
+//
 // Creating the page is the same PUT /v1/drafts/* every other save
 // already goes through (saveSiteDraft, unchanged) - the placeholder
 // '*' If-Match can never match a real file's etag, so attempting to
 // create at an already-occupied path naturally 409s through the
 // existing conflict handling below, rather than needing a separate
 // pre-flight existence check.
+
+// pages/index.json and pages/404.json are excluded as parent options
+// (requested directly). Both are hardcoded in the agent's renderer
+// (public.ts resolves '/' to index.json and falls back to 404.json),
+// and nesting under Home would produce pages/index/<slug>.json, which
+// resolves at /index/<slug> rather than the /<slug> anyone choosing
+// "Home" would expect - a URL that silently isn't what was asked for.
+const NON_PARENT_PAGE_PATHS = ['pages/index.json', 'pages/404.json'];
+
 export function NewPageModal({ siteId, onClose }: NewPageModalProps) {
   const navigate = useNavigate();
-  const [step, setStep] = useState<'template' | 'details'>('template');
   const [title, setTitle] = useState('');
-  const [path, setPath] = useState('');
-  const [pathTouched, setPathTouched] = useState(false);
+  // '' is the blank-page sentinel, matching the "" value on its own
+  // <option> - a select's value is always a string, so null can't ride
+  // through one directly the way the old grid's own card id could.
+  const [templateId, setTemplateId] = useState('');
+  // '' is "None", a page created at the top level.
+  const [parentPath, setParentPath] = useState('');
   const [templates, setTemplates] = useState<PageTemplate[] | null>(null);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [pages, setPages] = useState<ContentListEntry[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // A failed fetch here is treated the same as a theme with no
-  // templates folder at all - the picker step just doesn't appear,
-  // rather than surfacing a scary error for what's an enhancement, not
-  // the point of this modal.
+  // templates folder at all - the dropdown just doesn't appear, rather
+  // than surfacing a scary error for what's an enhancement, not the
+  // point of this modal.
   useEffect(() => {
     let cancelled = false;
     fetchSitePageTemplates(siteId)
@@ -99,11 +113,39 @@ export function NewPageModal({ siteId, onClose }: NewPageModalProps) {
     };
   }, [siteId]);
 
-  // Live-follows Title until the user types into Path directly
-  // themselves - same pattern as PageMetadataPanel.tsx's own
-  // slug-follows-Name behaviour.
-  const suggestedPath = title.trim() === '' ? '' : `pages/${slugify(title)}.json`;
-  const displayedPath = pathTouched ? path : suggestedPath;
+  // Same treatment for the parent list: a failure leaves the dropdown
+  // with just "None", so a page can still always be created at the top
+  // level even if this call fails outright.
+  useEffect(() => {
+    let cancelled = false;
+    listSiteContent(siteId, { type: 'page' })
+      .then((result) => {
+        if (!cancelled) {
+          setPages(result);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPages([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [siteId]);
+
+  const parentOptions = (pages ?? [])
+    .filter((entry) => !NON_PARENT_PAGE_PATHS.includes(entry.path))
+    .slice()
+    .sort((a, b) => (a.name || a.path).localeCompare(b.name || b.path));
+
+  // The whole path, derived: parent's own stem as the directory
+  // prefix, then the title's slug. Empty while the title is, which is
+  // what disables Create below - a page with no title has no slug, and
+  // so no path to be created at.
+  const slug = slugify(title);
+  const parentStem = parentPath === '' ? '' : relativePagePath(parentPath).replace(/\.json$/, '');
+  const derivedPath = slug === '' ? '' : `pages/${parentStem === '' ? '' : `${parentStem}/`}${slug}.json`;
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -111,13 +153,12 @@ export function NewPageModal({ siteId, onClose }: NewPageModalProps) {
     setError(null);
 
     const trimmedTitle = title.trim();
-    const trimmedPath = displayedPath.trim();
-    const template = templates?.find((entry) => entry.id === selectedTemplateId) ?? null;
+    const template = templates?.find((entry) => entry.id === templateId) ?? null;
 
     try {
       const content = buildPageContent(trimmedTitle, template?.content ?? BLANK_PAGE_BASE);
-      await saveSiteDraft(siteId, trimmedPath, JSON.stringify(content, null, 2), '*');
-      navigate(`/sites/${siteId}/editor?path=${encodeURIComponent(trimmedPath)}&url=${encodeURIComponent(deriveUrlFromPath(trimmedPath))}`);
+      await saveSiteDraft(siteId, derivedPath, JSON.stringify(content, null, 2), '*');
+      navigate(`/sites/${siteId}/editor?path=${encodeURIComponent(derivedPath)}&url=${encodeURIComponent(deriveUrlFromPath(derivedPath))}`);
     } catch (err) {
       if (err instanceof SiteEditorError && err.reason === 'conflict') {
         setError('A page already exists at that path');
@@ -128,75 +169,68 @@ export function NewPageModal({ siteId, onClose }: NewPageModalProps) {
     }
   }
 
-  function handleSelectTemplate(templateId: string | null): void {
-    setSelectedTemplateId(templateId);
-    setStep('details');
-  }
-
-  if (step === 'template') {
-    return (
-      <div className="modal-overlay">
-        <div className="add-section-modal" role="dialog" aria-modal="true" aria-labelledby="new-page-heading">
-          <div className="add-section-modal-header">
+  return (
+    <div className="modal-overlay">
+      {/* Separate gradient header with its own close icon, then a
+          content area with more room above and below than at the
+          sides, then an even 50/50 action row (requested directly,
+          with a mockup) - all of it dialog.css, shared with the grid
+          pickers' own header. */}
+      <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="new-page-heading">
+        <div className="dialog-header">
+          <div className="dialog-header-title-row">
             <h2 id="new-page-heading">New Page</h2>
-            <button type="button" className="add-section-modal-close" aria-label="Close" onClick={onClose}>
+            <button type="button" className="dialog-header-close" aria-label="Close" onClick={onClose}>
               <CloseIcon />
             </button>
           </div>
-          <div className="add-section-grid">
-            <button type="button" className="add-section-item" onClick={() => handleSelectTemplate(null)}>
-              <span className="add-section-item-thumb" aria-hidden="true" />
-              <span className="add-section-item-name">Blank page</span>
-            </button>
-            {(templates ?? []).map((template) => (
-              <button key={template.id} type="button" className="add-section-item" onClick={() => handleSelectTemplate(template.id)}>
-                <span className="add-section-item-thumb" aria-hidden="true" />
-                <span className="add-section-item-name">{template.title}</span>
+        </div>
+        <div className="dialog-content">
+          <form onSubmit={(event) => void handleSubmit(event)}>
+            <label>
+              Title
+              <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} required autoFocus />
+            </label>
+            {/* Hidden entirely when the theme declares no templates -
+                "Blank page" would be the only choice, and a dropdown with
+                one fixed option is just noise (the same reasoning
+                BlockList.tsx already applies to a single block type). */}
+            {(templates ?? []).length > 0 && (
+              <label>
+                Template
+                <select value={templateId} onChange={(event) => setTemplateId(event.target.value)}>
+                  <option value="">Blank page</option>
+                  {(templates ?? []).map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label>
+              Parent
+              <select value={parentPath} onChange={(event) => setParentPath(event.target.value)}>
+                <option value="">None</option>
+                {parentOptions.map((entry) => (
+                  <option key={entry.path} value={entry.path}>
+                    {entry.name || entry.path}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {derivedPath !== '' && <p>This page will be created at {deriveUrlFromPath(derivedPath)}</p>}
+            {error && <p role="alert">{error}</p>}
+            <div className="dialog-actions">
+              <button type="button" onClick={onClose} disabled={busy}>
+                Cancel
               </button>
-            ))}
-          </div>
+              <button type="submit" className="button-primary" disabled={busy || derivedPath === ''}>
+                Create
+              </button>
+            </div>
+          </form>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="new-page-heading">
-        <div className="new-page-details-header">
-          <button type="button" className="new-page-back" onClick={() => setStep('template')} disabled={busy}>
-            &lsaquo; Back
-          </button>
-          <h2 id="new-page-heading">New Page</h2>
-        </div>
-        <form onSubmit={(event) => void handleSubmit(event)}>
-          <label>
-            Title
-            <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} required autoFocus />
-          </label>
-          <label>
-            Path
-            <input
-              type="text"
-              placeholder="pages/my-new-page.json"
-              value={displayedPath}
-              onChange={(event) => {
-                setPath(event.target.value);
-                setPathTouched(true);
-              }}
-              required
-            />
-          </label>
-          {error && <p role="alert">{error}</p>}
-          <div className="modal-actions">
-            <button type="button" onClick={onClose} disabled={busy}>
-              Cancel
-            </button>
-            <button type="submit" className="button-primary" disabled={busy}>
-              Create
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );

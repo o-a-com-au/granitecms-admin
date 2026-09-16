@@ -24,6 +24,7 @@
 @import './pages-hub.css';
 @import './settings.css';
 @import './modal.css';
+@import './dialog.css';
 @import './toast.css';
 @import './site-status-panel.css';
 @import './rich-text-field.css';
@@ -36,6 +37,5 @@
 @import './gallery-field.css';
 @import './media-library.css';
 @import './add-section-modal.css';
-@import './new-page-modal.css';
 @import './history-tab.css';
 @import './address-bar-search.css';
