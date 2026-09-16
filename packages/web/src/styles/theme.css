@@ -5,7 +5,7 @@
    component file.
 
    Two layers, Tailwind-style:
-   - --grey-* is the raw, numbered lightness scale (50 lightest, 900
+   - --grey-* is the raw, numbered lightness scale (25 lightest, 950
      darkest) - identical in both themes, no meaning attached. The 50/
      400/600/700/800/900 steps are exactly the app's original (dark-
      only) --colour-* values, just given a place on a fuller ladder;
@@ -21,6 +21,14 @@
      other file needs to change. */
 :root {
 
+  /* Lighter than --grey-50, for a light-theme hover that lifts away
+     from the page rather than darkening into it (requested directly).
+     Derived the same way every other interpolated step on this ladder
+     is - the plain RGB midpoint of its two neighbours - taking white
+     as the upper bound: midpoint(#f2f3f4, #ffffff), with the two
+     channels that land on an exact .5 rounded down. There is very
+     little room left above this before the scale simply is white. */
+  --grey-25: #f8f9fa;
   --grey-50: #f2f3f4;
   --grey-100: #e7e8e9;
   --grey-150: #dcdfe0;
@@ -68,6 +76,17 @@
      alias rather than a raw --grey-* reference from
      address-bar-search.css itself. */
   --colour-search-icon: var(--grey-250);
+  /* The login/signup video background's own two grading overlays
+     (login.css, LoginBackground.tsx), and the page colour showing
+     under them before the first video frame decodes. An alias into
+     the grey scale rather than the literal it started as (requested
+     directly) - the same darkest step the app's own page background
+     and input wells already sit on, so the login grade and the app
+     proper stay on one ladder instead of drifting apart. Theme-
+     agnostic for the same reason --colour-search-panel above is -
+     both pages force data-theme="dark" on their own root, so the
+     grade over a fixed video is the same either way. */
+  --colour-login-tint: var(--grey-900);
 
   --radius-xs: 3px;
   --radius-sm: 5px;
@@ -113,6 +132,22 @@
      shouldn't have. One step darker than --colour-surface itself. */
   --colour-button-hover: var(--grey-850);
   --colour-border: var(--grey-700);
+  /* The grid-picker popups' own outline (add-section-modal.css) -
+     requested directly as a brighter border so the popup stands out
+     from whatever is behind the overlay. Two steps up the ladder from
+     --colour-border, not a bespoke hex. */
+  --colour-dialog-border: var(--grey-600);
+  /* The grid pickers' own selectable rows (add-section-modal.css) -
+     requested directly as a darker fill than --colour-surface for both
+     the rest and hover states. Their own tokens rather than reusing
+     --colour-surface/-hover: those two are the app's general panel
+     pair, and in light theme --colour-surface is #fff, which is
+     exactly the dialog's own background - rows painted with it
+     vanished entirely there. Hover stays one step lighter than rest so
+     the row still visibly lifts under the pointer, just across a
+     darker pair than before. */
+  --colour-picker-row: var(--grey-850);
+  --colour-picker-row-hover: var(--grey-800);
   --colour-tab-border: var(--grey-500);
   --colour-muted: var(--grey-500);
   --colour-text: var(--grey-200);
@@ -139,6 +174,13 @@
   --colour-section: var(--grey-700);
   --colour-section-block: var(--grey-800);
   --shadow-panel: 0 2px 3px rgba(0, 0, 0, 0.3);
+  /* Cast down from a dialog header onto the content beneath it
+     (requested directly), so a scrolling list stops blending into the
+     header it runs under. Geometry rather than a colour is the point:
+     a 15px downward offset with an equal blur and an equal negative
+     spread confines it to a 15px band below the header and nothing
+     above or beside it. */
+  --shadow-header-cast: 0 15px 15px -15px rgba(0, 0, 0, 0.6);
   --gradient-pill: linear-gradient(0deg, var(--grey-700), var(--grey-650));
   --gradient-pill-active: linear-gradient(0deg, var(--colour-primary-dark), var(--colour-primary));
   --gradient-viewport: linear-gradient(0deg, var(--grey-100), var(--grey-200));
@@ -156,6 +198,15 @@
      --colour-button-hover comment for why that one can't. */
   --colour-button-hover: var(--grey-100);
   --colour-border: var(--grey-200);
+  /* Light-theme counterpart of the dark block's own
+     --colour-dialog-border - "brighter" means more contrast against
+     the page here, so one step darker than --colour-border instead. */
+  --colour-dialog-border: var(--grey-300);
+  /* Light-theme counterpart of the dark block's own --colour-picker-row
+     pair. "Darker" means away from the dialog's white background here,
+     so these step down the scale rather than up. */
+  --colour-picker-row: var(--grey-50);
+  --colour-picker-row-hover: var(--grey-25);
   --colour-tab-border: var(--grey-200);
   --colour-muted: var(--grey-500);
   --colour-text: var(--grey-700);
@@ -176,6 +227,9 @@
   --colour-section: var(--grey-100);
   --colour-section-block: var(--grey-50);
   --shadow-panel: 0 2px 5px rgba(0, 0, 0, 0.05); 
+  /* Much weaker than the dark theme's own cast: the same alpha over a
+     near-white header would read as a grey smear rather than a shadow. */
+  --shadow-header-cast: 0 15px 15px -15px rgba(0, 0, 0, 0.16);
   --gradient-pill: linear-gradient(0deg, var(--grey-50), #fff);
   --gradient-pill-active: linear-gradient(0deg, var(--colour-primary-dark), var(--colour-primary));
     --gradient-viewport: linear-gradient(0deg, var(--grey-100), var(--grey-200));
