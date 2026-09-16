@@ -1,11 +1,107 @@
-/* Login: the one route rendered outside AppShell, so it centres itself
-   in the full viewport rather than relying on .app-content. */
+/* Login: the one route rendered outside AppShell, so it fills the full
+   viewport itself rather than relying on .app-content. The form sits
+   hard right over the video background (requested directly), centred
+   again below 720px where there is no room to hold a column to one
+   side.
+
+   Both pages force data-theme="dark" on this element (LoginPage.tsx,
+   SignupPage.tsx) so the form reads over a permanently dark video no
+   matter which theme the app itself is set to - the same technique
+   .settings-shell already uses. `color` is restated explicitly rather
+   than left to inherit: the inherited value comes from <body>, which
+   resolved against the *outer* theme, so without this a light-theme
+   user gets near-black text on the dark video for every element that
+   doesn't set a colour of its own.
+
+   --colour-login-tint as the page's own background so there is never
+   a flash of bare page before the first video frame decodes. */
 .login-page {
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
+  justify-content: flex-end;
+  padding: var(--space-lg);
+  background: var(--colour-login-tint);
+  color: var(--colour-text);
+
+  /* Declared here rather than on .login-card because the right-hand
+     gutter below has to do arithmetic with it; .login-card inherits it
+     for its own max-width, so the two can never drift apart. Not a
+     --space-* value: this is a component width, the same kind of thing
+     --editor-sidebar-width already is. */
+  --login-card-width: 360px;
+
+  /* Puts the card's own centre one third in from the right edge
+     (requested directly). Padding the right by a third of the page
+     less half a card lands the card's right edge at two thirds plus
+     half a card, which puts its centre at exactly two thirds across.
+
+     A percentage, not vw: padding percentages resolve against the
+     containing block's width, which excludes the scrollbar, whereas
+     100vw includes it and would drag the card a few pixels left
+     whenever a vertical scrollbar appears.
+
+     max() floors it at the normal gutter for the band between 720px
+     and roughly 1080px, where a third of the page is narrower than
+     half a card and the raw value would go negative - an invalid
+     padding, which drops the declaration outright rather than
+     clamping. */
+  padding-right: max(var(--space-lg), calc(100% / 3 - var(--login-card-width) / 2));
+}
+
+/* No room to hold a column to one side at this width, so the form
+   comes back to the centre and the gutter goes back to symmetric -
+   padding-right has to be restated, since the max() above stays well
+   clear of its floor at the top of this range. */
+@media (max-width: 720px) {
+  .login-page {
+    justify-content: center;
+    padding-right: var(--space-lg);
+  }
+}
+
+/* Background stack: the clip plus its two grading overlays, fixed to
+   the viewport rather than sized to the card. position: fixed makes
+   this wrapper its own stacking context, which is what keeps
+   .login-tint-multiply's blend confined to the video below it instead
+   of reaching the rest of the page. */
+.login-background {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* object-position holds the frame the reference prototype settled on,
+   so the subject stays put as the viewport's aspect ratio changes
+   rather than drifting out of shot. */
+.login-background-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 30% 85%;
+}
+
+/* Two passes of the same colour (requested directly): multiply darkens
+   and deepens what is already dark in the clip, the plain pass on top
+   lifts and flattens the whole frame uniformly. Both are needed -
+   either alone grades quite differently. The 0.4 here is the flat
+   pass's own strength; the multiply pass overrides it below. */
+.login-tint {
+  position: absolute;
+  inset: 0;
+  background: var(--colour-login-tint);
+  opacity: 0.4;
+}
+
+/* Carried heavier than the flat pass (requested directly) - multiply
+   only ever subtracts, so it can take the extra strength without
+   washing the frame out the way the same increase on the flat pass
+   would. */
+.login-tint-multiply {
+  mix-blend-mode: multiply;
+  opacity: 0.6;
 }
 
 /* No background/border any more (requested directly) - the form sits
@@ -20,8 +116,14 @@
    remounts this element fresh each time, a plain animation fires
    again for free. */
 .login-card {
+  position: relative;
+  /* Above .login-background, which is fixed and therefore painted in
+     the positioned layer - without this the card only clears the
+     tints while its entry animation's own transform is still running,
+     then drops behind them the moment the animation ends. */
+  z-index: 1;
   width: 100%;
-  max-width: 360px;
+  max-width: var(--login-card-width);
   border-radius: 12px;
   padding: 2rem;
   animation: list-page-fade-up 0.3s ease-out;
@@ -67,51 +169,41 @@
   margin-top: 0.5rem;
 }
 
-.login-oauth {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--colour-border);
+/* The one place the login inputs genuinely stop matching the app's
+   own dark-mode inputs, and the actual problem reported: Chrome paints
+   an autofilled field with its own hardcoded near-white background and
+   dark text. Nothing else in this app has autofillable credentials in
+   it, so it never comes up anywhere else - which is exactly why this
+   override belongs here rather than in base.css.
+
+   plain background-color can't win against it; an inset shadow with a
+   spread big enough to cover the whole box is the only thing that
+   reliably can, hence the otherwise meaningless 100px - a technique
+   constant, not a size worth a --space-* token. Text needs
+   -webkit-text-fill-color rather than color for the same reason.
+
+   Split into two rules on purpose, NOT one selector list: an unknown
+   selector invalidates an entire list, so pairing the prefixed and
+   standard forms would silently drop the whole thing in any engine
+   that only knows one of them. The colours are the same two tokens
+   base.css already uses, so an autofilled field is indistinguishable
+   from a typed one. */
+.login-card input:-webkit-autofill,
+.login-card input:-webkit-autofill:hover,
+.login-card input:-webkit-autofill:focus,
+.login-card input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--colour-text);
+  box-shadow: 0 0 0 100px var(--colour-input-background) inset;
+  caret-color: var(--colour-text);
 }
 
-.login-oauth-button {
-  display: block;
-  text-align: center;
-  padding: 0.6rem 1rem;
-  border: 1px solid var(--colour-border);
-  border-radius: var(--radius-xs);
+/* Firefox ignores the shadow trick above and instead paints its own
+   background directly, which a plain declaration here does override. */
+.login-card input:autofill,
+.login-card input:autofill:hover,
+.login-card input:autofill:focus,
+.login-card input:autofill:active {
+  background-color: var(--colour-input-background);
   color: var(--colour-text);
-  text-decoration: none;
-}
-
-.login-oauth-button:hover {
-  background: var(--colour-surface-hover);
-  color: var(--colour-text);
-}
-
-/* Paused notice: same centred-card treatment as .login-page/.login-card,
-   shown by RequireAuth in place of the entire AppShell (top bar
-   included) while an account is paused. */
-.paused-notice {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  padding: 1.5rem;
-  text-align: center;
-}
-
-.paused-notice h1 {
-  text-transform: none;
-  letter-spacing: normal;
-  font-size: 1.2rem;
-}
-
-.paused-notice p {
-  max-width: 360px;
-  color: var(--colour-muted);
+  caret-color: var(--colour-text);
 }

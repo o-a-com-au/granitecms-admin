@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext.tsx';
 import { PasswordInput } from '../components/PasswordInput.tsx';
 import { isStrongPassword, MIN_PASSWORD_LENGTH, PASSWORD_REQUIREMENTS_MESSAGE } from '../auth/passwordStrength.ts';
 import { GraniteLogo } from '../layout/GraniteLogo.tsx';
+import { LoginBackground } from '../components/LoginBackground.tsx';
 
 // Public, a sibling of /login in App.tsx - self-serve developer
 // signup. No username field anywhere - it's derived from email
@@ -42,7 +43,10 @@ export function SignupPage() {
   }
 
   return (
-    <div className="login-page">
+    // Forced dark for the same reason LoginPage is - see the comment
+    // there. These two pages share .login-page/.login-card end to end.
+    <div className="login-page" data-theme="dark">
+      <LoginBackground />
       <div className="login-card">
         <div className="login-logo" aria-hidden="true">
           <GraniteLogo />

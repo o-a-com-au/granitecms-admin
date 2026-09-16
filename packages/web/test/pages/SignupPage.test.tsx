@@ -149,4 +149,20 @@ describe('SignupPage', () => {
 
     await waitFor(() => expect(screen.getByText('login page')).toBeDefined());
   });
+
+  // The video background and its forced dark theme are page-level
+  // chrome, asserted on both pages rather than only where the
+  // component itself is tested - the two are separate routes that
+  // each have to opt in, and a missing <LoginBackground/> on one of
+  // them would otherwise go unnoticed. LoginBackground.test.tsx
+  // covers what the component itself renders.
+  it('renders the video background and forces a dark theme over it', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
+
+    const { container } = renderSignupPage();
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sign up to Granite' })).toBeDefined());
+
+    expect(container.querySelector('.login-page')?.getAttribute('data-theme')).toBe('dark');
+    expect(container.querySelector('.login-background video')).not.toBeNull();
+  });
 });

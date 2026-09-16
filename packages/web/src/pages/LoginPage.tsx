@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext.tsx';
 import { getOAuthProviders } from '../api/auth.ts';
 import { PasswordInput } from '../components/PasswordInput.tsx';
 import { GraniteLogo } from '../layout/GraniteLogo.tsx';
+import { LoginBackground } from '../components/LoginBackground.tsx';
 
 // One fixed message regardless of failure cause, mirroring the
 // backend's own indistinguishable wrong-username/wrong-password
@@ -65,7 +66,13 @@ export function LoginPage() {
   }
 
   return (
-    <div className="login-page">
+    // Forced dark regardless of the app's own light/dark toggle: the
+    // form sits over a permanently dark video, so a light theme here
+    // would be near-black text on near-black footage. Same technique
+    // SettingsLayout uses - every --colour-* below resolves against
+    // the nearest [data-theme], so this one attribute is enough.
+    <div className="login-page" data-theme="dark">
+      <LoginBackground />
       <div className="login-card">
         <div className="login-logo" aria-hidden="true">
           <GraniteLogo />
