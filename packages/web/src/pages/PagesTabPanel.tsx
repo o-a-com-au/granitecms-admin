@@ -7,7 +7,14 @@ import { moveSitePage, publishSiteDraft, publishSitePage, unpublishSitePage } fr
 import { readSiteEditorContent, saveSiteDraft, siteContentHasLiveVersion, SiteEditorError } from '../api/site-editor.ts';
 import { isMenuPath } from './deriveMenuName.ts';
 import { buildPageTree, flattenVisibleTree, isSelfOrDescendantPage, pageParentPath, relativePagePath, type PageTreeNode } from './pageTree.ts';
-import { NewPageModal, NON_PARENT_PAGE_PATHS } from './NewPageModal.tsx';
+import { NewPageModal } from './NewPageModal.tsx';
+import {
+  canDeletePage,
+  canSetAsDraft,
+  canChangePagePath,
+  notFoundPageWarning,
+  NON_PARENT_PAGE_PATHS,
+} from './protectedPages.ts';
 import { AddIcon } from '../sections/AddIcon.tsx';
 import { DuplicateIcon } from '../sections/DuplicateIcon.tsx';
 import { EditIcon } from '../sections/EditIcon.tsx';
@@ -264,6 +271,14 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
     if (isSelfOrDescendantPage(candidate.path, draggedPath)) {
       return false;
     }
+    // Home and 404 are fixed points: the renderer looks for them at
+    // exactly their own paths, so dragging one anywhere silently breaks
+    // it, and dropping onto one would nest a page at /index/<slug> or
+    // /404/<slug>. Same two paths the New Page dialog already refuses as
+    // parents - see protectedPages.ts.
+    if (!canChangePagePath(draggedPath) || NON_PARENT_PAGE_PATHS.includes(candidate.path)) {
+      return false;
+    }
     return pageParentPath(draggedPath) !== candidate.path;
   }
 
@@ -504,7 +519,7 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
         <ConfirmDialog
           message={`Delete "${pendingDelete.entry.name || pendingDelete.entry.path}"? This cannot be undone.${
             pendingDelete.hasChildren ? ' This page has child pages of its own, which must be deleted first.' : ''
-          }`}
+          }${notFoundPageWarning(pendingDelete.entry.path) ?? ''}`}
           confirmLabel="Delete"
           busy={deleteBusy}
           onConfirm={() => void handleConfirmDelete()}
@@ -515,7 +530,7 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
         <ConfirmDialog
           message={
             pendingStatus.next === 'draft'
-              ? `Set "${pendingStatus.entry.name || pendingStatus.entry.path}" as a draft? It stops being visible on the live website, and its url returns a 404 until it is published again.`
+              ? `Set "${pendingStatus.entry.name || pendingStatus.entry.path}" as a draft? It stops being visible on the live website, and its url returns a 404 until it is published again.${notFoundPageWarning(pendingStatus.entry.path) ?? ''}`
               : `Publish "${pendingStatus.entry.name || pendingStatus.entry.path}"? It becomes visible on the live website.`
           }
           confirmLabel={pendingStatus.next === 'draft' ? 'Set as Draft' : 'Publish'}
@@ -717,7 +732,7 @@ function PagesHubTreeRow({
             used to sit outside this component entirely.
 
             "Add Child Page" is omitted for Home and 404: both are
-            excluded as parents (NewPageModal's own
+            excluded as parents (protectedPages.ts's own
             NON_PARENT_PAGE_PATHS - nesting under Home would resolve at
             /index/<slug>), so offering it here would open a modal that
             could not honour the parent it was invoked with. */}
@@ -751,26 +766,38 @@ function PagesHubTreeRow({
             // disabled state, so a row offers whichever direction it can
             // actually go - the same way Home and 404 simply drop "Add
             // Child Page" rather than showing it greyed out.
-            entry.published
-              ? {
-                  key: 'draft',
-                  label: 'Set as Draft',
-                  icon: <DraftIcon />,
-                  onClick: () => onRequestStatusChange(entry),
-                }
-              : {
-                  key: 'publish',
-                  label: 'Publish',
-                  icon: <PublishIcon />,
-                  onClick: () => onRequestStatusChange(entry),
-                },
-            {
-              key: 'delete',
-              label: 'Delete Page',
-              icon: <TrashIcon />,
-              variant: 'destructive' as const,
-              onClick: () => onRequestDelete(entry, hasChildren),
-            },
+            // Publish is never withheld, even on Home: it is not the
+            // dangerous direction, and if Home has somehow ended up a
+            // draft, publishing it is the way back. Only the flip
+            // towards draft is omitted (protectedPages.ts).
+            ...(entry.published && !canSetAsDraft(entry.path)
+              ? []
+              : [
+                  entry.published
+                    ? {
+                        key: 'draft',
+                        label: 'Set as Draft',
+                        icon: <DraftIcon />,
+                        onClick: () => onRequestStatusChange(entry),
+                      }
+                    : {
+                        key: 'publish',
+                        label: 'Publish',
+                        icon: <PublishIcon />,
+                        onClick: () => onRequestStatusChange(entry),
+                      },
+                ]),
+            ...(canDeletePage(entry.path)
+              ? [
+                  {
+                    key: 'delete',
+                    label: 'Delete Page',
+                    icon: <TrashIcon />,
+                    variant: 'destructive' as const,
+                    onClick: () => onRequestDelete(entry, hasChildren),
+                  },
+                ]
+              : []),
           ]}
         />
         {entry.url !== null &&

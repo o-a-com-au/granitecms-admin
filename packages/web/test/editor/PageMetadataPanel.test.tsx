@@ -258,3 +258,30 @@ describe('PageMetadataPanel', () => {
     expect(onRenamed).not.toHaveBeenCalled();
   });
 });
+
+// Renaming pages/index.json or pages/404.json does not move a page, it
+// removes the one the agent's renderer looks for at that exact path.
+describe('PageMetadataPanel: pages with a fixed url', () => {
+  it('hides the Slug field entirely on Home, along with its Update button', () => {
+    renderPanel({ content: '{"title":"Home"}', setContent: vi.fn(), path: 'pages/index.json' });
+
+    expect(screen.queryByLabelText('Slug')).toBeNull();
+    expect(screen.queryByText('Update slug')).toBeNull();
+    // Page title is still there, so this is not just an unrendered panel.
+    expect(screen.getByLabelText('Page title')).toBeDefined();
+  });
+
+  it('hides the Slug field on the 404 page too', () => {
+    renderPanel({ content: '{"title":"404"}', setContent: vi.fn(), path: 'pages/404.json' });
+
+    expect(screen.queryByLabelText('Slug')).toBeNull();
+    expect(screen.queryByText('Update slug')).toBeNull();
+  });
+
+  it('leaves an ordinary page renameable', () => {
+    renderPanel({ content: '{"title":"About"}', setContent: vi.fn(), path: 'pages/about.json' });
+
+    expect((screen.getByLabelText('Slug') as HTMLInputElement).disabled).toBe(false);
+    expect(screen.getByText('Update slug')).toBeDefined();
+  });
+});

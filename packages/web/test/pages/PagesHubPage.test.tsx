@@ -129,6 +129,7 @@ describe('PagesHubPage', () => {
 
   describe('row actions menu', () => {
     const HOME = { ...ENTRY, path: 'pages/index.json', name: 'Home', title: 'Home', url: '/' };
+    const NOT_FOUND = { ...ENTRY, path: 'pages/404.json', name: '404', title: '404', url: '/404' };
 
     // installFakeContentApi above hands back one Response object for
     // every call, and a Response body can only be read once - fine for
@@ -265,6 +266,40 @@ describe('PagesHubPage', () => {
 
       expect(screen.getByRole('menuitem', { name: 'Edit Page' })).toBeDefined();
       expect(screen.queryByRole('menuitem', { name: 'Add Child Page' })).toBeNull();
+    });
+
+    // Losing pages/index.json makes the site's own root serve a 404,
+    // with nothing in this tree afterwards to show for it - so neither
+    // action that could cause it is offered at all (protectedPages.ts).
+    it('offers neither Delete nor Set as Draft on Home', async () => {
+      installMultiFetch([HOME]);
+      renderHub();
+      await openRowMenu('Home');
+
+      // Positive control first: without it, this test would pass just as
+      // happily if the menu had never opened at all.
+      expect(screen.getByRole('menuitem', { name: 'Edit Page' })).toBeDefined();
+      expect(screen.queryByRole('menuitem', { name: 'Delete Page' })).toBeNull();
+      expect(screen.queryByRole('menuitem', { name: 'Set as Draft' })).toBeNull();
+    });
+
+    it('still offers Publish on a Home page that has somehow ended up a draft - the way back out', async () => {
+      installMultiFetch([{ ...HOME, published: false }]);
+      renderHub();
+      await openRowMenu('Home');
+
+      expect(screen.getByRole('menuitem', { name: 'Publish' })).toBeDefined();
+    });
+
+    // The 404 page is a softer case: the renderer falls back to a plain
+    // error body rather than breaking, so both actions stay available.
+    it('keeps Delete and Set as Draft on the 404 page, which degrades rather than breaks', async () => {
+      installMultiFetch([NOT_FOUND]);
+      renderHub();
+      await openRowMenu('404');
+
+      expect(screen.getByRole('menuitem', { name: 'Delete Page' })).toBeDefined();
+      expect(screen.getByRole('menuitem', { name: 'Set as Draft' })).toBeDefined();
     });
   });
 

@@ -621,3 +621,70 @@ describe('PagesTabPanel: publish and set as draft', () => {
     );
   });
 });
+
+// Home and 404 are fixed points for the agent's renderer, so neither can
+// be dragged somewhere else, and neither can take a child (which would
+// produce /index/<slug> or /404/<slug>).
+describe('PagesTabPanel: Home and 404 cannot be reparented', () => {
+  const HOME_ROW = {
+    path: 'pages/index.json',
+    name: 'Home',
+    title: 'Home',
+    type: 'page',
+    published: true,
+    hasDraft: false,
+    url: '/',
+    changedAt: null,
+  };
+
+  function installList(entries: unknown[]) {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(entries), { status: 200 })));
+  }
+
+  // By aria-label rather than a shared helper, so this block stands on
+  // its own regardless of where that helper is scoped.
+  function dragHandle(name: string): HTMLElement {
+    return screen.getByRole('button', { name: `Drag to move ${name}` });
+  }
+
+  it('refuses to drag Home under another page', async () => {
+    installList([HOME_ROW, ENTRY_ONE]);
+    renderPanel();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Home' })).toBeDefined());
+
+    fireEvent.dragStart(dragHandle('Home'), { dataTransfer: createFakeDataTransfer() });
+    fireEvent.dragOver(screen.getByRole('button', { name: 'About' }));
+    fireEvent.drop(screen.getByRole('button', { name: 'About' }));
+
+    // No confirmation at all - the drop is refused outright, the same
+    // way a drop onto the page's own descendant already is.
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  // The control for the two refusals below: same fixture, same event
+  // sequence, between two ordinary pages. Without it, a broken drag
+  // setup would make both refusal tests pass while proving nothing.
+  it('still allows an ordinary reparent, so the refusals below mean something', async () => {
+    installList([HOME_ROW, ENTRY_ONE, ENTRY_TWO]);
+    renderPanel();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Contact' })).toBeDefined());
+
+    fireEvent.dragStart(dragHandle('Contact'), { dataTransfer: createFakeDataTransfer() });
+    fireEvent.dragOver(screen.getByRole('button', { name: 'About' }));
+    fireEvent.drop(screen.getByRole('button', { name: 'About' }));
+
+    expect(screen.getByRole('alertdialog')).toBeDefined();
+  });
+
+  it('refuses to drop an ordinary page onto Home, which cannot be a parent', async () => {
+    installList([HOME_ROW, ENTRY_ONE]);
+    renderPanel();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+
+    fireEvent.dragStart(dragHandle('About'), { dataTransfer: createFakeDataTransfer() });
+    fireEvent.dragOver(screen.getByRole('button', { name: 'Home' }));
+    fireEvent.drop(screen.getByRole('button', { name: 'Home' }));
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+});

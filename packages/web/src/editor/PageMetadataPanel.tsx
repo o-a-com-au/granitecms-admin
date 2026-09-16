@@ -4,6 +4,7 @@ import { moveSitePage } from '../api/site-publishing.ts';
 import { SiteEditorError } from '../api/site-editor.ts';
 import { slugify } from '../pages/slugify.ts';
 import { displayPageType, normalisePageType } from '../pages/pageType.ts';
+import { canChangePagePath } from '../pages/protectedPages.ts';
 
 export interface PageMetadataPanelProps {
   content: string;
@@ -182,7 +183,15 @@ export function PageMetadataPanel({
   // changed this session, until the user types into the slug field
   // directly - exactly like WordPress's own permalink editor.
   const displayedSlug = slugTouched ? slugValue : name !== initialName ? slugify(name) || slug : slug;
-  const canRename = !renameDisabled && previewUrl !== null && !renameBusy;
+  // Home and 404 have fixed urls: the agent's renderer looks for them
+  // at exactly pages/index.json and pages/404.json, so renaming either
+  // does not move a page, it removes the one the renderer wanted - with
+  // nothing in the UI afterwards to show for it. Kept separate from
+  // renameDisabled, which is a temporary dirty-draft state that does
+  // explain itself: this one is permanent for these two pages, so the
+  // field is not rendered at all rather than disabled.
+  const pathLocked = !canChangePagePath(path);
+  const canRename = !renameDisabled && !pathLocked && previewUrl !== null && !renameBusy;
   const slugChanged = displayedSlug.trim() !== '' && displayedSlug !== slug;
 
   async function handleApplySlug(): Promise<void> {
@@ -222,27 +231,37 @@ export function PageMetadataPanel({
           }}
         />
       </label>
-      <label>
-        Slug
-        <input
-          value={displayedSlug}
-          disabled={renameDisabled || renameBusy}
-          onChange={(event) => {
-            setSlugTouched(true);
-            setSlugValue(event.target.value);
-          }}
-        />
-      </label>
-      {renameDisabled && <p>Save or discard your changes before changing the URL.</p>}
-      {!renameDisabled && previewUrl !== null && slugChanged && (
-        <p>
-          This page will move to <code>{replaceLastSegment(previewUrl, displayedSlug)}</code>
-        </p>
+      {/* No Slug field at all on Home and 404 (requested directly).
+          This first shipped as a disabled field with an explanation
+          under it, but with no control left to act on, the explanation
+          was only noise - so the whole group goes: the field, its
+          messages, and the Update button. Everything inside here
+          belongs to renaming and has nothing to do on a fixed url. */}
+      {!pathLocked && (
+        <>
+          <label>
+            Slug
+            <input
+              value={displayedSlug}
+              disabled={renameDisabled || renameBusy}
+              onChange={(event) => {
+                setSlugTouched(true);
+                setSlugValue(event.target.value);
+              }}
+            />
+          </label>
+          {renameDisabled && <p>Save or discard your changes before changing the URL.</p>}
+          {!renameDisabled && previewUrl !== null && slugChanged && (
+            <p>
+              This page will move to <code>{replaceLastSegment(previewUrl, displayedSlug)}</code>
+            </p>
+          )}
+          {renameError && <p role="alert">{renameError}</p>}
+          <button type="button" onClick={() => void handleApplySlug()} disabled={!canRename || !slugChanged}>
+            {renameBusy ? 'Updating slug...' : 'Update slug'}
+          </button>
+        </>
       )}
-      {renameError && <p role="alert">{renameError}</p>}
-      <button type="button" onClick={() => void handleApplySlug()} disabled={!canRename || !slugChanged}>
-        {renameBusy ? 'Updating slug...' : 'Update slug'}
-      </button>
       <label>
         Page title
         <input
@@ -271,7 +290,7 @@ export function PageMetadataPanel({
           }
         }}
       />
-      <p className="panel-note">
+      <p className="panel-note panel-note-field">
         Themes list pages by type, so changing this changes which listings include this page.
       </p>
       <label>

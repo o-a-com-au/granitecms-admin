@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { readSiteEditorContent, saveSiteDraft, SiteEditorError } from '../api/site-editor.ts';
 import { publishSiteDraft } from '../api/site-publishing.ts';
+import { NON_PARENT_PAGE_PATHS } from './protectedPages.ts';
 import { fetchSitePageTemplates, type PageTemplate } from '../api/site-page-templates.ts';
 import { listSiteContent, type ContentListEntry } from '../api/site-content.ts';
 import { CloseIcon } from '../sections/CloseIcon.tsx';
@@ -89,14 +90,6 @@ function deriveUrlFromPath(path: string): string {
 // create at an already-occupied path naturally 409s through the
 // existing conflict handling below, rather than needing a separate
 // pre-flight existence check.
-
-// pages/index.json and pages/404.json are excluded as parent options
-// (requested directly). Both are hardcoded in the agent's renderer
-// (public.ts resolves '/' to index.json and falls back to 404.json),
-// and nesting under Home would produce pages/index/<slug>.json, which
-// resolves at /index/<slug> rather than the /<slug> anyone choosing
-// "Home" would expect - a URL that silently isn't what was asked for.
-export const NON_PARENT_PAGE_PATHS = ['pages/index.json', 'pages/404.json'];
 
 export function NewPageModal({ siteId, onClose, initialParentPath, duplicateFrom, onCreated }: NewPageModalProps) {
   const duplicating = duplicateFrom !== undefined;
