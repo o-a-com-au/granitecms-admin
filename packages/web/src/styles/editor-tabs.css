@@ -105,7 +105,29 @@
 .panel-note {
   margin: 0;
   color: var(--colour-muted);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+}
+
+/* A note belonging to the field directly above it, rather than to a
+   panel heading - PageMetadataPanel.tsx's own Page type note
+   (requested directly, with a mockup). The rule starts exactly where
+   the field's own text starts, so the two read as one column instead
+   of the note floating out at the panel edge: that is the field's 1px
+   border plus its own horizontal padding, hence the calc against
+   --input-padding-x rather than a copied literal - base.css owns the
+   real value, and this tracks it.
+
+   Deliberately a modifier rather than folded into .panel-note itself:
+   the other user of that class (PageHistoryTab.tsx) sits under a
+   panel heading, not a field, so there is no field edge there for a
+   rule to line up with and it would just read as arbitrary. */
+.panel-note-field {
+  margin-left: calc(var(--input-padding-x) + 1px);
+  /* Individual margin properties, not a shorthand: .panel-note's own
+     margin: 0 above would otherwise be reset wholesale here. */
+  margin-bottom: var(--space-md);
+  padding-left: var(--space-sm);
+  border-left: 1px solid var(--colour-border);
 }
 
 /* Sections/Fields views (PageSectionsEditor.tsx) get the same

@@ -143,6 +143,14 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  /* Symmetric on purpose. Bottom padding on THIS element does nothing
+     at the end of a scroll: .editor-tab-panel below is flex: 1 with
+     min-height: 0, so it clamps below its own content, the content
+     overflows past it, and the scroller's own bottom padding never
+     shows. Measured rather than assumed - 1px of visible gap with the
+     padding here, 77px once the room comes from inside the scrolling
+     content instead. See .editor-tab-panel::after for where it
+     actually comes from. */
   padding: var(--space-lg) var(--space-md);
   background: var(--colour-surface);
   position: relative;
@@ -191,6 +199,21 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
+}
+
+/* The end-of-scroll allowance for every panel that scrolls inside
+   .editor-tab-content - Page Meta, Sections, History, and the Pages
+   hub's own Pages/Menus/Redirects (reported directly: the last field
+   sat flush against the bottom at full scroll).
+
+   A spacer inside the scrolling content, rather than padding on the
+   scroll container, because the container's padding is genuinely
+   ignored here - see the note on .editor-tab-content above. Costs
+   nothing when the panel is short: it simply occupies space that was
+   already empty. */
+.editor-tab-panel::after {
+  content: '';
+  flex: 0 0 var(--space-scroll-end);
 }
 
 /* Not scoped to .editor-tab-panel specifically (a plain .tab-fade-in
@@ -330,7 +353,10 @@
 
 .editor-fields-panel.is-open .editor-fields-panel-body {
   overflow-y: auto;
-  padding: var(--space-lg) var(--space-md);
+  /* Same end-of-scroll allowance as .editor-tab-content above - this
+     panel holds the longest forms in the app (a section's own fields),
+     so it is the most likely to actually run out of room. */
+  padding: var(--space-lg) var(--space-md) var(--space-scroll-end);
 }
 
 /* position: relative - the anchor for button.fields-panel-close's own

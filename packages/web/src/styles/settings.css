@@ -101,6 +101,12 @@
   justify-content: center;
   gap: 2rem;
   align-items: flex-start;
+  /* Bottom stays a plain inset. End-of-scroll room cannot live here:
+     this element is flex: 1 with min-height: 0, so it clamps below its
+     own content and that content overflows past it - bottom padding on
+     it never reaches the end of the scroll. Measured at 13px of actual
+     gap (just the last field's own margin) against 77px once the room
+     comes from .settings-content instead. */
   padding: var(--space-xl) var(--space-lg) var(--space-lg);
 }
 
@@ -180,6 +186,14 @@
   flex: 1;
   min-width: 0;
   max-width: 480px;
+  /* The end-of-scroll allowance for Settings. On this column rather
+     than on .settings-shell-body above (which cannot carry it - see
+     that rule) or on .settings-shell, the scroller itself, for the
+     same reason. This column is the one that actually grows tall, so
+     the room lands exactly where the scroll ends. The 720px block
+     below stacks the row into a column with this still last, so it
+     holds there too. */
+  padding-bottom: var(--space-scroll-end);
 }
 
 /* A separate class from .settings-content itself, not baked into that

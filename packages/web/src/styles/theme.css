@@ -88,6 +88,27 @@
      grade over a fixed video is the same either way. */
   --colour-login-tint: var(--grey-900);
 
+  /* The horizontal padding inside every text input and select
+     (base.css's own input/textarea and select rules). Named rather than
+     repeated because it is also what anything sitting underneath a
+     field has to line up with - see .panel-note-field in
+     editor-tabs.css, whose rule has to start exactly where the field's
+     own text starts, not merely near it. As two hard-coded copies the
+     two would drift apart the moment either was touched. */
+  --input-padding-x: 0.65rem;
+
+  /* Breathing room under the last item in anything that scrolls, so the
+     end of a scroll is not the last field jammed against the panel
+     edge. Deliberately larger than --space-2xl: this is not a gap
+     between things, it is the pause after the final one, and at 2.5rem
+     a list still reads as though it has been cut off.
+
+     Not a new value - .app-content, base.css's own page container and
+     pages-list.css were already using exactly 4rem for this, each with
+     its own copy. This names it so the next scrolling panel inherits
+     the decision instead of picking its own number. */
+  --space-scroll-end: 4rem;
+
   --radius-xs: 3px;
   --radius-sm: 5px;
   --radius-md: 10px;

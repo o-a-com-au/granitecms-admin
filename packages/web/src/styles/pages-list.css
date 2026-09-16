@@ -31,7 +31,7 @@
 .list-page-inner {
   max-width: 900px;
   margin: 0 auto;
-  padding: 5rem 1.5rem 4rem;
+  padding: 5rem 1.5rem var(--space-scroll-end);
   /* Every consumer (ContentBrowserPage, MenusPage, RedirectsPage,
      SettingsLayout) renders its own .list-page-inner fresh on mount, at
      a distinct route each - a plain CSS animation here is enough to
