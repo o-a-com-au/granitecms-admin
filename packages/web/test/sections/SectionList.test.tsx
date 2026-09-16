@@ -341,7 +341,11 @@ describe('SectionList', () => {
   function addSectionCards(): HTMLElement[] {
     return within(screen.getByRole('dialog', { name: 'Add a Section' }))
       .getAllByRole('button')
-      .filter((button) => button.getAttribute('aria-label') !== 'Close');
+      .filter((button) => button.getAttribute('aria-label') !== 'Close')
+      // Cancel/Add sit in the modal's footer, not its list - picking a
+      // row only selects it now, so these are siblings of the rows
+      // rather than rows themselves.
+      .filter((button) => !['Cancel', 'Add'].includes(button.textContent ?? ''));
   }
 
   it('I2: the add-section modal lists types sourced from the fetched theme schemas, not hardcoded', () => {
@@ -374,6 +378,7 @@ describe('SectionList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Section' }));
     fireEvent.click(screen.getByRole('button', { name: 'hero' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     const [[newSections]] = onChange.mock.calls as [[Instance[]]];
     expect(newSections[0]?.type).toBe('hero');
@@ -405,6 +410,7 @@ describe('SectionList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Section' }));
     fireEvent.click(screen.getByRole('button', { name: 'hero' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     const [[newSections]] = onChange.mock.calls as [[Instance[]]];
     expect(newSections[0]?.settings).toEqual({ heading: 'New Section' });
@@ -424,6 +430,7 @@ describe('SectionList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Section' }));
     fireEvent.click(screen.getByRole('button', { name: 'hero' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     const [[newSections]] = onChange.mock.calls as [[Instance[]]];
     expect(newSections[0]?.settings).toEqual({});

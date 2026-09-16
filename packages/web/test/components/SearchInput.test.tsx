@@ -46,11 +46,11 @@ describe('SearchInput', () => {
 
   it('applies an extra className to the wrapper, not the input, for a call site with its own layout needs', () => {
     const { container } = render(
-      <SearchInput value="" onChange={() => {}} placeholder="Search things" className="add-section-search" />,
+      <SearchInput value="" onChange={() => {}} placeholder="Search things" className="custom-search-sizing" />,
     );
     const wrapper = container.querySelector('.search-input');
-    expect(wrapper?.className).toContain('add-section-search');
+    expect(wrapper?.className).toContain('custom-search-sizing');
     const input = screen.getByPlaceholderText('Search things');
-    expect(input.className).not.toContain('add-section-search');
+    expect(input.className).not.toContain('custom-search-sizing');
   });
 });

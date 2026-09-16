@@ -6,17 +6,29 @@
    the search bar now able to filter the grid down to one card or none,
    max-height alone let the whole modal shrink and grow as the result
    count changed, which read as the dialog itself flickering size while
-   typing. Fixed height + .add-section-grid's own flex: 1/overflow-y
-   below means only the grid scrolls; the modal's own footprint never
-   moves. */
+   typing. Fixed height + .add-section-content's own flex: 1/overflow-y
+   below means only the list scrolls; the modal's own footprint never
+   moves.
+
+   Two layers: .dialog-header (dialog-header.css - heading and search
+   together on one gradient), then .add-section-content, each owning
+   its own padding. No padding on the shell itself - any here would
+   inset the header's gradient and the scroller alike, which is what
+   originally left the scrollbar floating a gutter in from the popup's
+   edge (reported directly, with a screenshot). overflow: hidden clips
+   the header's gradient to the popup's own rounded corners.
+
+   --colour-dialog-border rather than --colour-border: requested
+   directly as a brighter outline so the popup stands out against the
+   editor behind the overlay (see theme.css for the per-theme step). */
 .add-section-modal {
-  width: min(90vw, 960px);
+  width: min(90vw, 560px);
   height: min(85vh, 640px);
   display: flex;
   flex-direction: column;
-  padding: var(--space-lg);
+  overflow: hidden;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--colour-border);
+  border: 1px solid var(--colour-dialog-border);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
 }
 
@@ -33,61 +45,65 @@
   background: white;
 }
 
-.add-section-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-md);
+/* Only the grid pickers reserve a scrollbar gutter in their header:
+   their content area scrolls, and without a matching gutter up here
+   the search field's right edge sits ~15px past the cards' on any
+   system showing classic scrollbars (measured). A small form dialog
+   has no scrolling body, so this stays out of .dialog-header itself -
+   there it would just push the close icon off the content's own right
+   edge. overflow: hidden is what scrollbar-gutter needs to apply;
+   nothing in the header ever overflows anyway. With overlay
+   scrollbars (macOS default) the reserved gutter is zero either way. */
+.add-section-modal .dialog-header {
+  overflow: hidden;
+  scrollbar-gutter: stable;
+  /* The header casts a short shadow onto the list running under it, so
+     the two stop blending together (requested directly).
+
+     It has to be cast by the header rather than drawn inside the
+     content: an inset shadow on the scroller would paint beneath the
+     rows, and rows are opaque and nearly full width, so it would only
+     ever show in the side gutter. position/z-index are what make this
+     visible at all - both are ordinary in-flow siblings, so without
+     lifting the header out of normal paint order the content simply
+     paints over the shadow. The modal's own overflow: hidden clips the
+     shadow to the dialog's rounded corners. */
+  position: relative;
+  z-index: 1;
+  box-shadow: var(--shadow-header-cast);
 }
 
-.add-section-modal-header h2 {
-  margin: 0;
-  font-size: 1.1rem;
+/* And the footer, for the same reason: the list between them reserves
+   a scrollbar gutter permanently, so without a matching reservation
+   here the Add button's right edge overhangs the rows' by the
+   scrollbar's width (measured at 15px where scrollbars are always
+   visible). Reserving it in all three keeps the header, the rows and
+   the buttons on one right edge. */
+.add-section-modal .dialog-footer {
+  overflow: hidden;
+  scrollbar-gutter: stable;
 }
 
-/* button.add-section-modal-close, same specificity-tie reasoning as
-   button.add-section-item above. Same icon-button shape as every other
-   Close/Clear cross in the app now (CloseIcon, not a bespoke &times; -
-   reported directly as an inconsistency) - flex centring plus an
-   explicit box instead of the old font-size/line-height, which only
-   ever sized a text glyph. Opacity, not a colour swap, for hover
-   feedback - same rest/hover pattern as address-bar-search.css's own
-   button.address-search-close. */
-button.add-section-modal-close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  background: none;
-  border: none;
-  border-radius: var(--radius-xs);
-  color: var(--colour-icon-muted);
-  opacity: 0.6;
-  padding: 0;
-  cursor: pointer;
-}
+/* The one scrolling region, the popup's equivalent of the Sections
+   panel's .editor-tab-content. flex: 1 fills whatever height
+   .dialog-header leaves; min-height: 0 is the standard flex-scroll
+   fix (a flex item's default min-height is auto, which lets it grow
+   past its parent instead of actually scrolling).
 
-button.add-section-modal-close:hover {
-  background: none;
-  opacity: 1;
-}
-
-/* Now applied to SearchInput.tsx's own .search-input wrapper (passed
-   as its className prop), not the <input> directly - that wrapper is
-   this modal's actual flex child these days, .content-search's own
-   flex: 1 (pages-list.css) only ever reaching this wrapper's own width
-   now, one level removed. Still needed for the same original reason:
-   .add-section-modal is a flex column with a defined height (min(85vh,
-   640px) above), so without an explicit flex: none here, the search
-   row competed with .add-section-grid's own flex: 1 for the modal's
-   leftover vertical space instead of staying a single input row -
-   found live, it rendered as a tall black rectangle instead of a
-   search field. */
-.add-section-search {
-  flex: none;
-  width: 100%;
-  margin-bottom: var(--space-md);
+   --space-lg on every side, top and bottom included (requested
+   directly), and all of it as padding on the scroller itself: a
+   scrollbar always sits at its scroll container's own border edge,
+   outside the padding, so the cards keep their gutter while the
+   scrollbar runs flush down the popup's right edge. */
+.add-section-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-lg);
+  /* Always reserves the scrollbar's width, scrolling or not, matching
+     .dialog-header's own reserved gutter - see that rule's comment for
+     why the header and the cards' right edges need this to line up. */
+  scrollbar-gutter: stable;
 }
 
 .add-section-empty {
@@ -95,78 +111,120 @@ button.add-section-modal-close:hover {
   color: var(--colour-muted);
 }
 
-.add-section-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  align-content: start;
-  gap: 1rem;
-  /* flex: 1 (fill the modal's own remaining fixed height) + min-height:
-     0 (the standard flex-scroll fix - a flex item's default min-height
-     is auto, which lets it grow past its parent instead of actually
-     scrolling) - same convention as .editor-page/.editor-tab-content's
-     own overflow-y: auto columns elsewhere in this app. */
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-/* Five fixed columns only makes sense at the modal's own desktop width
-   (min(90vw, 960px) above) - on a narrow viewport that same 90vw
-   shrinks to a few hundred px, where five columns would squeeze each
-   card down to nothing. Falls back to auto-fill below the app's usual
-   720px breakpoint instead, same as the modal's own width already
-   implicitly does. */
-@media (max-width: 720px) {
-  .add-section-grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  }
+/* A single column of rows (requested directly, with a mockup),
+   replacing the previous five-across card grid - at this dialog's own
+   narrower width a row reads better than a card, and it leaves room
+   for a description beside each name. No media query needed any more:
+   one column is already the narrow-viewport layout. */
+.add-section-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
 }
 
 /* button.add-section-item, not the bare class: base.css's own
    button[type='button'] rule (element+attribute, same 0,1,1
    specificity as element+class) would otherwise win the tie regardless
    of import order and keep its own background/border - see index.css's
-   own comment on this exact convention. */
+   own comment on this exact convention.
+
+   A three-column grid so every row's icon, name and description line
+   up with its neighbours' rather than each row packing independently.
+   --add-section-name-width is a layout dimension rather than a spacing
+   step, so it is named here instead of reaching for --space-*, the
+   same reasoning --editor-sidebar-width already follows. */
 button.add-section-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  padding: 0;
-  border: none;
-  background: none;
+  --add-section-name-width: 9rem;
+
+  display: grid;
+  grid-template-columns: auto minmax(0, var(--add-section-name-width)) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  padding: var(--space-md);
+  /* A transparent keyline at rest, not "no border": the selected row
+     turns this same border blue, and a row that only grew a border
+     once selected would shift its own contents by a pixel on every
+     selection change. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: var(--colour-picker-row);
   text-align: left;
   cursor: pointer;
 }
 
-/* Same specificity-tie reasoning again, this time against
-   button[type='button']:hover (base.css) - without this, hovering a
-   card filled its whole row-height box with --colour-surface-hover,
-   which read as a generic button press rather than "this card is
-   selectable" (already shown by the thumb's own border turning blue
-   below). */
-button.add-section-item:hover {
-  background: none;
+/* Unlike the old cards - which deliberately suppressed the hover fill
+   because their thumb's own blue border already signalled selectable -
+   a row has no such affordance of its own, so the fill is what shows
+   it can be picked. */
+button.add-section-item:hover,
+button.add-section-item:focus-visible {
+  background: var(--colour-picker-row-hover);
 }
 
-/* The placeholder itself - a plain tinted box standing in for real
-   per-type artwork, matching media-library.css's own thumb sizing
-   convention (square, rounded, bordered) so swapping this for a real
-   <img> later is a drop-in change, not a layout rework. */
-.add-section-item-thumb {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  border: 1px solid var(--colour-border);
-  border-radius: var(--radius-xs);
-  background: var(--colour-surface-hover);
-}
-
-.add-section-item:hover .add-section-item-thumb,
-.add-section-item:focus-visible .add-section-item-thumb {
+/* The chosen row (requested directly, with a mockup). aria-pressed is
+   the selected state itself, not a class mirroring it, so the styling
+   can never disagree with what assistive technology is told - the same
+   single-select convention .select-field-tabs already uses. Picking a
+   row no longer adds it; the footer's Add button does, so this keyline
+   is what says which row Add will act on. */
+button.add-section-item[aria-pressed='true'] {
   border-color: var(--colour-primary);
+  /* The lifted fill as well as the keyline (requested directly), so a
+     selected row reads as raised even before the eye reaches its
+     border. Same specificity as the :hover rule above (both are one
+     class plus one attribute/pseudo-class), so this wins purely by
+     coming later in the file - which is fine here because they set the
+     same value: a selected row that is also hovered looks identical
+     either way. */
+  background: var(--colour-picker-row-hover);
+}
+
+.add-section-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--colour-icon-muted);
 }
 
 .add-section-item-name {
   font-size: 0.85rem;
   color: var(--colour-text);
+}
+
+/* Absent unless the theme's own schema declares a "description"
+   (instance-types.ts), so this rule often has nothing to style - the
+   row stays a valid layout without it, the third column simply
+   staying empty. Clamped to two lines so one long description can't
+   make its row tower over its neighbours. */
+.add-section-item-description {
+  font-size: 0.8rem;
+  color: var(--colour-muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* Narrow viewports have no room for a third column, so the row drops
+   to icon plus name and the description is hidden - until its row is
+   selected, where it reappears spanning the full width beneath them
+   (requested directly). grid-column: 1 / -1 is what puts it on its own
+   row rather than squeezing a third column back in, and display has to
+   be restored to -webkit-box rather than block so the two-line clamp
+   above still applies. */
+@media (max-width: 720px) {
+  button.add-section-item {
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: var(--space-xs);
+  }
+
+  .add-section-item-description {
+    display: none;
+  }
+
+  button.add-section-item[aria-pressed='true'] .add-section-item-description {
+    display: -webkit-box;
+    grid-column: 1 / -1;
+  }
 }

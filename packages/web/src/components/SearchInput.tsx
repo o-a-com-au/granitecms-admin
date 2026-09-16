@@ -6,9 +6,9 @@ export interface SearchInputProps {
   onChange: (value: string) => void;
   placeholder: string;
   // Extra class(es) on the wrapper (not the input itself) - for a call
-  // site that needs its own outer sizing, e.g. AddSectionModal.tsx's
-  // own .add-section-search, which used to sit directly on the <input>
-  // before this wrapper existed.
+  // site that needs its own outer sizing. Most call sites need none:
+  // inside a .panel-toolbar, that toolbar's own .search-input rule
+  // already sizes the wrapper (pages-hub.css).
   className?: string;
 }
 

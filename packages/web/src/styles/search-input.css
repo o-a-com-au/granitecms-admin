@@ -10,8 +10,8 @@
    .search-input, not .content-search itself, is now the flex item
    within whatever row this sits in (.panel-toolbar, .add-section-
    modal) - every existing "how much space does this field take" rule
-   (pages-hub.css's own .panel-toolbar .content-search, add-section-
-   modal.css's own .add-section-search) moves onto this wrapper to
+   (pages-hub.css's own .panel-toolbar .content-search) moves onto this
+   wrapper to
    match, since .content-search's own flex/width no longer has
    .panel-toolbar/.add-section-modal to reach - its immediate parent is
    this wrapper now. .content-search's own base flex: 1 (pages-list.css)

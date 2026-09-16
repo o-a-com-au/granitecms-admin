@@ -41,6 +41,30 @@ export function allowedBlockTypes(schema: object | undefined): string[] | undefi
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string') ? value : undefined;
 }
 
+// The theme's own optional JSON Schema "description" keyword, read
+// exactly the way schemaTitle reads "title" - plain annotation on the
+// schema object, never part of the settings shape it describes.
+// Standard JSON Schema, so it needs no agent support at all: theme
+// schema JSON is stored verbatim (theme-schemas.ts) and served
+// unchanged by /theme/schemas, and Ajv ignores annotation keywords
+// when validating. Undefined rather than an empty string when absent,
+// so a caller can drop the element entirely instead of rendering a
+// blank one.
+export function schemaDescription(schema: object | undefined): string | undefined {
+  const description = (schema as { description?: unknown } | undefined)?.description;
+  return typeof description === 'string' && description.trim() !== '' ? description : undefined;
+}
+
+// The theme's own optional "icon" keyword, naming one of the icons
+// SectionTypeIcon.tsx bundles. Not a standard JSON Schema keyword, but
+// it rides through verbatim for free exactly like allowedBlocks above.
+// Undefined when absent or malformed - SectionTypeIcon falls back to
+// its own default, so an unrecognised name is never an error here.
+export function schemaIcon(schema: object | undefined): string | undefined {
+  const icon = (schema as { icon?: unknown } | undefined)?.icon;
+  return typeof icon === 'string' && icon.trim() !== '' ? icon : undefined;
+}
+
 // I3: mirrors schemaTitle's own title-then-fallback shape, but the
 // fallback deliberately differs - a field's own raw property name is
 // camelCase (heading, codeTitle, posterImage), much harder to read as
