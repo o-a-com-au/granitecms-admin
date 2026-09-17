@@ -102,9 +102,35 @@ button.dialog-header-close:hover {
   max-width: none;
 }
 
-/* Small print under the fields - the derived-URL line, and any error.
-   Margin cleared: the form's own gap already spaces these. */
-.dialog-content p {
+/* Two fields sharing one row (NewPageModal's Template + Status).
+
+   auto-fit with minmax, not a flat `1fr 1fr`: the pair regularly holds
+   only ONE field - Template is hidden when the theme declares no
+   templates, and again while duplicating - and a fixed two-column grid
+   would leave the survivor stranded at half the dialog's width. auto-fit
+   collapses the empty track, so a lone field fills the row exactly as it
+   would have before it was paired, with no JS branching on the count.
+
+   The 9rem floor is what forces the single-column fallback on a narrow
+   dialog rather than squeezing two unreadable selects side by side. */
+.dialog-field-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-md);
+  align-items: start;
+}
+
+/* Small print under the fields - any error, and previously the
+   derived-URL line. Margin cleared: the form's own gap already spaces
+   these.
+
+   :not(.panel-note) matters. This selector is (0,1,1) and the margin
+   shorthand here resets all four sides, so it beat .panel-note-field's
+   own (0,1,0) margin-left and flattened it to 0 - measured: the note's
+   rule sat at the dialog's left edge (0px) instead of aligning to the
+   field text above it (11.4px). Excluding notes lets one bring its own
+   margins rather than having them silently cleared here. */
+.dialog-content p:not(.panel-note) {
   margin: 0;
   color: var(--colour-muted);
 }

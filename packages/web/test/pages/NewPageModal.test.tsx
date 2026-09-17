@@ -122,7 +122,7 @@ describe('NewPageModal', () => {
     expect(screen.queryByLabelText('Path')).toBeNull();
     expect(screen.queryByLabelText('Slug')).toBeNull();
     // No template grid to pick from first any more.
-    expect(screen.queryByRole('button', { name: 'Blank page' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Blank' })).toBeNull();
   });
 
   it('hides the Template dropdown when the theme declares no templates', async () => {
@@ -133,14 +133,14 @@ describe('NewPageModal', () => {
     expect(screen.queryByLabelText('Template')).toBeNull();
   });
 
-  it('shows the Template dropdown, defaulting to Blank page, once a template exists', async () => {
+  it('shows the Template dropdown, defaulting to Blank, once a template exists', async () => {
     installFakeFetch({ templates: [TEMPLATE] });
     renderModal();
     await waitForParentOptions();
 
     const select = screen.getByLabelText('Template') as HTMLSelectElement;
     expect(select.value).toBe('');
-    expect(screen.getByRole('option', { name: 'Blank page' })).toBeDefined();
+    expect(screen.getByRole('option', { name: 'Blank' })).toBeDefined();
     expect(screen.getByRole('option', { name: 'Blog Article' })).toBeDefined();
   });
 
@@ -477,7 +477,7 @@ describe('NewPageModal', () => {
       expect((getReceivedSaveBody() as { type: string }).type).toBe('article');
     });
 
-    it('switching back to Blank page returns the type to "page"', async () => {
+    it('switching back to Blank returns the type to "page"', async () => {
       const { getReceivedSaveBody } = installFakeFetch({ templates: [TYPED_TEMPLATE] });
       const { onCreated } = renderModal();
       await waitForParentOptions();
@@ -525,5 +525,35 @@ describe('NewPageModal', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/drafts/'), expect.anything());
+  });
+});
+
+// The derived url used to be introduced by a sentence ("This page will
+// be created at ..."); it is the bare path now, styled as a field note
+// (requested directly). Nothing asserted it before, so dropping the
+// sentence broke no test - which is exactly why it needs one.
+describe('NewPageModal: the derived url line', () => {
+  it('shows the derived url on its own, with no sentence in front of it', async () => {
+    installFakeFetch();
+    renderModal();
+    await waitForParentOptions();
+
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'About Us' } });
+
+    const note = await screen.findByText('/about-us');
+    expect(note).toBeDefined();
+    expect(note.textContent).toBe('/about-us');
+    expect(screen.queryByText(/will be created at/i)).toBeNull();
+  });
+
+  it('shows nothing at all until the title derives a path', async () => {
+    installFakeFetch();
+    renderModal();
+    await waitForParentOptions();
+
+    // Asserting the specific path is absent, not "nothing starting with
+    // a slash" - a loose regex here would match unrelated text and pass
+    // for the wrong reason.
+    expect(screen.queryByText('/about-us')).toBeNull();
   });
 });

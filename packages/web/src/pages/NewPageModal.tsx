@@ -265,33 +265,9 @@ export function NewPageModal({ siteId, onClose, initialParentPath, duplicateFrom
               Title
               <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} required autoFocus />
             </label>
-            {/* Hidden entirely when the theme declares no templates -
-                "Blank page" would be the only choice, and a dropdown with
-                one fixed option is just noise (the same reasoning
-                BlockList.tsx already applies to a single block type). */}
-            {!duplicating && (templates ?? []).length > 0 && (
-              <label>
-                Template
-                <select
-                  value={templateId}
-                  onChange={(event) => {
-                    setTemplateId(event.target.value);
-                    // The template is the only thing that sets the type
-                    // now, so this applies unconditionally.
-                    const chosen = (templates ?? []).find((entry) => entry.id === event.target.value);
-                    const declared = (chosen?.content as { type?: unknown } | undefined)?.type;
-                    setPageType(typeof declared === 'string' && declared !== '' ? declared : 'page');
-                  }}
-                >
-                  <option value="">Blank page</option>
-                  {(templates ?? []).map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
+            {/* Parent directly after Title (requested directly): the two
+                together are what actually decide the page's own url, so
+                they read as one decision before anything else. */}
             <label>
               Parent
               <select value={parentPath} onChange={(event) => setParentPath(event.target.value)}>
@@ -303,17 +279,50 @@ export function NewPageModal({ siteId, onClose, initialParentPath, duplicateFrom
                 ))}
               </select>
             </label>
-            {/* Paired on one row (requested directly): both answer
-                "where does this page show up", and neither needs the
-                full dialog width. */}
-            <label>
-              Status
-              <select value={status} onChange={(event) => setStatus(event.target.value as 'draft' | 'published')}>
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-              </select>
-            </label>
-            {derivedPath !== '' && <p>This page will be created at {deriveUrlFromPath(derivedPath)}</p>}
+            {/* Template and Status share a row (requested directly) -
+                neither needs the full dialog width.
+
+                Template is conditional: hidden when the theme declares
+                no templates ("Blank" would be the only choice, and
+                a one-option dropdown is just noise - the same reasoning
+                BlockList.tsx applies to a single block type) and hidden
+                while duplicating, which takes its type from the source
+                page. So this row often holds Status alone, and the grid
+                collapses to a single full-width column when it does,
+                rather than stranding Status at half width. */}
+            <div className="dialog-field-pair">
+              {!duplicating && (templates ?? []).length > 0 && (
+                <label>
+                  Template
+                  <select
+                    value={templateId}
+                    onChange={(event) => {
+                      setTemplateId(event.target.value);
+                      // The template is the only thing that sets the type
+                      // now, so this applies unconditionally.
+                      const chosen = (templates ?? []).find((entry) => entry.id === event.target.value);
+                      const declared = (chosen?.content as { type?: unknown } | undefined)?.type;
+                      setPageType(typeof declared === 'string' && declared !== '' ? declared : 'page');
+                    }}
+                  >
+                    <option value="">Blank</option>
+                    {(templates ?? []).map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label>
+                Status
+                <select value={status} onChange={(event) => setStatus(event.target.value as 'draft' | 'published')}>
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                </select>
+              </label>
+            </div>
+            {derivedPath !== '' && <p className="panel-note panel-note-field">{deriveUrlFromPath(derivedPath)}</p>}
             {error && <p role="alert">{error}</p>}
             <div className="dialog-actions">
               <button type="button" onClick={onClose} disabled={busy}>
