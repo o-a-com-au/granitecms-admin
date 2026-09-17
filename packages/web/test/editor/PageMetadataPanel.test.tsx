@@ -42,7 +42,7 @@ describe('PageMetadataPanel', () => {
 
     expect((screen.getByLabelText('Page title') as HTMLInputElement).value).toBe('About us');
     expect((screen.getByLabelText('Status') as HTMLSelectElement).value).toBe('published');
-    for (const label of ['Page meta description', 'Author', 'Publish date']) {
+    for (const label of ['Page meta description', 'Author']) {
       const field = screen.getByLabelText(label) as HTMLInputElement | HTMLTextAreaElement;
       expect(field.value).toBe('');
     }
@@ -117,7 +117,7 @@ describe('PageMetadataPanel', () => {
     expect(updated.layout).toBe('default');
   });
 
-  it('the remaining placeholder fields (meta description, author, publish date) are still locally interactive but not wired to real content', () => {
+  it('the remaining placeholder fields (meta description, author) are still locally interactive but not wired to real content', () => {
     renderPanel({ content: '{"title":"Hi"}', setContent: vi.fn() });
 
     fireEvent.change(screen.getByLabelText('Author'), { target: { value: 'Ada Lovelace' } });
@@ -283,5 +283,51 @@ describe('PageMetadataPanel: pages with a fixed url', () => {
 
     expect((screen.getByLabelText('Slug') as HTMLInputElement).disabled).toBe(false);
     expect(screen.getByText('Update')).toBeDefined();
+  });
+});
+
+// publishDate had never been written to content at all - it was local
+// state, so anything typed was silently discarded on remount. It is a
+// real optional content field (page.schema.json), now wired like the
+// rest.
+describe('PageMetadataPanel: publish date', () => {
+  it('seeds from the real content, as a date input', () => {
+    renderPanel({ content: '{"title":"A","publishDate":"2023-11-14"}', setContent: vi.fn() });
+
+    const field = screen.getByLabelText('Publish date') as HTMLInputElement;
+    expect(field.value).toBe('2023-11-14');
+    // date, not text: YYYY-MM-DD is what every page on disk stores and
+    // what the agent's index parses for sorting.
+    expect(field.type).toBe('date');
+  });
+
+  it('writes the chosen date straight into the content', () => {
+    const setContent = vi.fn();
+    renderPanel({ content: '{"title":"A"}', setContent });
+
+    fireEvent.change(screen.getByLabelText('Publish date'), { target: { value: '2024-04-19' } });
+
+    expect(JSON.parse(setContent.mock.calls[0]?.[0] as string)).toEqual({ title: 'A', publishDate: '2024-04-19' });
+  });
+
+  it('removes the key entirely when cleared, rather than writing an empty string', () => {
+    const setContent = vi.fn();
+    renderPanel({ content: '{"title":"A","publishDate":"2023-11-14"}', setContent });
+
+    fireEvent.change(screen.getByLabelText('Publish date'), { target: { value: '' } });
+
+    // minLength 1 in the page schema - "" would be content the site
+    // itself rejects on save, so absent is the only correct empty form.
+    const written = JSON.parse(setContent.mock.calls[0]?.[0] as string) as Record<string, unknown>;
+    expect('publishDate' in written).toBe(false);
+    expect(written).toEqual({ title: 'A' });
+  });
+
+  it('survives a remount, unlike the placeholder fields it used to sit with', () => {
+    const { unmount } = renderPanel({ content: '{"title":"A","publishDate":"2021-08-02"}', setContent: vi.fn() });
+    unmount();
+    renderPanel({ content: '{"title":"A","publishDate":"2021-08-02"}', setContent: vi.fn() });
+
+    expect((screen.getByLabelText('Publish date') as HTMLInputElement).value).toBe('2021-08-02');
   });
 });

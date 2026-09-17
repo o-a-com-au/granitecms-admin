@@ -114,6 +114,40 @@ function writePublished(content: string, published: boolean): string | null {
   return parsed ? JSON.stringify({ ...parsed, published }, null, 2) : null;
 }
 
+// publishDate is a real content field (page.schema.json: optional,
+// string, minLength 1) that this panel had never actually written - it
+// was local state only, so anything typed was discarded on remount.
+// Now read from and written to content like every other real field.
+//
+// Stored as plain YYYY-MM-DD, which is what <input type="date"> both
+// produces and consumes, what every existing page on disk already
+// carries ("2021-08-02"), and what the agent's own index parses into a
+// number for date sorting (parseDateValue, rebuild-index.ts). Not
+// datetime-local, which would emit "2021-08-02T09:30" - a different
+// shape from everything already stored.
+function readPublishDate(content: string): string {
+  const value = parseObject(content)?.publishDate;
+  return typeof value === 'string' ? value : '';
+}
+
+// Clearing the field DELETES the key rather than writing "" - the
+// schema requires minLength 1, so an empty string would be content the
+// site itself rejects on save. The field is optional, so absent is the
+// correct representation of "not set".
+function writePublishDate(content: string, publishDate: string): string | null {
+  const parsed = parseObject(content);
+  if (!parsed) {
+    return null;
+  }
+  const next = { ...parsed };
+  if (publishDate === '') {
+    delete next.publishDate;
+  } else {
+    next.publishDate = publishDate;
+  }
+  return JSON.stringify(next, null, 2);
+}
+
 // The page's own directory-stem slug - "pages/about/team.json" ->
 // "team". Both a content path and a URL share the identical directory
 // structure (a URL is just the path with "pages/" stripped and
@@ -149,9 +183,10 @@ export function PageMetadataPanel({
   renameDisabled,
   onRenamed,
 }: PageMetadataPanelProps) {
+  // description and author remain deliberate placeholders - local state
+  // only, wired to nothing. publishDate no longer is.
   const [description, setDescription] = useState('');
   const [author, setAuthor] = useState('');
-  const [publishDate, setPublishDate] = useState('');
   const [slugValue, setSlugValue] = useState(() => currentSlug(path));
   const [slugTouched, setSlugTouched] = useState(false);
   const [renameBusy, setRenameBusy] = useState(false);
@@ -162,6 +197,8 @@ export function PageMetadataPanel({
   const name = readName(content);
   const nameEditable = writeName(content, name) !== null;
   const published = readPublished(content);
+  const publishDate = readPublishDate(content);
+  const publishDateEditable = writePublishDate(content, publishDate) !== null;
   const pageType = readType(content);
   const pageTypeEditable = writeType(content, pageType) !== null;
   // The current value belongs in its own suggestion list even when no
@@ -323,7 +360,17 @@ export function PageMetadataPanel({
       </label>
       <label>
         Publish date
-        <input value={publishDate} onChange={(event) => setPublishDate(event.target.value)} />
+        <input
+          type="date"
+          value={publishDate}
+          disabled={!publishDateEditable}
+          onChange={(event) => {
+            const updated = writePublishDate(content, event.target.value);
+            if (updated !== null) {
+              setContent(updated);
+            }
+          }}
+        />
       </label>
       <label>
         Status
