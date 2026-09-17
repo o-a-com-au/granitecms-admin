@@ -186,7 +186,7 @@ export function resolveImageSrc(url: string, siteUrl: string | undefined): strin
 // A bare site-relative path ("/media/a.jpg") is the only shape
 // resolveImageSrc's siteUrl argument actually matters for - an
 // absolute http(s) url or a data: url means whatever siteUrl says.
-function isSiteRelativeUrl(url: string): boolean {
+export function isSiteRelativeUrl(url: string): boolean {
   return !/^(https?:)?\/\//i.test(url) && !url.startsWith('data:');
 }
 

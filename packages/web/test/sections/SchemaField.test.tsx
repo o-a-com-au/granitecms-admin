@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { SchemaField } from '../../src/sections/SchemaField.tsx';
 
@@ -383,5 +383,70 @@ describe('SchemaField', () => {
     );
 
     expect(screen.getByText('must be at least 1 character')).toBeDefined();
+  });
+});
+
+// Kept in its own describe with its own stub/unstub rather than added
+// to the block above: VideoField calls useSites() on every render, and
+// the rest of this file deliberately stubs no globals at all, so a
+// stubGlobal leaking out of here would reach ~40 unrelated tests.
+describe('SchemaField - format: "video"', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([]), { status: 200 })));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function renderVideo(value: unknown = { url: 'https://example.com/a.mp4', poster: '' }) {
+    return render(
+      <SchemaField
+        siteId="site-1"
+        label="Hero loop"
+        schema={{ type: 'object', format: 'video' }}
+        value={value}
+        onChange={vi.fn()}
+      />,
+    );
+  }
+
+  it('wires an object field with format "video" to VideoField', () => {
+    renderVideo();
+
+    expect(screen.getByRole('button', { name: 'Change Video' })).toBeDefined();
+  });
+
+  // Same reasoning as the enum-tabs case above, and then some: a native
+  // <label> forwards :hover to its first labelable descendant, and this
+  // field carries four buttons. It also carries a plain-text note about
+  // the poster, which a wrapping <label> would fold straight into the
+  // url input's accessible name.
+  it('wraps it in a plain <div> and names the url input explicitly instead', () => {
+    const { container } = renderVideo();
+
+    expect(container.querySelector('.schema-field-label')?.tagName).toBe('DIV');
+    expect(screen.getByRole('textbox').closest('label')).toBeNull();
+
+    const labelId = container.querySelector('.schema-field-label > span')?.id;
+    expect(labelId).toBeTruthy();
+    expect(screen.getByRole('textbox').getAttribute('aria-labelledby')).toBe(labelId);
+  });
+
+  it('treats format "video" on the wrong type as the authoring mistake it is, not something to guess around', () => {
+    render(
+      <SchemaField
+        siteId="site-1"
+        label="Hero loop"
+        schema={{ type: 'string', format: 'video' }}
+        value="not an object"
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Choose Video' })).toBeNull();
+    // Positive control: it fell through to the plain string widget
+    // rather than rendering nothing at all.
+    expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('not an object');
   });
 });

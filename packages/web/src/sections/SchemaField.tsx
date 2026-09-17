@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { ColorField } from './ColorField.tsx';
 import { GalleryField } from './GalleryField.tsx';
 import { ImageField } from './ImageField.tsx';
+import { VideoField } from './VideoField.tsx';
 import { RangeField } from './RangeField.tsx';
 import { RichTextField } from './RichTextField.tsx';
 import { SelectField, shouldRenderAsTabs } from './SelectField.tsx';
@@ -148,6 +149,8 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
     );
   } else if (format === 'image' && type === 'object') {
     control = <ImageField siteId={siteId} value={value} onChange={onChange} />;
+  } else if (format === 'video' && type === 'object') {
+    control = <VideoField siteId={siteId} value={value} onChange={onChange} labelledBy={fieldId} />;
   } else if (format === 'color' && type === 'string') {
     // Checked ahead of isEnumSchema below: a colour field may declare
     // its own "swatches" (a plain array of hex strings, not "enum" -
@@ -287,6 +290,12 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
   // the 2nd of 3 tabs pressed, hovering the 3rd also lit up the 1st.
   const isCompoundField =
     (format === 'richtext' && type === 'string') ||
+    // Unlike format: 'image', which carries no text of its own, the
+    // video field includes an explanatory note about its poster - and a
+    // wrapping <label> folds any such text straight into the control's
+    // accessible name. It also carries four buttons, so it hits the
+    // same hover-forwarding problem documented above.
+    (format === 'video' && type === 'object') ||
     (format === 'color' && type === 'string') ||
     (type === 'array' && isStringArraySchema(schema)) ||
     (type === 'array' && isImageArraySchema(schema)) ||

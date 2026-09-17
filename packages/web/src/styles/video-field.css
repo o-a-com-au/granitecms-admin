@@ -1,0 +1,109 @@
+/* VideoField.tsx - deliberately a near-copy of image-field.css's own
+   structure (card, attached seam, preview well, actions row), because
+   the two fields are meant to read as siblings in the same panel. The
+   differences are only where a video genuinely differs from an image:
+   no focal-point marker, and a poster row underneath. */
+.video-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.video-field-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-sm);
+}
+
+/* Same whole-card focus treatment as the image field: highlighting
+   only the url input reads as though it were unrelated to the preview
+   sitting directly above it. */
+.video-field-url-input:focus {
+  outline: none;
+}
+
+.video-field-card:has(.video-field-url-input:focus) {
+  outline: 2px solid var(--colour-primary);
+  outline-offset: -1px;
+}
+
+.video-field-card--attached {
+  gap: 0;
+}
+
+.video-field-card--attached .video-field-preview video {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.video-field-card--attached .video-field-url-input {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: none;
+}
+
+.video-field-url-input {
+  width: 100%;
+}
+
+.video-field-preview {
+  position: relative;
+  display: block;
+  width: 100%;
+  line-height: 0;
+}
+
+.video-field-preview video {
+  display: block;
+  width: 100%;
+  max-height: 10rem;
+  /* contain, not cover: an author checking which clip this is needs to
+     see the whole frame, even though the site itself will almost
+     certainly crop it as a background loop. */
+  object-fit: contain;
+  background: var(--gradient-viewport);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+}
+
+/* Fixed at the height a real preview would fill, rather than
+   collapsing to nothing - same reasoning as the image field's own
+   broken-url fallback. */
+.video-field-preview-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  height: 10rem;
+  background: var(--gradient-viewport);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  color: var(--colour-muted);
+  line-height: normal;
+}
+
+.video-field-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.video-field-actions button {
+  flex: 1;
+}
+
+.video-field-remove {
+  color: var(--colour-danger);
+}
+
+.video-field-poster {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.video-field-poster-note {
+  color: var(--colour-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
