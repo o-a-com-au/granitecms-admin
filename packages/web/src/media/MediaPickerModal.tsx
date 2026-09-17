@@ -7,6 +7,12 @@ export interface MediaPickerModalProps {
   siteId: string;
   onSelect: (item: MediaItem) => void;
   onClose: () => void;
+  // What this picker is being opened to choose. Defaulted rather than
+  // required: every existing caller opens it for an image, and the
+  // media library now holds videos too, so a VideoField opening this
+  // needs to say so rather than telling the user to "choose an image"
+  // and then showing them clips.
+  heading?: string;
 }
 
 // Owns the real selectedItem state and passes it down as MediaLibrary's
@@ -14,7 +20,7 @@ export interface MediaPickerModalProps {
 // never commits a pick. Select stays disabled until something is
 // highlighted (WordPress/Shopify's own click-then-confirm convention,
 // not commit-on-first-click).
-export function MediaPickerModal({ siteId, onSelect, onClose }: MediaPickerModalProps) {
+export function MediaPickerModal({ siteId, onSelect, onClose, heading = 'Choose an image' }: MediaPickerModalProps) {
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
 
   function handleSelect(): void {
@@ -36,7 +42,7 @@ export function MediaPickerModal({ siteId, onSelect, onClose }: MediaPickerModal
   return createPortal(
     <div className="modal-overlay">
       <div className="media-picker-modal" role="dialog" aria-modal="true" aria-labelledby="media-picker-heading">
-        <h2 id="media-picker-heading">Choose an image</h2>
+        <h2 id="media-picker-heading">{heading}</h2>
         <div className="media-picker-modal-body">
           <MediaLibrary siteId={siteId} mode="picker" selectedItem={selectedItem} onSelectedItemChange={setSelectedItem} />
         </div>

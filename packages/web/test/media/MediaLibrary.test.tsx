@@ -200,3 +200,119 @@ describe('MediaLibrary', () => {
     expect(screen.getByAltText('alpha.jpg').closest('.media-library-item')?.className).not.toContain('is-selected');
   });
 });
+
+// Named rather than pulled back out of MIXED by index: this tsconfig
+// runs with noUncheckedIndexedAccess, so MIXED[0] is typed
+// MediaItem | undefined and cannot be handed straight to a MediaItem[].
+const IMAGE_ITEM: MediaItem = { name: 'alpha.jpg', size: 100, mtimeMs: 1, url: 'http://site.example/media/alpha.jpg' };
+const VIDEO_ITEM: MediaItem = { name: 'loop.mp4', size: 200, mtimeMs: 2, url: 'http://site.example/media/loop.mp4' };
+const MIXED: MediaItem[] = [IMAGE_ITEM, VIDEO_ITEM];
+
+describe('MediaLibrary video support', () => {
+  it('shows a video as the placeholder thumbnail, not a broken <img> of the clip itself', async () => {
+    installFakeApi(MIXED);
+    const view = render(<MediaLibrary siteId="site-1" mode="panel" />);
+    await waitFor(() => expect(screen.getByText('loop.mp4')).toBeDefined());
+
+    const images = Array.from(view.container.querySelectorAll('img')) as HTMLImageElement[];
+    const sources = images.map((image) => image.getAttribute('src'));
+    // The video tile points at the static placeholder; the image tile
+    // still points at its own file. A positive control on both sides,
+    // since asserting only the placeholder's presence would pass even
+    // if every tile had wrongly become a placeholder.
+    expect(sources).toContain('/video-placeholder.jpg');
+    expect(sources).toContain('http://site.example/media/alpha.jpg');
+  });
+
+  it('labels a video with its real duration once metadata arrives, floored to mm:ss', async () => {
+    installFakeApi(MIXED);
+    const { container } = render(<MediaLibrary siteId="site-1" mode="panel" />);
+    await waitFor(() => expect(screen.getByText('loop.mp4')).toBeDefined());
+
+    // No duration is claimed before the browser has actually read any.
+    expect(container.querySelector('.media-library-item-duration')).toBeNull();
+
+    const probe = container.querySelector('.media-library-item-probe') as HTMLVideoElement;
+    expect(probe).not.toBeNull();
+    // jsdom never decodes anything, so duration is supplied here the
+    // way a real metadata load would supply it.
+    Object.defineProperty(probe, 'duration', { value: 15.8, configurable: true });
+    fireEvent.loadedMetadata(probe);
+
+    expect(screen.getByText('0:15')).toBeDefined();
+  });
+
+  it('renders no duration at all when the browser cannot determine one', async () => {
+    installFakeApi(MIXED);
+    const { container } = render(<MediaLibrary siteId="site-1" mode="panel" />);
+    await waitFor(() => expect(screen.getByText('loop.mp4')).toBeDefined());
+
+    const probe = container.querySelector('.media-library-item-probe') as HTMLVideoElement;
+    Object.defineProperty(probe, 'duration', { value: NaN, configurable: true });
+    fireEvent.loadedMetadata(probe);
+
+    // Never "NaN:NaN" - the label is simply absent.
+    expect(container.querySelector('.media-library-item-duration')).toBeNull();
+  });
+
+  it('gives an image tile no video furniture', async () => {
+    installFakeApi([IMAGE_ITEM]);
+    const { container } = render(<MediaLibrary siteId="site-1" mode="panel" />);
+    await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
+
+    expect(container.querySelector('.media-library-item-probe')).toBeNull();
+    expect(container.querySelector('.media-library-item-kind')).toBeNull();
+  });
+
+  it('filters the grid to one kind, and back to all', async () => {
+    installFakeApi(MIXED);
+    render(<MediaLibrary siteId="site-1" mode="panel" />);
+    await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'videos' }));
+    expect(screen.queryByText('alpha.jpg')).toBeNull();
+    expect(screen.getByText('loop.mp4')).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'images' }));
+    expect(screen.getByText('alpha.jpg')).toBeDefined();
+    expect(screen.queryByText('loop.mp4')).toBeNull();
+
+    // Back to 'all' - proving the filter is not a one-way trip. This is
+    // the assertion that would fail if 'kind' were missing from the
+    // toolbar's useMemo deps and the control captured a stale closure.
+    fireEvent.click(screen.getByRole('button', { name: 'all' }));
+    expect(screen.getByText('alpha.jpg')).toBeDefined();
+    expect(screen.getByText('loop.mp4')).toBeDefined();
+  });
+
+  it('marks the active filter with aria-pressed, which is the state itself here', async () => {
+    installFakeApi(MIXED);
+    render(<MediaLibrary siteId="site-1" mode="panel" />);
+    await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
+
+    expect(screen.getByRole('button', { name: 'all' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'videos' }));
+    expect(screen.getByRole('button', { name: 'videos' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'all' }).getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('says which kind came up empty rather than blaming the search box', async () => {
+    installFakeApi([IMAGE_ITEM]);
+    render(<MediaLibrary siteId="site-1" mode="panel" />);
+    await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: 'videos' }));
+    expect(screen.getByText('No videos match your search.')).toBeDefined();
+  });
+
+  it('offers video types to the file picker', async () => {
+    installFakeApi(MIXED);
+    const { container } = render(<MediaLibrary siteId="site-1" mode="panel" />);
+    await waitFor(() => expect(screen.getByText('loop.mp4')).toBeDefined());
+
+    const accept = container.querySelector('input[type="file"]')?.getAttribute('accept') ?? '';
+    expect(accept).toContain('video/mp4');
+    expect(accept).toContain('video/webm');
+    expect(accept).toContain('image/jpeg');
+  });
+});

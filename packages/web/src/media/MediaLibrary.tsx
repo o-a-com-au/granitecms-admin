@@ -3,6 +3,15 @@ import { deleteSiteMedia, uploadSiteMedia, type MediaItem } from '../api/site-me
 import { useSiteMedia } from './useSiteMedia.ts';
 import { SearchInput } from '../components/SearchInput.tsx';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
+import { VideoThumb } from './VideoThumb.tsx';
+import {
+  hasAllowedUploadExtension,
+  isVideoItem,
+  matchesKind,
+  MEDIA_KINDS,
+  UPLOAD_ACCEPT_ATTRIBUTE,
+  type MediaKind,
+} from './mediaKind.ts';
 import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
 import { buildLoadErrorActions, loadErrorMessage } from '../sites/site-load-error.ts';
@@ -26,21 +35,9 @@ export interface MediaLibraryProps {
   onUtilitiesChange?: (node: ReactNode | null) => void;
 }
 
-// Fast client-side feedback only - the agent stays the real authority
-// regardless (same file type/size enforced again, authoritatively,
-// server-side). Matches the agent's own ALLOWED_UPLOAD_EXTENSIONS
-// (routes/media.ts) exactly - SVG deliberately excluded there since it
-// isn't sanitised, so it isn't offered here either.
-const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-
 interface FileError {
   filename: string;
   message: string;
-}
-
-function hasAllowedExtension(filename: string): boolean {
-  const lower = filename.toLowerCase();
-  return ALLOWED_EXTENSIONS.some((extension) => lower.endsWith(extension));
 }
 
 function matchesSearch(item: MediaItem, query: string): boolean {
@@ -53,6 +50,7 @@ function matchesSearch(item: MediaItem, query: string): boolean {
 export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange, onUtilitiesChange }: MediaLibraryProps) {
   const { items, loading, loadError, maxUploadBytes, refresh } = useSiteMedia(siteId);
   const [search, setSearch] = useState('');
+  const [kind, setKind] = useState<MediaKind>('all');
   const [fileErrors, setFileErrors] = useState<FileError[]>([]);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
@@ -78,6 +76,29 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
     () => (
       <div className="panel-toolbar">
         <SearchInput value={search} onChange={setSearch} placeholder="Search media" />
+        {/* The same segmented control SelectField renders for a short
+            enum (.select-field-tabs, select-field.css), reused here
+            directly rather than through that component - it is built
+            around schema enums (unknown values, coercion), and this is
+            a plain three-way view filter. aria-pressed IS the selected
+            state, not a class mirroring it, matching that convention so
+            styling and assistive technology cannot disagree.
+
+            All/Images/Videos are each 6 characters or fewer, which is
+            what SelectField's own shouldRenderAsTabs requires of three
+            options before it will render them as tabs at all. */}
+        <div className="panel-toolbar-filter select-field-tabs" role="group" aria-label="Filter media by type">
+          {MEDIA_KINDS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={kind === option}
+              onClick={() => setKind(option)}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
         {/* Plain button (no .button-primary) - requested directly, with
             a mockup: a neutral box matching this toolbar's own search
             field in height/border, not the app's accent blue. */}
@@ -87,14 +108,14 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp"
+          accept={UPLOAD_ACCEPT_ATTRIBUTE}
           multiple
           hidden
           onChange={handleFileInputChange}
         />
       </div>
     ),
-    [search, maxUploadBytes],
+    [search, kind, maxUploadBytes],
   );
 
   // Registered unconditionally (same "every hook runs in the same
@@ -119,7 +140,7 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
     const toUpload: File[] = [];
 
     for (const file of files) {
-      if (!hasAllowedExtension(file.name)) {
+      if (!hasAllowedUploadExtension(file.name)) {
         errors.push({ filename: file.name, message: 'That file type is not accepted' });
         continue;
       }
@@ -187,7 +208,7 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
     }
   }
 
-  const filteredItems = items.filter((item) => matchesSearch(item, search));
+  const filteredItems = items.filter((item) => matchesSearch(item, search) && matchesKind(item, kind));
 
   // The full-swap loading/error treatment only applies to the panel
   // (mode: 'panel', MediaLibraryPage's own left panel) - MediaPickerModal's
@@ -243,7 +264,11 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
       >
         {!loadError && filteredItems.length === 0 && (
           <p className="media-library-empty">
-            {items.length === 0 ? 'No media files yet. Drag images here or use Upload.' : 'No media files match your search.'}
+            {items.length === 0
+              ? 'No media files yet. Drag images here or use Upload.'
+              : kind === 'all'
+                ? 'No media files match your search.'
+                : `No ${kind} match your search.`}
           </p>
         )}
         {filteredItems.length > 0 && (
@@ -272,7 +297,11 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
                         own default drag-an-<img> behaviour on the nested img
                         would compete with it, since the innermost draggable
                         element wins. */}
-                    <img src={item.url} alt={item.name} loading="lazy" draggable={false} />
+                    {isVideoItem(item) ? (
+                      <VideoThumb item={item} />
+                    ) : (
+                      <img src={item.url} alt={item.name} loading="lazy" draggable={false} />
+                    )}
                   </button>
                   <span className="media-library-item-name">{item.name}</span>
                   <button

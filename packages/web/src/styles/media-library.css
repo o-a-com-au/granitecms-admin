@@ -246,6 +246,73 @@ button.media-library-item-thumb {
   object-fit: cover;
 }
 
+/* The film icon and duration on a video tile (requested directly, with
+   a mockup: icon bottom-left, duration bottom-right).
+
+   Positioned against button.media-library-item-thumb, NOT
+   .media-library-item - the opposite of .media-library-item-delete just
+   below, and deliberately so: the delete button anchors to the item
+   precisely to escape the thumb's own overflow: hidden, whereas these
+   two belong to the image and should clip with it. Both are plain
+   spans, never buttons: a <button> cannot nest another button, and
+   neither of these is interactive. */
+.media-library-item-kind,
+.media-library-item-duration {
+  position: absolute;
+  bottom: var(--space-xs);
+  display: flex;
+  align-items: center;
+  /* Readable over whatever the placeholder happens to be, without the
+     full chip treatment image-overlay-button uses - these sit on a
+     known dark placeholder, not an arbitrary photo. */
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+.media-library-item-kind {
+  left: var(--space-xs);
+}
+
+.media-library-item-duration {
+  right: var(--space-xs);
+  font-size: 0.8rem;
+  font-weight: 600;
+  /* Tabular figures so a duration does not jiggle as it changes width
+     between tiles (0:09 vs 0:15). */
+  font-variant-numeric: tabular-nums;
+}
+
+/* The hidden <video> whose metadata supplies that duration. Not
+   display: none - a display: none video is not reliably obliged to
+   fetch anything, so the duration would never arrive. One pixel,
+   transparent, and out of the layout's way instead. */
+.media-library-item-probe {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* .select-field-tabs is width: 100% by design (it fills a field row in
+   the Fields panel). In this toolbar it sits beside a search input that
+   should keep the remaining space, so it is sized to its own content
+   here instead.
+
+   Deliberately two classes deep. Both this and .select-field-tabs are
+   single-class selectors, so they tie on specificity and the winner
+   would otherwise be decided purely by @import order in index.css
+   (media-library.css currently lands after select-field.css, so this
+   happens to win). That is the same trap that has bitten this codebase
+   before; qualifying it by the toolbar makes it win on specificity
+   instead, so reordering the imports cannot quietly stretch this
+   control back to full width. */
+.panel-toolbar .panel-toolbar-filter {
+  flex: 0 0 auto;
+  width: auto;
+}
+
 .media-library-item-name {
   display: block;
   font-size: 0.75rem;
