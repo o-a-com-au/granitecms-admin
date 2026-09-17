@@ -35,8 +35,18 @@
   -webkit-appearance: none;
 }
 
-/* Room for the clear button so typed text never runs under it. */
-.search-input .content-search {
+/* Room for the clear button so typed text never runs under it.
+
+   input.content-search, not the bare class pair. pages-hub.css's own
+   `.panel-toolbar .content-search { padding: 0.5rem 1.1rem }` is a
+   padding SHORTHAND at the identical (0,2,0) specificity, and it is
+   imported after this file, so on the tie it won and silently flattened
+   this padding-right everywhere inside a panel toolbar - text has been
+   free to run under the clear button in Redirects and Media all along.
+   Qualifying by element makes this (0,2,1), so it wins on specificity
+   and no longer depends on @import order. Same trap this codebase has
+   hit before with a margin shorthand. */
+.search-input input.content-search {
   padding-right: 2rem;
 }
 
@@ -59,7 +69,7 @@
    field while no filter is set, which is invisible at the widths this
    toolbar actually gets; the alternative was leaking the consumer's own
    state up into a class on this shared component. */
-.search-input--has-trailing .content-search {
+.search-input--has-trailing input.content-search {
   padding-right: 6.5rem;
 }
 
