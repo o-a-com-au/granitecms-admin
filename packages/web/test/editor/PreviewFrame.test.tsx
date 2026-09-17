@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createRef } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { PreviewFrame } from '../../src/editor/PreviewFrame.tsx';
+import { describePreviewReason } from '../../src/editor/PreviewUnavailable.tsx';
 
 describe('PreviewFrame', () => {
   it('F1: builds the iframe src from the admin proxy route and the content url', () => {
@@ -280,5 +281,81 @@ describe('PreviewFrame', () => {
     );
 
     expect(onFrameLoad).not.toHaveBeenCalled();
+  });
+});
+
+// Pointing the iframe straight at the revision route meant the browser
+// rendered the route's JSON error body as plain text in the preview pane
+// (reported directly, with a mockup). PreviewFrame asks first now.
+describe('PreviewFrame: a revision that cannot be previewed', () => {
+  // This file stubs no globals anywhere else and has no cleanup of its
+  // own, so anything stubbed here has to be put back - otherwise a
+  // stubbed fetch leaks into the 21 tests above.
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubStatus(status: number, body: unknown) {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  it('renders the message and reason from the server instead of the raw JSON, and no iframe', async () => {
+    stubStatus(422, {
+      error: 'This revision cannot be previewed with the current theme',
+      reason: 'unrenderable',
+    });
+
+    render(<PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" revisionRef="abc123" />);
+
+    expect(await screen.findByText('This revision cannot be previewed with the current theme')).toBeDefined();
+    expect(screen.getByText('Reason: Unrenderable')).toBeDefined();
+    // The frame is replaced, not left showing the JSON underneath it.
+    expect(screen.queryByTitle('Live preview')).toBeNull();
+  });
+
+  it('maps each reason to words rather than printing the slug', async () => {
+    stubStatus(404, { error: 'No page at this path at that revision', reason: 'not-found-at-ref' });
+
+    render(<PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" revisionRef="abc123" />);
+
+    expect(await screen.findByText('No page at this path at that revision')).toBeDefined();
+    expect(screen.getByText('Reason: This page did not exist at that revision')).toBeDefined();
+    expect(screen.queryByText(/not-found-at-ref/)).toBeNull();
+  });
+
+  // The regression this very change caused once: a fetch mock that
+  // simply did not know this route returned an unrecognised status, and
+  // an over-broad "any non-ok" check tore down a perfectly good iframe.
+  it('leaves the iframe alone on a status the proxy does not define', async () => {
+    const fetchMock = stubStatus(500, { error: 'something else entirely' });
+
+    render(<PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" revisionRef="abc123" />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(screen.getByTitle('Live preview')).toBeDefined();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('never pre-flights the current-version preview, only a revision', async () => {
+    const fetchMock = stubStatus(422, { error: 'nope', reason: 'unrenderable' });
+
+    render(<PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" />);
+
+    expect(screen.getByTitle('Live preview')).toBeDefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('describePreviewReason', () => {
+  it('gives each known reason real words', () => {
+    expect(describePreviewReason('unrenderable')).toBe('Unrenderable');
+    expect(describePreviewReason('not-found-at-ref')).toBe('This page did not exist at that revision');
+    expect(describePreviewReason('invalid-ref')).toBe('Not a valid revision');
+  });
+
+  it('opens up an unknown slug rather than dropping it, so a new server reason still reads', () => {
+    expect(describePreviewReason('some-new-reason')).toBe('Some new reason');
   });
 });

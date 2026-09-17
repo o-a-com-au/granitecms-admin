@@ -1322,7 +1322,13 @@ describe('PageEditorPage', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Page Meta' }));
 
-    await waitFor(() => expect(iframe.src).toContain('/api/sites/site-1/preview/about?t='));
+    // Re-queried, not the captured reference: the preview pane can
+    // legitimately swap the frame out (PreviewFrame renders a message
+    // instead when a revision cannot be previewed), and a stale node
+    // keeps reporting the src it had when it was detached.
+    await waitFor(() =>
+      expect((screen.getByTitle('Live preview') as HTMLIFrameElement).src).toContain('/api/sites/site-1/preview/about?t='),
+    );
   });
 
   it('the History tab\'s own "Back to current version" control also reverts the preview, without leaving the tab', async () => {
@@ -1342,7 +1348,9 @@ describe('PageEditorPage', () => {
 
     fireEvent.click(screen.getByText('← Back to current version'));
 
-    await waitFor(() => expect(iframe.src).toContain('/api/sites/site-1/preview/about?t='));
+    await waitFor(() =>
+      expect((screen.getByTitle('Live preview') as HTMLIFrameElement).src).toContain('/api/sites/site-1/preview/about?t='),
+    );
     // Still on the History tab - only the preview reverted.
     expect(screen.getByText(formatCommitTimestamp(HISTORY_COMMIT.date))).toBeDefined();
   });

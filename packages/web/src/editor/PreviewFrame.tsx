@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
+import { PreviewUnavailable } from './PreviewUnavailable.tsx';
 import type { EditorStatus } from './useAutosaveDraft.ts';
 import type { DeviceTier } from './DeviceToggle.tsx';
 
@@ -150,6 +151,26 @@ function usePreviewRefreshToken(
 // toggle up into the shared one via PageDeviceToggleContext), but this
 // component still needs the current tier to size its iframe, so it
 // stays a plain prop here rather than moving with the toggle.
+interface RevisionPreviewError {
+  message: string;
+  reason: string | null;
+}
+
+// Exactly the statuses the admin proxy defines for this route
+// (routes/sites.ts): 400 invalid-ref, 404 not-found-at-ref, 422
+// unrenderable, 502 for anything else it could not complete. Narrow on
+// purpose - anything outside this set means something unexpected
+// answered, and replacing a working preview with an error panel over an
+// unrecognised response is far worse than leaving the frame alone. That
+// is not hypothetical: it regressed two real tests, where a fetch mock
+// that simply did not know this route destroyed a perfectly good
+// iframe.
+const UNPREVIEWABLE_STATUSES = new Set([400, 404, 422, 502]);
+
+function revisionPreviewSrc(siteId: string, revisionRef: string, url: string): string {
+  return `/api/sites/${encodeURIComponent(siteId)}/preview-revision/${encodeURIComponent(revisionRef)}${encodeUrlSegments(url)}`;
+}
+
 export function PreviewFrame({
   siteId,
   url,
@@ -178,6 +199,60 @@ export function PreviewFrame({
   // ever have played once, on the very first load, and never again on
   // a later autosave-triggered refresh or page switch.
   const [frameVisible, setFrameVisible] = useState(false);
+
+  // A revision preview can fail in ways the current-version preview
+  // cannot: the themes are never revision-pinned, so old-enough content
+  // may reference a section, block or layout the theme no longer has
+  // (422 unrenderable), the page may not have existed at that revision
+  // (404), or the ref itself may be bad (400). The admin proxy answers
+  // all of those with a JSON body - and pointing an iframe straight at
+  // that route meant the browser rendered the JSON as plain text in the
+  // preview pane (reported directly).
+  //
+  // So ask first, and render a real message instead. Only for a
+  // revision: the current-version preview has none of these failure
+  // modes and should not pay for a second request.
+  const [revisionError, setRevisionError] = useState<RevisionPreviewError | null>(null);
+
+  useEffect(() => {
+    if (revisionRef == null || url === null) {
+      setRevisionError(null);
+      return;
+    }
+    let cancelled = false;
+    setRevisionError(null);
+    // An async IIFE with its own try/catch, not a .then chain: fetch may
+    // be absent entirely in some environments, which throws
+    // synchronously rather than rejecting, and that would take the
+    // whole effect (and the preview with it) down.
+    void (async () => {
+      try {
+        const response = await fetch(revisionPreviewSrc(siteId, revisionRef, url));
+        if (cancelled || response.ok || !UNPREVIEWABLE_STATUSES.has(response.status)) {
+          return;
+        }
+        const body = (await response.json().catch(() => null)) as { error?: unknown; reason?: unknown } | null;
+        if (cancelled) {
+          return;
+        }
+        setRevisionError({
+          // The server writes a readable sentence per outcome; only fall
+          // back to our own wording if it somehow sent none.
+          message: typeof body?.error === 'string' ? body.error : 'This revision cannot be previewed',
+          reason: typeof body?.reason === 'string' ? body.reason : null,
+        });
+      } catch {
+        // Deliberately silent: a failed pre-flight is not itself proof
+        // the revision is unpreviewable, and the iframe is still a
+        // better answer than an error panel guessing on its behalf. If
+        // the route really cannot serve it, the frame shows the same
+        // thing it always did.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [siteId, revisionRef, url]);
 
   // Restores whatever usePreviewRefreshToken captured, above, right
   // before triggering this reload - only ever set for that one case
@@ -283,9 +358,22 @@ export function PreviewFrame({
   // revisionRef alone reassigns src, no separate refresh token needed -
   // status/refreshToken only ever move while browsing the current
   // version, not while previewing history).
+  // Nothing to load into the frame - the pane says why instead. Inside
+  // .preview-viewport rather than replacing the whole pane, so the
+  // message sits on the same stage the page would have.
+  if (revisionError !== null) {
+    return (
+      <div className="preview-pane">
+        <div className="preview-viewport" data-device={device}>
+          <PreviewUnavailable message={revisionError.message} reason={revisionError.reason} />
+        </div>
+      </div>
+    );
+  }
+
   const src =
     revisionRef != null
-      ? `/api/sites/${encodeURIComponent(siteId)}/preview-revision/${encodeURIComponent(revisionRef)}${encodeUrlSegments(url)}`
+      ? revisionPreviewSrc(siteId, revisionRef, url)
       : `/api/sites/${encodeURIComponent(siteId)}/preview${encodeUrlSegments(url)}?t=${refreshToken}`;
 
   return (

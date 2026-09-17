@@ -46,6 +46,57 @@
   background: var(--colour-surface-hover);
 }
 
+/* PreviewUnavailable.tsx - shown in place of the iframe when a revision
+   cannot be previewed at all. Sits inside .preview-viewport, which sets
+   align-items: flex-start for the iframe's sake, hence align-self:
+   stretch here so this fills the stage rather than hugging the top.
+
+   Colours are stated explicitly rather than inherited: the viewport
+   paints --gradient-viewport, deliberately the SAME light grey in both
+   themes, so --colour-text (light in the dark theme) would be all but
+   invisible on it. --colour-muted is safe to use for the secondary line
+   only because it resolves to the same grey either way. */
+.preview-unavailable {
+  flex: 1;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-xl);
+  text-align: center;
+}
+
+/* The same 5.4rem box Manage Websites gives its own monitor
+   (.website-status-connection-icon, settings.css), so the two large
+   icons in this app are one size rather than nearly the same
+   (requested directly). MonitorXIcon renders at 100% width/height, so
+   this box is what actually sets the size - the same arrangement that
+   panel uses. */
+.preview-unavailable-icon {
+  display: block;
+  width: 5.4rem;
+  height: 5.4rem;
+  color: var(--colour-muted);
+  opacity: 0.5;
+}
+
+.preview-unavailable-message {
+  margin: 0;
+  max-width: 24rem;
+  color: var(--colour-viewport-text);
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.preview-unavailable-reason {
+  margin: 0;
+  color: var(--colour-muted);
+  font-size: 0.8rem;
+}
+
 .preview-viewport {
   flex: 1;
   min-width: 0;

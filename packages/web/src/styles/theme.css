@@ -87,6 +87,15 @@
      both pages force data-theme="dark" on their own root, so the
      grade over a fixed video is the same either way. */
   --colour-login-tint: var(--grey-900);
+  /* Text sitting directly on the preview viewport (device-preview.css's
+     own .preview-viewport, which paints --gradient-viewport). That
+     gradient is deliberately identical in both themes - a light grey
+     stage for the previewed site - so anything written on it needs a
+     colour that does NOT flip with the app's own theme. --colour-text
+     is light in the dark theme and would be nearly invisible here.
+     Theme-agnostic for the same reason --colour-search-panel above
+     is. */
+  --colour-viewport-text: var(--grey-900);
 
   /* The horizontal padding inside every text input and select
      (base.css's own input/textarea and select rules). Named rather than
