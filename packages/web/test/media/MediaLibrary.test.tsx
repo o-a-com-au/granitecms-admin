@@ -208,6 +208,13 @@ const IMAGE_ITEM: MediaItem = { name: 'alpha.jpg', size: 100, mtimeMs: 1, url: '
 const VIDEO_ITEM: MediaItem = { name: 'loop.mp4', size: 200, mtimeMs: 2, url: 'http://site.example/media/loop.mp4' };
 const MIXED: MediaItem[] = [IMAGE_ITEM, VIDEO_ITEM];
 
+// The kind filter is a menu inside the search field, so choosing one
+// means opening it first.
+function chooseKind(label: string): void {
+  fireEvent.click(screen.getByRole('button', { name: 'Filter media by type' }));
+  fireEvent.click(screen.getByRole('menuitemradio', { name: label }));
+}
+
 describe('MediaLibrary video support', () => {
   it('shows a video as the placeholder thumbnail, not a broken <img> of the clip itself', async () => {
     installFakeApi(MIXED);
@@ -269,31 +276,34 @@ describe('MediaLibrary video support', () => {
     render(<MediaLibrary siteId="site-1" mode="panel" />);
     await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
 
-    fireEvent.click(screen.getByRole('button', { name: 'videos' }));
+    chooseKind('Videos');
     expect(screen.queryByText('alpha.jpg')).toBeNull();
     expect(screen.getByText('loop.mp4')).toBeDefined();
 
-    fireEvent.click(screen.getByRole('button', { name: 'images' }));
+    chooseKind('Images');
     expect(screen.getByText('alpha.jpg')).toBeDefined();
     expect(screen.queryByText('loop.mp4')).toBeNull();
 
     // Back to 'all' - proving the filter is not a one-way trip. This is
     // the assertion that would fail if 'kind' were missing from the
     // toolbar's useMemo deps and the control captured a stale closure.
-    fireEvent.click(screen.getByRole('button', { name: 'all' }));
+    chooseKind('Show All');
     expect(screen.getByText('alpha.jpg')).toBeDefined();
     expect(screen.getByText('loop.mp4')).toBeDefined();
   });
 
-  it('marks the active filter with aria-pressed, which is the state itself here', async () => {
+  it('marks the active filter with aria-checked, which is the state itself here', async () => {
     installFakeApi(MIXED);
     render(<MediaLibrary siteId="site-1" mode="panel" />);
     await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
 
-    expect(screen.getByRole('button', { name: 'all' }).getAttribute('aria-pressed')).toBe('true');
-    fireEvent.click(screen.getByRole('button', { name: 'videos' }));
-    expect(screen.getByRole('button', { name: 'videos' }).getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByRole('button', { name: 'all' }).getAttribute('aria-pressed')).toBe('false');
+    chooseKind('Videos');
+    fireEvent.click(screen.getByRole('button', { name: 'Filter media by type' }));
+
+    // menuitemradio, not menuitem: this is one choice among three, and
+    // aria-checked is what tells a screen reader which is active.
+    expect(screen.getByRole('menuitemradio', { name: 'Videos' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('menuitemradio', { name: 'Show All' }).getAttribute('aria-checked')).toBe('false');
   });
 
   it('says which kind came up empty rather than blaming the search box', async () => {
@@ -301,7 +311,7 @@ describe('MediaLibrary video support', () => {
     render(<MediaLibrary siteId="site-1" mode="panel" />);
     await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
 
-    fireEvent.click(screen.getByRole('button', { name: 'videos' }));
+    chooseKind('Videos');
     expect(screen.getByText('No videos match your search.')).toBeDefined();
   });
 

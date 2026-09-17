@@ -295,22 +295,105 @@ button.media-library-item-thumb {
   pointer-events: none;
 }
 
-/* .select-field-tabs is width: 100% by design (it fills a field row in
-   the Fields panel). In this toolbar it sits beside a search input that
-   should keep the remaining space, so it is sized to its own content
-   here instead.
+/* MediaKindFilter.tsx - the type filter that lives inside the search
+   field (requested directly, with a mockup), replacing a segmented
+   control that sat beside it. */
+.media-filter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
 
-   Deliberately two classes deep. Both this and .select-field-tabs are
-   single-class selectors, so they tie on specificity and the winner
-   would otherwise be decided purely by @import order in index.css
-   (media-library.css currently lands after select-field.css, so this
-   happens to win). That is the same trap that has bitten this codebase
-   before; qualifying it by the toolbar makes it win on specificity
-   instead, so reordering the imports cannot quietly stretch this
-   control back to full width. */
-.panel-toolbar .panel-toolbar-filter {
+/* Only rendered while a filter is actually narrowing the grid. A menu
+   hides the current selection behind a click, so this is what stops
+   half the library silently vanishing with nothing on screen to say
+   why. Uppercased in CSS rather than in the markup, exactly as
+   pages-hub.css's own .page-tree-draft-badge is, so the accessible
+   name stays the readable "Videos" instead of an all-caps word a
+   screen reader may spell out. */
+.media-filter-badge {
   flex: 0 0 auto;
-  width: auto;
+  padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--radius-xs);
+  background: var(--colour-drag-handle-background);
+  color: var(--colour-text);
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* button.media-filter-trigger, not the bare class - base.css's own
+   button[type='button'] rule (element+attribute) otherwise wins the
+   specificity tie and repaints this as a surface-coloured box. The same
+   recurring trap button.search-input-clear beside it documents. */
+button.media-filter-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--colour-icon-muted);
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+button.media-filter-trigger:hover {
+  background: none;
+  opacity: 1;
+}
+
+/* Deliberately mirrors .instance-row-more-menu (instance-rows.css)
+   rather than reusing it: that class is named for a row's own actions
+   cluster, and this is a filter in a toolbar. Same popover shape on
+   purpose, so the app has one menu look. Anchored below-right of the
+   trigger - it sits at the top of a panel and always has room below,
+   so it needs none of useAddMenu's own upward/downward flip. */
+.media-filter-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  min-width: 140px;
+  padding: 0.4rem;
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  z-index: 20;
+}
+
+button.media-filter-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: var(--colour-surface);
+  color: var(--colour-text);
+  text-align: left;
+  font-weight: 500;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+button.media-filter-menu-item:hover {
+  background: var(--colour-surface-hover);
+}
+
+/* The active option. aria-checked is the state itself, styled directly
+   from the attribute rather than mirrored into a class, so the two can
+   never disagree - the same convention .select-field-tabs follows with
+   aria-pressed. */
+button.media-filter-menu-item[aria-checked='true'] {
+  background: var(--colour-surface-hover);
+  font-weight: 600;
 }
 
 .media-library-item-name {

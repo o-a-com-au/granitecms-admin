@@ -4,11 +4,11 @@ import { useSiteMedia } from './useSiteMedia.ts';
 import { SearchInput } from '../components/SearchInput.tsx';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
 import { VideoThumb } from './VideoThumb.tsx';
+import { MediaKindFilter } from './MediaKindFilter.tsx';
 import {
   hasAllowedUploadExtension,
   isVideoItem,
   matchesKind,
-  MEDIA_KINDS,
   UPLOAD_ACCEPT_ATTRIBUTE,
   type MediaKind,
 } from './mediaKind.ts';
@@ -75,30 +75,12 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
   const toolbar = useMemo(
     () => (
       <div className="panel-toolbar">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search media" />
-        {/* The same segmented control SelectField renders for a short
-            enum (.select-field-tabs, select-field.css), reused here
-            directly rather than through that component - it is built
-            around schema enums (unknown values, coercion), and this is
-            a plain three-way view filter. aria-pressed IS the selected
-            state, not a class mirroring it, matching that convention so
-            styling and assistive technology cannot disagree.
-
-            All/Images/Videos are each 6 characters or fewer, which is
-            what SelectField's own shouldRenderAsTabs requires of three
-            options before it will render them as tabs at all. */}
-        <div className="panel-toolbar-filter select-field-tabs" role="group" aria-label="Filter media by type">
-          {MEDIA_KINDS.map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={kind === option}
-              onClick={() => setKind(option)}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search media"
+          trailing={<MediaKindFilter kind={kind} onChange={setKind} />}
+        />
         {/* Plain button (no .button-primary) - requested directly, with
             a mockup: a neutral box matching this toolbar's own search
             field in height/border, not the app's accent blue. */}

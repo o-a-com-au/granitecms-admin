@@ -37,13 +37,20 @@ export function hasAllowedUploadExtension(filename: string): boolean {
 
 export type MediaKind = 'all' | 'images' | 'videos';
 
-// Every label is 6 characters or fewer, which matters: SelectField's
-// own shouldRenderAsTabs only renders three options as a segmented
-// control when each label is 8 characters or fewer, and the media
-// toolbar reuses that same .select-field-tabs look. Longer labels here
-// would quietly stop matching the app's own convention for this
-// control.
-export const MEDIA_KINDS: MediaKind[] = ['all', 'images', 'videos'];
+// Order is the order they appear in the filter menu, requested
+// directly: Show All, then Videos, then Images.
+export const MEDIA_KINDS: MediaKind[] = ['all', 'videos', 'images'];
+
+// The menu's own wording, kept beside the values rather than inlined in
+// the component: the badge that appears once a filter is active shows
+// the same label, so the two cannot drift apart. "Show All" reads as an
+// instruction in the menu, which is where it is only ever seen - the
+// badge never renders for 'all'.
+export const MEDIA_KIND_LABELS: Record<MediaKind, string> = {
+  all: 'Show All',
+  videos: 'Videos',
+  images: 'Images',
+};
 
 function hasExtension(name: string, extensions: string[]): boolean {
   const lower = name.toLowerCase();

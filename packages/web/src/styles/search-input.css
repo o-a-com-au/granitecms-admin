@@ -40,15 +40,38 @@
   padding-right: 2rem;
 }
 
+/* Both in-field controls in one row, so the clear button and anything
+   in the trailing slot can never be positioned on top of each other -
+   which is exactly what would have happened with the clear button's own
+   previous fixed right offset. */
+.search-input-adornments {
+  position: absolute;
+  right: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* A flat reservation rather than one value per trailing-control state.
+   The trailing slot's width genuinely varies (the media filter grows a
+   badge once a filter is active), and CSS cannot measure it - so this
+   reserves for the widest case. The cost is some unused room in the
+   field while no filter is set, which is invisible at the widths this
+   toolbar actually gets; the alternative was leaking the consumer's own
+   state up into a class on this shared component. */
+.search-input--has-trailing .content-search {
+  padding-right: 6.5rem;
+}
+
 /* button.search-input-clear, not the bare class - base.css's own
    button[type='button']/:hover rule (element+attribute) otherwise wins
    the specificity tie against a bare class, the same recurring gotcha
    this app has hit repeatedly elsewhere. Same rest/hover opacity
    pattern as every other icon-only Close/Clear button in the app
    (address-bar-search.css's own button.address-search-close etc). */
+/* Static within .search-input-adornments now, not positioned against
+   the wrapper itself - the adornments row owns the offset for both. */
 button.search-input-clear {
-  position: absolute;
-  right: 0.6rem;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -7,6 +7,7 @@ import {
   isImageItem,
   isVideoItem,
   matchesKind,
+  MEDIA_KIND_LABELS,
   MEDIA_KINDS,
   UPLOAD_ACCEPT_ATTRIBUTE,
 } from '../../src/media/mediaKind.ts';
@@ -60,14 +61,21 @@ describe('mediaKind', () => {
     expect(UPLOAD_ACCEPT_ATTRIBUTE).not.toContain('svg');
   });
 
-  it('keeps every filter label short enough for the segmented control this app uses', () => {
-    // SelectField's own shouldRenderAsTabs renders three options as
-    // tabs only while each label is 8 characters or fewer. Longer
-    // labels here would quietly stop matching that convention.
-    expect(MEDIA_KINDS).toHaveLength(3);
-    for (const label of MEDIA_KINDS) {
-      expect(label.length, label).toBeLessThanOrEqual(8);
+  it('lists the kinds in the order the filter menu shows them', () => {
+    // Requested directly: Show All, then Videos, then Images.
+    expect(MEDIA_KINDS).toEqual(['all', 'videos', 'images']);
+  });
+
+  it('gives every kind a label, so the menu and the badge cannot drift apart', () => {
+    // The badge reuses the menu's own label rather than restating it.
+    for (const kind of MEDIA_KINDS) {
+      expect(MEDIA_KIND_LABELS[kind], kind).toBeTruthy();
     }
+    expect(MEDIA_KIND_LABELS.videos).toBe('Videos');
+    expect(MEDIA_KIND_LABELS.images).toBe('Images');
+    // Reads as an instruction, which is correct in the menu - the only
+    // place it is ever shown. The badge never renders for 'all'.
+    expect(MEDIA_KIND_LABELS.all).toBe('Show All');
   });
 
   it('formats a duration as mm:ss, rounding down', () => {

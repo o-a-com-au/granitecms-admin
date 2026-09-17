@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { SearchInput } from '../../src/components/SearchInput.tsx';
 
@@ -52,5 +52,35 @@ describe('SearchInput', () => {
     expect(wrapper?.className).toContain('custom-search-sizing');
     const input = screen.getByPlaceholderText('Search things');
     expect(input.className).not.toContain('custom-search-sizing');
+  });
+
+  it('renders a trailing control inside the field, alongside the clear button', () => {
+    const { container } = render(
+      <SearchInput value="granite" onChange={() => {}} placeholder="Search things" trailing={<button type="button">Filter</button>} />,
+    );
+
+    // Both live in one adornments row rather than being positioned
+    // against the wrapper separately, which is what stops the clear
+    // button and the trailing control landing on top of each other.
+    const adornments = container.querySelector('.search-input-adornments');
+    expect(adornments).not.toBeNull();
+    expect(adornments?.querySelector('.search-input-clear')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Filter' })).toBeDefined();
+  });
+
+  it('only reserves room for a trailing control when there is one', () => {
+    // The reservation is a flat padding on the input, so a call site
+    // without a trailing slot (Redirects, Add Section) must not get it.
+    const { container: without } = render(
+      <SearchInput value="" onChange={() => {}} placeholder="Search things" />,
+    );
+    expect(without.querySelector('.search-input')?.className).not.toContain('search-input--has-trailing');
+
+    cleanup();
+
+    const { container: with_ } = render(
+      <SearchInput value="" onChange={() => {}} placeholder="Search things" trailing={<span>x</span>} />,
+    );
+    expect(with_.querySelector('.search-input')?.className).toContain('search-input--has-trailing');
   });
 });
