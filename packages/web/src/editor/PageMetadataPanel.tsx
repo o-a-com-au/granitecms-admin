@@ -239,27 +239,43 @@ export function PageMetadataPanel({
           belongs to renaming and has nothing to do on a fixed url. */}
       {!pathLocked && (
         <>
-          <label>
-            Slug
-            <input
-              value={displayedSlug}
-              disabled={renameDisabled || renameBusy}
-              onChange={(event) => {
-                setSlugTouched(true);
-                setSlugValue(event.target.value);
-              }}
-            />
-          </label>
-          {renameDisabled && <p>Save or discard your changes before changing the URL.</p>}
+          {/* Label above, input and Update side by side (requested
+              directly, with a mockup). htmlFor/id rather than a
+              wrapping <label>, as the Page type field above already
+              does - a <button> inside a label is activated by clicks
+              on the label text. .slug-field carries the label's own
+              column layout so the two still read as one field; see
+              base.css. */}
+          <div className="slug-field">
+            <label htmlFor="page-slug-field">Slug</label>
+            <div className="slug-input-row">
+              <input
+                id="page-slug-field"
+                value={displayedSlug}
+                disabled={renameDisabled || renameBusy}
+                onChange={(event) => {
+                  setSlugTouched(true);
+                  setSlugValue(event.target.value);
+                }}
+              />
+              <button type="button" onClick={() => void handleApplySlug()} disabled={!canRename || !slugChanged}>
+                {renameBusy ? 'Updating...' : 'Update'}
+              </button>
+            </div>
+          </div>
+          {/* Both informational messages now read as notes belonging to
+              the field above, with the rule aligned to its text. The
+              error below deliberately keeps its plain role="alert"
+              styling - muted grey note treatment would understate it. */}
+          {renameDisabled && (
+            <p className="panel-note panel-note-field">Save or discard your changes before changing the URL.</p>
+          )}
           {!renameDisabled && previewUrl !== null && slugChanged && (
-            <p>
-              This page will move to <code>{replaceLastSegment(previewUrl, displayedSlug)}</code>
+            <p className="panel-note panel-note-field">
+              This page will move to {replaceLastSegment(previewUrl, displayedSlug)}
             </p>
           )}
           {renameError && <p role="alert">{renameError}</p>}
-          <button type="button" onClick={() => void handleApplySlug()} disabled={!canRename || !slugChanged}>
-            {renameBusy ? 'Updating slug...' : 'Update slug'}
-          </button>
         </>
       )}
       <label>

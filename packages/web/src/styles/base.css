@@ -63,7 +63,15 @@ label,
    region, to its first labelable one - see that file's own comment),
    so it needs this same look applied explicitly rather than picking
    it up for free from the bare `label` selector above. */
-.schema-field-label {
+.schema-field-label,
+/* PageMetadataPanel.tsx's own Slug group - a label plus an input-and-
+   button row. It cannot be one <label> element for the same family of
+   reason .schema-field-label above cannot: a <button> inside a label is
+   activated by clicks on the label text, which is not what a rename
+   button should do. Joining this selector rather than repeating the
+   0.35rem keeps the label sitting tight above its field instead of a
+   full .metadata-panel gap away, and keeps one source for the value. */
+.slug-field {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -123,6 +131,17 @@ textarea:focus {
 
 textarea {
   max-width: 100%;
+  /* A browser-default textarea is 2 rows - 52px with this app's own
+     font and padding, measured - which is too cramped for the prose it
+     holds (a section's own textarea-format fields, a page's meta
+     description). 7rem is not a new number: .metadata-description
+     (editor-tabs.css) already used exactly this for the same kind of
+     field, so every prose textarea now starts the same height rather
+     than one of them being special. Roughly 6 rows.
+
+     A floor, not a height: .raw-json-label textarea still flexes to
+     fill the raw content view, and anything with more to show grows. */
+  min-height: 7rem;
 }
 
 /* Opt-in, not the textarea default above - a plain prose textarea

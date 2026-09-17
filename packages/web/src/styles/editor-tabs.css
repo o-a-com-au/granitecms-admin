@@ -151,7 +151,35 @@
   gap: 1.25rem;
 }
 
+/* min-height moved to base.css's own shared textarea rule - this field
+   was the only one tall enough to read properly, and 7rem is now what
+   every prose textarea starts at rather than this one's private value.
+   resize stays here: vertical-only is this field's own choice, not
+   something to impose on every textarea in the app. */
 .metadata-description {
-  min-height: 7rem;
   resize: vertical;
+}
+
+/* The Slug input and its Update button on one row (requested directly,
+   with a mockup) - the app's own -input-row convention, same shape as
+   .colour-field-input-row. --space-sm rather than that one's
+   --space-xs: this pair is an input and a real button, not an input
+   and a swatch. */
+.slug-input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* min-width: 0 matters here: a flex item's automatic minimum width is
+   its own content width, so without it the input refuses to shrink in
+   the narrow editor sidebar and pushes the button out of the panel -
+   the same trap .pages-hub-panel's own comment documents. */
+.slug-input-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.slug-input-row button {
+  flex: 0 0 auto;
 }

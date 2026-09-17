@@ -187,25 +187,25 @@ describe('PageMetadataPanel', () => {
     expect((screen.getByLabelText('Slug') as HTMLInputElement).value).toBe('custom-slug');
   });
 
-  it('the Update slug button is disabled until the slug actually differs from the current path', () => {
+  it('the Update button is disabled until the slug actually differs from the current path', () => {
     renderPanel({ content: JSON.stringify({ name: 'About', title: 'About' }), setContent: vi.fn() });
 
-    expect(screen.getByRole('button', { name: 'Update slug' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: 'Update' })).toHaveProperty('disabled', true);
 
     fireEvent.change(screen.getByLabelText('Slug'), { target: { value: 'about-us' } });
 
-    expect(screen.getByRole('button', { name: 'Update slug' })).toHaveProperty('disabled', false);
+    expect(screen.getByRole('button', { name: 'Update' })).toHaveProperty('disabled', false);
   });
 
-  it('renameDisabled disables the Slug field and Update slug button, with an explanation', () => {
+  it('renameDisabled disables the Slug field and Update button, with an explanation', () => {
     renderPanel({ content: JSON.stringify({ name: 'About', title: 'About' }), setContent: vi.fn(), renameDisabled: true });
 
     expect((screen.getByLabelText('Slug') as HTMLInputElement).disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Update slug' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: 'Update' })).toHaveProperty('disabled', true);
     expect(screen.getByText('Save or discard your changes before changing the URL.')).toBeDefined();
   });
 
-  it('clicking Update slug calls the move API with the new URL and reports success via onRenamed', async () => {
+  it('clicking Update calls the move API with the new URL and reports success via onRenamed', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     const onRenamed = vi.fn();
@@ -218,7 +218,7 @@ describe('PageMetadataPanel', () => {
     });
 
     fireEvent.change(screen.getByLabelText('Slug'), { target: { value: 'about-us' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Update slug' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Update' }));
 
     await vi.waitFor(() => expect(onRenamed).toHaveBeenCalledWith('pages/about-us.json', '/about-us'));
 
@@ -236,7 +236,7 @@ describe('PageMetadataPanel', () => {
     );
   });
 
-  it('a failed Update slug (e.g. a page already exists at the new slug) shows an inline error, without calling onRenamed', async () => {
+  it('a failed Update (e.g. a page already exists at the new slug) shows an inline error, without calling onRenamed', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -249,7 +249,7 @@ describe('PageMetadataPanel', () => {
     renderPanel({ content: JSON.stringify({ name: 'About', title: 'About' }), setContent: vi.fn(), onRenamed });
 
     fireEvent.change(screen.getByLabelText('Slug'), { target: { value: 'contact' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Update slug' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Update' }));
 
     // reasonFromResponse (site-editor.ts) prefers the response's own
     // specific "message" over the generic "error" status phrase - the
@@ -266,7 +266,7 @@ describe('PageMetadataPanel: pages with a fixed url', () => {
     renderPanel({ content: '{"title":"Home"}', setContent: vi.fn(), path: 'pages/index.json' });
 
     expect(screen.queryByLabelText('Slug')).toBeNull();
-    expect(screen.queryByText('Update slug')).toBeNull();
+    expect(screen.queryByText('Update')).toBeNull();
     // Page title is still there, so this is not just an unrendered panel.
     expect(screen.getByLabelText('Page title')).toBeDefined();
   });
@@ -275,13 +275,13 @@ describe('PageMetadataPanel: pages with a fixed url', () => {
     renderPanel({ content: '{"title":"404"}', setContent: vi.fn(), path: 'pages/404.json' });
 
     expect(screen.queryByLabelText('Slug')).toBeNull();
-    expect(screen.queryByText('Update slug')).toBeNull();
+    expect(screen.queryByText('Update')).toBeNull();
   });
 
   it('leaves an ordinary page renameable', () => {
     renderPanel({ content: '{"title":"About"}', setContent: vi.fn(), path: 'pages/about.json' });
 
     expect((screen.getByLabelText('Slug') as HTMLInputElement).disabled).toBe(false);
-    expect(screen.getByText('Update slug')).toBeDefined();
+    expect(screen.getByText('Update')).toBeDefined();
   });
 });
