@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { usePreview, usePreviewFrameHandlers } from '../layout/PreviewContext.tsx';
 import { readLastEditorLocation } from '../sites/currentSite.ts';
 import { useToast } from '../toast/ToastContext.tsx';
-import { replaceInstanceImage } from '../media/replace-instance-image.ts';
+import { mediaKindFromAttribute, replaceInstanceMedia, type MediaTargetKind } from '../media/replace-instance-media.ts';
 import { SiteEditorError } from '../api/site-editor.ts';
 import { listSiteContent } from '../api/site-content.ts';
 import type { PreviewSwitchTarget } from './usePreviewNavigationGuard.tsx';
@@ -63,7 +63,7 @@ export function useSectionClickToEdit(siteId: string, requestPreviewSwitch: (tar
     };
   }, [siteId]);
   // Separate from highlightedElementRef above - a different, narrower
-  // granularity (the one [data-cms-image] element under the cursor
+  // granularity (the one [data-cms-media] element under the cursor
   // during a drag, not the whole section/block) and never active at
   // the same time as it anyway: the browser suppresses mouseover for
   // the duration of an active native drag.
@@ -106,13 +106,13 @@ export function useSectionClickToEdit(siteId: string, requestPreviewSwitch: (tar
   // document's own viewport (native behaviour for an event dispatched
   // there), no iframe-offset math needed.
   //
-  // A plain elementFromPoint().closest('[data-cms-image]') isn't quite
+  // A plain elementFromPoint().closest('[data-cms-media]') isn't quite
   // enough on its own, though: several sections layer a purely
   // decorative element on top of the image itself (site-hero's own
   // scrim, a parallax grid line) - confirmed live, elementFromPoint
   // hits that overlay, a sibling of the picture rather than an
   // ancestor, so closest() from there finds nothing. Falls back to
-  // picking whichever [data-cms-image] element within the same
+  // picking whichever [data-cms-media] element within the same
   // section/block instance actually contains the point geometrically,
   // tolerating a non-interactive overlay winning the initial hit-test.
   const resolveDropTarget = useCallback(
@@ -123,12 +123,12 @@ export function useSectionClickToEdit(siteId: string, requestPreviewSwitch: (tar
         return null;
       }
 
-      const directHit = hit.closest<HTMLElement>('[data-cms-image]');
+      const directHit = hit.closest<HTMLElement>('[data-cms-media],[data-cms-image]');
       if (directHit) {
         return { imageElement: directHit, instanceElement };
       }
 
-      const candidates = instanceElement.querySelectorAll<HTMLElement>('[data-cms-image]');
+      const candidates = instanceElement.querySelectorAll<HTMLElement>('[data-cms-media],[data-cms-image]');
       for (const candidate of candidates) {
         const rect = candidate.getBoundingClientRect();
         if (localX >= rect.left && localX <= rect.right && localY >= rect.top && localY <= rect.bottom) {
@@ -169,12 +169,11 @@ export function useSectionClickToEdit(siteId: string, requestPreviewSwitch: (tar
   }, []);
 
   // Drag a media item from the Media panel's grid onto an image in the
-  // preview to replace it - the dropped-on element carries data-cms-image
-  // (theme/snippets/responsive-image.liquid) naming which settings field
-  // it renders, and the nearest data-section-id/data-block-id ancestor
-  // names the instance that field lives on. Composed entirely from
-  // pieces that already exist for other reasons (replace-instance-image.ts);
-  // this is the only new write path.
+  // preview to replace it - the dropped-on element carries data-cms-media
+  // (theme/snippets/responsive-media.liquid) naming which settings field
+  // it renders, plus data-cms-media-kind saying which shape that field
+  // stores, and the nearest data-section-id/data-block-id ancestor names
+  // the instance that field lives on.
   const handleDrop = useCallback(
     (event: DragEvent): void => {
       const doc = iframeRef.current?.contentDocument;
@@ -190,11 +189,28 @@ export function useSectionClickToEdit(siteId: string, requestPreviewSwitch: (tar
       event.preventDefault();
       setDragHighlight(null);
       const instanceId = instanceElement.dataset.sectionId ?? instanceElement.dataset.blockId;
-      const field = imageElement.dataset.cmsImage;
+      // data-cms-media is the current contract; data-cms-image is what a
+      // theme written before it emits, and still works.
+      const field = imageElement.dataset.cmsMedia ?? imageElement.dataset.cmsImage;
       if (!instanceId || !field) {
         return;
       }
-      replaceInstanceImage(siteId, instanceId, field, newUrl)
+      // A slot that declares no kind is an image: that is all the older
+      // attribute ever marked. Same for a drag payload from a build that
+      // predates the kind being sent at all.
+      const targetKind: MediaTargetKind = mediaKindFromAttribute(imageElement.dataset.cmsMediaKind);
+      const droppedKind: MediaTargetKind = mediaKindFromAttribute(
+        event.dataTransfer?.getData('application/x-cms-media-kind'),
+      );
+      // Refused rather than coerced. An image and a video store genuinely
+      // different shapes, so writing one into the other's field either
+      // fails validation on save or silently discards a poster - and the
+      // editor would have no idea why, since the drop appeared to work.
+      if (droppedKind !== targetKind) {
+        showToast(targetKind === 'video' ? 'That slot takes a video' : 'That slot takes an image', 'error');
+        return;
+      }
+      replaceInstanceMedia(siteId, instanceId, field, newUrl, targetKind)
         .then(() => bumpPreview())
         .catch((error: unknown) => {
           const message = error instanceof SiteEditorError ? error.message : 'Could not replace that image';
@@ -347,7 +363,7 @@ export function useSectionClickToEdit(siteId: string, requestPreviewSwitch: (tar
     doc.addEventListener('dragleave', (event) => {
       const related = (event as DragEvent).relatedTarget;
       const stillInside =
-        related !== null && 'closest' in (related as object) ? (related as Element).closest('[data-cms-image]') : null;
+        related !== null && 'closest' in (related as object) ? (related as Element).closest('[data-cms-media],[data-cms-image]') : null;
       if (!stillInside) {
         setDragHighlight(null);
       }

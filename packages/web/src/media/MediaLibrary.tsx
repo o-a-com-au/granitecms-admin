@@ -266,6 +266,18 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
                     onDragStart={(event) => {
                       event.dataTransfer.effectAllowed = 'copy';
                       event.dataTransfer.setData('application/x-cms-media-url', item.url);
+                      // What kind of file this is, so the drop can write
+                      // the shape the target field actually expects - an
+                      // image stores { url, focalX, focalY }, a video
+                      // { url, poster }. Derived from the extension here
+                      // rather than re-derived at the drop, which would
+                      // mean teaching the drop handler about filenames.
+                      // Only read on drop: a dragover handler can see
+                      // which types are present but not their values.
+                      event.dataTransfer.setData(
+                        'application/x-cms-media-kind',
+                        isVideoItem(item) ? 'video' : 'image',
+                      );
                     }}
                     onClick={() => {
                       if (isSelectable) {
