@@ -68,6 +68,23 @@ describe('server - production static/SPA serving', () => {
     await app.close();
   });
 
+  it('lets the served admin shell load images and video from a registered site origin', async () => {
+    const app = await buildServer(config);
+    const response = await app.inject({ method: 'GET', url: '/' });
+    const csp = String(response.headers['content-security-policy']);
+    const directive = (name: string) => csp.split(';').find((part) => part.trim().startsWith(`${name} `)) ?? '';
+
+    // Site media lives on each site's own origin, so helmet's default
+    // img-src 'self' broke every media library thumbnail in production.
+    assert.match(directive('img-src'), /https:/);
+    assert.match(directive('media-src'), /https:/);
+    // Everything else stays locked to the admin itself.
+    assert.equal(directive('script-src').trim(), "script-src 'self'");
+    assert.equal(directive('default-src').trim(), "default-src 'self'");
+
+    await app.close();
+  });
+
   it('falls back to index.html for an unknown non-API path (SPA client-side routing)', async () => {
     const app = await buildServer(config);
     const response = await app.inject({ method: 'GET', url: '/sites/some-unknown-page' });

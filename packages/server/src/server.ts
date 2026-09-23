@@ -122,7 +122,22 @@ export async function buildServer(
   app.setErrorHandler(handleError);
   app.decorateRequest('currentUser', null);
 
-  await app.register(fastifyHelmet);
+  // Helmet's defaults, except images and video: the media library,
+  // image/video fields and video thumbnails load straight from each
+  // registered site's own public GET /media/*, a runtime-configured
+  // origin that can't be listed here. Helmet's default img-src 'self'
+  // blocked every one of them, but only in production - in dev, Vite
+  // serves the frontend without this header. https: only (plus data:
+  // for canvas frame grabs, blob: for local object URLs); scripts,
+  // styles, frames and connections stay locked to 'self'.
+  await app.register(fastifyHelmet, {
+    contentSecurityPolicy: {
+      directives: {
+        imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+        mediaSrc: ["'self'", 'blob:', 'https:'],
+      },
+    },
+  });
   // Generous global default (this isn't the brute-force defence - the
   // specific login/signup/change-password routes set their own
   // stricter per-route limit below) - just a backstop against genuine
