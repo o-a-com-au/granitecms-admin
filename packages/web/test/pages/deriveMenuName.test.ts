@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { menuDisplayName, deriveMenuName, isMenuPath } from '../../src/pages/deriveMenuName.ts';
+import { menuDisplayName, menuIdFromPath, menuPathFromId, deriveMenuName, isMenuPath } from '../../src/pages/deriveMenuName.ts';
 
 describe('isMenuPath', () => {
   it('is true for anything under menus/', () => {
@@ -39,5 +39,12 @@ describe('menuDisplayName', () => {
   it('uses the menu\'s own name when set, otherwise the filename-derived one', () => {
     expect(menuDisplayName({ path: 'menus/footerCompany.json', name: 'Company' })).toBe('Company');
     expect(menuDisplayName({ path: 'menus/footerCompany.json', name: null })).toBe('Footer Company');
+  });
+});
+
+describe('menu IDs', () => {
+  it('an ID is the filename without the menus/ folder or .json, and maps back', () => {
+    expect(menuIdFromPath('menus/footerCompany.json')).toBe('footerCompany');
+    expect(menuPathFromId('footer-company')).toBe('menus/footer-company.json');
   });
 });

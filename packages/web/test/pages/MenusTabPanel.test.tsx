@@ -350,6 +350,10 @@ describe('MenusTabPanel', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Edit Main' }));
     // The row itself must not have toggled open from the same click.
     expect(screen.queryByText('Home', { selector: 'strong' })).toBeNull();
+    // The ID is shown as-is (what a layout writes), read-only, never as a path.
+    const idField = screen.getByLabelText('ID') as HTMLInputElement;
+    expect(idField.value).toBe('main');
+    expect(idField.readOnly).toBe(true);
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Header' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 

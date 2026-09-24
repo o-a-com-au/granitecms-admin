@@ -3,6 +3,7 @@ import { SiteEditorError } from '../api/site-editor.ts';
 import { createSiteMenu } from '../api/site-menus.ts';
 import { buildCreateMenuMessage } from '../menus/buildMenuItemMessage.ts';
 import { slugify } from './slugify.ts';
+import { MENU_ID_PATTERN, menuPathFromId } from './deriveMenuName.ts';
 
 export interface NewMenuModalProps {
   siteId: string;
@@ -36,23 +37,25 @@ const MENU_SCHEMA_VERSION = 7;
 // inline in the same accordion this modal already sits inside.
 export function NewMenuModal({ siteId, supportsMenuNames, onCreated, onClose }: NewMenuModalProps) {
   const [name, setName] = useState('');
-  const [path, setPath] = useState('');
-  const [pathTouched, setPathTouched] = useState(false);
+  const [id, setId] = useState('');
+  const [idTouched, setIdTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Live-follows Name until the user types into Path directly
-  // themselves - same pattern as NewPageModal.tsx's own Title -> Path
-  // suggestion.
-  const suggestedPath = name.trim() === '' ? '' : `menus/${slugify(name)}.json`;
-  const displayedPath = pathTouched ? path : suggestedPath;
+  // A menu's ID is what layouts reference it by (menus.<id>.items) -
+  // shown and typed as just that, never as the menus/<id>.json file
+  // path it happens to be stored at. Live-follows Name until the user
+  // types into ID directly themselves - same pattern as
+  // NewPageModal.tsx's own Title -> Path suggestion.
+  const suggestedId = slugify(name);
+  const displayedId = idTouched ? id : suggestedId;
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
     setBusy(true);
     setError(null);
 
-    const trimmedPath = displayedPath.trim();
+    const trimmedPath = menuPathFromId(displayedId.trim());
     const trimmedName = name.trim();
 
     try {
@@ -60,12 +63,12 @@ export function NewMenuModal({ siteId, supportsMenuNames, onCreated, onClose }: 
         supportsMenuNames && trimmedName !== ''
           ? { schemaVersion: MENU_SCHEMA_VERSION, name: trimmedName }
           : { schemaVersion: MENU_SCHEMA_VERSION };
-      await createSiteMenu(siteId, trimmedPath, envelope, buildCreateMenuMessage(trimmedName || trimmedPath));
+      await createSiteMenu(siteId, trimmedPath, envelope, buildCreateMenuMessage(trimmedName || displayedId.trim()));
       onCreated();
       onClose();
     } catch (err) {
       if (err instanceof SiteEditorError && err.reason === 'conflict') {
-        setError('A menu already exists at that path');
+        setError('A menu with that ID already exists');
       } else {
         setError(err instanceof Error ? err.message : 'Failed to create that menu');
       }
@@ -83,18 +86,21 @@ export function NewMenuModal({ siteId, supportsMenuNames, onCreated, onClose }: 
             <input type="text" value={name} onChange={(event) => setName(event.target.value)} required />
           </label>
           <label>
-            Path
+            ID
             <input
               type="text"
-              placeholder="menus/my-new-menu.json"
-              value={displayedPath}
+              placeholder="footer-links"
+              value={displayedId}
               onChange={(event) => {
-                setPath(event.target.value);
-                setPathTouched(true);
+                setId(event.target.value);
+                setIdTouched(true);
               }}
+              pattern={MENU_ID_PATTERN}
+              title="Letters, numbers, hyphens and underscores only"
               required
             />
           </label>
+          <p>Your theme uses this to show the menu. It can't be changed later.</p>
           {error && <p role="alert">{error}</p>}
           <div className="modal-actions">
             <button type="button" onClick={onClose} disabled={busy}>

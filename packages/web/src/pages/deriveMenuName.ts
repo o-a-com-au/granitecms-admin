@@ -40,3 +40,18 @@ export function menuDisplayName(menu: { path: string; name: string | null }): st
 // (additionalProperties: false), so naming is only offered once the
 // site reports it can store one.
 export const MENU_NAME_SCHEMA_VERSION = 7;
+
+// A menu's ID is its filename without the menus/ folder or .json -
+// exactly what a layout writes (menus.<id>.items), and the only way
+// the admin ever shows or asks for it. Menus are flat, so an ID never
+// contains a slash; MENU_ID_PATTERN (an <input pattern>, so anchored
+// implicitly) keeps it to characters a Liquid dot-lookup reads as-is.
+export const MENU_ID_PATTERN = '[A-Za-z0-9_-]+';
+
+export function menuIdFromPath(path: string): string {
+  return path.replace(/^menus\//, '').replace(/\.json$/, '');
+}
+
+export function menuPathFromId(id: string): string {
+  return `menus/${id}.json`;
+}

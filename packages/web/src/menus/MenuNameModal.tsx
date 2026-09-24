@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { saveSiteMenuItems, type SiteMenu } from '../api/site-menus.ts';
-import { deriveMenuName, menuDisplayName } from '../pages/deriveMenuName.ts';
+import { deriveMenuName, menuDisplayName, menuIdFromPath } from '../pages/deriveMenuName.ts';
 import { buildRenameMenuMessage } from './buildMenuItemMessage.ts';
 
 export interface MenuNameModalProps {
@@ -11,17 +11,16 @@ export interface MenuNameModalProps {
 }
 
 // Renames a menu by its display name only (menu.schema.json's optional
-// "name"), never its filename: layouts reference a menu as
-// menus.<filename>, so moving the file would silently empty every nav
-// using it. The filename is shown read-only so it's clear what a theme
-// still calls it. Clearing the field removes "name" altogether, falling
+// "name"), never its ID: layouts reference a menu as menus.<id>, so
+// changing the ID would silently empty every nav using it. The ID is
+// shown read-only so it's clear what a theme still calls it. Clearing the field removes "name" altogether, falling
 // back to the filename-derived label, rather than saving an empty
 // string the schema would reject anyway.
 export function MenuNameModal({ siteId, menu, onSaved, onClose }: MenuNameModalProps) {
   const [name, setName] = useState(menu.name ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const fileName = menu.path.replace(/^menus\//, '');
+  const id = menuIdFromPath(menu.path);
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -56,9 +55,11 @@ export function MenuNameModal({ siteId, menu, onSaved, onClose }: MenuNameModalP
               onChange={(event) => setName(event.target.value)}
             />
           </label>
-          <p>
-            Your theme refers to this menu as <code>{fileName}</code>. Renaming it here does not change that.
-          </p>
+          <label>
+            ID
+            <input type="text" value={id} readOnly />
+          </label>
+          <p>Your theme uses the ID to show this menu, so it stays the same when you rename it.</p>
           {error && <p role="alert">{error}</p>}
           <div className="modal-actions">
             <button type="button" onClick={onClose} disabled={busy}>

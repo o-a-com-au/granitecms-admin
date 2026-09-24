@@ -25,7 +25,7 @@ function installFakeFetch({ saveStatus = 200 }: { saveStatus?: number } = {}) {
       receivedIfMatch = (init.headers as Record<string, string>)['If-Match'];
       receivedSaveBody = JSON.parse(init.body as string);
       if (saveStatus !== 200) {
-        return new Response(JSON.stringify({ message: 'A menu already exists at that path' }), { status: saveStatus });
+        return new Response(JSON.stringify({ message: 'conflict' }), { status: saveStatus });
       }
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { etag: '"abc"' } });
     }
@@ -41,15 +41,16 @@ function installFakeFetch({ saveStatus = 200 }: { saveStatus?: number } = {}) {
 }
 
 describe('NewMenuModal', () => {
-  it('the Path field follows Name until typed into directly', async () => {
+  it('the ID field follows Name until typed into directly, and never shows a file path', async () => {
     installFakeFetch();
     renderModal();
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Footer Company' } });
-    await waitFor(() => expect((screen.getByLabelText('Path') as HTMLInputElement).value).toBe('menus/footer-company.json'));
+    await waitFor(() => expect((screen.getByLabelText('ID') as HTMLInputElement).value).toBe('footer-company'));
 
-    fireEvent.change(screen.getByLabelText('Path'), { target: { value: 'menus/custom.json' } });
-    expect((screen.getByLabelText('Path') as HTMLInputElement).value).toBe('menus/custom.json');
+    fireEvent.change(screen.getByLabelText('ID'), { target: { value: 'custom' } });
+    expect((screen.getByLabelText('ID') as HTMLInputElement).value).toBe('custom');
+    expect(screen.queryByLabelText('Path')).toBeNull();
   });
 
   it('creates a live menu through the menus endpoint, never as a draft, then calls onCreated and onClose', async () => {
@@ -57,7 +58,7 @@ describe('NewMenuModal', () => {
     const { onCreated, onClose } = renderModal();
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Footer Company' } });
-    await waitFor(() => expect((screen.getByLabelText('Path') as HTMLInputElement).value).toBe('menus/footer-company.json'));
+    await waitFor(() => expect((screen.getByLabelText('ID') as HTMLInputElement).value).toBe('footer-company'));
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
@@ -95,7 +96,7 @@ describe('NewMenuModal', () => {
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Footer Company' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
-    await waitFor(() => expect(screen.getByText('A menu already exists at that path')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('A menu with that ID already exists')).toBeDefined());
     expect(onCreated).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
