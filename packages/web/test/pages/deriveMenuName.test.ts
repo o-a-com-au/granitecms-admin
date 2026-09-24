@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { menuDisplayName, menuIdFromPath, menuPathFromId, deriveMenuName, isMenuPath } from '../../src/pages/deriveMenuName.ts';
+import { menuDisplayName, menuHandleFromPath, menuPathFromHandle, deriveMenuName, isMenuPath } from '../../src/pages/deriveMenuName.ts';
 
 describe('isMenuPath', () => {
   it('is true for anything under menus/', () => {
@@ -42,9 +42,9 @@ describe('menuDisplayName', () => {
   });
 });
 
-describe('menu IDs', () => {
-  it('an ID is the filename without the menus/ folder or .json, and maps back', () => {
-    expect(menuIdFromPath('menus/footerCompany.json')).toBe('footerCompany');
-    expect(menuPathFromId('footer-company')).toBe('menus/footer-company.json');
+describe('menu handles', () => {
+  it('a handle is the filename without the menus/ folder or .json, and maps back', () => {
+    expect(menuHandleFromPath('menus/footerCompany.json')).toBe('footerCompany');
+    expect(menuPathFromHandle('footer-company')).toBe('menus/footer-company.json');
   });
 });

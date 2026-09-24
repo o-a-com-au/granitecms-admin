@@ -2599,6 +2599,117 @@ describe('sites routes', () => {
     await app.close();
   });
 
+  it('POST /api/sites/:id/menus/rename forwards handles, If-Match and the logged-in author, returning stale theme references', async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedBody: Record<string, unknown> = {};
+    let receivedIfMatch: string | undefined;
+    fakeSite = createServer((req, res) => {
+      if (req.method !== 'POST' || req.url !== '/v1/menus/rename') {
+        sendJson(res, 200, { agentVersion: '1.0.0', contentSchemaVersion: 7, sqliteDriver: 'node:sqlite' });
+        return;
+      }
+      receivedIfMatch = req.headers['if-match'];
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        receivedBody = JSON.parse(Buffer.concat(chunks).toString());
+        res.writeHead(200, { 'content-type': 'application/json', etag: '"same-etag"' });
+        res.end(JSON.stringify({ ok: true, staleThemeReferences: ['theme/layouts/theme.liquid'] }));
+      });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/menus/rename`,
+      headers: { cookie, 'if-match': '"same-etag"' },
+      payload: { from: 'main', to: 'header', message: 'Change menu handle main to header', author: { name: 'Attacker', email: 'x@x.com' } },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { ok: true, staleThemeReferences: ['theme/layouts/theme.liquid'] });
+    assert.equal(response.headers.etag, '"same-etag"');
+    assert.equal(receivedIfMatch, '"same-etag"');
+    assert.equal(receivedBody.from, 'main');
+    assert.equal(receivedBody.to, 'header');
+    assert.equal((receivedBody.author as { name: string }).name, 'Jane Editor');
+
+    await app.close();
+  });
+
+  it('POST /api/sites/:id/menus/rename needs If-Match and a full body before calling the site, and forwards a 409', async () => {
+    const { app, cookie } = await buildTestServer();
+    const unreachableId = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');
+
+    const noIfMatch = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${unreachableId}/menus/rename`,
+      headers: { cookie },
+      payload: { from: 'main', to: 'header', message: 'm' },
+    });
+    assert.equal(noIfMatch.statusCode, 428);
+
+    const noTo = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${unreachableId}/menus/rename`,
+      headers: { cookie, 'if-match': '"e"' },
+      payload: { from: 'main', message: 'm' },
+    });
+    assert.equal(noTo.statusCode, 400);
+
+    fakeSite = createServer((_req, res) => sendJson(res, 409, { message: 'A menu with the handle "footer" already exists' }));
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+    const conflict = await app.inject({
+      method: 'POST',
+      url: `/api/sites/${id}/menus/rename`,
+      headers: { cookie, 'if-match': '"e"' },
+      payload: { from: 'main', to: 'footer', message: 'm' },
+    });
+    assert.equal(conflict.statusCode, 409);
+    assert.equal(conflict.json().message, 'A menu with the handle "footer" already exists');
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/menus/references forwards the handle and returns the theme files using it', async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedUrl = '';
+    fakeSite = createServer((req, res) => {
+      if (!req.url?.startsWith('/v1/menus/references')) {
+        sendJson(res, 200, { agentVersion: '1.0.0', contentSchemaVersion: 7, sqliteDriver: 'node:sqlite' });
+        return;
+      }
+      receivedUrl = req.url;
+      sendJson(res, 200, { handle: 'main', themeFiles: ['theme/layouts/theme.liquid'] });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const address = fakeSite.address();
+    if (address === null || typeof address === 'string') {
+      throw new Error('expected a real listening address');
+    }
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${address.port}`, 'the-token');
+
+    const response = await app.inject({ method: 'GET', url: `/api/sites/${id}/menus/references?handle=main`, headers: { cookie } });
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { themeFiles: ['theme/layouts/theme.liquid'] });
+    assert.equal(receivedUrl, '/v1/menus/references?handle=main');
+
+    const missing = await app.inject({ method: 'GET', url: `/api/sites/${id}/menus/references`, headers: { cookie } });
+    assert.equal(missing.statusCode, 400);
+
+    await app.close();
+  });
+
   it('PUT /api/sites/:id/menus/*path requires an If-Match header, without ever calling the site', async () => {
     const { app, cookie } = await buildTestServer();
     const id = await registerSite(app, cookie, 'http://127.0.0.1:1', 'any-token');

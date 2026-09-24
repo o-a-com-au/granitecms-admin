@@ -29,3 +29,7 @@ export function buildRenameMenuMessage(oldName: string, newName: string): string
 export function buildDeleteMenuMessage(menuName: string): string {
   return `Delete menu ${menuName}`;
 }
+
+export function buildChangeMenuHandleMessage(menuName: string, oldHandle: string, newHandle: string): string {
+  return `Change ${menuName} menu handle from ${oldHandle} to ${newHandle}`;
+}

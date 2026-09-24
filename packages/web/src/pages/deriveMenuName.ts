@@ -35,23 +35,25 @@ export function menuDisplayName(menu: { path: string; name: string | null }): st
   return menu.name ?? deriveMenuName(menu.path);
 }
 
-// Content schema 7 is the first agent version whose menu.schema.json
-// accepts "name". An older agent rejects the whole save
-// (additionalProperties: false), so naming is only offered once the
-// site reports it can store one.
-export const MENU_NAME_SCHEMA_VERSION = 7;
+// Content schema 7 is the first agent version that can edit a menu
+// beyond its items: menu.schema.json accepts "name", and POST
+// /v1/menus/rename + GET /v1/menus/references exist (both shipped in
+// the same release). An older agent rejects "name" outright, so Edit
+// is only offered once the site reports it.
+export const MENU_EDITING_SCHEMA_VERSION = 7;
 
-// A menu's ID is its filename without the menus/ folder or .json -
-// exactly what a layout writes (menus.<id>.items), and the only way
-// the admin ever shows or asks for it. Menus are flat, so an ID never
-// contains a slash; MENU_ID_PATTERN (an <input pattern>, so anchored
-// implicitly) keeps it to characters a Liquid dot-lookup reads as-is.
-export const MENU_ID_PATTERN = '[A-Za-z0-9_-]+';
+// A menu's handle is its filename without the menus/ folder or .json -
+// exactly what a layout writes (menus.<handle>.items), and the only way
+// the admin ever shows or asks for it (Shopify's term for the same
+// thing). Menus are flat, so a handle never contains a slash;
+// MENU_HANDLE_PATTERN (an <input pattern>, so anchored implicitly)
+// matches what the agent accepts in POST /v1/menus/rename.
+export const MENU_HANDLE_PATTERN = '[A-Za-z0-9_-]+';
 
-export function menuIdFromPath(path: string): string {
+export function menuHandleFromPath(path: string): string {
   return path.replace(/^menus\//, '').replace(/\.json$/, '');
 }
 
-export function menuPathFromId(id: string): string {
-  return `menus/${id}.json`;
+export function menuPathFromHandle(handle: string): string {
+  return `menus/${handle}.json`;
 }

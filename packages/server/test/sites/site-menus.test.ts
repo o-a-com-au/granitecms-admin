@@ -1,7 +1,7 @@
 import { afterEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { saveSiteMenu } from '../../src/sites/site-menus.ts';
+import { fetchSiteMenuReferences, renameSiteMenu, saveSiteMenu } from '../../src/sites/site-menus.ts';
 
 type Handler = (req: IncomingMessage, res: ServerResponse) => void;
 
@@ -113,5 +113,43 @@ describe('saveSiteMenu', () => {
     const url = await startServer((_req, res) => sendJson(res, 200, { ok: true }));
     const result = await saveSiteMenu({ url, token: 'x' }, 'menus/main.json', CONTENT, '"etag"', 'msg', AUTHOR);
     assert.equal(result.outcome, 'error');
+  });
+});
+
+describe('renameSiteMenu', () => {
+  it('maps a 200 to ok with the etag and stale theme references', async () => {
+    const url = await startServer((_req, res) =>
+      sendJson(res, 200, { ok: true, staleThemeReferences: ['theme/layouts/theme.liquid'] }, { etag: '"e"' }),
+    );
+    const result = await renameSiteMenu({ url, token: 't' }, 'main', 'header', '"e"', 'm', AUTHOR);
+    assert.deepEqual(result, { outcome: 'ok', etag: '"e"', staleThemeReferences: ['theme/layouts/theme.liquid'] });
+  });
+
+  it('treats a 200 without stale references (an unexpected shape) as an error rather than guessing', async () => {
+    const url = await startServer((_req, res) => sendJson(res, 200, { ok: true }, { etag: '"e"' }));
+    const result = await renameSiteMenu({ url, token: 't' }, 'main', 'header', '"e"', 'm', AUTHOR);
+    assert.equal(result.outcome, 'error');
+  });
+
+  it('maps 404/409/400 to not-found/conflict/invalid with the site\'s own message', async () => {
+    for (const [status, outcome] of [[404, 'not-found'], [409, 'conflict'], [400, 'invalid']] as const) {
+      const url = await startServer((_req, res) => sendJson(res, status, { message: `site says ${status}` }));
+      const result = await renameSiteMenu({ url, token: 't' }, 'main', 'header', '"e"', 'm', AUTHOR);
+      assert.deepEqual(result, { outcome, message: `site says ${status}` });
+      await new Promise<void>((resolve) => server!.close(() => resolve()));
+      server = undefined;
+    }
+  });
+});
+
+describe('fetchSiteMenuReferences', () => {
+  it('returns the theme files, and an error for a non-200', async () => {
+    let url = await startServer((_req, res) => sendJson(res, 200, { handle: 'main', themeFiles: ['theme/a.liquid'] }));
+    assert.deepEqual(await fetchSiteMenuReferences({ url, token: 't' }, 'main'), { outcome: 'ok', themeFiles: ['theme/a.liquid'] });
+    await new Promise<void>((resolve) => server!.close(() => resolve()));
+    server = undefined;
+
+    url = await startServer((_req, res) => sendJson(res, 404, { message: 'no such route' }));
+    assert.equal((await fetchSiteMenuReferences({ url, token: 't' }, 'main')).outcome, 'error');
   });
 });

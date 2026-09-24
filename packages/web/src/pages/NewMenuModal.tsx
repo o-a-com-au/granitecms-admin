@@ -3,15 +3,15 @@ import { SiteEditorError } from '../api/site-editor.ts';
 import { createSiteMenu } from '../api/site-menus.ts';
 import { buildCreateMenuMessage } from '../menus/buildMenuItemMessage.ts';
 import { slugify } from './slugify.ts';
-import { MENU_ID_PATTERN, menuPathFromId } from './deriveMenuName.ts';
+import { MENU_HANDLE_PATTERN, menuPathFromHandle } from './deriveMenuName.ts';
 
 export interface NewMenuModalProps {
   siteId: string;
   // Whether the site's agent can store a menu's own display name
-  // (content schema 7+, see MENU_NAME_SCHEMA_VERSION). When it can, the
-  // Name typed here is saved as the menu's "name"; when it can't, Name
-  // only ever suggested the filename, as before.
-  supportsMenuNames: boolean;
+  // (content schema 7+, see MENU_EDITING_SCHEMA_VERSION). When it can,
+  // the Name typed here is saved as the menu's "name"; when it can't,
+  // Name only ever suggests the handle, as before.
+  supportsMenuEditing: boolean;
   onCreated: () => void;
   onClose: () => void;
 }
@@ -35,40 +35,41 @@ const MENU_SCHEMA_VERSION = 7;
 // and closes rather than navigating anywhere - there is no more
 // separate menu editor route to land on now that items are edited
 // inline in the same accordion this modal already sits inside.
-export function NewMenuModal({ siteId, supportsMenuNames, onCreated, onClose }: NewMenuModalProps) {
+export function NewMenuModal({ siteId, supportsMenuEditing, onCreated, onClose }: NewMenuModalProps) {
   const [name, setName] = useState('');
-  const [id, setId] = useState('');
-  const [idTouched, setIdTouched] = useState(false);
+  const [handle, setHandle] = useState('');
+  const [handleTouched, setHandleTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // A menu's ID is what layouts reference it by (menus.<id>.items) -
-  // shown and typed as just that, never as the menus/<id>.json file
-  // path it happens to be stored at. Live-follows Name until the user
-  // types into ID directly themselves - same pattern as
-  // NewPageModal.tsx's own Title -> Path suggestion.
-  const suggestedId = slugify(name);
-  const displayedId = idTouched ? id : suggestedId;
+  // A menu's handle is what layouts reference it by
+  // (menus.<handle>.items) - shown and typed as just that, never as the
+  // menus/<handle>.json file path it happens to be stored at.
+  // Live-follows Name until the user types into Handle directly
+  // themselves - same pattern as NewPageModal.tsx's own Title -> Path
+  // suggestion.
+  const suggestedHandle = slugify(name);
+  const displayedHandle = handleTouched ? handle : suggestedHandle;
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
     setBusy(true);
     setError(null);
 
-    const trimmedPath = menuPathFromId(displayedId.trim());
+    const trimmedPath = menuPathFromHandle(displayedHandle.trim());
     const trimmedName = name.trim();
 
     try {
       const envelope: Record<string, unknown> =
-        supportsMenuNames && trimmedName !== ''
+        supportsMenuEditing && trimmedName !== ''
           ? { schemaVersion: MENU_SCHEMA_VERSION, name: trimmedName }
           : { schemaVersion: MENU_SCHEMA_VERSION };
-      await createSiteMenu(siteId, trimmedPath, envelope, buildCreateMenuMessage(trimmedName || displayedId.trim()));
+      await createSiteMenu(siteId, trimmedPath, envelope, buildCreateMenuMessage(trimmedName || displayedHandle.trim()));
       onCreated();
       onClose();
     } catch (err) {
       if (err instanceof SiteEditorError && err.reason === 'conflict') {
-        setError('A menu with that ID already exists');
+        setError('A menu with that handle already exists');
       } else {
         setError(err instanceof Error ? err.message : 'Failed to create that menu');
       }
@@ -86,21 +87,21 @@ export function NewMenuModal({ siteId, supportsMenuNames, onCreated, onClose }: 
             <input type="text" value={name} onChange={(event) => setName(event.target.value)} required />
           </label>
           <label>
-            ID
+            Handle
             <input
               type="text"
               placeholder="footer-links"
-              value={displayedId}
+              value={displayedHandle}
               onChange={(event) => {
-                setId(event.target.value);
-                setIdTouched(true);
+                setHandle(event.target.value);
+                setHandleTouched(true);
               }}
-              pattern={MENU_ID_PATTERN}
+              pattern={MENU_HANDLE_PATTERN}
               title="Letters, numbers, hyphens and underscores only"
               required
             />
           </label>
-          <p>Your theme uses this to show the menu. It can't be changed later.</p>
+          <p>Your theme uses the handle to show this menu.</p>
           {error && <p role="alert">{error}</p>}
           <div className="modal-actions">
             <button type="button" onClick={onClose} disabled={busy}>

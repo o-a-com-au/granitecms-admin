@@ -174,3 +174,67 @@ export async function deleteSiteMenu(siteId: string, menu: Pick<SiteMenu, 'path'
     throw err;
   }
 }
+
+export interface RenameMenuHandleResult {
+  etag: string;
+  // Theme files that still use the old handle, so now show an empty
+  // menu until they're updated.
+  staleThemeReferences: string[];
+}
+
+// Changes a menu's handle (menus.<handle> in a layout) - POST
+// /api/sites/:id/menus/rename, handles not paths. One commit, contents
+// untouched, and the etag is the menu's current one (If-Match).
+export async function renameSiteMenuHandle(
+  siteId: string,
+  from: string,
+  to: string,
+  etag: string,
+  message: string,
+): Promise<RenameMenuHandleResult> {
+  const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/menus/rename`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+    body: JSON.stringify({ from, to, message }),
+  });
+
+  if (response.status === 409) {
+    throw await reasonFromResponse(response, 'conflict');
+  }
+  if (response.status === 400) {
+    throw await reasonFromResponse(response, 'invalid');
+  }
+  if (response.status === 404) {
+    throw await reasonFromResponse(response, 'not-found');
+  }
+  if (!response.ok) {
+    throw await reasonFromResponse(response, 'error');
+  }
+
+  const newEtag = response.headers.get('etag');
+  const body = (await response.json()) as { staleThemeReferences?: unknown };
+  const stale = body.staleThemeReferences;
+  if (!newEtag || !Array.isArray(stale)) {
+    throw new SiteEditorError('error', 'The website returned an unexpected response after changing the handle');
+  }
+  return { etag: newEtag, staleThemeReferences: stale.filter((entry): entry is string => typeof entry === 'string') };
+}
+
+// Which theme files use a handle, or null when that can't be found out
+// (an older agent without GET /v1/menus/references, or any failure).
+// Only ever drives a warning, so callers fall back to a general one on
+// null rather than treating it as an error.
+export async function fetchMenuThemeReferences(siteId: string, handle: string): Promise<string[] | null> {
+  try {
+    const response = await fetch(
+      `/api/sites/${encodeURIComponent(siteId)}/menus/references?handle=${encodeURIComponent(handle)}`,
+    );
+    if (!response.ok) {
+      return null;
+    }
+    const body = (await response.json()) as { themeFiles?: unknown };
+    return Array.isArray(body.themeFiles) ? body.themeFiles.filter((entry): entry is string => typeof entry === 'string') : null;
+  } catch {
+    return null;
+  }
+}

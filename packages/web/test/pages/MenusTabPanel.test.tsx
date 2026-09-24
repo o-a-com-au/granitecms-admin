@@ -35,7 +35,13 @@ interface MenuFile {
 
 // contentSchemaVersion is what the site's agent reports; 7 is the first
 // that can store a menu's own display name.
-function installFakeApi(entries: unknown[], menuFiles: Record<string, MenuFile>, { contentSchemaVersion = 6 } = {}) {
+// themeFiles maps a handle to the theme files using it; null makes the
+// references lookup fail, as an agent without that endpoint would.
+function installFakeApi(
+  entries: unknown[],
+  menuFiles: Record<string, MenuFile>,
+  { contentSchemaVersion = 6, themeFiles = {} as Record<string, string[]> | null } = {},
+) {
   const files: Record<string, MenuFile> = { ...menuFiles };
   let listedEntries = [...entries] as Array<{ path: string }>;
   const calls: Array<{ method: string; url: string; body?: unknown }> = [];
@@ -50,6 +56,26 @@ function installFakeApi(entries: unknown[], menuFiles: Record<string, MenuFile>,
       const status = { state: 'ok', agentVersion: '0.5.2', contentSchemaVersion, sqliteDriver: 'node:sqlite' };
       return new Response(JSON.stringify([{ id: 'site-1', url: 'http://site.example', createdAt: '', updatedAt: '', status }]), {
         status: 200,
+      });
+    }
+    if (method === 'GET' && url.includes('/menus/references?')) {
+      if (themeFiles === null) {
+        return new Response(JSON.stringify({ error: 'not found' }), { status: 502 });
+      }
+      const handle = new URL(url, 'http://admin.test').searchParams.get('handle') as string;
+      return new Response(JSON.stringify({ themeFiles: themeFiles[handle] ?? [] }), { status: 200 });
+    }
+    if (method === 'POST' && url.endsWith('/menus/rename')) {
+      const { from, to } = body as { from: string; to: string };
+      const fromPath = `menus/${from}.json`;
+      const toPath = `menus/${to}.json`;
+      const file = files[fromPath] as MenuFile;
+      files[toPath] = file;
+      delete files[fromPath];
+      listedEntries = listedEntries.map((entry) => (entry.path === fromPath ? { ...entry, path: toPath } : entry));
+      return new Response(JSON.stringify({ ok: true, staleThemeReferences: themeFiles?.[from] ?? [] }), {
+        status: 200,
+        headers: { etag: file.etag },
       });
     }
     if (method === 'GET' && (url.endsWith('/content') || url.includes('/content?'))) {
@@ -339,7 +365,7 @@ describe('MenusTabPanel', () => {
     expect(screen.queryByRole('button', { name: 'Edit Main' })).toBeNull();
   });
 
-  it('Edit renames a menu by its display name only: items and filename are untouched', async () => {
+  it('Edit with only the name changed saves the name: items and handle are untouched', async () => {
     const { calls } = installFakeApi(
       [MAIN_MENU_ENTRY],
       { 'menus/main.json': { content: { schemaVersion: 7, items: [{ label: 'Home', url: '/' }] }, etag: '"etag-1"' } },
@@ -350,10 +376,8 @@ describe('MenusTabPanel', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Edit Main' }));
     // The row itself must not have toggled open from the same click.
     expect(screen.queryByText('Home', { selector: 'strong' })).toBeNull();
-    // The ID is shown as-is (what a layout writes), read-only, never as a path.
-    const idField = screen.getByLabelText('ID') as HTMLInputElement;
-    expect(idField.value).toBe('main');
-    expect(idField.readOnly).toBe(true);
+    // The handle is shown as-is (what a layout writes), never as a path.
+    expect((screen.getByLabelText('Handle') as HTMLInputElement).value).toBe('main');
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Header' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -364,6 +388,8 @@ describe('MenusTabPanel', () => {
       content: { schemaVersion: 7, name: 'Header', items: [{ label: 'Home', url: '/' }] },
       message: 'Rename menu Main to Header',
     });
+    // A name-only change never touches the handle.
+    expect(calls.some((call) => call.url.endsWith('/menus/rename'))).toBe(false);
     expect(Number(screen.getByTestId('preview-generation').textContent)).toBeGreaterThan(0);
   });
 
@@ -430,5 +456,103 @@ describe('MenusTabPanel', () => {
     await waitFor(() => expect(screen.getByText('No menus found.')).toBeDefined());
     expect(calls.some((call) => call.method === 'DELETE' && call.url === '/api/sites/site-1/drafts/menus/main.json')).toBe(true);
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('changing the handle warns with the theme files using it before saving, then renames and says what to update', async () => {
+    const { calls } = installFakeApi(
+      [MAIN_MENU_ENTRY],
+      { 'menus/main.json': { content: { schemaVersion: 7, items: [{ label: 'Home', url: '/' }] }, etag: '"etag-1"' } },
+      { contentSchemaVersion: 7, themeFiles: { main: ['theme/layouts/theme.liquid'] } },
+    );
+
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Main' }));
+    fireEvent.change(screen.getByLabelText('Handle'), { target: { value: 'header' } });
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          "Your theme uses menus.main in theme/layouts/theme.liquid. They will show nothing until they're changed to menus.header.",
+        ),
+      ).toBeDefined(),
+    );
+    expect(calls.some((call) => call.url.endsWith('/menus/rename'))).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'Handle changed to header. Update menus.main to menus.header in theme/layouts/theme.liquid so this menu shows again.',
+        ),
+      ).toBeDefined(),
+    );
+    const renameCall = calls.find((call) => call.url.endsWith('/menus/rename'));
+    expect(renameCall?.body).toEqual({ from: 'main', to: 'header', message: 'Change Main menu handle from main to header' });
+    // Only the handle changed, so no name save happened first.
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+    // The row is now listed under its new handle.
+    expect(await screen.findByText('Header')).toBeDefined();
+  });
+
+  it('changing both name and handle saves the name first, then renames with the etag that save returned', async () => {
+    const { calls } = installFakeApi(
+      [MAIN_MENU_ENTRY],
+      { 'menus/main.json': { content: { schemaVersion: 7, items: [] }, etag: '"etag-1"' } },
+      { contentSchemaVersion: 7 },
+    );
+
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Main' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Primary' } });
+    fireEvent.change(screen.getByLabelText('Handle'), { target: { value: 'primary' } });
+    await waitFor(() => expect(screen.getByText('Nothing in your theme uses menus.main, so this is safe to change.')).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const putIndex = calls.findIndex((call) => call.method === 'PUT');
+    const renameIndex = calls.findIndex((call) => call.url.endsWith('/menus/rename'));
+    expect(putIndex).toBeGreaterThan(-1);
+    expect(renameIndex).toBeGreaterThan(putIndex);
+    expect(calls[renameIndex]?.body).toEqual({ from: 'main', to: 'primary', message: 'Change Primary menu handle from main to primary' });
+    // No stale references, so nothing to tell the user to update.
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('falls back to a general warning when the site cannot say where the handle is used', async () => {
+    installFakeApi(
+      [MAIN_MENU_ENTRY],
+      { 'menus/main.json': { content: { schemaVersion: 7, items: [] }, etag: '"etag-1"' } },
+      { contentSchemaVersion: 7, themeFiles: null },
+    );
+
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Main' }));
+    fireEvent.change(screen.getByLabelText('Handle'), { target: { value: 'header' } });
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Anything in your theme that uses menus.main will show nothing until it's changed to menus.header."),
+      ).toBeDefined(),
+    );
+  });
+
+  it('the delete confirmation names the theme files that use the menu', async () => {
+    installFakeApi(
+      [MAIN_MENU_ENTRY],
+      { 'menus/main.json': { content: { schemaVersion: 7, items: [{ label: 'Home', url: '/' }] }, etag: '"etag-1"' } },
+      { contentSchemaVersion: 7, themeFiles: { main: ['theme/layouts/theme.liquid', 'theme/snippets/nav.liquid'] } },
+    );
+
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Main' }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'Delete the "Main" menu and all 1 of its items? This cannot be undone. Your theme uses menus.main in theme/layouts/theme.liquid, theme/snippets/nav.liquid, which will be left empty.',
+        ),
+      ).toBeDefined(),
+    );
   });
 });

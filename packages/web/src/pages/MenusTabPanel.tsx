@@ -1,17 +1,17 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 import { useSiteMenus } from '../menus/useSiteMenus.ts';
 import { MenuItemFormModal } from '../menus/MenuItemFormModal.tsx';
 import { MenuItemList } from '../menus/MenuItemList.tsx';
-import { deleteSiteMenu, saveSiteMenuItems, type MenuItem, type SiteMenu } from '../api/site-menus.ts';
+import { deleteSiteMenu, fetchMenuThemeReferences, saveSiteMenuItems, type MenuItem, type SiteMenu } from '../api/site-menus.ts';
 import {
   buildDeleteMenuMessage,
   buildRemoveMenuItemMessage,
   buildReorderMenuItemsMessage,
 } from '../menus/buildMenuItemMessage.ts';
-import { MenuNameModal } from '../menus/MenuNameModal.tsx';
+import { EditMenuModal, type MenuHandleChange } from '../menus/EditMenuModal.tsx';
 import { usePreview } from '../layout/PreviewContext.tsx';
 import { useSites } from '../sites/useSites.ts';
-import { MENU_NAME_SCHEMA_VERSION, menuDisplayName } from './deriveMenuName.ts';
+import { MENU_EDITING_SCHEMA_VERSION, menuDisplayName, menuHandleFromPath, menuPathFromHandle } from './deriveMenuName.ts';
 import { NewMenuModal } from './NewMenuModal.tsx';
 import { AccordionArrowIcon } from '../sections/AccordionArrowIcon.tsx';
 import { AddIcon } from '../sections/AddIcon.tsx';
@@ -41,18 +41,41 @@ type ItemModalState =
 // (matching this app's own established precedent for redirects/blocks/
 // media). Retires the old MenuEditorPage.tsx route entirely - there is
 // nothing left for a separate page to do once items live inline.
-// Each menu row now also carries its own Edit (display name) and Delete
-// actions, alongside the item-level ones inside it. Deleting a whole
-// menu is confirmed first, unlike deleting a single item: it takes
-// every item with it, and any layout using it renders an empty nav.
+// Each menu row now also carries its own Edit (name and handle) and
+// Delete actions, alongside the item-level ones inside it. Deleting a
+// whole menu is confirmed first, unlike deleting a single item: it
+// takes every item with it, and any layout using it renders an empty
+// nav - the confirmation names those theme files when the agent can
+// say (GET /v1/menus/references), as Edit does for a handle change.
 export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
   const { menus, loading, loadError, refresh } = useSiteMenus(siteId);
   const { bumpPreview } = usePreview();
   const { sites } = useSites();
   const siteStatus = sites?.find((site) => site.id === siteId)?.status;
-  const supportsMenuNames = siteStatus?.state === 'ok' && siteStatus.contentSchemaVersion >= MENU_NAME_SCHEMA_VERSION;
-  const [renamingMenu, setRenamingMenu] = useState<SiteMenu | null>(null);
+  const supportsMenuEditing = siteStatus?.state === 'ok' && siteStatus.contentSchemaVersion >= MENU_EDITING_SCHEMA_VERSION;
+  const [editingMenu, setEditingMenu] = useState<SiteMenu | null>(null);
   const [pendingDelete, setPendingDelete] = useState<SiteMenu | null>(null);
+  // Theme files using the menu awaiting delete: undefined while loading,
+  // null when that couldn't be found out (an older agent).
+  const [deleteReferences, setDeleteReferences] = useState<string[] | null | undefined>(undefined);
+  // Shown after a handle change that left theme files using the old one.
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pendingDelete) {
+      return;
+    }
+    let cancelled = false;
+    setDeleteReferences(undefined);
+    void fetchMenuThemeReferences(siteId, menuHandleFromPath(pendingDelete.path)).then((files) => {
+      if (!cancelled) {
+        setDeleteReferences(files);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [siteId, pendingDelete]);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [expandedPath, setExpandedPath] = useState<string | null>(null);
   const [newMenuModalOpen, setNewMenuModalOpen] = useState(false);
@@ -81,10 +104,44 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
     }
   }
 
-  function handleRenamed(): void {
-    setRenamingMenu(null);
+  function handleEdited(handleChange: MenuHandleChange | null): void {
+    setEditingMenu(null);
+    if (handleChange) {
+      // The row's path changed with its handle - keep it open if it was.
+      if (expandedPath === menuPathFromHandle(handleChange.from)) {
+        setExpandedPath(menuPathFromHandle(handleChange.to));
+      }
+      const files = handleChange.staleThemeReferences;
+      setNotice(
+        files.length > 0
+          ? `Handle changed to ${handleChange.to}. Update menus.${handleChange.from} to menus.${handleChange.to} in ${files.join(', ')} so this menu shows again.`
+          : null,
+      );
+    }
     refresh();
     bumpPreview();
+  }
+
+  // Also refreshes: if a name change saved but the handle change then
+  // failed, the list is already out of date when the dialog is closed.
+  function handleEditClosed(): void {
+    setEditingMenu(null);
+    refresh();
+  }
+
+  function deleteMessage(menu: SiteMenu): string {
+    const handle = menuHandleFromPath(menu.path);
+    const base = `Delete the "${menuDisplayName(menu)}" menu and all ${menu.items.length} of its items? This cannot be undone.`;
+    if (deleteReferences === undefined) {
+      return `${base} Checking where your theme uses menus.${handle}...`;
+    }
+    if (deleteReferences === null) {
+      return `${base} Anywhere your theme shows this menu will be left empty.`;
+    }
+    if (deleteReferences.length === 0) {
+      return `${base} Nothing in your theme uses menus.${handle}.`;
+    }
+    return `${base} Your theme uses menus.${handle} in ${deleteReferences.join(', ')}, which will be left empty.`;
   }
 
   async function handleDeleteItem(menu: SiteMenu, index: number, item: MenuItem): Promise<void> {
@@ -139,6 +196,7 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
   return (
     <div className="pages-hub-tab">
       {actionError && <p role="alert">{actionError}</p>}
+      {notice && <p role="status">{notice}</p>}
       {menus.length === 0 ? (
         <p>No menus found.</p>
       ) : (
@@ -147,8 +205,18 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
             const name = menuDisplayName(menu);
             const collapsed = menu.path !== expandedPath;
             const rowActions: InstanceRowAction[] = [
-              ...(supportsMenuNames
-                ? [{ key: 'edit', label: `Edit ${name}`, icon: <EditIcon />, onClick: () => setRenamingMenu(menu) }]
+              ...(supportsMenuEditing
+                ? [
+                    {
+                      key: 'edit',
+                      label: `Edit ${name}`,
+                      icon: <EditIcon />,
+                      onClick: () => {
+                        setNotice(null);
+                        setEditingMenu(menu);
+                      },
+                    },
+                  ]
                 : []),
               {
                 key: 'delete',
@@ -157,6 +225,7 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
                 variant: 'destructive' as const,
                 onClick: () => {
                   setActionError(null);
+                  setNotice(null);
                   setPendingDelete(menu);
                 },
               },
@@ -240,17 +309,15 @@ export function MenusTabPanel({ siteId }: MenusTabPanelProps) {
       {newMenuModalOpen && (
         <NewMenuModal
           siteId={siteId}
-          supportsMenuNames={supportsMenuNames}
+          supportsMenuEditing={supportsMenuEditing}
           onCreated={refresh}
           onClose={() => setNewMenuModalOpen(false)}
         />
       )}
-      {renamingMenu && (
-        <MenuNameModal siteId={siteId} menu={renamingMenu} onSaved={handleRenamed} onClose={() => setRenamingMenu(null)} />
-      )}
+      {editingMenu && <EditMenuModal siteId={siteId} menu={editingMenu} onSaved={handleEdited} onClose={handleEditClosed} />}
       {pendingDelete && (
         <ConfirmDialog
-          message={`Delete the "${menuDisplayName(pendingDelete)}" menu and all ${pendingDelete.items.length} of its items? This cannot be undone. Anywhere your theme shows this menu will be left empty.`}
+          message={deleteMessage(pendingDelete)}
           confirmLabel="Delete"
           busy={deleteBusy}
           onConfirm={() => void handleConfirmDeleteMenu()}

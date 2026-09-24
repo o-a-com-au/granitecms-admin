@@ -6,11 +6,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function renderModal(onCreated = vi.fn(), onClose = vi.fn(), supportsMenuNames = false) {
+function renderModal(onCreated = vi.fn(), onClose = vi.fn(), supportsMenuEditing = false) {
   return {
     onCreated,
     onClose,
-    ...render(<NewMenuModal siteId="site-1" supportsMenuNames={supportsMenuNames} onCreated={onCreated} onClose={onClose} />),
+    ...render(<NewMenuModal siteId="site-1" supportsMenuEditing={supportsMenuEditing} onCreated={onCreated} onClose={onClose} />),
   };
 }
 
@@ -41,15 +41,15 @@ function installFakeFetch({ saveStatus = 200 }: { saveStatus?: number } = {}) {
 }
 
 describe('NewMenuModal', () => {
-  it('the ID field follows Name until typed into directly, and never shows a file path', async () => {
+  it('the Handle field follows Name until typed into directly, and never shows a file path', async () => {
     installFakeFetch();
     renderModal();
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Footer Company' } });
-    await waitFor(() => expect((screen.getByLabelText('ID') as HTMLInputElement).value).toBe('footer-company'));
+    await waitFor(() => expect((screen.getByLabelText('Handle') as HTMLInputElement).value).toBe('footer-company'));
 
-    fireEvent.change(screen.getByLabelText('ID'), { target: { value: 'custom' } });
-    expect((screen.getByLabelText('ID') as HTMLInputElement).value).toBe('custom');
+    fireEvent.change(screen.getByLabelText('Handle'), { target: { value: 'custom' } });
+    expect((screen.getByLabelText('Handle') as HTMLInputElement).value).toBe('custom');
     expect(screen.queryByLabelText('Path')).toBeNull();
   });
 
@@ -58,7 +58,7 @@ describe('NewMenuModal', () => {
     const { onCreated, onClose } = renderModal();
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Footer Company' } });
-    await waitFor(() => expect((screen.getByLabelText('ID') as HTMLInputElement).value).toBe('footer-company'));
+    await waitFor(() => expect((screen.getByLabelText('Handle') as HTMLInputElement).value).toBe('footer-company'));
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
@@ -96,7 +96,7 @@ describe('NewMenuModal', () => {
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Footer Company' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
-    await waitFor(() => expect(screen.getByText('A menu with that ID already exists')).toBeDefined());
+    await waitFor(() => expect(screen.getByText('A menu with that handle already exists')).toBeDefined());
     expect(onCreated).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });

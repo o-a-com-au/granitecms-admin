@@ -32,7 +32,7 @@ import { fetchSiteThemeSchemas } from '../sites/site-theme-schemas.ts';
 import { fetchSitePageTemplates } from '../sites/site-page-templates.ts';
 import { deleteSiteMedia, listSiteMedia, uploadSiteMedia } from '../sites/site-media.ts';
 import { createSiteRedirect, deleteSiteRedirect, listSiteRedirects, updateSiteRedirect } from '../sites/site-redirects.ts';
-import { saveSiteMenu } from '../sites/site-menus.ts';
+import { fetchSiteMenuReferences, renameSiteMenu, saveSiteMenu } from '../sites/site-menus.ts';
 
 // The raw token is never included here, full stop - built by this
 // explicit mapping function rather than spreading the Site record, so
@@ -330,6 +330,26 @@ function parseSaveMenuBody(body: unknown): SaveMenuBody | null {
     return null;
   }
   return { content: record.content, message: record.message };
+}
+
+interface RenameMenuBody {
+  from: string;
+  to: string;
+  message: string;
+}
+
+function parseRenameMenuBody(body: unknown): RenameMenuBody | null {
+  if (typeof body !== 'object' || body === null) {
+    return null;
+  }
+  const { from, to, message } = body as Record<string, unknown>;
+  if (typeof from !== 'string' || from === '' || typeof to !== 'string' || to === '') {
+    return null;
+  }
+  if (typeof message !== 'string' || message.trim() === '') {
+    return null;
+  }
+  return { from, to, message };
 }
 
 // The browser never supplies a commit author - it's always the
@@ -1107,6 +1127,87 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
         if (result.outcome === 'invalid') {
           reply.code(400);
           return { statusCode: 400, error: 'Bad Request', message: result.message };
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
+
+    // Changing a menu's handle (menus.<handle> in a layout) - handles in
+    // the body, not paths, forwarded to the agent's POST
+    // /v1/menus/rename. Static path, distinct by method from the
+    // PUT /:id/menus/* wildcard above. Commits immediately, like a save.
+    app.post<{ Params: { id: string } }>(
+      '/:id/menus/rename',
+      { preHandler: [requireAuth, requireSiteAccess] },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const ifMatch = request.headers['if-match'];
+        if (typeof ifMatch !== 'string' || ifMatch.trim() === '') {
+          reply.code(428);
+          return {
+            statusCode: 428,
+            error: 'Precondition Required',
+            message: 'An If-Match header is required to change a menu handle',
+          };
+        }
+
+        const body = parseRenameMenuBody(request.body);
+        if (!body) {
+          reply.code(400);
+          return { statusCode: 400, error: 'Bad Request', message: 'from, to and message are all required' };
+        }
+
+        const author = requireCommitAuthor(request.currentUser);
+        const result = await renameSiteMenu(site, body.from, body.to, ifMatch, body.message, author);
+
+        if (result.outcome === 'ok') {
+          reply.header('etag', result.etag);
+          return { ok: true, staleThemeReferences: result.staleThemeReferences };
+        }
+        if (result.outcome === 'not-found') {
+          reply.code(404);
+          return { error: result.message, reason: 'not-found' };
+        }
+        if (result.outcome === 'conflict') {
+          reply.code(409);
+          return { statusCode: 409, error: 'Conflict', message: result.message };
+        }
+        if (result.outcome === 'invalid') {
+          reply.code(400);
+          return { statusCode: 400, error: 'Bad Request', message: result.message };
+        }
+
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
+
+    // Which theme files use a menu handle - read-only, drives the
+    // warning shown before a handle change or a menu delete.
+    app.get<{ Params: { id: string }; Querystring: { handle?: string } }>(
+      '/:id/menus/references',
+      { preHandler: [requireAuth, requireSiteAccess] },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+
+        const handle = request.query.handle;
+        if (typeof handle !== 'string' || handle === '') {
+          reply.code(400);
+          return { statusCode: 400, error: 'Bad Request', message: 'handle is required' };
+        }
+
+        const result = await fetchSiteMenuReferences(site, handle);
+        if (result.outcome === 'ok') {
+          return { themeFiles: result.themeFiles };
         }
 
         reply.code(502);

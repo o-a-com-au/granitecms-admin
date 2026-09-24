@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { deleteSiteMenu, listSiteMenus, saveSiteMenuItems } from '../../src/api/site-menus.ts';
+import {
+  deleteSiteMenu,
+  fetchMenuThemeReferences,
+  listSiteMenus,
+  renameSiteMenuHandle,
+  saveSiteMenuItems,
+} from '../../src/api/site-menus.ts';
 import { SiteEditorError } from '../../src/api/site-editor.ts';
 
 afterEach(() => {
@@ -187,5 +193,56 @@ describe('deleteSiteMenu', () => {
     await expect(deleteSiteMenu('site-1', { path: 'menus/main.json', source: 'live' }, 'Delete menu Main')).rejects.toBeInstanceOf(
       SiteEditorError,
     );
+  });
+});
+
+describe('renameSiteMenuHandle', () => {
+  it('POSTs handles with If-Match and returns the etag and stale theme references', async () => {
+    let received: { url: string; ifMatch: string | undefined; body: unknown } | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        received = {
+          url: input.toString(),
+          ifMatch: (init?.headers as Record<string, string>)['If-Match'],
+          body: JSON.parse(init?.body as string),
+        };
+        return new Response(JSON.stringify({ ok: true, staleThemeReferences: ['theme/layouts/theme.liquid'] }), {
+          status: 200,
+          headers: { etag: '"e1"' },
+        });
+      }),
+    );
+
+    const result = await renameSiteMenuHandle('site-1', 'main', 'header', '"e1"', 'Change handle');
+
+    expect(result).toEqual({ etag: '"e1"', staleThemeReferences: ['theme/layouts/theme.liquid'] });
+    expect(received).toEqual({
+      url: '/api/sites/site-1/menus/rename',
+      ifMatch: '"e1"',
+      body: { from: 'main', to: 'header', message: 'Change handle' },
+    });
+  });
+
+  it('a taken handle is a conflict, with the site\'s own message', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ message: 'A menu with the handle "footer" already exists' }), { status: 409 })));
+
+    await expect(renameSiteMenuHandle('site-1', 'main', 'footer', '"e1"', 'm')).rejects.toMatchObject({
+      reason: 'conflict',
+      message: 'A menu with the handle "footer" already exists',
+    });
+  });
+});
+
+describe('fetchMenuThemeReferences', () => {
+  it('returns the theme files, or null when the site cannot say', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ themeFiles: ['theme/a.liquid'] }), { status: 200 })));
+    expect(await fetchMenuThemeReferences('site-1', 'main')).toEqual(['theme/a.liquid']);
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'x' }), { status: 502 })));
+    expect(await fetchMenuThemeReferences('site-1', 'main')).toBeNull();
+
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network'); }));
+    expect(await fetchMenuThemeReferences('site-1', 'main')).toBeNull();
   });
 });
