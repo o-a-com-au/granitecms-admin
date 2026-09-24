@@ -6,16 +6,24 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function renderModal(onCreated = vi.fn(), onClose = vi.fn()) {
-  return { onCreated, onClose, ...render(<NewMenuModal siteId="site-1" onCreated={onCreated} onClose={onClose} />) };
+function renderModal(onCreated = vi.fn(), onClose = vi.fn(), supportsMenuNames = false) {
+  return {
+    onCreated,
+    onClose,
+    ...render(<NewMenuModal siteId="site-1" supportsMenuNames={supportsMenuNames} onCreated={onCreated} onClose={onClose} />),
+  };
 }
 
 function installFakeFetch({ saveStatus = 200 }: { saveStatus?: number } = {}) {
   let receivedSaveBody: unknown;
+  let receivedSaveUrl: string | undefined;
+  let receivedIfMatch: string | undefined;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
-    if (url.includes('/drafts/')) {
-      receivedSaveBody = JSON.parse(init?.body as string);
+    if (url.includes('/menus/') && init?.method === 'PUT') {
+      receivedSaveUrl = url;
+      receivedIfMatch = (init.headers as Record<string, string>)['If-Match'];
+      receivedSaveBody = JSON.parse(init.body as string);
       if (saveStatus !== 200) {
         return new Response(JSON.stringify({ message: 'A menu already exists at that path' }), { status: saveStatus });
       }
@@ -24,7 +32,12 @@ function installFakeFetch({ saveStatus = 200 }: { saveStatus?: number } = {}) {
     throw new Error(`unhandled fetch in test: ${url} ${init?.method as string}`);
   });
   vi.stubGlobal('fetch', fetchMock);
-  return { fetchMock, getReceivedSaveBody: () => receivedSaveBody };
+  return {
+    fetchMock,
+    getReceivedSaveBody: () => receivedSaveBody,
+    getReceivedSaveUrl: () => receivedSaveUrl,
+    getReceivedIfMatch: () => receivedIfMatch,
+  };
 }
 
 describe('NewMenuModal', () => {
@@ -39,8 +52,8 @@ describe('NewMenuModal', () => {
     expect((screen.getByLabelText('Path') as HTMLInputElement).value).toBe('menus/custom.json');
   });
 
-  it('creates a menu (schemaVersion 1, empty items), then calls onCreated and onClose', async () => {
-    const { getReceivedSaveBody } = installFakeFetch();
+  it('creates a live menu through the menus endpoint, never as a draft, then calls onCreated and onClose', async () => {
+    const { getReceivedSaveBody, getReceivedSaveUrl, getReceivedIfMatch } = installFakeFetch();
     const { onCreated, onClose } = renderModal();
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Footer Company' } });
@@ -49,7 +62,30 @@ describe('NewMenuModal', () => {
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
     expect(onClose).toHaveBeenCalledTimes(1);
-    expect(getReceivedSaveBody()).toEqual({ schemaVersion: 1, items: [] });
+    // An agent older than content schema 7 rejects "name", so without
+    // support Name only ever suggests the path.
+    expect(getReceivedSaveBody()).toEqual({
+      content: { schemaVersion: 7, items: [] },
+      message: 'Create menu Footer Company',
+    });
+    // The agent never reads menus from drafts, so a draft-created menu
+    // never reached the site.
+    expect(getReceivedSaveUrl()).toBe('/api/sites/site-1/menus/menus/footer-company.json');
+    expect(getReceivedIfMatch()).toBe('*');
+  });
+
+  it('saves the typed Name as the menu\'s own display name when the site supports it', async () => {
+    const { getReceivedSaveBody } = installFakeFetch();
+    const { onCreated } = renderModal(vi.fn(), vi.fn(), true);
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Footer Company' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+    expect(getReceivedSaveBody()).toEqual({
+      content: { schemaVersion: 7, name: 'Footer Company', items: [] },
+      message: 'Create menu Footer Company',
+    });
   });
 
   it('shows a real conflict message and does not call onCreated/onClose when the path already exists', async () => {

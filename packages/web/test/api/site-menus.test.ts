@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { listSiteMenus, saveSiteMenuItems } from '../../src/api/site-menus.ts';
+import { deleteSiteMenu, listSiteMenus, saveSiteMenuItems } from '../../src/api/site-menus.ts';
 import { SiteEditorError } from '../../src/api/site-editor.ts';
 
 afterEach(() => {
@@ -29,7 +29,14 @@ describe('listSiteMenus', () => {
     const result = await listSiteMenus('site-1');
 
     expect(result).toEqual([
-      { path: 'menus/main.json', envelope: { schemaVersion: 1, items: [{ label: 'Home', url: '/' }] }, items: [{ label: 'Home', url: '/' }], etag: '"abc"' },
+      {
+        path: 'menus/main.json',
+        name: null,
+        source: 'live',
+        envelope: { schemaVersion: 1, items: [{ label: 'Home', url: '/' }] },
+        items: [{ label: 'Home', url: '/' }],
+        etag: '"abc"',
+      },
     ]);
   });
 
@@ -45,7 +52,7 @@ describe('listSiteMenus', () => {
 
     const result = await listSiteMenus('site-1');
 
-    expect(result).toEqual([{ path: 'menus/main.json', envelope: {}, items: [], etag: '"abc"' }]);
+    expect(result).toEqual([{ path: 'menus/main.json', name: null, source: 'live', envelope: {}, items: [], etag: '"abc"' }]);
   });
 
   it('normalises a content-list failure to a SiteEditorError, not the SiteContentError listSiteContent itself throws', async () => {
@@ -120,5 +127,65 @@ describe('saveSiteMenuItems', () => {
       expect(error).toBeInstanceOf(SiteEditorError);
       expect((error as SiteEditorError).reason).toBe('not-found');
     }
+  });
+
+  it('reads a menu\'s own display name and where it was read from', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url === '/api/sites/site-1/content') {
+        return new Response(JSON.stringify([MENU_ENTRY]), { status: 200 });
+      }
+      return new Response(JSON.stringify({ schemaVersion: 7, name: 'Header', items: [] }), {
+        status: 200,
+        headers: { etag: '"abc"', 'x-content-source': 'draft' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const [menu] = await listSiteMenus('site-1');
+
+    expect(menu?.name).toBe('Header');
+    expect(menu?.source).toBe('draft');
+  });
+});
+
+describe('deleteSiteMenu', () => {
+  function installDeleteFetch(liveStatus: number) {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        calls.push(`${init?.method ?? 'GET'} ${input.toString()}`);
+        if (input.toString().includes('/drafts/')) {
+          return new Response(null, { status: 204 });
+        }
+        return new Response(liveStatus === 204 ? null : JSON.stringify({ message: 'nope' }), { status: liveStatus });
+      }),
+    );
+    return calls;
+  }
+
+  it('a live menu is deleted through DELETE /content/*, without touching drafts', async () => {
+    const calls = installDeleteFetch(204);
+
+    await deleteSiteMenu('site-1', { path: 'menus/main.json', source: 'live' }, 'Delete menu Main');
+
+    expect(calls).toEqual(['DELETE /api/sites/site-1/content/menus/main.json']);
+  });
+
+  it('a draft-only menu has its draft discarded, and the missing live file is not an error', async () => {
+    const calls = installDeleteFetch(404);
+
+    await deleteSiteMenu('site-1', { path: 'menus/main.json', source: 'draft' }, 'Delete menu Main');
+
+    expect(calls).toEqual(['DELETE /api/sites/site-1/drafts/menus/main.json', 'DELETE /api/sites/site-1/content/menus/main.json']);
+  });
+
+  it('any other failure deleting the live file still throws', async () => {
+    installDeleteFetch(500);
+
+    await expect(deleteSiteMenu('site-1', { path: 'menus/main.json', source: 'live' }, 'Delete menu Main')).rejects.toBeInstanceOf(
+      SiteEditorError,
+    );
   });
 });

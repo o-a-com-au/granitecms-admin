@@ -10,6 +10,8 @@ afterEach(() => {
 
 const MENU: SiteMenu = {
   path: 'menus/main.json',
+  name: null,
+  source: 'live',
   envelope: { schemaVersion: 1 },
   items: [{ label: 'Home', url: '/' }],
   etag: '"etag-1"',

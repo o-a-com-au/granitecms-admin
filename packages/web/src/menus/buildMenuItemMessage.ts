@@ -17,3 +17,15 @@ export function buildRemoveMenuItemMessage(menuName: string, label: string): str
 export function buildReorderMenuItemsMessage(menuName: string): string {
   return `Reorder items in ${menuName}`;
 }
+
+export function buildCreateMenuMessage(menuName: string): string {
+  return `Create menu ${menuName}`;
+}
+
+export function buildRenameMenuMessage(oldName: string, newName: string): string {
+  return `Rename menu ${oldName} to ${newName}`;
+}
+
+export function buildDeleteMenuMessage(menuName: string): string {
+  return `Delete menu ${menuName}`;
+}

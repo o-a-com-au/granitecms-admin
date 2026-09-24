@@ -1,31 +1,40 @@
 import { useState, type FormEvent } from 'react';
-import { saveSiteDraft, SiteEditorError } from '../api/site-editor.ts';
+import { SiteEditorError } from '../api/site-editor.ts';
+import { createSiteMenu } from '../api/site-menus.ts';
+import { buildCreateMenuMessage } from '../menus/buildMenuItemMessage.ts';
 import { slugify } from './slugify.ts';
 
 export interface NewMenuModalProps {
   siteId: string;
+  // Whether the site's agent can store a menu's own display name
+  // (content schema 7+, see MENU_NAME_SCHEMA_VERSION). When it can, the
+  // Name typed here is saved as the menu's "name"; when it can't, Name
+  // only ever suggested the filename, as before.
+  supportsMenuNames: boolean;
   onCreated: () => void;
   onClose: () => void;
 }
 
-// menu.schema.json is {schemaVersion, items: [{label, url}]},
-// additionalProperties: false - deriveMenuName.ts's own comment
-// confirms menus have no name/label field at all, so a brand new one
-// starts with an empty items array, not a guessed default item.
-const MENU_SCHEMA_VERSION = 1;
+// menu.schema.json is {schemaVersion, name?, items: [{label, url}]},
+// additionalProperties: false - a brand new menu starts with an empty
+// items array, not a guessed default item. Current content schema
+// version (the agent's CURRENT_SCHEMA_VERSION); menu.schema.json only
+// requires minimum 1, so this is still accepted by an older agent.
+const MENU_SCHEMA_VERSION = 7;
 
 // Mirrors NewPageModal.tsx's own Title -> slugified Path pattern, minus
 // the template picker (menus have no templates concept to pick from).
-// Creating the menu is the same PUT /v1/drafts/* every other save
-// already goes through (saveSiteDraft, unchanged) - the placeholder '*'
-// If-Match can never match a real file's etag, so attempting to create
-// at an already-occupied path naturally 409s through the existing
-// conflict handling below, rather than needing a separate pre-flight
-// existence check. Calls onCreated (MenusTabPanel.tsx's own refresh)
+// Created through the agent's own live, no-draft menus endpoint
+// (createSiteMenu), never PUT /v1/drafts/*: the agent never reads
+// menus from drafts, so a menu created that way never reached the
+// site. The placeholder If-Match can never match a real file's etag,
+// so attempting to create at an already-occupied path naturally 409s
+// through the existing conflict handling below, rather than needing a
+// separate pre-flight existence check. Calls onCreated (MenusTabPanel.tsx's own refresh)
 // and closes rather than navigating anywhere - there is no more
 // separate menu editor route to land on now that items are edited
 // inline in the same accordion this modal already sits inside.
-export function NewMenuModal({ siteId, onCreated, onClose }: NewMenuModalProps) {
+export function NewMenuModal({ siteId, supportsMenuNames, onCreated, onClose }: NewMenuModalProps) {
   const [name, setName] = useState('');
   const [path, setPath] = useState('');
   const [pathTouched, setPathTouched] = useState(false);
@@ -44,10 +53,14 @@ export function NewMenuModal({ siteId, onCreated, onClose }: NewMenuModalProps) 
     setError(null);
 
     const trimmedPath = displayedPath.trim();
+    const trimmedName = name.trim();
 
     try {
-      const content = { schemaVersion: MENU_SCHEMA_VERSION, items: [] };
-      await saveSiteDraft(siteId, trimmedPath, JSON.stringify(content, null, 2), '*');
+      const envelope: Record<string, unknown> =
+        supportsMenuNames && trimmedName !== ''
+          ? { schemaVersion: MENU_SCHEMA_VERSION, name: trimmedName }
+          : { schemaVersion: MENU_SCHEMA_VERSION };
+      await createSiteMenu(siteId, trimmedPath, envelope, buildCreateMenuMessage(trimmedName || trimmedPath));
       onCreated();
       onClose();
     } catch (err) {

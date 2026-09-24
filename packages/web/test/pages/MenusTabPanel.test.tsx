@@ -28,12 +28,16 @@ const FOOTER_MENU_ENTRY = {
 };
 
 interface MenuFile {
-  content: { schemaVersion: number; items: Array<{ label: string; url: string }> };
+  content: { schemaVersion: number; name?: string; items: Array<{ label: string; url: string }> };
   etag: string;
+  source?: 'draft' | 'live';
 }
 
-function installFakeApi(entries: unknown[], menuFiles: Record<string, MenuFile>) {
+// contentSchemaVersion is what the site's agent reports; 7 is the first
+// that can store a menu's own display name.
+function installFakeApi(entries: unknown[], menuFiles: Record<string, MenuFile>, { contentSchemaVersion = 6 } = {}) {
   const files: Record<string, MenuFile> = { ...menuFiles };
+  let listedEntries = [...entries] as Array<{ path: string }>;
   const calls: Array<{ method: string; url: string; body?: unknown }> = [];
 
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -42,8 +46,33 @@ function installFakeApi(entries: unknown[], menuFiles: Record<string, MenuFile>)
     const body = init?.body ? (JSON.parse(init.body as string) as unknown) : undefined;
     calls.push({ method, url, body });
 
+    if (method === 'GET' && url === '/api/sites') {
+      const status = { state: 'ok', agentVersion: '0.5.2', contentSchemaVersion, sqliteDriver: 'node:sqlite' };
+      return new Response(JSON.stringify([{ id: 'site-1', url: 'http://site.example', createdAt: '', updatedAt: '', status }]), {
+        status: 200,
+      });
+    }
     if (method === 'GET' && (url.endsWith('/content') || url.includes('/content?'))) {
-      return new Response(JSON.stringify(entries), { status: 200 });
+      return new Response(JSON.stringify(listedEntries), { status: 200 });
+    }
+    const draftMatch = /\/drafts\/(.+)$/.exec(url);
+    if (method === 'DELETE' && draftMatch) {
+      const path = decodeURIComponent(draftMatch[1] as string);
+      if (files[path]?.source === 'draft') {
+        delete files[path];
+        listedEntries = listedEntries.filter((entry) => entry.path !== path);
+      }
+      return new Response(null, { status: 204 });
+    }
+    const deleteMatch = /\/content\/(.+)$/.exec(url);
+    if (method === 'DELETE' && deleteMatch) {
+      const path = decodeURIComponent(deleteMatch[1] as string);
+      if (!files[path]) {
+        return new Response(JSON.stringify({ message: `No live page found at "${path}"` }), { status: 404 });
+      }
+      delete files[path];
+      listedEntries = listedEntries.filter((entry) => entry.path !== path);
+      return new Response(null, { status: 204 });
     }
     const contentMatch = /\/content\/(.+)$/.exec(url);
     if (method === 'GET' && contentMatch) {
@@ -54,7 +83,7 @@ function installFakeApi(entries: unknown[], menuFiles: Record<string, MenuFile>)
       }
       return new Response(JSON.stringify(file.content), {
         status: 200,
-        headers: { etag: file.etag, 'x-content-source': 'live' },
+        headers: { etag: file.etag, 'x-content-source': file.source ?? 'live' },
       });
     }
     const menusMatch = /\/menus\/(.+)$/.exec(url);
@@ -287,5 +316,115 @@ describe('MenusTabPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add Menu' }));
 
     expect(screen.getByRole('heading', { name: 'New Menu' })).toBeDefined();
+  });
+  it('shows a menu\'s own display name in place of the filename-derived one', async () => {
+    installFakeApi([FOOTER_MENU_ENTRY], {
+      'menus/footerCompany.json': { content: { schemaVersion: 7, name: 'Company', items: [] }, etag: '"etag-1"' },
+    });
+
+    renderPanel();
+
+    await waitFor(() => expect(screen.getByText('Company')).toBeDefined());
+    expect(screen.queryByText('Footer Company')).toBeNull();
+  });
+
+  it('offers no Edit on a menu row while the site\'s agent cannot store a menu name', async () => {
+    installFakeApi([MAIN_MENU_ENTRY], {
+      'menus/main.json': { content: { schemaVersion: 6, items: [] }, etag: '"etag-1"' },
+    });
+
+    renderPanel();
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete Main' })).toBeDefined());
+    expect(screen.queryByRole('button', { name: 'Edit Main' })).toBeNull();
+  });
+
+  it('Edit renames a menu by its display name only: items and filename are untouched', async () => {
+    const { calls } = installFakeApi(
+      [MAIN_MENU_ENTRY],
+      { 'menus/main.json': { content: { schemaVersion: 7, items: [{ label: 'Home', url: '/' }] }, etag: '"etag-1"' } },
+      { contentSchemaVersion: 7 },
+    );
+
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Main' }));
+    // The row itself must not have toggled open from the same click.
+    expect(screen.queryByText('Home', { selector: 'strong' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Header' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(screen.getByText('Header')).toBeDefined());
+    const putCall = calls.find((call) => call.method === 'PUT');
+    expect(putCall?.url).toBe('/api/sites/site-1/menus/menus/main.json');
+    expect(putCall?.body).toEqual({
+      content: { schemaVersion: 7, name: 'Header', items: [{ label: 'Home', url: '/' }] },
+      message: 'Rename menu Main to Header',
+    });
+    expect(Number(screen.getByTestId('preview-generation').textContent)).toBeGreaterThan(0);
+  });
+
+  it('clearing the name removes it, falling back to the filename-derived label', async () => {
+    const { calls } = installFakeApi(
+      [MAIN_MENU_ENTRY],
+      { 'menus/main.json': { content: { schemaVersion: 7, name: 'Header', items: [] }, etag: '"etag-1"' } },
+      { contentSchemaVersion: 7 },
+    );
+
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Header' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: '  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(screen.getByText('Main')).toBeDefined());
+    const putCall = calls.find((call) => call.method === 'PUT');
+    expect(putCall?.body).toEqual({ content: { schemaVersion: 7, items: [] }, message: 'Rename menu Header to Main' });
+  });
+
+  it('Delete asks for confirmation first, then deletes the live menu file and bumps the preview', async () => {
+    const { calls } = installFakeApi([MAIN_MENU_ENTRY], {
+      'menus/main.json': { content: { schemaVersion: 6, items: [{ label: 'Home', url: '/' }] }, etag: '"etag-1"' },
+    });
+
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Main' }));
+
+    expect(screen.getByRole('alertdialog')).toBeDefined();
+    expect(calls.some((call) => call.method === 'DELETE')).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => expect(screen.getByText('No menus found.')).toBeDefined());
+    const deleteCall = calls.find((call) => call.method === 'DELETE' && call.url.includes('/content/'));
+    expect(deleteCall?.url).toBe('/api/sites/site-1/content/menus/main.json');
+    expect(deleteCall?.body).toEqual({ message: 'Delete menu Main' });
+    expect(Number(screen.getByTestId('preview-generation').textContent)).toBeGreaterThan(0);
+  });
+
+  it('cancelling the delete confirmation deletes nothing', async () => {
+    const { calls } = installFakeApi([MAIN_MENU_ENTRY], {
+      'menus/main.json': { content: { schemaVersion: 6, items: [] }, etag: '"etag-1"' },
+    });
+
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Main' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.getByText('Main')).toBeDefined();
+    expect(calls.some((call) => call.method === 'DELETE')).toBe(false);
+  });
+
+  it('deletes a draft-only menu (created by an older admin) by discarding its draft', async () => {
+    const { calls } = installFakeApi([MAIN_MENU_ENTRY], {
+      'menus/main.json': { content: { schemaVersion: 1, items: [] }, etag: '"etag-1"', source: 'draft' },
+    });
+
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Main' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => expect(screen.getByText('No menus found.')).toBeDefined());
+    expect(calls.some((call) => call.method === 'DELETE' && call.url === '/api/sites/site-1/drafts/menus/main.json')).toBe(true);
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

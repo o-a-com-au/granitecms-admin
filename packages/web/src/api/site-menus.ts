@@ -1,5 +1,6 @@
-import { listSiteContent, SiteContentError } from './site-content.ts';
+import { deleteSitePage, listSiteContent, SiteContentError } from './site-content.ts';
 import { readSiteEditorContent, reasonFromResponse, encodePathSegments, SiteEditorError } from './site-editor.ts';
+import { discardSiteDraft } from './site-publishing.ts';
 
 export interface MenuItem {
   label: string;
@@ -8,6 +9,16 @@ export interface MenuItem {
 
 export interface SiteMenu {
   path: string;
+  // The menu's optional display name (menu.schema.json, content schema
+  // 7+), or null when it has none - menuDisplayName() falls back to
+  // deriving one from the filename. Also still present inside envelope,
+  // so an items-only save round-trips it untouched.
+  name: string | null;
+  // Where readSiteEditorContent found it. Menus have no draft state on
+  // the agent (Group N), but NewMenuModal used to create them as
+  // drafts, so a draft-only menu can still exist on a real site -
+  // deleteSiteMenu has to clean up either kind.
+  source: 'draft' | 'live';
   // Everything the envelope carries besides items (schemaVersion today,
   // possibly more later) - kept and round-tripped as-is on every save
   // rather than reconstructed, so a save can never silently downgrade
@@ -80,9 +91,10 @@ export async function listSiteMenus(siteId: string): Promise<SiteMenu[]> {
 
   return Promise.all(
     menuPaths.map(async (path) => {
-      const { content, etag } = await readSiteEditorContent(siteId, path);
+      const { content, etag, source } = await readSiteEditorContent(siteId, path);
       const { envelope, items } = parseMenu(content);
-      return { path, envelope, items, etag };
+      const name = typeof envelope.name === 'string' && envelope.name !== '' ? envelope.name : null;
+      return { path, name, source, envelope, items, etag };
     }),
   );
 }
@@ -128,4 +140,37 @@ export async function saveSiteMenuItems(
     throw new SiteEditorError('error', 'The website did not return a new ETag after saving');
   }
   return newEtag;
+}
+
+// Creates a menu through the same live, no-draft PUT the item edits
+// above use - never PUT /drafts/*, which the agent never reads menus
+// from (loadMenus only walks content/menus/), so a menu created as a
+// draft never reached the site. The placeholder If-Match can't match
+// a real file's etag, so an occupied path 409s ('conflict') rather
+// than being overwritten; a brand new path skips the check agent-side.
+export async function createSiteMenu(
+  siteId: string,
+  path: string,
+  envelope: Record<string, unknown>,
+  message: string,
+): Promise<void> {
+  await saveSiteMenuItems(siteId, path, envelope, [], '*', message);
+}
+
+// Removes a menu whichever state it is in. Discarding the draft is
+// idempotent agent-side (a no-op when there is none), and a draft-only
+// menu has no live file for DELETE /content/* to find, so that
+// 'not-found' is treated as already gone rather than a failure.
+export async function deleteSiteMenu(siteId: string, menu: Pick<SiteMenu, 'path' | 'source'>, message: string): Promise<void> {
+  if (menu.source === 'draft') {
+    await discardSiteDraft(siteId, menu.path);
+  }
+  try {
+    await deleteSitePage(siteId, menu.path, message);
+  } catch (err) {
+    if (err instanceof SiteEditorError && err.reason === 'not-found') {
+      return;
+    }
+    throw err;
+  }
 }

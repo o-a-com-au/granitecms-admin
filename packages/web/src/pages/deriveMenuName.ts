@@ -11,10 +11,10 @@ export function isMenuPath(path: string): boolean {
   return path.startsWith('menus/');
 }
 
-// Menus have no name/label field at all (menu.schema.json is
-// {schemaVersion, items} only, additionalProperties: false) - the only
-// identity a menu has is its filename. This derives a readable display
-// name from it: "menus/footerCompany.json" -> "Footer Company".
+// A menu's own optional "name" (content schema 7+) wins when set -
+// see menuDisplayName below. Without one, the only identity a menu has
+// is its filename, and this derives a readable display name from it:
+// "menus/footerCompany.json" -> "Footer Company".
 export function deriveMenuName(path: string): string {
   const withoutPrefix = path.replace(/^menus\//, '');
   const withoutExtension = withoutPrefix.replace(/\.json$/, '');
@@ -26,3 +26,17 @@ export function deriveMenuName(path: string): string {
 
   return words.map((word) => word[0]?.toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 }
+
+// What every menu row, dialog and commit message should call a menu:
+// its own display name when it has one, otherwise the filename-derived
+// one above. The filename itself never changes on a rename - layouts
+// reference a menu by it (menus.<filename>.items).
+export function menuDisplayName(menu: { path: string; name: string | null }): string {
+  return menu.name ?? deriveMenuName(menu.path);
+}
+
+// Content schema 7 is the first agent version whose menu.schema.json
+// accepts "name". An older agent rejects the whole save
+// (additionalProperties: false), so naming is only offered once the
+// site reports it can store one.
+export const MENU_NAME_SCHEMA_VERSION = 7;
