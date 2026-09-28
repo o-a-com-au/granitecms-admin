@@ -332,7 +332,7 @@ describe('AppShell', () => {
     // Pages first, then Editor, then Media - IconRail.tsx's own order.
     const nav = screen.getByRole('navigation', { name: 'Primary' });
     const items = within(nav).getAllByRole('link').map((el) => el.textContent);
-    expect(items).toEqual(['Pages', 'Editor', 'Media']);
+    expect(items).toEqual(['Pages', 'Editor', 'Media', 'Settings']);
   });
 
   it('disables Pages, Media, and Editor too when no site is known at all (a genuine first-ever visit)', async () => {

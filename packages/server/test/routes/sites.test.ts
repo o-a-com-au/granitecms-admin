@@ -2599,6 +2599,95 @@ describe('sites routes', () => {
     await app.close();
   });
 
+  it('GET /api/sites/:id/settings returns the schema and values with the ETag; a site without settings is reported as unsupported', async () => {
+    const { app, cookie } = await buildTestServer();
+    let supported = true;
+    fakeSite = createServer((req, res) => {
+      if (req.url !== '/v1/settings') {
+        sendJson(res, 200, { agentVersion: '0.7.0', contentSchemaVersion: 7, sqliteDriver: 'node:sqlite' });
+        return;
+      }
+      if (!supported) {
+        sendJson(res, 404, { message: 'Not Found' });
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json', etag: '"s1"' });
+      res.end(JSON.stringify({ schema: { type: 'object', properties: {} }, settings: { a: 1 }, resolved: { a: 1 } }));
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const { port } = fakeSite.address() as { port: number };
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${port}`, 'the-token');
+
+    const ok = await app.inject({ method: 'GET', url: `/api/sites/${id}/settings`, headers: { cookie } });
+    assert.equal(ok.statusCode, 200);
+    assert.equal(ok.headers.etag, '"s1"');
+    assert.deepEqual(ok.json(), { schema: { type: 'object', properties: {} }, settings: { a: 1 }, resolved: { a: 1 } });
+
+    supported = false;
+    const old = await app.inject({ method: 'GET', url: `/api/sites/${id}/settings`, headers: { cookie } });
+    assert.equal(old.statusCode, 404);
+    assert.equal(old.json().reason, 'unsupported');
+
+    await app.close();
+  });
+
+  it('PUT /api/sites/:id/settings forwards If-Match and the logged-in author (never the caller\'s), and passes a site\'s field errors back', async () => {
+    const { app, cookie } = await buildTestServer();
+    let received: Record<string, unknown> = {};
+    let ifMatch: string | undefined;
+    let reject = false;
+    fakeSite = createServer((req, res) => {
+      if (req.method !== 'PUT' || req.url !== '/v1/settings') {
+        sendJson(res, 200, { agentVersion: '0.7.0', contentSchemaVersion: 7, sqliteDriver: 'node:sqlite' });
+        return;
+      }
+      ifMatch = req.headers['if-match'];
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        received = JSON.parse(Buffer.concat(chunks).toString());
+        if (reject) {
+          sendJson(res, 400, { message: 'Site settings failed validation', errors: [{ path: '/body_font', message: 'must be one of the allowed values' }] });
+          return;
+        }
+        res.writeHead(200, { etag: '"s2"' });
+        res.end('{"ok":true}');
+      });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const { port } = fakeSite.address() as { port: number };
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${port}`, 'the-token');
+
+    const saved = await app.inject({
+      method: 'PUT',
+      url: `/api/sites/${id}/settings`,
+      headers: { cookie, 'if-match': '"s1"' },
+      payload: { settings: { body_font: 'Serif' }, message: 'Update site settings', author: { name: 'Attacker', email: 'x@x.com' } },
+    });
+    assert.equal(saved.statusCode, 200);
+    assert.equal(saved.headers.etag, '"s2"');
+    assert.equal(ifMatch, '"s1"');
+    assert.deepEqual(received.settings, { body_font: 'Serif' });
+    assert.equal((received.author as { name: string }).name, 'Jane Editor');
+
+    reject = true;
+    const invalid = await app.inject({
+      method: 'PUT',
+      url: `/api/sites/${id}/settings`,
+      headers: { cookie, 'if-match': '"s2"' },
+      payload: { settings: { body_font: 'Comic Sans' }, message: 'm' },
+    });
+    assert.equal(invalid.statusCode, 400);
+    assert.deepEqual(invalid.json().errors, [{ path: '/body_font', message: 'must be one of the allowed values' }]);
+
+    const noIfMatch = await app.inject({ method: 'PUT', url: `/api/sites/${id}/settings`, headers: { cookie }, payload: { settings: {}, message: 'm' } });
+    assert.equal(noIfMatch.statusCode, 428);
+    const noSettings = await app.inject({ method: 'PUT', url: `/api/sites/${id}/settings`, headers: { cookie, 'if-match': '*' }, payload: { message: 'm' } });
+    assert.equal(noSettings.statusCode, 400);
+
+    await app.close();
+  });
+
   it('POST /api/sites/:id/menus/rename forwards handles, If-Match and the logged-in author, returning stale theme references', async () => {
     const { app, cookie } = await buildTestServer();
     let receivedBody: Record<string, unknown> = {};

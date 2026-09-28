@@ -33,6 +33,7 @@ import { fetchSitePageTemplates } from '../sites/site-page-templates.ts';
 import { deleteSiteMedia, listSiteMedia, uploadSiteMedia } from '../sites/site-media.ts';
 import { createSiteRedirect, deleteSiteRedirect, listSiteRedirects, updateSiteRedirect } from '../sites/site-redirects.ts';
 import { fetchSiteMenuReferences, renameSiteMenu, saveSiteMenu } from '../sites/site-menus.ts';
+import { fetchSiteSettings, saveSiteSettings } from '../sites/site-settings.ts';
 
 // The raw token is never included here, full stop - built by this
 // explicit mapping function rather than spreading the Site record, so
@@ -1214,6 +1215,65 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
         return { error: result.message, reason: result.outcome };
       },
     );
+
+    // Site settings: the theme's schema plus the saved values, for the
+    // Settings screen's form. The ETag travels as a header, as for a
+    // menu or a draft.
+    app.get<{ Params: { id: string } }>('/:id/settings', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
+      const site = await sitesStore.find(request.params.id);
+      if (!site) {
+        throw new SiteNotFoundError(request.params.id);
+      }
+      const result = await fetchSiteSettings(site);
+      if (result.outcome === 'ok') {
+        if (result.payload.etag) {
+          reply.header('etag', result.payload.etag);
+        }
+        return { schema: result.payload.schema, settings: result.payload.settings, resolved: result.payload.resolved };
+      }
+      if (result.outcome === 'unsupported') {
+        reply.code(404);
+        return { error: result.message, reason: 'unsupported' };
+      }
+      reply.code(502);
+      return { error: result.message, reason: result.outcome };
+    });
+
+    // Saves and puts them live at once, like a menu. If-Match is the
+    // ETag from the GET ("*" while nothing has been saved yet).
+    app.put<{ Params: { id: string } }>('/:id/settings', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
+      const site = await sitesStore.find(request.params.id);
+      if (!site) {
+        throw new SiteNotFoundError(request.params.id);
+      }
+      const ifMatch = request.headers['if-match'];
+      if (typeof ifMatch !== 'string' || ifMatch.trim() === '') {
+        reply.code(428);
+        return { statusCode: 428, error: 'Precondition Required', message: 'An If-Match header is required to save site settings' };
+      }
+      const body = request.body as { settings?: unknown; message?: unknown } | null;
+      const settings = body?.settings;
+      if (typeof settings !== 'object' || settings === null || Array.isArray(settings) || typeof body?.message !== 'string' || body.message.trim() === '') {
+        reply.code(400);
+        return { statusCode: 400, error: 'Bad Request', message: 'settings (an object) and message are both required' };
+      }
+      const author = requireCommitAuthor(request.currentUser);
+      const result = await saveSiteSettings(site, settings as Record<string, unknown>, ifMatch, body.message, author);
+      if (result.outcome === 'ok') {
+        reply.header('etag', result.etag);
+        return { ok: true };
+      }
+      if (result.outcome === 'conflict') {
+        reply.code(409);
+        return { statusCode: 409, error: 'Conflict', message: result.message };
+      }
+      if (result.outcome === 'invalid') {
+        reply.code(400);
+        return { statusCode: 400, error: 'Bad Request', message: result.message, errors: result.errors };
+      }
+      reply.code(502);
+      return { error: result.message, reason: result.outcome };
+    });
 
     // I2, I3, I4: what the schema-driven section/block editor is
     // built from - a single read-only pass-through, no query params.

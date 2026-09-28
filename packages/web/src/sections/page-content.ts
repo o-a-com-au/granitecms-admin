@@ -59,7 +59,7 @@ export function parsePage(content: string): ParsedPage | null {
 // for every real case, not just a guess. Every other keyword (pattern,
 // minimum/maximum, enum, etc.) keeps Ajv's own message untouched -
 // only these two have a real, seen-in-practice wording problem.
-function friendlyFieldErrorMessage(error: ValidationFieldError): string {
+export function friendlyFieldErrorMessage(error: ValidationFieldError): string {
   if (error.keyword === 'minLength' || error.keyword === 'required') {
     return 'This field is required.';
   }

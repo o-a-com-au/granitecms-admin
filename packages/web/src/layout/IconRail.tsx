@@ -40,6 +40,18 @@ function ImageIcon() {
   );
 }
 
+// Lucide's "settings" (the same source and 1.75 stroke as the three
+// above), for the site's own settings - not the account menu's Account
+// Settings, which covers the person and their websites.
+function SettingsIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
 export interface IconRailProps {
   editorTo: string | undefined;
   isEditingPage: boolean;
@@ -47,6 +59,8 @@ export interface IconRailProps {
   isOnContent: boolean;
   mediaTo: string | undefined;
   isOnMedia: boolean;
+  settingsTo: string | undefined;
+  isOnSettings: boolean;
 }
 
 interface IconRailItemProps {
@@ -83,12 +97,13 @@ function IconRailItem({ label, to, active, icon }: IconRailItemProps) {
 // destinations. AppShell.tsx still owns computing each href (site
 // fallback, active-route logic) - this component only ever renders
 // what it's given, matching TopNavItem's old division of labour.
-export function IconRail({ editorTo, isEditingPage, contentTo, isOnContent, mediaTo, isOnMedia }: IconRailProps) {
+export function IconRail({ editorTo, isEditingPage, contentTo, isOnContent, mediaTo, isOnMedia, settingsTo, isOnSettings }: IconRailProps) {
   return (
     <nav className="app-sidebar" aria-label="Primary">
       <IconRailItem label="Pages" to={contentTo} active={isOnContent} icon={<FileIcon />} />
       <IconRailItem label="Editor" to={editorTo} active={isEditingPage} icon={<SquarePenIcon />} />
       <IconRailItem label="Media" to={mediaTo} active={isOnMedia} icon={<ImageIcon />} />
+      <IconRailItem label="Settings" to={settingsTo} active={isOnSettings} icon={<SettingsIcon />} />
     </nav>
   );
 }

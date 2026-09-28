@@ -13,6 +13,7 @@ import { RegisterSitePage } from './pages/settings/RegisterSitePage.tsx';
 import { ManageSitePage } from './pages/settings/ManageSitePage.tsx';
 import { PagesHubPage } from './pages/PagesHubPage.tsx';
 import { MediaLibraryPage } from './pages/MediaLibraryPage.tsx';
+import { SiteSettingsPage } from './pages/SiteSettingsPage.tsx';
 import { PageEditorPage } from './pages/PageEditorPage.tsx';
 import { RequireAuth } from './auth/RequireAuth.tsx';
 import { RequireDeveloper } from './auth/RequireDeveloper.tsx';
@@ -74,6 +75,7 @@ export const routes: RouteObject[] = [
           },
           { path: '/sites/:siteId/content', element: <PagesHubPage /> },
           { path: '/sites/:siteId/media', element: <MediaLibraryPage /> },
+          { path: '/sites/:siteId/settings', element: <SiteSettingsPage /> },
           { path: '/sites/:siteId/editor', element: <PageEditorPage /> },
         ],
       },
