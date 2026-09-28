@@ -10,12 +10,22 @@
    this, that added up to a genuine, permanent horizontal scrollbar on
    the whole document - confirmed live via html.scrollWidth exceeding
    clientWidth by exactly --editor-sidebar-width on every route, not
-   just Editor. */
+   just Editor.
+
+   Clipped on both axes, not just x: overflow-x: hidden alone computes
+   overflow-y to auto, so anything poking below the window for a moment
+   gave the whole page a vertical scrollbar - the panels' own fade-in
+   starts 12px low, so every switch between Pages/Editor/Media/Settings
+   flashed one, resizing everything beside it (reported directly). The
+   shell never needs to scroll itself: it is exactly the window's
+   height, and every region inside it (panels, preview, the content
+   area on a phone) scrolls on its own. clip rather than hidden, so
+   nothing (scrollIntoView included) can scroll it either. */
 .app-shell {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  overflow-x: hidden;
+  overflow: clip;
 }
 
 /* The row everything but the top bar lives in - the rail on the left,
@@ -824,9 +834,16 @@ button.app-avatar:hover {
      mobile preview experience). */
   .app-content:has(.editor-page),
   .app-content:has(.pages-hub),
-  .app-content:has(.media-hub) {
+  .app-content:has(.media-hub),
+  .app-content:has(.settings-hub) {
     flex: 1;
     width: 100%;
+  }
+
+  /* And Settings' own panel with it, instead of the desktop panel width
+     its rule above sets (same specificity, later, so this wins). */
+  .settings-hub .media-hub-panel {
+    flex: 1 1 auto;
   }
 
   .shared-preview-region {
