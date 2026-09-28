@@ -134,4 +134,42 @@ describe('SectionSettingsForm', () => {
     fireEvent.change(textarea, { target: { value: '{"legacy":false}' } });
     expect(onChange).toHaveBeenCalledWith({ legacy: false });
   });
+  const GROUPED_SCHEMA = {
+    type: 'object',
+    properties: {
+      site_name: { type: 'string', title: 'Site name' },
+      github_url: { type: 'string', title: 'GitHub link', group: 'Social links' },
+      headline_font: { type: 'string', title: 'Headline font', enum: ['Serif', 'Sans-serif'], group: 'Typography' },
+      x_url: { type: 'string', title: 'X link', group: 'Social links' },
+    },
+  };
+
+  it('puts fields with a "group" in accordions: ungrouped first, groups in schema order, the first open', () => {
+    render(<SectionSettingsForm siteId="site-1" schema={GROUPED_SCHEMA} settings={{}} onChange={vi.fn()} />);
+
+    const rows = screen.getAllByRole('button', { expanded: true }).concat(screen.getAllByRole('button', { expanded: false }));
+    expect(rows.map((row) => row.textContent)).toEqual(['Social links', 'Typography']);
+    expect(screen.getByLabelText('Site name')).toBeDefined();
+    expect(screen.getByLabelText('GitHub link')).toBeDefined();
+    expect(screen.getByLabelText('X link')).toBeDefined();
+    expect(screen.queryByLabelText('Headline font')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Typography' }));
+    expect(screen.getByLabelText('Headline font')).toBeDefined();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Social links' }), { key: 'Enter' });
+    expect(screen.queryByLabelText('GitHub link')).toBeNull();
+  });
+
+  it('opens a closed group holding a field with an error, so the error is seen', () => {
+    render(
+      <SectionSettingsForm siteId="site-1" schema={GROUPED_SCHEMA} settings={{}} onChange={vi.fn()} fieldErrors={{ headline_font: 'Pick one' }} />,
+    );
+    expect(screen.getByRole('button', { name: 'Typography' }).getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByLabelText('Headline font')).toBeDefined();
+  });
+
+  it('a schema with no groups stays a plain list, with no accordion rows', () => {
+    render(<SectionSettingsForm siteId="site-1" schema={HERO_SCHEMA} settings={{}} onChange={vi.fn()} />);
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+  });
 });

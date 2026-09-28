@@ -151,6 +151,16 @@
   gap: 1.25rem;
 }
 
+/* Fields sharing a schema "group" (SectionSettingsForm.tsx), under an
+   accordion row like the Menus list's, with the same gap between them
+   as ungrouped fields. */
+.settings-group-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: var(--space-md) var(--space-xs) var(--space-sm);
+}
+
 /* min-height moved to base.css's own shared textarea rule - this field
    was the only one tall enough to read properly, and 7rem is now what
    every prose textarea starts at rather than this one's private value.
