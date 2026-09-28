@@ -156,7 +156,7 @@ describe('SectionSettingsForm', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Typography' }));
     expect(screen.getByLabelText('Headline font')).toBeDefined();
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Social links' }), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Social links' }));
     expect(screen.queryByLabelText('GitHub link')).toBeNull();
   });
 

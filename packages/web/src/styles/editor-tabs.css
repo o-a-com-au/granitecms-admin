@@ -151,14 +151,74 @@
   gap: 1.25rem;
 }
 
-/* Fields sharing a schema "group" (SectionSettingsForm.tsx), under an
-   accordion row like the Menus list's, with the same gap between them
-   as ungrouped fields. */
+/* Fields sharing a schema "group" (SectionSettingsForm.tsx): flat
+   accordion rows running the panel's full width, divided by hairlines
+   (from a mockup). The negative inline margin undoes the scrolling
+   panel's own var(--space-md) side padding (.editor-tab-content, and
+   the Editor's .editor-fields-panel-body, which match); as the form's
+   first child the groups also sit flush under the panel heading. */
+.settings-groups {
+  margin: 0 calc(-1 * var(--space-md));
+  border-bottom: 1px solid var(--colour-accordion-divider);
+}
+
+.section-settings-form > .settings-groups:first-child {
+  margin-top: calc(-1 * var(--space-lg));
+}
+
+.settings-group + .settings-group,
+.section-settings-form > * + .settings-groups {
+  border-top: 1px solid var(--colour-accordion-divider);
+}
+
+/* .settings-groups in the selector: button[type='button'] (base.css)
+   is as specific as a bare button class and would put its own surface
+   background and border back. */
+.settings-groups button.settings-group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-md);
+  border: none;
+  border-radius: 0;
+  /* Dark at the top, down to the panel's own colour, square cornered
+     (from the mockup). */
+  background: var(--gradient-accordion-header);
+  color: var(--colour-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-groups button.settings-group-toggle:hover,
+.settings-group.is-expanded button.settings-group-toggle {
+  background: var(--gradient-accordion-header);
+  color: var(--colour-text);
+}
+
+.settings-group-chevron {
+  display: flex;
+  transform: rotate(90deg);
+  transition: transform 0.2s ease;
+}
+
+.settings-group.is-expanded .settings-group-chevron {
+  transform: rotate(-90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-group-chevron {
+    transition: none;
+  }
+}
+
 .settings-group-fields {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  padding: var(--space-md) var(--space-xs) var(--space-sm);
+  padding: var(--space-sm) var(--space-md) var(--space-xl) var(--space-md);
 }
 
 /* min-height moved to base.css's own shared textarea rule - this field

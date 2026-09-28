@@ -224,6 +224,11 @@
   --gradient-viewport: linear-gradient(0deg, var(--grey-100), var(--grey-200));
   --gradient-panel-heading: linear-gradient(0deg, var(--grey-750), var(--colour-surface));
   --gradient-panel-toolbar: linear-gradient(0deg, var(--grey-850), var(--colour-surface));
+  /* Settings-group accordion headers (SectionSettingsForm.tsx): one step
+     darker at the top, down to the panel's own surface, so the header
+     blends into the panel beneath it (requested directly). */
+  --gradient-accordion-header: linear-gradient(180deg, var(--grey-850), var(--colour-surface));
+  --colour-accordion-divider: var(--colour-border);
 }
 
 [data-theme='light'] {
@@ -278,4 +283,8 @@
     --gradient-viewport: linear-gradient(0deg, var(--grey-100), var(--grey-200));
   --gradient-panel-heading: linear-gradient(0deg, var(--grey-50), var(--colour-surface));
    --gradient-panel-toolbar: linear-gradient(0deg, var(--grey-50), var(--colour-surface));
+  /* No gradient in light mode, and lighter dividers than the usual
+     border: both read as heavy on white (requested directly). */
+  --gradient-accordion-header: none;
+  --colour-accordion-divider: var(--grey-100);
 }

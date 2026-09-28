@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useState } from 'react';
 import { AccordionArrowIcon } from './AccordionArrowIcon.tsx';
 import { SchemaField } from './SchemaField.tsx';
 import { fieldLabel } from './instance-types.ts';
@@ -73,9 +73,9 @@ function arrange(properties: Record<string, Record<string, unknown>>): { ungroup
 // theme no longer declares (e.g. content authored against an older
 // theme version) falls back to raw settings editing rather than
 // silently hiding or discarding the instance. Fields with a "group" are
-// shown in accordions, the same rows as the Menus list: the first
-// starts open, and a group holding a field with an error opens so the
-// error is seen.
+// shown in accordions - flat rows running the panel's full width, a
+// chevron on the right - the first open, and a group holding a field
+// with an error opened so the error is seen.
 export function SectionSettingsForm({ siteId, schema, settings, onChange, fieldErrors }: SectionSettingsFormProps) {
   const properties = (schema?.properties ?? {}) as Record<string, Record<string, unknown>>;
   const { ungrouped, groups } = arrange(properties);
@@ -113,33 +113,24 @@ export function SectionSettingsForm({ siteId, schema, settings, onChange, fieldE
     <div className="section-settings-form">
       {ungrouped.map(field)}
       {groups.length > 0 && (
-        <ul className="instance-list settings-groups">
+        <div className="settings-groups">
           {groups.map(([group, entries]) => {
             const expanded = open.has(group) || entries.some(([key]) => fieldErrors?.[key] !== undefined);
-            const onKeyDown = (event: KeyboardEvent) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                toggle(group);
-              }
-            };
             return (
-              <li className="instance-row" key={group}>
-                <div className="instance-row-main" role="button" tabIndex={0} aria-expanded={expanded} onClick={() => toggle(group)} onKeyDown={onKeyDown}>
-                  {/* Decorative, as in the Menus list: the row itself is the control. */}
-                  <button type="button" className="instance-row-chevron" tabIndex={-1} aria-hidden="true">
-                    <span className={`instance-row-chevron-icon${expanded ? ' is-expanded' : ''}`}>
-                      <AccordionArrowIcon />
-                    </span>
-                  </button>
-                  <span className="instance-row-label">
-                    <strong title={group}>{group}</strong>
+              // A div, not a <section>: base.css boxes every <section> (border,
+              // rounded corners, padding), which is not this row's look.
+              <div className={`settings-group${expanded ? ' is-expanded' : ''}`} key={group}>
+                <button type="button" className="settings-group-toggle" aria-expanded={expanded} onClick={() => toggle(group)}>
+                  <span className="settings-group-title">{group}</span>
+                  <span className="settings-group-chevron" aria-hidden="true">
+                    <AccordionArrowIcon />
                   </span>
-                </div>
+                </button>
                 {expanded && <div className="settings-group-fields">{entries.map(field)}</div>}
-              </li>
+              </div>
             );
           })}
-        </ul>
+        </div>
       )}
     </div>
   );
