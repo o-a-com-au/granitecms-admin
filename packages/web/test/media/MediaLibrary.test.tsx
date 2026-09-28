@@ -105,7 +105,13 @@ describe('MediaLibrary', () => {
     expect(calls.filter((call) => call.method === 'POST')).toHaveLength(0);
   });
 
-  it('drag-enter onto a child element then leaving it does not flicker the highlight off', async () => {
+  // A drag from the desktop carries "Files"; one of the grid's own
+  // thumbnails dragged toward the preview doesn't.
+  const files = (...list: File[]) => ({ dataTransfer: { types: ['Files'], files: list } });
+  const thumbnailDrag = { dataTransfer: { types: ['text/uri-list'], files: [] } };
+  const overlay = () => screen.queryByText('Drop files to upload');
+
+  it('drag-enter onto a child element then leaving it does not flicker the overlay off', async () => {
     installFakeApi();
     const { container } = render(<MediaLibrary siteId="site-1" mode="panel" />);
     await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
@@ -113,15 +119,43 @@ describe('MediaLibrary', () => {
     const dropzone = container.querySelector('.media-library-dropzone') as HTMLElement;
     const child = screen.getByText('alpha.jpg');
 
-    fireEvent.dragEnter(dropzone);
-    expect(dropzone.className).toContain('is-drag-active');
+    fireEvent.dragEnter(dropzone, files());
+    expect(overlay()).not.toBeNull();
 
-    fireEvent.dragEnter(child);
-    fireEvent.dragLeave(child);
-    expect(dropzone.className).toContain('is-drag-active');
+    fireEvent.dragEnter(child, files());
+    fireEvent.dragLeave(child, files());
+    expect(overlay()).not.toBeNull();
 
-    fireEvent.dragLeave(dropzone);
-    expect(dropzone.className).not.toContain('is-drag-active');
+    fireEvent.dragLeave(dropzone, files());
+    expect(overlay()).toBeNull();
+  });
+
+  it('with a drop target given (the Media panel), the whole target takes the drop and holds the overlay, however few images there are', async () => {
+    const { calls } = installFakeApi();
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+    try {
+      render(<MediaLibrary siteId="site-1" mode="panel" dropTarget={target} />);
+      await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
+
+      fireEvent.dragEnter(target, files());
+      expect(target.querySelector('.media-drop-overlay')?.textContent).toBe('Drop files to upload');
+
+      fireEvent.drop(target, files(new File(['x'], 'gamma.jpg', { type: 'image/jpeg' })));
+      expect(target.querySelector('.media-drop-overlay')).toBeNull();
+      await waitFor(() => expect(calls.some((call) => call.method === 'POST')).toBe(true));
+      await waitFor(() => expect(screen.getByText('gamma.jpg')).toBeDefined());
+    } finally {
+      target.remove();
+    }
+  });
+
+  it('dragging one of its own thumbnails (toward the preview) does not offer to upload it', async () => {
+    installFakeApi();
+    const { container } = render(<MediaLibrary siteId="site-1" mode="panel" />);
+    await waitFor(() => expect(screen.getByText('alpha.jpg')).toBeDefined());
+    fireEvent.dragEnter(container.querySelector('.media-library-dropzone') as HTMLElement, thumbnailDrag);
+    expect(overlay()).toBeNull();
   });
 
   it('deleting a card calls delete with the right name and refreshes the list', async () => {

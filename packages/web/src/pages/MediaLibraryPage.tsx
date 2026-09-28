@@ -72,6 +72,8 @@ export function MediaLibraryPage() {
   const deviceToggleNode = useMemo(() => <DeviceToggle device={device} onChange={setDevice} />, [device, setDevice]);
   usePageDeviceToggle(deviceToggleNode);
 
+  const [dropArea, setDropArea] = useState<HTMLDivElement | null>(null);
+
   return (
     <div className="media-hub">
       <div className="media-hub-panel">
@@ -80,15 +82,22 @@ export function MediaLibraryPage() {
             <h2 className="panel-heading">Media</h2>
           </div>
           {utilities}
-          <div className="editor-tab-content">
-            <div className="editor-tab-panel media-hub-tab">
-              <MediaLibrary
-                siteId={siteId}
-                mode="panel"
-                selectedItem={selectedItem}
-                onSelectedItemChange={setSelectedItem}
-                onUtilitiesChange={setUtilities}
-              />
+          {/* The drop target for uploads: everything below the toolbar,
+              however few images there are. The scrolling area sits
+              inside it, so the drop overlay (MediaLibrary.tsx, portalled
+              in here) stays put while the grid scrolls. */}
+          <div className="media-drop-area" ref={setDropArea}>
+            <div className="editor-tab-content">
+              <div className="editor-tab-panel media-hub-tab">
+                <MediaLibrary
+                  siteId={siteId}
+                  mode="panel"
+                  selectedItem={selectedItem}
+                  onSelectedItemChange={setSelectedItem}
+                  onUtilitiesChange={setUtilities}
+                  dropTarget={dropArea}
+                />
+              </div>
             </div>
           </div>
         </div>

@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { deleteSiteMedia, uploadSiteMedia, type MediaItem } from '../api/site-media.ts';
 import { useSiteMedia } from './useSiteMedia.ts';
 import { SearchInput } from '../components/SearchInput.tsx';
 import { TrashIcon } from '../sections/TrashIcon.tsx';
 import { VideoThumb } from './VideoThumb.tsx';
+import { DropFilesIcon } from './DropFilesIcon.tsx';
 import { MediaKindFilter } from './MediaKindFilter.tsx';
 import {
   hasAllowedUploadExtension,
@@ -33,6 +35,12 @@ export interface MediaLibraryProps {
   // register into at all - the toolbar renders inline there instead,
   // same as before.
   onUtilitiesChange?: (node: ReactNode | null) => void;
+  // The element files can be dropped on, when it's bigger than this
+  // component: the Media panel's whole scrolling area (MediaLibraryPage),
+  // so the drop target and its overlay fill the panel however few images
+  // there are, and the overlay stays put while the grid scrolls beneath
+  // it. Without it (the picker modal) the grid's own box is the target.
+  dropTarget?: HTMLElement | null;
 }
 
 interface FileError {
@@ -47,7 +55,7 @@ function matchesSearch(item: MediaItem, query: string): boolean {
   return item.name.toLowerCase().includes(query.trim().toLowerCase());
 }
 
-export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange, onUtilitiesChange }: MediaLibraryProps) {
+export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange, onUtilitiesChange, dropTarget }: MediaLibraryProps) {
   const { items, loading, loadError, maxUploadBytes, refresh } = useSiteMedia(siteId);
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState<MediaKind>('all');
@@ -155,13 +163,26 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
     event.target.value = '';
   }
 
-  function handleDragEnter(event: DragEvent<HTMLDivElement>): void {
+  // Only a drag carrying files lights the target up: dragging one of
+  // the grid's own thumbnails (onto the preview, to swap an image) is a
+  // drag too, and must not offer to upload it.
+  function carriesFiles(event: { dataTransfer: DataTransfer | null }): boolean {
+    return event.dataTransfer?.types.includes('Files') ?? false;
+  }
+
+  function handleDragEnter(event: { preventDefault(): void; dataTransfer: DataTransfer | null }): void {
+    if (!carriesFiles(event)) {
+      return;
+    }
     event.preventDefault();
     dragCounter.current += 1;
     setIsDragActive(true);
   }
 
-  function handleDragLeave(event: DragEvent<HTMLDivElement>): void {
+  function handleDragLeave(event: { preventDefault(): void; dataTransfer: DataTransfer | null }): void {
+    if (!carriesFiles(event)) {
+      return;
+    }
     event.preventDefault();
     dragCounter.current -= 1;
     if (dragCounter.current <= 0) {
@@ -170,12 +191,55 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
     }
   }
 
-  function handleDrop(event: DragEvent<HTMLDivElement>): void {
+  function handleDragOver(event: { preventDefault(): void; dataTransfer: DataTransfer | null }): void {
+    if (carriesFiles(event)) {
+      event.preventDefault();
+    }
+  }
+
+  function handleDrop(event: { preventDefault(): void; dataTransfer: DataTransfer | null }): void {
+    if (!carriesFiles(event)) {
+      return;
+    }
     event.preventDefault();
     dragCounter.current = 0;
     setIsDragActive(false);
-    void handleFiles(event.dataTransfer.files);
+    void handleFiles(event.dataTransfer?.files ?? null);
   }
+
+  // Listeners on the outer drop target, when there is one. The latest
+  // handlers are read through a ref, so they're attached once per target
+  // rather than on every render.
+  const handlersRef = useRef({ handleDragEnter, handleDragLeave, handleDragOver, handleDrop });
+  handlersRef.current = { handleDragEnter, handleDragLeave, handleDragOver, handleDrop };
+  useEffect(() => {
+    if (!dropTarget) {
+      return;
+    }
+    const enter = (event: globalThis.DragEvent) => handlersRef.current.handleDragEnter(event);
+    const leave = (event: globalThis.DragEvent) => handlersRef.current.handleDragLeave(event);
+    const over = (event: globalThis.DragEvent) => handlersRef.current.handleDragOver(event);
+    const drop = (event: globalThis.DragEvent) => handlersRef.current.handleDrop(event);
+    dropTarget.addEventListener('dragenter', enter);
+    dropTarget.addEventListener('dragleave', leave);
+    dropTarget.addEventListener('dragover', over);
+    dropTarget.addEventListener('drop', drop);
+    return () => {
+      dropTarget.removeEventListener('dragenter', enter);
+      dropTarget.removeEventListener('dragleave', leave);
+      dropTarget.removeEventListener('dragover', over);
+      dropTarget.removeEventListener('drop', drop);
+    };
+  }, [dropTarget]);
+
+  const dropOverlay = isDragActive ? (
+    <div className="media-drop-overlay" aria-hidden="true">
+      <span className="media-drop-overlay-icon">
+        <DropFilesIcon />
+      </span>
+      <p>Drop files to upload</p>
+    </div>
+  ) : null;
 
   async function handleDelete(name: string): Promise<void> {
     setDeleteError(null);
@@ -238,12 +302,12 @@ export function MediaLibrary({ siteId, mode, selectedItem, onSelectedItemChange,
       )}
 
       <div
-        className={`media-library-dropzone${isDragActive ? ' is-drag-active' : ''}`}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={handleDrop}
+        className="media-library-dropzone"
+        {...(dropTarget
+          ? {}
+          : { onDragEnter: handleDragEnter, onDragLeave: handleDragLeave, onDragOver: handleDragOver, onDrop: handleDrop })}
       >
+        {dropTarget ? dropOverlay && createPortal(dropOverlay, dropTarget) : dropOverlay}
         {!loadError && filteredItems.length === 0 && (
           <p className="media-library-empty">
             {items.length === 0

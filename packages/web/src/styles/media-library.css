@@ -184,16 +184,64 @@ button.image-overlay-button:hover {
    element's own layout box, so it's included in the scrollable area
    like any other content. */
 .media-library-dropzone {
+  position: relative;
   min-height: 240px;
   margin-bottom: var(--space-lg);
-  border-radius: var(--radius-sm);
-  border: 2px dashed transparent;
-  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.media-library-dropzone.is-drag-active {
-  border-color: var(--colour-primary);
-  background: var(--colour-surface-hover);
+/* The Media panel's drop target (MediaLibraryPage.tsx): everything below
+   the toolbar, wrapping the scrolling area rather than scrolling itself,
+   so the overlay below covers what's in view and stays put. */
+.media-drop-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Shown while files are dragged over the target (from a mockup): the
+   images tinted with the panel's colour, and an icon over "Drop files
+   to upload". Fills the Media panel's drop area, or the grid's own box
+   in the picker modal. pointer-events: none, so the drag keeps landing
+   on the target underneath and doesn't count this as leaving it. */
+.media-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  /* The panel's own colour, a little see-through so the images still
+     show faintly (requested directly). */
+  background: color-mix(in srgb, var(--colour-surface) 85%, transparent);
+  color: var(--colour-text);
+  pointer-events: none;
+}
+
+.media-drop-overlay-icon {
+  display: flex;
+}
+
+.media-drop-overlay p {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* The icon and text fade in as a drag comes over the panel (requested
+   directly), reusing base.css's plain opacity fade. */
+.media-drop-overlay-icon,
+.media-drop-overlay p {
+  animation: alert-fade-in 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media-drop-overlay-icon,
+  .media-drop-overlay p {
+    animation: none;
+  }
 }
 
 .media-library-empty {
