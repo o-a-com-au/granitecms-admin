@@ -540,7 +540,12 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
           throw new SiteNotFoundError(request.params.id);
         }
 
-        const result = await fetchSitePreview(site, `/${request.params['*']}`);
+        // ?settings=: unsaved site settings (SiteSettingsPage.tsx), passed
+        // on for the site to render in place of the saved ones. An older
+        // site ignores it and shows the saved settings.
+        const settings = (request.query as { settings?: unknown }).settings;
+        const query = typeof settings === 'string' ? `?settings=${encodeURIComponent(settings)}` : '';
+        const result = await fetchSitePreview(site, `/${request.params['*']}${query}`);
 
         if (result.outcome === 'ok') {
           reply.code(result.status).type(result.contentType).send(Buffer.from(result.body));

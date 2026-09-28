@@ -74,6 +74,11 @@ interface PreviewContextValue {
   setPreviewBody: (node: ReactNode | null) => void;
   pagesTreeDepth: number;
   setPagesTreeDepth: (depth: number) => void;
+  // Site settings changed in SiteSettingsPage.tsx but not saved yet, as
+  // JSON, so the viewport renders them before they go live. null shows
+  // the saved settings.
+  previewSettings: string | null;
+  setPreviewSettings: (settings: string | null) => void;
 }
 
 const PreviewContext = createContext<PreviewContextValue | null>(null);
@@ -125,6 +130,7 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
   // independent of it, so this has to live somewhere AppShell itself
   // can read, not inside PagesHubPage's own subtree).
   const [pagesTreeDepth, setPagesTreeDepth] = useState(0);
+  const [previewSettings, setPreviewSettings] = useState<string | null>(null);
   const previousSiteIdRef = useRef(siteId);
   // Any route showing the shared viewport unmounts before the NEXT one
   // that also wants it visible has mounted (confirmed live via a mount/
@@ -217,6 +223,8 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
       setPreviewBody,
       pagesTreeDepth,
       setPagesTreeDepth,
+      previewSettings,
+      setPreviewSettings,
     }),
     [
       previewUrl,
@@ -236,6 +244,7 @@ export function PreviewProvider({ siteId, children }: { siteId: string; children
       previewOverlay,
       previewBody,
       pagesTreeDepth,
+      previewSettings,
     ],
   );
 
@@ -399,6 +408,7 @@ export function SharedPreviewRegion({
     mobileOpen,
     previewOverlay,
     previewBody,
+    previewSettings,
   } = usePreview();
 
   if (!visible) {
@@ -423,6 +433,7 @@ export function SharedPreviewRegion({
               refreshGeneration={previewGeneration}
               device={device}
               revisionRef={revisionRef}
+              settings={previewSettings}
               iframeRef={iframeRef}
               onFrameLoad={frameHandlers.onFrameLoad}
               onFrameMouseLeave={frameHandlers.onFrameMouseLeave}

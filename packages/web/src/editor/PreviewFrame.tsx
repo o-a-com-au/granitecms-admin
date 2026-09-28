@@ -22,6 +22,10 @@ interface PreviewFrameProps {
   // is the normal current-version preview - the two never mix, this
   // fully replaces the src rather than layering on top of it.
   revisionRef?: string | null;
+  // Unsaved site settings as JSON (PreviewContext.tsx's
+  // previewSettings), rendered in place of the saved ones. A change
+  // reloads the frame like a bump, keeping its scroll position.
+  settings?: string | null;
   // Exposed so PageEditorPage can reach into the previewed document's
   // own DOM directly (hover-to-highlight a section) - safe only
   // because the iframe's src is same-origin (see the F1/F3 note
@@ -103,31 +107,40 @@ function encodeUrlSegments(url: string): string {
 // still on screen, right before the reload it's about to trigger) and
 // handed back via pendingScrollRef for handleFrameLoad, below, to
 // restore once the new document has actually loaded.
+//
+// Unsaved site settings go through here too, and the settings the src
+// uses only change together with the token: changing the src straight
+// away would reload before the scroll was captured, then reload again
+// for the token.
 function usePreviewRefreshToken(
   status: EditorStatus,
   refreshGeneration: number,
+  settings: string | null,
   iframeRef: RefObject<HTMLIFrameElement | null> | undefined,
   pendingScrollRef: RefObject<{ x: number; y: number } | null>,
-): number {
+): { token: number; settings: string | null } {
   const previousStatusRef = useRef(status);
   const previousGenerationRef = useRef(refreshGeneration);
-  const [token, setToken] = useState(0);
+  const previousSettingsRef = useRef(settings);
+  const [refresh, setRefresh] = useState({ token: 0, settings });
 
   useEffect(() => {
     const completedAutosave = previousStatusRef.current === 'saving' && status === 'ready';
     const externallyBumped = previousGenerationRef.current !== refreshGeneration;
-    if (completedAutosave || externallyBumped) {
+    const settingsChanged = previousSettingsRef.current !== settings;
+    if (completedAutosave || externallyBumped || settingsChanged) {
       const win = iframeRef?.current?.contentWindow;
       if (win) {
         pendingScrollRef.current = { x: win.scrollX, y: win.scrollY };
       }
-      setToken((current) => current + 1);
+      setRefresh((current) => ({ token: current.token + 1, settings }));
     }
     previousStatusRef.current = status;
     previousGenerationRef.current = refreshGeneration;
-  }, [status, refreshGeneration]);
+    previousSettingsRef.current = settings;
+  }, [status, refreshGeneration, settings]);
 
-  return token;
+  return refresh;
 }
 
 // F1, F3: the iframe's src is a same-origin admin route
@@ -178,12 +191,19 @@ export function PreviewFrame({
   refreshGeneration = 0,
   device,
   revisionRef,
+  settings = null,
   iframeRef,
   onFrameLoad,
   onFrameMouseLeave,
 }: PreviewFrameProps) {
   const pendingScrollRef = useRef<{ x: number; y: number } | null>(null);
-  const refreshToken = usePreviewRefreshToken(status, refreshGeneration, iframeRef, pendingScrollRef);
+  const { token: refreshToken, settings: appliedSettings } = usePreviewRefreshToken(
+    status,
+    refreshGeneration,
+    settings,
+    iframeRef,
+    pendingScrollRef,
+  );
   // Tracks "has the CURRENT document actually finished loading" for the
   // onFrameLoad-retrigger effect below - deliberately our own flag, not
   // the iframe's own document.readyState (unreliable to depend on:
@@ -374,7 +394,9 @@ export function PreviewFrame({
   const src =
     revisionRef != null
       ? revisionPreviewSrc(siteId, revisionRef, url)
-      : `/api/sites/${encodeURIComponent(siteId)}/preview${encodeUrlSegments(url)}?t=${refreshToken}`;
+      : `/api/sites/${encodeURIComponent(siteId)}/preview${encodeUrlSegments(url)}?t=${refreshToken}${
+          appliedSettings !== null ? `&settings=${encodeURIComponent(appliedSettings)}` : ''
+        }`;
 
   return (
     <div className="preview-pane">

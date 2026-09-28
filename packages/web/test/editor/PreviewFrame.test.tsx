@@ -81,6 +81,23 @@ describe('PreviewFrame', () => {
     expect(after).not.toBe(before);
   });
 
+  it('unsaved site settings go in the src with a fresh token, and clearing them goes back to the plain preview', () => {
+    const settings = JSON.stringify({ headline_font: 'Sans-serif' });
+    const { getByTitle, rerender } = render(<PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" />);
+    const plain = (getByTitle('Live preview') as HTMLIFrameElement).src;
+    expect(plain).not.toContain('settings=');
+
+    rerender(<PreviewFrame siteId="site-1" url="/about" status="ready" settings={settings} device="desktop" />);
+    const withSettings = (getByTitle('Live preview') as HTMLIFrameElement).src;
+    expect(withSettings).toContain(`&settings=${encodeURIComponent(settings)}`);
+    expect(withSettings).not.toContain(plain.split('?')[1]);
+
+    rerender(<PreviewFrame siteId="site-1" url="/about" status="ready" settings={null} device="desktop" />);
+    const cleared = (getByTitle('Live preview') as HTMLIFrameElement).src;
+    expect(cleared).not.toContain('settings=');
+    expect(cleared).not.toBe(plain);
+  });
+
   it('omitting refreshGeneration entirely never bumps the token on its own (defaults to a stable 0)', () => {
     const { getByTitle, rerender } = render(<PreviewFrame siteId="site-1" url="/about" status="ready" device="desktop" />);
     const before = (getByTitle('Live preview') as HTMLIFrameElement).src;

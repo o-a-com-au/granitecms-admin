@@ -17,8 +17,13 @@ const SCHEMA = {
 };
 
 function PreviewGenerationProbe() {
-  const { previewGeneration } = usePreview();
-  return <span data-testid="preview-generation">{previewGeneration}</span>;
+  const { previewGeneration, previewSettings } = usePreview();
+  return (
+    <>
+      <span data-testid="preview-generation">{previewGeneration}</span>
+      <span data-testid="preview-settings">{previewSettings ?? 'saved'}</span>
+    </>
+  );
 }
 
 // Stands in for AppShell: the header's page actions, and the shared
@@ -126,7 +131,30 @@ describe('SiteSettingsPage', () => {
     expect(headerButton('Save Changes')).toBeNull();
   });
 
-  it('Save sends the values with the ETag, reloads the preview, and clears the header buttons', async () => {
+  it('the preview shows unsaved changes a moment after typing, and the saved values again after Discard', async () => {
+    installFakeApi();
+    renderPage();
+    fireEvent.change(await screen.findByLabelText('Instagram link'), { target: { value: 'https://instagram.com/new' } });
+    expect(screen.getByTestId('preview-settings').textContent).toBe('saved');
+    await waitFor(() =>
+      expect(screen.getByTestId('preview-settings').textContent).toBe(JSON.stringify({ instagram_url: 'https://instagram.com/new' })),
+    );
+
+    fireEvent.click(headerButton('Discard Changes') as HTMLElement);
+    await waitFor(() => expect(screen.getByTestId('preview-settings').textContent).toBe('saved'));
+  });
+
+  it('after a save, the preview shows the saved settings, not the unsaved copy', async () => {
+    installFakeApi();
+    renderPage();
+    fireEvent.change(await screen.findByLabelText('Instagram link'), { target: { value: 'https://instagram.com/new' } });
+    await waitFor(() => expect(screen.getByTestId('preview-settings').textContent).not.toBe('saved'));
+    fireEvent.click(headerButton('Save Changes') as HTMLElement);
+    await waitFor(() => expect(headerButton('Save Changes')).toBeNull());
+    expect(screen.getByTestId('preview-settings').textContent).toBe('saved');
+  });
+
+  it('Save sends the values with the ETag, reloads the preview, and clears the header buttons, with no toast', async () => {
     const calls = installFakeApi();
     renderPage();
     fireEvent.change(await screen.findByLabelText('Instagram link'), { target: { value: 'https://instagram.com/new' } });
@@ -137,7 +165,9 @@ describe('SiteSettingsPage', () => {
     expect(put?.ifMatch).toBe('"s1"');
     expect(put?.body).toEqual({ settings: { instagram_url: 'https://instagram.com/new' }, message: 'Update site settings' });
     expect(Number(screen.getByTestId('preview-generation').textContent)).toBeGreaterThan(0);
-    expect(await screen.findByText('Site settings saved. They are live now.')).toBeDefined();
+    // Like a page save: the buttons going and the preview refreshing are
+    // the confirmation, with no message.
+    expect(document.querySelector('.toast')).toBeNull();
   });
 
   it('a value the site rejects is shown on its own field, and the change stays for fixing', async () => {

@@ -353,6 +353,13 @@ async function startFakePreviewSite(options: FakePreviewSiteOptions): Promise<st
       return;
     }
 
+    if (req.url?.startsWith('/v1/preview/about?')) {
+      const settings = new URL(req.url, 'http://fake').searchParams.get('settings');
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      res.end(`<html><body>About with ${settings}</body></html>`);
+      return;
+    }
+
     if (req.url === '/v1/preview/about') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       res.end(options.hasDraft ? '<html><body>Draft About</body></html>' : '<html><body>Live About</body></html>');
@@ -1060,6 +1067,26 @@ describe('sites routes', () => {
     assert.equal(response.statusCode, 200);
     assert.equal(response.headers['content-type'], 'text/html; charset=utf-8');
     assert.equal(response.body, '<html><body>Draft About</body></html>');
+
+    await app.close();
+  });
+
+  it('GET /api/sites/:id/preview/* passes unsaved site settings on to the site, and nothing else from the query', async () => {
+    const { app, cookie } = await buildTestServer();
+    const siteUrl = await startFakePreviewSite({ acceptedToken: 'the-token', hasDraft: false });
+    const id = await registerSite(app, cookie, siteUrl, 'the-token');
+    const settings = JSON.stringify({ announcement_text: 'Open this Saturday & Sunday' });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/sites/${id}/preview/about?t=3&settings=${encodeURIComponent(settings)}`,
+      headers: { cookie },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, new RegExp(`About with ${settings.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+
+    const plain = await app.inject({ method: 'GET', url: `/api/sites/${id}/preview/about?t=4`, headers: { cookie } });
+    assert.match(plain.body, /Live About/);
 
     await app.close();
   });

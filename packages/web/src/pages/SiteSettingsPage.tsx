@@ -12,6 +12,8 @@ import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
 import { useToast } from '../toast/ToastContext.tsx';
 
+const PREVIEW_DELAY_MS = 400;
+
 // The Site Settings screen (the left rail's Settings): the values for
 // the settings the site's theme defines in theme/config/settings_schema.json,
 // as a form built from that schema - the same form a section's fields
@@ -19,10 +21,11 @@ import { useToast } from '../toast/ToastContext.tsx';
 // kept beside it. Changes stay here until Save Changes in the header,
 // which puts them live at once, like a menu (there are no drafts; the
 // owner's choice, matching how Shopify's theme settings save). The
-// preview then reloads to show them.
+// preview shows unsaved changes as they're made, without saving them
+// (the agent's GET /v1/preview/* ?settings=).
 export function SiteSettingsPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
-  const { device, setDevice, bumpPreview } = usePreview();
+  const { device, setDevice, bumpPreview, setPreviewSettings } = usePreview();
   const { showToast } = useToast();
   usePreviewVisible(true);
 
@@ -55,6 +58,21 @@ export function SiteSettingsPage() {
 
   const dirty = loaded !== null && JSON.stringify(values) !== JSON.stringify(loaded.settings);
 
+  // The viewport shows unsaved values as they're edited, a moment after
+  // typing stops (each change reloads the page). Going back to the saved
+  // values - a discard, a save - shows them at once, and leaving this
+  // screen always does.
+  const previewJson = dirty ? JSON.stringify(values) : null;
+  useEffect(() => {
+    if (previewJson === null) {
+      setPreviewSettings(null);
+      return;
+    }
+    const timer = setTimeout(() => setPreviewSettings(previewJson), PREVIEW_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [previewJson, setPreviewSettings]);
+  useEffect(() => () => setPreviewSettings(null), [setPreviewSettings]);
+
   const discard = useCallback(() => {
     if (loaded) {
       setValues(loaded.settings);
@@ -71,8 +89,11 @@ export function SiteSettingsPage() {
     try {
       const etag = await saveSiteSettings(siteId, values, loaded.etag, 'Update site settings');
       setLoaded({ ...loaded, settings: values, etag });
+      // One reload, not two: clearing the unsaved values and the bump
+      // land in the same render. The bump alone covers a save made
+      // before the unsaved values had reached the viewport.
+      setPreviewSettings(null);
       bumpPreview();
-      showToast('Site settings saved. They are live now.', 'success');
     } catch (error) {
       if (error instanceof SiteEditorError && error.validationErrors) {
         const map: Record<string, string> = {};
@@ -92,7 +113,7 @@ export function SiteSettingsPage() {
     } finally {
       setBusy(false);
     }
-  }, [loaded, siteId, values, bumpPreview, showToast]);
+  }, [loaded, siteId, values, bumpPreview, setPreviewSettings, showToast]);
 
   const actions = useMemo(
     () =>
