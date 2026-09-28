@@ -214,6 +214,35 @@ describe('PreviewFrame', () => {
     expect(scrollToSpy).toHaveBeenCalledWith({ left: 40, top: 820, behavior: 'instant' });
   });
 
+  it('a reload while the frame shows another origin (a link followed in the preview) neither throws nor restores a scroll position', () => {
+    const iframeRef = createRef<HTMLIFrameElement>();
+    const { rerender, getByTitle } = render(
+      <PreviewFrame siteId="site-1" url="/about" status="ready" refreshGeneration={0} device="desktop" iframeRef={iframeRef} />,
+    );
+    // A cross-origin window throws a SecurityError on reading almost
+    // anything from it (scrollX, scrollTo), rather than returning it.
+    const touched: string[] = [];
+    const crossOrigin = new Proxy(
+      {},
+      {
+        get: (_target, name) => {
+          touched.push(String(name));
+          throw new DOMException('Blocked a frame from accessing a cross-origin frame.', 'SecurityError');
+        },
+      },
+    );
+    const iframe = iframeRef.current as HTMLIFrameElement;
+    Object.defineProperty(iframe, 'contentWindow', { get: () => crossOrigin, configurable: true });
+    const before = (getByTitle('Live preview') as HTMLIFrameElement).src;
+
+    rerender(<PreviewFrame siteId="site-1" url="/about" status="ready" refreshGeneration={1} device="desktop" iframeRef={iframeRef} />);
+    expect((getByTitle('Live preview') as HTMLIFrameElement).src).not.toBe(before);
+    expect(touched).toContain('scrollX');
+
+    fireEvent.load(iframe);
+    expect(touched).not.toContain('scrollTo');
+  });
+
   it('does not restore any scroll position on the very first load, or on switching to a different page', () => {
     const iframeRef = createRef<HTMLIFrameElement>();
     const { rerender } = render(

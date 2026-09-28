@@ -90,6 +90,20 @@ function encodeUrlSegments(url: string): string {
   return url.split('/').map(encodeURIComponent).join('/');
 }
 
+// The previewed document's scroll position, or null when it can't be
+// read: a link in the preview can take the frame to another origin (the
+// site's own address, say), and a cross-origin window throws on
+// scrollX rather than returning it - which, uncaught in an effect, took
+// down the whole admin (seen live).
+function readFrameScroll(iframe: HTMLIFrameElement | null): { x: number; y: number } | null {
+  try {
+    const win = iframe?.contentWindow;
+    return win ? { x: win.scrollX, y: win.scrollY } : null;
+  } catch {
+    return null;
+  }
+}
+
 // F2: bumps on a real completed autosave ('saving' -> 'ready'), never
 // on the initial load ('loading' -> 'ready') or on entering/leaving a
 // conflict - a plain ref-tracked transition, not a hook on
@@ -129,10 +143,7 @@ function usePreviewRefreshToken(
     const externallyBumped = previousGenerationRef.current !== refreshGeneration;
     const settingsChanged = previousSettingsRef.current !== settings;
     if (completedAutosave || externallyBumped || settingsChanged) {
-      const win = iframeRef?.current?.contentWindow;
-      if (win) {
-        pendingScrollRef.current = { x: win.scrollX, y: win.scrollY };
-      }
+      pendingScrollRef.current = readFrameScroll(iframeRef?.current ?? null);
       setRefresh((current) => ({ token: current.token + 1, settings }));
     }
     previousStatusRef.current = status;
@@ -289,7 +300,11 @@ export function PreviewFrame({
   function handleFrameLoad(): void {
     const pending = pendingScrollRef.current;
     if (pending) {
-      iframeRef?.current?.contentWindow?.scrollTo({ left: pending.x, top: pending.y, behavior: 'instant' });
+      try {
+        iframeRef?.current?.contentWindow?.scrollTo({ left: pending.x, top: pending.y, behavior: 'instant' });
+      } catch {
+        // Loaded somewhere cross-origin (see readFrameScroll): nothing to restore.
+      }
       pendingScrollRef.current = null;
     }
     hasLoadedRef.current = true;
