@@ -580,8 +580,8 @@ button.app-avatar:hover {
    .app-content stretching to fill the row on its own now that there's
    no longer a second flex child inside it to share that space with -
    .shared-preview-region's own flex: 1 claims the rest instead. A
-   concrete length here (matching .pages-hub-panel's own width plus its
-   left margin exactly, same relationship .editor-sidebar-width already
+   concrete length here (matching .pages-hub-panel's own width exactly,
+   the same as the Editor and Settings panels, same relationship .editor-sidebar-width already
    has with .app-content:has(.editor-page) above) rather than auto,
    specifically so the base rule's own flex-basis transition (above) has
    two real lengths to interpolate between on a route switch to/from
@@ -602,7 +602,7 @@ button.app-avatar:hover {
    own comment for the full diagnosis); .pages-hub-panel is flush
    against this element's top/left/right edges. */
 .app-content:has(.pages-hub) {
-  flex: 0 0 min(calc(var(--editor-sidebar-width) + var(--space-sm) + var(--pages-hub-extra-width, 0px)), 45%);
+  flex: 0 0 min(calc(var(--editor-sidebar-width) + var(--pages-hub-extra-width, 0px)), 45%);
   max-width: none;
   padding: 0;
   overflow: clip;
@@ -632,6 +632,18 @@ button.app-avatar:hover {
   overflow-clip-margin: 8px;
   display: flex;
   flex-direction: column;
+}
+
+/* Site settings (SiteSettingsPage.tsx) is built on the Media panel's
+   shape but is a plain form, so it takes the Editor and Pages width
+   rather than Media's wider one: the three panels match. After the
+   Media rule, which it overrides at equal specificity. */
+.app-content:has(.settings-hub) {
+  flex-basis: var(--editor-sidebar-width);
+}
+
+.settings-hub .media-hub-panel {
+  flex-basis: var(--editor-sidebar-width);
 }
 
 /* The one persistent live-preview viewport (PreviewContext.tsx,
