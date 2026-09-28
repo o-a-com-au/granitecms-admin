@@ -1,7 +1,7 @@
 import { reasonFromResponse, SiteEditorError } from './site-editor.ts';
 
 // Site settings: values for the settings the site's theme defines
-// (theme/config/settings_schema.json). Saved like a menu - committed and
+// (theme/config/site_settings.json). Saved like a menu - committed and
 // live at once, no draft.
 
 export interface SiteSettingsData {

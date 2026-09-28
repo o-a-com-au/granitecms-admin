@@ -15,7 +15,7 @@ import { useToast } from '../toast/ToastContext.tsx';
 const PREVIEW_DELAY_MS = 400;
 
 // The Site Settings screen (the left rail's Settings): the values for
-// the settings the site's theme defines in theme/config/settings_schema.json,
+// the settings the site's theme defines in theme/config/site_settings.json,
 // as a form built from that schema - the same form a section's fields
 // use - in the panel where Pages and Sections sit, with the live preview
 // kept beside it. Changes stay here until Save Changes in the header,
@@ -145,7 +145,7 @@ export function SiteSettingsPage() {
     body = (
       <p>
         This website&apos;s theme has no site settings yet. A theme developer adds them in{' '}
-        <code>theme/config/settings_schema.json</code>.
+        <code>theme/config/site_settings.json</code>.
       </p>
     );
   } else {

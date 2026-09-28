@@ -4,7 +4,7 @@ import { fetchSite } from './fetch-site.ts';
 import { interpretSiteResponse } from './interpret-site-response.ts';
 
 // Site settings (the agent's GET/PUT /v1/settings): values for the
-// settings the site's theme defines in theme/config/settings_schema.json.
+// settings the site's theme defines in theme/config/site_settings.json.
 // Saved like a menu - committed and live at once, no draft.
 
 export interface SiteSettingsPayload {
