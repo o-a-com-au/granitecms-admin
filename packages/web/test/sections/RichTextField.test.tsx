@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { RichTextField } from '../../src/sections/RichTextField.tsx';
+import { clearSitePagesCache } from '../../src/sections/useSitePages.ts';
 
 afterEach(() => {
   cleanup();
@@ -224,6 +225,33 @@ describe('RichTextField', () => {
 
       expect(onChange).toHaveBeenLastCalledWith('<p>See about us now</p>');
       expect(editor.querySelector('a')).toBeNull();
+    });
+
+    it('picking a page from the suggestions applies the link straight away, like Add', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () =>
+          new Response(
+            JSON.stringify([{ path: 'pages/about.json', name: 'About', title: 'About us', type: 'page', published: true, hasDraft: false, url: '/about', changedAt: null }]),
+            { status: 200 },
+          ),
+        ),
+      );
+      // Earlier tests here asked for site-1's pages with no fake API, and
+      // that empty answer is shared for a while - start fresh.
+      clearSitePagesCache();
+      try {
+        const execSpy = vi.spyOn(document, 'execCommand');
+        renderField('<p>x</p>');
+        fireEvent.click(screen.getByRole('button', { name: 'Link' }));
+        fireEvent.change(screen.getByRole('combobox', { name: 'Link URL' }), { target: { value: 'abo' } });
+        fireEvent.mouseDown(await screen.findByRole('option', { name: /About us/ }));
+
+        expect(execSpy).toHaveBeenCalledWith('createLink', false, '/about');
+        expect(screen.queryByRole('dialog')).toBeNull();
+      } finally {
+        vi.unstubAllGlobals();
+      }
     });
 
     it('outside any link, the popover starts empty with Add and no Remove', () => {

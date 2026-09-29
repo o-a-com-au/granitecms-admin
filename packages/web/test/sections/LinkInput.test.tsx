@@ -94,6 +94,19 @@ describe('LinkInput', () => {
     expect(onEnter).toHaveBeenCalledTimes(1);
   });
 
+  it('onPick is told the chosen address when a page is picked (and only then)', async () => {
+    const onPick = vi.fn();
+    function PickHarness() {
+      const [value, setValue] = useState('#team');
+      return <LinkInput siteId="site-1" value={value} onChange={setValue} ariaLabel="Link" onPick={onPick} />;
+    }
+    render(<PickHarness />);
+    fireEvent.change(input(), { target: { value: 'about' } });
+    expect(onPick).not.toHaveBeenCalled();
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /About us/ }));
+    expect(onPick).toHaveBeenCalledWith('/about');
+  });
+
   it('internalPath: site paths only, without query, fragment or trailing slash', () => {
     expect(internalPath('/about/')).toBe('/about');
     expect(internalPath('/about?a=1#b')).toBe('/about');

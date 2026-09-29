@@ -175,16 +175,18 @@ export function RichTextField({ siteId, value, onChange, labelledBy }: RichTextF
     applyChange();
   }
 
-  function confirmLink(): void {
+  // `url` when a page was just picked from the list: the state holding
+  // the typed address hasn't caught up with it yet at that moment.
+  function confirmLink(url: string = linkUrl): void {
     const existing = existingLinkRef.current;
     if (existing && editorRef.current?.contains(existing)) {
       // Changing (or clearing) an existing link's address, directly -
       // no selection to restore, and createLink would only relink
       // whatever part of it happened to be selected.
-      if (linkUrl.trim() === '') {
+      if (url.trim() === '') {
         unwrapLink(existing);
       } else {
-        existing.setAttribute('href', linkUrl.trim());
+        existing.setAttribute('href', url.trim());
       }
       setLinkOpen(false);
       applyChange();
@@ -196,8 +198,8 @@ export function RichTextField({ siteId, value, onChange, labelledBy }: RichTextF
       selection?.removeAllRanges();
       selection?.addRange(range);
     }
-    if (linkUrl.trim() !== '') {
-      document.execCommand('createLink', false, linkUrl.trim());
+    if (url.trim() !== '') {
+      document.execCommand('createLink', false, url.trim());
     }
     setLinkOpen(false);
     applyChange();
@@ -298,7 +300,7 @@ export function RichTextField({ siteId, value, onChange, labelledBy }: RichTextF
         </button>
         {linkOpen && (
           <div className="richtext-link-popover" role="dialog" aria-label="Link URL">
-            <LinkInput siteId={siteId} value={linkUrl} onChange={setLinkUrl} ariaLabel="Link URL" onEnter={confirmLink} autoFocus />
+            <LinkInput siteId={siteId} value={linkUrl} onChange={setLinkUrl} ariaLabel="Link URL" onEnter={() => confirmLink()} onPick={confirmLink} autoFocus />
             <div className="richtext-link-popover-actions">
               {editingLink && (
                 <button type="button" className="richtext-link-remove" onClick={removeLink}>
@@ -308,7 +310,7 @@ export function RichTextField({ siteId, value, onChange, labelledBy }: RichTextF
               <button type="button" onClick={() => setLinkOpen(false)}>
                 Cancel
               </button>
-              <button type="button" className="button-primary" onClick={confirmLink}>
+              <button type="button" className="button-primary" onClick={() => confirmLink()}>
                 {editingLink ? 'Update' : 'Add'}
               </button>
             </div>

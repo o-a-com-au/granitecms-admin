@@ -16,6 +16,10 @@ export interface LinkInputProps {
   // Enter with no suggestion chosen, for a caller with no <form> to
   // submit (the rich-text link popover).
   onEnter?: () => void;
+  // Called with the new address when a page is picked from the list,
+  // for a caller where picking one should finish the job (the rich-text
+  // link popover applies the link there and then).
+  onPick?: (value: string) => void;
   autoFocus?: boolean;
 }
 
@@ -51,7 +55,7 @@ function matches(page: SitePage, query: string): boolean {
 // reaches, or that no page is there. Same look and keyboard behaviour as
 // Combobox.tsx, which takes plain strings only; these suggestions carry a
 // title, a path and a draft tag.
-export function LinkInput({ siteId, value, onChange, labelledBy, ariaLabel, placeholder, onEnter, autoFocus }: LinkInputProps) {
+export function LinkInput({ siteId, value, onChange, labelledBy, ariaLabel, placeholder, onEnter, onPick, autoFocus }: LinkInputProps) {
   const pages = useSitePages(siteId);
   const { open, setOpen, ref, toggle } = useAddMenu();
   const baseId = useId();
@@ -74,10 +78,15 @@ export function LinkInput({ siteId, value, onChange, labelledBy, ariaLabel, plac
 
   function choose(page: SitePage): void {
     // A #fragment already there (a section of the page) is kept.
-    onChange(page.url + fragmentOf(value));
+    const next = page.url + fragmentOf(value);
+    onChange(next);
     setOpen(false);
     setActiveIndex(-1);
     setQuery(null);
+    if (onPick) {
+      onPick(next);
+      return;
+    }
     inputRef.current?.focus();
   }
 
