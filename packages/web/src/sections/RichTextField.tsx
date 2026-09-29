@@ -60,6 +60,10 @@ const FORMAT_OPTIONS: FormatOption[] = [
 export function RichTextField({ siteId, value, onChange, labelledBy }: RichTextFieldProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const savedRangeRef = useRef<Range | null>(null);
+  // The link the cursor or selection was in when Link was clicked: the
+  // popover then edits or removes that link rather than making a new one.
+  const existingLinkRef = useRef<HTMLAnchorElement | null>(null);
+  const [editingLink, setEditingLink] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [expanded, setExpanded] = useState(false);
   const [format, setFormat] = useState(FORMAT_OPTIONS[0]!.label);
@@ -124,14 +128,68 @@ export function RichTextField({ siteId, value, onChange, labelledBy }: RichTextF
   // createLink runs on confirm - otherwise the link would apply to
   // wherever focus happens to land instead of the text the user
   // actually selected.
+  // The link (inside this editor) a range starts, ends or sits in.
+  function linkAt(range: Range | null): HTMLAnchorElement | null {
+    const editor = editorRef.current;
+    if (!range || !editor) {
+      return null;
+    }
+    for (const node of [range.startContainer, range.endContainer, range.commonAncestorContainer]) {
+      const element = node instanceof Element ? node : node.parentElement;
+      const link = element?.closest('a');
+      if (link && editor.contains(link)) {
+        return link;
+      }
+    }
+    return null;
+  }
+
   function openLinkPopover(): void {
     const selection = window.getSelection();
     savedRangeRef.current = selection && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
-    setLinkUrl('');
+    const existing = linkAt(savedRangeRef.current);
+    existingLinkRef.current = existing;
+    setEditingLink(existing !== null);
+    setLinkUrl(existing?.getAttribute('href') ?? '');
     toggleLink();
   }
 
+  // Takes the link away and keeps its text, in place.
+  function unwrapLink(link: HTMLAnchorElement): void {
+    const parent = link.parentNode;
+    if (!parent) {
+      return;
+    }
+    while (link.firstChild) {
+      parent.insertBefore(link.firstChild, link);
+    }
+    parent.removeChild(link);
+  }
+
+  function removeLink(): void {
+    const link = existingLinkRef.current;
+    if (link && editorRef.current?.contains(link)) {
+      unwrapLink(link);
+    }
+    setLinkOpen(false);
+    applyChange();
+  }
+
   function confirmLink(): void {
+    const existing = existingLinkRef.current;
+    if (existing && editorRef.current?.contains(existing)) {
+      // Changing (or clearing) an existing link's address, directly -
+      // no selection to restore, and createLink would only relink
+      // whatever part of it happened to be selected.
+      if (linkUrl.trim() === '') {
+        unwrapLink(existing);
+      } else {
+        existing.setAttribute('href', linkUrl.trim());
+      }
+      setLinkOpen(false);
+      applyChange();
+      return;
+    }
     const range = savedRangeRef.current;
     if (range) {
       const selection = window.getSelection();
@@ -242,11 +300,16 @@ export function RichTextField({ siteId, value, onChange, labelledBy }: RichTextF
           <div className="richtext-link-popover" role="dialog" aria-label="Link URL">
             <LinkInput siteId={siteId} value={linkUrl} onChange={setLinkUrl} ariaLabel="Link URL" onEnter={confirmLink} autoFocus />
             <div className="richtext-link-popover-actions">
+              {editingLink && (
+                <button type="button" className="richtext-link-remove" onClick={removeLink}>
+                  Remove link
+                </button>
+              )}
               <button type="button" onClick={() => setLinkOpen(false)}>
                 Cancel
               </button>
               <button type="button" className="button-primary" onClick={confirmLink}>
-                Add link
+                {editingLink ? 'Update link' : 'Add link'}
               </button>
             </div>
           </div>

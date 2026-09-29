@@ -191,6 +191,49 @@ describe('RichTextField', () => {
       expect(screen.queryByRole('dialog')).toBeNull();
     });
 
+    // Puts the cursor inside the editor's first link, as a click there would.
+    function placeCursorInLink(editor: HTMLElement): void {
+      const text = editor.querySelector('a')?.firstChild as Text;
+      const range = document.createRange();
+      range.setStart(text, 1);
+      range.collapse(true);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
+
+    it('inside an existing link, the popover shows its address and Update link changes it in place', () => {
+      const { editor, onChange } = renderField('<p>See <a href="/about">about us</a> now</p>');
+      placeCursorInLink(editor);
+      fireEvent.click(screen.getByRole('button', { name: 'Link' }));
+
+      const input = screen.getByRole('combobox', { name: 'Link URL' }) as HTMLInputElement;
+      expect(input.value).toBe('/about');
+      fireEvent.change(input, { target: { value: '/contact' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Update link' }));
+
+      expect(onChange).toHaveBeenLastCalledWith('<p>See <a href="/contact">about us</a> now</p>');
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('Remove link takes the link away and keeps its text', () => {
+      const { editor, onChange } = renderField('<p>See <a href="/about">about us</a> now</p>');
+      placeCursorInLink(editor);
+      fireEvent.click(screen.getByRole('button', { name: 'Link' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Remove link' }));
+
+      expect(onChange).toHaveBeenLastCalledWith('<p>See about us now</p>');
+      expect(editor.querySelector('a')).toBeNull();
+    });
+
+    it('outside any link, the popover starts empty with Add link and no Remove link', () => {
+      renderField('<p>Plain text</p>');
+      fireEvent.click(screen.getByRole('button', { name: 'Link' }));
+      expect((screen.getByRole('combobox', { name: 'Link URL' }) as HTMLInputElement).value).toBe('');
+      expect(screen.getByRole('button', { name: 'Add link' })).toBeDefined();
+      expect(screen.queryByRole('button', { name: 'Remove link' })).toBeNull();
+    });
+
     it('cancelling the Link popover closes it without calling createLink', () => {
       const execSpy = vi.spyOn(document, 'execCommand');
       renderField('<p>x</p>');

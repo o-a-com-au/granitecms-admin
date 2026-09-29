@@ -221,6 +221,11 @@
   gap: var(--space-sm);
 }
 
+/* On the far left, away from Update link, so it isn't hit by mistake. */
+.richtext-link-remove {
+  margin-right: auto;
+}
+
 /* Deliberately no min-height/rows - a settings field editor, not a
    full-page composer; grows with its own content up to a sane cap
    rather than reserving a fixed block of vertical space on every
