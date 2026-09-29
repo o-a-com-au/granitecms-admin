@@ -24,6 +24,8 @@
 }
 
 .richtext-toolbar {
+  /* The link popover's anchor (see .richtext-link-wrap below). */
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.15rem;
@@ -166,8 +168,12 @@
   flex: 1;
 }
 
+/* Not the popover's anchor: anchored to the link button, it opened to
+   the button's right and ran off the side of a narrow panel (reported
+   directly). It spans the whole toolbar instead - see .richtext-toolbar
+   - so it always fits inside the field. */
 .richtext-link-wrap {
-  position: relative;
+  position: static;
 }
 
 /* Same floating-popover treatment as .instance-add-menu
@@ -178,10 +184,10 @@
   position: absolute;
   top: calc(100% + 0.5rem);
   left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-width: 220px;
   background: var(--colour-surface);
   border: 1px solid var(--colour-border);
   border-radius: var(--radius-sm);
