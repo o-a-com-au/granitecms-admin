@@ -185,7 +185,7 @@ describe('RichTextField', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Link' }));
       fireEvent.change(screen.getByRole('combobox', { name: 'Link URL' }), { target: { value: 'https://example.com' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Add link' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
       expect(execSpy).toHaveBeenCalledWith('createLink', false, 'https://example.com');
       expect(screen.queryByRole('dialog')).toBeNull();
@@ -202,7 +202,7 @@ describe('RichTextField', () => {
       selection?.addRange(range);
     }
 
-    it('inside an existing link, the popover shows its address and Update link changes it in place', () => {
+    it('inside an existing link, the popover shows its address and Update changes it in place', () => {
       const { editor, onChange } = renderField('<p>See <a href="/about">about us</a> now</p>');
       placeCursorInLink(editor);
       fireEvent.click(screen.getByRole('button', { name: 'Link' }));
@@ -210,28 +210,28 @@ describe('RichTextField', () => {
       const input = screen.getByRole('combobox', { name: 'Link URL' }) as HTMLInputElement;
       expect(input.value).toBe('/about');
       fireEvent.change(input, { target: { value: '/contact' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Update link' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Update' }));
 
       expect(onChange).toHaveBeenLastCalledWith('<p>See <a href="/contact">about us</a> now</p>');
       expect(screen.queryByRole('dialog')).toBeNull();
     });
 
-    it('Remove link takes the link away and keeps its text', () => {
+    it('Remove takes the link away and keeps its text', () => {
       const { editor, onChange } = renderField('<p>See <a href="/about">about us</a> now</p>');
       placeCursorInLink(editor);
       fireEvent.click(screen.getByRole('button', { name: 'Link' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Remove link' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
 
       expect(onChange).toHaveBeenLastCalledWith('<p>See about us now</p>');
       expect(editor.querySelector('a')).toBeNull();
     });
 
-    it('outside any link, the popover starts empty with Add link and no Remove link', () => {
+    it('outside any link, the popover starts empty with Add and no Remove', () => {
       renderField('<p>Plain text</p>');
       fireEvent.click(screen.getByRole('button', { name: 'Link' }));
       expect((screen.getByRole('combobox', { name: 'Link URL' }) as HTMLInputElement).value).toBe('');
-      expect(screen.getByRole('button', { name: 'Add link' })).toBeDefined();
-      expect(screen.queryByRole('button', { name: 'Remove link' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Add' })).toBeDefined();
+      expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
     });
 
     it('cancelling the Link popover closes it without calling createLink', () => {

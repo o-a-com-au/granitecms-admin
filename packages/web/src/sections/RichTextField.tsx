@@ -302,14 +302,14 @@ export function RichTextField({ siteId, value, onChange, labelledBy }: RichTextF
             <div className="richtext-link-popover-actions">
               {editingLink && (
                 <button type="button" className="richtext-link-remove" onClick={removeLink}>
-                  Remove link
+                  Remove
                 </button>
               )}
               <button type="button" onClick={() => setLinkOpen(false)}>
                 Cancel
               </button>
               <button type="button" className="button-primary" onClick={confirmLink}>
-                {editingLink ? 'Update link' : 'Add link'}
+                {editingLink ? 'Update' : 'Add'}
               </button>
             </div>
           </div>
