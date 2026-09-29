@@ -518,12 +518,17 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
       )}
       {pendingMove && (
         <ConfirmDialog
-          message={`Move "${pendingMove.entry.name || pendingMove.entry.path}" under "${pendingMove.newParentEntry.name || pendingMove.newParentEntry.path}"? Its path becomes ${relativePagePath(pendingMove.newPath)} and its url becomes ${pendingMove.newUrl}. Links to it on this website are updated to match, and the old url redirects to the new one.`}
+          message={`Move "${pendingMove.entry.name || pendingMove.entry.path}" under "${pendingMove.newParentEntry.name || pendingMove.newParentEntry.path}"?`}
           confirmLabel="Move"
           busy={moveBusy}
           onConfirm={() => void handleConfirmMove()}
           onCancel={() => setPendingMove(null)}
-        />
+        >
+          {/* Addresses only, never the content file's name: the people
+              using the admin think in URLs, not JSON files. */}
+          <p>The new URL for this page will be {pendingMove.newUrl}.</p>
+          <p>Links to it on this website are updated to match, and the old URL redirects to the new one.</p>
+        </ConfirmDialog>
       )}
       {pendingDelete && (
         <ConfirmDialog

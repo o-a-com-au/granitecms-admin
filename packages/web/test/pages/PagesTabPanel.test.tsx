@@ -237,7 +237,12 @@ describe('PagesTabPanel', () => {
 
       expect(screen.getByRole('alertdialog')).toBeDefined();
       expect(
-        screen.getByText('Move "Contact" under "About"? Its path becomes about/contact.json and its url becomes /about/contact. Links to it on this website are updated to match, and the old url redirects to the new one.'),
+        screen.getByText('Move "Contact" under "About"?'),
+      ).toBeDefined();
+      expect(screen.getByText('The new URL for this page will be /about/contact.')).toBeDefined();
+      expect(screen.queryByText(/\.json/)).toBeNull();
+      expect(
+        screen.getByText('Links to it on this website are updated to match, and the old URL redirects to the new one.'),
       ).toBeDefined();
     });
 
