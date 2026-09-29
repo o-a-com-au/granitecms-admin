@@ -39,7 +39,11 @@
    every other toolbar in this app already has to (see
    button.instance-row-chevron's own comment for the identical
    reasoning). */
-.richtext-toolbar button {
+/* :not(.richtext-link-popover *) - the link popover lives inside the
+   toolbar, and these toolbar-button looks (fixed height, centred, bold)
+   squashed its page suggestions and its own buttons into overlapping
+   centred rows (reported directly). */
+.richtext-toolbar button:not(.richtext-link-popover *) {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -54,7 +58,7 @@
   font-weight: 600;
 }
 
-.richtext-toolbar button:hover {
+.richtext-toolbar button:not(.richtext-link-popover *):hover {
   background: var(--colour-surface-hover);
   color: var(--colour-text);
 }
