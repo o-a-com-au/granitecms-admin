@@ -391,7 +391,7 @@ describe('PagesTabPanel', () => {
             JSON.stringify({
               references: [
                 { kind: 'page', path: 'pages/index.json', label: 'Home', url: '/', hrefs: ['/about'] },
-                { kind: 'menu', path: 'menus/main.json', label: 'Main menu', hrefs: ['/about'] },
+                { kind: 'menu', path: 'menus/main-links.json', label: 'menus/main-links.json', hrefs: ['/about'] },
               ],
             }),
             { status: 200 },
@@ -411,7 +411,7 @@ describe('PagesTabPanel', () => {
       fireEvent.click(screen.getByRole('menuitem', { name: 'Delete Page' }));
       expect(await screen.findByText(/2 places link to it/)).toBeDefined();
       expect(screen.getByText('Home')).toBeDefined();
-      expect(screen.getByText('Main menu (menu)')).toBeDefined();
+      expect(screen.getByText('Main Links (menu)')).toBeDefined();
       expect(fetchMock).toHaveBeenCalledWith('/api/sites/site-1/links?to=%2Fabout');
 
       fireEvent.change(screen.getByRole('combobox', { name: 'Send visitors to another page instead (optional)' }), {

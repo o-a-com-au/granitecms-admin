@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { fetchPageLinks, type PageLinkReference } from '../api/site-content.ts';
 import { LinkInput } from '../sections/LinkInput.tsx';
+import { deriveMenuName } from './deriveMenuName.ts';
 
 export interface DeletePageLinksProps {
   siteId: string;
@@ -15,7 +16,10 @@ function describe(reference: PageLinkReference): string {
     return 'Site settings';
   }
   if (reference.kind === 'menu') {
-    return `${reference.label} (menu)`;
+    // A menu with no display name of its own is labelled by its file;
+    // named from its handle then, as the Menus list does.
+    const name = reference.label === reference.path ? deriveMenuName(reference.path) : reference.label;
+    return `${name} (menu)`;
   }
   return reference.kind === 'draft' ? `${reference.label} (draft)` : reference.label;
 }
