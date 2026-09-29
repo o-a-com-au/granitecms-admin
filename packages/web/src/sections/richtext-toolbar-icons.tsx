@@ -1,61 +1,42 @@
-// RichTextField.tsx's own toolbar icons - hand-drawn currentColor SVGs,
-// matching TrashIcon.tsx's convention (width/height: 100%, no fixed
-// pixel size - actual size comes from the wrapping CSS box) rather
-// than the big Figma-sourced IconSprite set in icons/index.tsx, since
-// no design asset exists for any of these. Bold/Italic/Paragraph/H1-3
-// are plain styled text glyphs in RichTextField.tsx itself, not SVGs
-// here - "B", "I", "¶", "H1" etc. are already self-explanatory as
-// text, so only the three genuinely pictographic actions (Link,
-// Bullet list, Numbered list) get a drawn icon.
+// RichTextField.tsx's own toolbar icons, sized by their CSS box
+// (width/height: 100%). Link, Bullet list, Numbered list, Enlarge and
+// Collapse are Lucide's own (https://lucide.dev, ISC licensed): "link",
+// "list", "list-ordered", "maximize-2" and its pair "minimize-2"
+// (requested directly), at the app's 1.75 stroke for small icons.
+// Bold/Italic/Paragraph/H1-3 are plain styled text glyphs in
+// RichTextField.tsx itself - "B", "I", "H1" read as they are.
 
 export function LinkIcon() {
   return (
-    <svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path
-        d="M4 12a2.5 2.5 0 0 1 0-3.54l1.5-1.5"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 4a2.5 2.5 0 0 1 0 3.54l-1.5 1.5"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-      <path d="M6.5 9.5l3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
     </svg>
   );
 }
 
 export function BulletListIcon() {
   return (
-    <svg width="100%" height="100%" viewBox="0 0 16 16" aria-hidden="true">
-      <circle cx="2" cy="4" r="1" fill="currentColor" />
-      <circle cx="2" cy="8" r="1" fill="currentColor" />
-      <circle cx="2" cy="12" r="1" fill="currentColor" />
-      <line x1="5.5" y1="4" x2="14" y2="4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="5.5" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="5.5" y1="12" x2="14" y2="12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 12h.01" />
+      <path d="M3 18h.01" />
+      <path d="M3 6h.01" />
+      <path d="M8 12h13" />
+      <path d="M8 18h13" />
+      <path d="M8 6h13" />
     </svg>
   );
 }
 
 export function NumberedListIcon() {
   return (
-    <svg width="100%" height="100%" viewBox="0 0 16 16" aria-hidden="true">
-      <text x="0.5" y="5.4" fontSize="4.2" fill="currentColor">
-        1
-      </text>
-      <text x="0.5" y="9.4" fontSize="4.2" fill="currentColor">
-        2
-      </text>
-      <text x="0.5" y="13.4" fontSize="4.2" fill="currentColor">
-        3
-      </text>
-      <line x1="5.5" y1="4" x2="14" y2="4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="5.5" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="5.5" y1="12" x2="14" y2="12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10 12h11" />
+      <path d="M10 18h11" />
+      <path d="M10 6h11" />
+      <path d="M4 10h2" />
+      <path d="M4 6h1v4" />
+      <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" />
     </svg>
   );
 }
@@ -69,28 +50,24 @@ export function ChevronDownIcon() {
   );
 }
 
-// The "enlarge" toolbar button (docs/designs/richtext-field.png) - four
-// corner brackets pointing outward, the standard fullscreen/maximize
-// glyph. CollapseIcon is its mirror (brackets pointing inward), shown
-// in the same toolbar slot once the popup editor is open.
 export function EnlargeIcon() {
   return (
-    <svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M1.5 5.5v-4h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M10.5 1.5h4v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M14.5 10.5v4h-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M5.5 14.5h-4v-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 3h6v6" />
+      <path d="m21 3-7 7" />
+      <path d="m3 21 7-7" />
+      <path d="M9 21H3v-6" />
     </svg>
   );
 }
 
 export function CollapseIcon() {
   return (
-    <svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M5.5 1.5v4h-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M14.5 5.5h-4v-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M10.5 14.5v-4h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M1.5 10.5h4v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m14 10 7-7" />
+      <path d="M20 10h-6V4" />
+      <path d="m3 21 7-7" />
+      <path d="M4 14h6v6" />
     </svg>
   );
 }
