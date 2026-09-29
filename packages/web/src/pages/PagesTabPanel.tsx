@@ -25,6 +25,7 @@ import { DragHandleIcon } from '../sections/DragHandleIcon.tsx';
 import { AccordionArrowIcon } from '../sections/AccordionArrowIcon.tsx';
 import { InstanceRowActions } from '../sections/InstanceRowActions.tsx';
 import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
+import { DeletePageLinks } from './DeletePageLinks.tsx';
 import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
 import { TopLoadingBar } from '../site-status/TopLoadingBar.tsx';
 import { buildLoadErrorActions, loadErrorMessage, type LoadError } from '../sites/site-load-error.ts';
@@ -182,6 +183,7 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteRedirect, setDeleteRedirect] = useState('');
   const [pendingStatus, setPendingStatus] = useState<PendingStatusChange | null>(null);
   const [statusBusy, setStatusBusy] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -344,6 +346,8 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
 
   function handleRequestDelete(entry: ContentListEntry, hasChildren: boolean): void {
     setDeleteError(null);
+    setDeleteRedirect('');
+    setDeleteError(null);
     setPendingDelete({ entry, hasChildren });
   }
 
@@ -402,6 +406,11 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
     if (!pendingDelete) {
       return;
     }
+    const redirectTo = deleteRedirect.trim();
+    if (redirectTo !== '' && (!redirectTo.startsWith('/') || redirectTo.startsWith('//'))) {
+      setDeleteError('Visitors can only be sent to a page on this website.');
+      return;
+    }
     setDeleteBusy(true);
     setDeleteError(null);
     try {
@@ -409,6 +418,7 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
         siteId,
         pendingDelete.entry.path,
         `Delete ${pendingDelete.entry.name || pendingDelete.entry.path}`,
+        redirectTo || undefined,
       );
       setPendingDelete(null);
       retry();
@@ -451,7 +461,7 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
   return (
     <div className="pages-hub-tab">
       {moveError && <p role="alert">{moveError}</p>}
-      {deleteError && <p role="alert">{deleteError}</p>}
+      {deleteError && !pendingDelete && <p role="alert">{deleteError}</p>}
       {statusError && <p role="alert">{statusError}</p>}
       {tree !== null && tree.length === 0 ? (
         <p>No pages found.</p>
@@ -508,7 +518,7 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
       )}
       {pendingMove && (
         <ConfirmDialog
-          message={`Move "${pendingMove.entry.name || pendingMove.entry.path}" under "${pendingMove.newParentEntry.name || pendingMove.newParentEntry.path}"? Its path becomes ${relativePagePath(pendingMove.newPath)} and its url becomes ${pendingMove.newUrl}.`}
+          message={`Move "${pendingMove.entry.name || pendingMove.entry.path}" under "${pendingMove.newParentEntry.name || pendingMove.newParentEntry.path}"? Its path becomes ${relativePagePath(pendingMove.newPath)} and its url becomes ${pendingMove.newUrl}. Links to it on this website are updated to match, and the old url redirects to the new one.`}
           confirmLabel="Move"
           busy={moveBusy}
           onConfirm={() => void handleConfirmMove()}
@@ -524,7 +534,12 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
           busy={deleteBusy}
           onConfirm={() => void handleConfirmDelete()}
           onCancel={() => setPendingDelete(null)}
-        />
+        >
+          {pendingDelete.entry.url !== null && !pendingDelete.hasChildren && (
+            <DeletePageLinks siteId={siteId} url={pendingDelete.entry.url} redirectTo={deleteRedirect} onRedirectToChange={setDeleteRedirect} />
+          )}
+          {deleteError && <p role="alert">{deleteError}</p>}
+        </ConfirmDialog>
       )}
       {pendingStatus && (
         <ConfirmDialog

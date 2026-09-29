@@ -237,7 +237,7 @@ describe('PagesTabPanel', () => {
 
       expect(screen.getByRole('alertdialog')).toBeDefined();
       expect(
-        screen.getByText('Move "Contact" under "About"? Its path becomes about/contact.json and its url becomes /about/contact.'),
+        screen.getByText('Move "Contact" under "About"? Its path becomes about/contact.json and its url becomes /about/contact. Links to it on this website are updated to match, and the old url redirects to the new one.'),
       ).toBeDefined();
     });
 
@@ -378,6 +378,70 @@ describe('PagesTabPanel', () => {
       );
       await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
       expect(fetchMock.mock.calls.filter((call) => (call[1] as RequestInit | undefined)?.method !== 'DELETE').length).toBeGreaterThan(1);
+    });
+
+    function linksAwareFetch() {
+      return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = input.toString();
+        if ((init?.method ?? 'GET') === 'DELETE') {
+          return new Response(null, { status: 204 });
+        }
+        if (url.startsWith('/api/sites/site-1/links')) {
+          return new Response(
+            JSON.stringify({
+              references: [
+                { kind: 'page', path: 'pages/index.json', label: 'Home', url: '/', hrefs: ['/about'] },
+                { kind: 'menu', path: 'menus/main.json', label: 'Main menu', hrefs: ['/about'] },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        return new Response(JSON.stringify([ENTRY_ONE]), { status: 200 });
+      });
+    }
+
+    it('the confirmation lists what links to the page, and can send its address to another page in the same delete', async () => {
+      const fetchMock = linksAwareFetch();
+      vi.stubGlobal('fetch', fetchMock);
+      renderPanel();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+
+      openRowActions();
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Delete Page' }));
+      expect(await screen.findByText(/2 places link to it/)).toBeDefined();
+      expect(screen.getByText('Home')).toBeDefined();
+      expect(screen.getByText('Main menu (menu)')).toBeDefined();
+      expect(fetchMock).toHaveBeenCalledWith('/api/sites/site-1/links?to=%2Fabout');
+
+      fireEvent.change(screen.getByRole('combobox', { name: 'Send visitors to another page instead (optional)' }), {
+        target: { value: '/company' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          '/api/sites/site-1/content/pages/about.json',
+          expect.objectContaining({ method: 'DELETE', body: JSON.stringify({ message: 'Delete About', redirectTo: '/company' }) }),
+        ),
+      );
+    });
+
+    it('sending visitors to another website is refused before anything is deleted', async () => {
+      const fetchMock = linksAwareFetch();
+      vi.stubGlobal('fetch', fetchMock);
+      renderPanel();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+
+      openRowActions();
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Delete Page' }));
+      fireEvent.change(await screen.findByRole('combobox', { name: 'Send visitors to another page instead (optional)' }), {
+        target: { value: 'https://example.com' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+      expect(await screen.findByText('Visitors can only be sent to a page on this website.')).toBeDefined();
+      expect(fetchMock).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ method: 'DELETE' }));
     });
 
     it('Cancel dismisses the confirmation without calling the delete API', async () => {

@@ -2903,6 +2903,81 @@ describe('sites routes', () => {
     await app.close();
   });
 
+  it('GET /api/sites/:id/links?to= lists what links to a page; an older site is reported as unsupported', async () => {
+    const { app, cookie } = await buildTestServer();
+    let supported = true;
+    let askedFor = '';
+    fakeSite = createServer((req, res) => {
+      if (!req.url?.startsWith('/v1/links')) {
+        sendJson(res, 200, { agentVersion: '0.8.0', contentSchemaVersion: 7, sqliteDriver: 'node:sqlite' });
+        return;
+      }
+      if (!supported) {
+        sendJson(res, 404, { message: 'Not Found' });
+        return;
+      }
+      askedFor = new URL(req.url, 'http://fake').searchParams.get('to') ?? '';
+      sendJson(res, 200, { to: '/about', references: [{ kind: 'menu', path: 'menus/main.json', label: 'Main menu', hrefs: ['/about'] }] });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const { port } = fakeSite.address() as { port: number };
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${port}`, 'the-token');
+
+    const ok = await app.inject({ method: 'GET', url: `/api/sites/${id}/links?to=%2Fabout`, headers: { cookie } });
+    assert.equal(ok.statusCode, 200, ok.body);
+    assert.equal(askedFor, '/about');
+    assert.deepEqual(ok.json(), { references: [{ kind: 'menu', path: 'menus/main.json', label: 'Main menu', hrefs: ['/about'] }] });
+
+    assert.equal((await app.inject({ method: 'GET', url: `/api/sites/${id}/links?to=about`, headers: { cookie } })).statusCode, 400);
+
+    supported = false;
+    const old = await app.inject({ method: 'GET', url: `/api/sites/${id}/links?to=%2Fabout`, headers: { cookie } });
+    assert.equal(old.statusCode, 404);
+    assert.equal(old.json().reason, 'unsupported');
+
+    await app.close();
+  });
+
+  it('DELETE /api/sites/:id/content/*path passes a redirectTo on to the site, for the same commit', async () => {
+    const { app, cookie } = await buildTestServer();
+    let receivedBody: Record<string, unknown> = {};
+    fakeSite = createServer((req, res) => {
+      if (req.method !== 'DELETE') {
+        sendJson(res, 200, { agentVersion: '0.8.0', contentSchemaVersion: 7, sqliteDriver: 'node:sqlite' });
+        return;
+      }
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        receivedBody = JSON.parse(Buffer.concat(chunks).toString());
+        res.writeHead(204);
+        res.end();
+      });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const { port } = fakeSite.address() as { port: number };
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${port}`, 'the-token');
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/sites/${id}/content/pages/about.json`,
+      headers: { cookie },
+      payload: { message: 'Delete About', redirectTo: '/company' },
+    });
+    assert.equal(response.statusCode, 204);
+    assert.equal(receivedBody.redirectTo, '/company');
+
+    const blank = await app.inject({
+      method: 'DELETE',
+      url: `/api/sites/${id}/content/pages/about.json`,
+      headers: { cookie },
+      payload: { message: 'Delete About', redirectTo: ' ' },
+    });
+    assert.equal(blank.statusCode, 400);
+
+    await app.close();
+  });
+
   it("DELETE /api/sites/:id/content/*path sends the logged-in admin's own name/email as author, never something the caller supplied", async () => {
     const { app, cookie } = await buildTestServer();
     let receivedBody: Record<string, unknown> = {};

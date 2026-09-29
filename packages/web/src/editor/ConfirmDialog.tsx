@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ConfirmDialogProps {
@@ -6,6 +7,9 @@ interface ConfirmDialogProps {
   busy: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  // Anything more the decision needs, below the message (the delete
+  // confirmation's list of links to the page, say).
+  children?: ReactNode;
 }
 
 // The same .modal-overlay/.modal/.modal-actions styling
@@ -30,12 +34,13 @@ interface ConfirmDialogProps {
 // There's no call site where clipping a confirmation to its parent
 // panel would ever be the intended result, so the portal lives here
 // once rather than being reapplied at every current and future usage.
-export function ConfirmDialog({ message, confirmLabel, busy, onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({ message, confirmLabel, busy, onConfirm, onCancel, children }: ConfirmDialogProps) {
   return createPortal(
     <div className="modal-overlay">
       <div className="modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-heading">
         <h2 id="confirm-dialog-heading">Are you sure?</h2>
         <p>{message}</p>
+        {children}
         <div className="modal-actions">
           <button type="button" onClick={onCancel} disabled={busy}>
             Cancel

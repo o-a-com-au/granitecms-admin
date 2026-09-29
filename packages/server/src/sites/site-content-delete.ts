@@ -34,13 +34,16 @@ export async function deleteSiteContent(
   message: string,
   author: CommitAuthor,
   options: DeleteSiteContentOptions = {},
+  // Where the deleted page's address should redirect, added in the same
+  // commit as the delete (the agent's own redirectTo).
+  redirectTo?: string,
 ): Promise<DeleteSiteContentResult> {
   const result = await fetchSite(site, `/v1/content/${path}`, {
     ...options,
     authToken: site.token,
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, author }),
+    body: JSON.stringify({ message, author, ...(redirectTo ? { redirectTo } : {}) }),
   });
   const interpreted = await interpretSiteResponse(result);
 

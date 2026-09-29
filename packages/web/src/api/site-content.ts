@@ -75,11 +75,11 @@ export async function listSiteContent(siteId: string, filters: ContentListFilter
 // 'not-found'/'conflict'/'invalid' reasons a delete can genuinely
 // return aren't in SiteContentError's own narrower reason set, and
 // every other write endpoint in this app already throws SiteEditorError.
-export async function deleteSitePage(siteId: string, path: string, message: string): Promise<void> {
+export async function deleteSitePage(siteId: string, path: string, message: string, redirectTo?: string): Promise<void> {
   const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/content/${encodePathSegments(path)}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, ...(redirectTo ? { redirectTo } : {}) }),
   });
 
   if (response.status === 404) {
@@ -98,5 +98,29 @@ export async function deleteSitePage(siteId: string, path: string, message: stri
   }
   if (!response.ok) {
     throw await reasonFromResponse(response, 'error');
+  }
+}
+
+export interface PageLinkReference {
+  kind: 'page' | 'draft' | 'menu' | 'settings';
+  path: string;
+  label: string;
+  url?: string;
+  hrefs: string[];
+}
+
+// What links to a page (the agent's GET /v1/links), or null when that
+// can't be known - a site whose CMS predates link tracking, or any
+// failure. The delete confirmation then just doesn't list links.
+export async function fetchPageLinks(siteId: string, url: string): Promise<PageLinkReference[] | null> {
+  try {
+    const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/links?to=${encodeURIComponent(url)}`);
+    if (!response.ok) {
+      return null;
+    }
+    const body = (await response.json()) as { references?: unknown };
+    return Array.isArray(body.references) ? (body.references as PageLinkReference[]) : null;
+  } catch {
+    return null;
   }
 }

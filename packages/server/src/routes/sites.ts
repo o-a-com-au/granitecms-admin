@@ -34,6 +34,7 @@ import { deleteSiteMedia, listSiteMedia, uploadSiteMedia } from '../sites/site-m
 import { createSiteRedirect, deleteSiteRedirect, listSiteRedirects, updateSiteRedirect } from '../sites/site-redirects.ts';
 import { fetchSiteMenuReferences, renameSiteMenu, saveSiteMenu } from '../sites/site-menus.ts';
 import { fetchSiteSettings, saveSiteSettings } from '../sites/site-settings.ts';
+import { fetchSiteLinks } from '../sites/site-links.ts';
 
 // The raw token is never included here, full stop - built by this
 // explicit mapping function rather than spreading the Site record, so
@@ -251,6 +252,7 @@ function parseMoveBody(body: unknown): MoveBody | null {
 
 interface DeleteContentBody {
   message: string;
+  redirectTo?: string;
 }
 
 function parseDeleteContentBody(body: unknown): DeleteContentBody | null {
@@ -261,7 +263,10 @@ function parseDeleteContentBody(body: unknown): DeleteContentBody | null {
   if (typeof record.message !== 'string' || record.message.trim() === '') {
     return null;
   }
-  return { message: record.message };
+  if (record.redirectTo !== undefined && (typeof record.redirectTo !== 'string' || record.redirectTo.trim() === '')) {
+    return null;
+  }
+  return { message: record.message, ...(typeof record.redirectTo === 'string' ? { redirectTo: record.redirectTo } : {}) };
 }
 
 interface UpsertRedirectBody {
@@ -944,7 +949,7 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
         }
 
         const author = requireCommitAuthor(request.currentUser);
-        const result = await deleteSiteContent(site, request.params['*'], body.message, author);
+        const result = await deleteSiteContent(site, request.params['*'], body.message, author, {}, body.redirectTo);
 
         if (result.outcome === 'ok') {
           return reply.code(204).send();
@@ -1243,6 +1248,33 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
       reply.code(502);
       return { error: result.message, reason: result.outcome };
     });
+
+    // What links to one page (?to=/a-path), for the delete confirmation.
+    app.get<{ Params: { id: string }; Querystring: { to?: string } }>(
+      '/:id/links',
+      { preHandler: [requireAuth, requireSiteAccess] },
+      async (request, reply) => {
+        const site = await sitesStore.find(request.params.id);
+        if (!site) {
+          throw new SiteNotFoundError(request.params.id);
+        }
+        const to = request.query.to;
+        if (typeof to !== 'string' || !to.startsWith('/')) {
+          reply.code(400);
+          return { error: 'to must be a page path', reason: 'invalid' };
+        }
+        const result = await fetchSiteLinks(site, to);
+        if (result.outcome === 'ok') {
+          return { references: result.references };
+        }
+        if (result.outcome === 'unsupported') {
+          reply.code(404);
+          return { error: result.message, reason: 'unsupported' };
+        }
+        reply.code(502);
+        return { error: result.message, reason: result.outcome };
+      },
+    );
 
     // Saves and puts them live at once, like a menu. If-Match is the
     // ETag from the GET ("*" while nothing has been saved yet).
