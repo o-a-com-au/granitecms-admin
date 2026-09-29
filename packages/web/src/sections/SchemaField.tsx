@@ -5,6 +5,7 @@ import { ImageField } from './ImageField.tsx';
 import { VideoField } from './VideoField.tsx';
 import { RangeField } from './RangeField.tsx';
 import { RichTextField } from './RichTextField.tsx';
+import { LinkInput } from './LinkInput.tsx';
 import { SelectField, shouldRenderAsTabs } from './SelectField.tsx';
 import { StringListField } from './StringListField.tsx';
 import { ToggleField } from './ToggleField.tsx';
@@ -110,6 +111,13 @@ function RawJsonFallback({ value, onChange }: { value: unknown; onChange: (value
   );
 }
 
+// A link field. "url" is the documented name (Shopify's, and what a
+// link is usually called); "uri", JSON Schema's own word and the name
+// before it, still works so existing themes keep their link fields.
+function isLinkFormat(format: string | undefined): boolean {
+  return format === 'url' || format === 'uri';
+}
+
 // I3: maps one settings-schema property to an appropriate input -
 // enum -> SelectField (tabs or a <select>, decided automatically - see
 // that file's own comment), string -> text, integer/number -> number,
@@ -145,7 +153,7 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
   // than being special-cased further.
   if (format === 'richtext' && type === 'string') {
     control = (
-      <RichTextField value={typeof value === 'string' ? value : ''} onChange={onChange} labelledBy={fieldId} />
+      <RichTextField siteId={siteId} value={typeof value === 'string' ? value : ''} onChange={onChange} labelledBy={fieldId} />
     );
   } else if (format === 'image' && type === 'object') {
     control = <ImageField siteId={siteId} value={value} onChange={onChange} />;
@@ -205,16 +213,8 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
         onChange={(event) => onChange(event.target.value)}
       />
     );
-  } else if (format === 'uri' && type === 'string') {
-    control = (
-      <input
-        type="url"
-        minLength={typeof schema.minLength === 'number' ? schema.minLength : undefined}
-        maxLength={typeof schema.maxLength === 'number' ? schema.maxLength : undefined}
-        value={typeof value === 'string' ? value : ''}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    );
+  } else if (isLinkFormat(format) && type === 'string') {
+    control = <LinkInput siteId={siteId} value={typeof value === 'string' ? value : ''} onChange={onChange} labelledBy={fieldId} />;
   } else if (format === 'date' && type === 'string') {
     control = <input type="date" value={typeof value === 'string' ? value : ''} onChange={(event) => onChange(event.target.value)} />;
   } else if (type === 'array' && isImageArraySchema(schema)) {
@@ -297,6 +297,10 @@ export function SchemaField({ siteId, label, schema, value, onChange, error }: S
     // same hover-forwarding problem documented above.
     (format === 'video' && type === 'object') ||
     (format === 'color' && type === 'string') ||
+    // A link field's suggestions and "Links to" line are text a wrapping
+    // <label> would fold into its accessible name; LinkInput is
+    // labelled by reference instead.
+    (isLinkFormat(format) && type === 'string') ||
     (type === 'array' && isStringArraySchema(schema)) ||
     (type === 'array' && isImageArraySchema(schema)) ||
     (isEnumSchema(schema) && shouldRenderAsTabs(schema.enum));

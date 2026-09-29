@@ -1,0 +1,43 @@
+/* LinkInput.tsx: a Combobox-styled field (combobox.css) whose
+   suggestions are the site's pages, with a line beneath saying which
+   page a site path reaches. */
+.link-input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+/* Title over path, rather than Combobox's single line of text. */
+button.link-input-option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.link-input-option-title {
+  display: flex;
+  align-items: center;
+}
+
+.link-input-option-path,
+.link-input-status {
+  color: var(--colour-muted);
+  font-size: 0.75rem;
+}
+
+.link-input-status {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+.link-input-status.is-missing {
+  color: var(--colour-warning);
+}
+
+/* The Pages list's own Draft chip (.page-tree-draft-badge), after the
+   title here rather than before the row's actions. */
+.link-input-draft {
+  margin-right: 0;
+  margin-left: var(--space-xs);
+}

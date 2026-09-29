@@ -11,7 +11,7 @@ function renderField(value: string, onChange = vi.fn()) {
   render(
     <div>
       <span id="body-label">Body</span>
-      <RichTextField value={value} onChange={onChange} labelledBy="body-label" />
+      <RichTextField siteId="site-1" value={value} onChange={onChange} labelledBy="body-label" />
     </div>,
   );
   return { onChange, editor: screen.getByLabelText('Body') };
@@ -66,14 +66,14 @@ describe('RichTextField', () => {
     const { rerender } = render(
       <div>
         <span id="body-label">Body</span>
-        <RichTextField value="<p>First</p>" onChange={onChange} labelledBy="body-label" />
+        <RichTextField siteId="site-1" value="<p>First</p>" onChange={onChange} labelledBy="body-label" />
       </div>,
     );
 
     rerender(
       <div>
         <span id="body-label">Body</span>
-        <RichTextField value="<p>Second</p>" onChange={onChange} labelledBy="body-label" />
+        <RichTextField siteId="site-1" value="<p>Second</p>" onChange={onChange} labelledBy="body-label" />
       </div>,
     );
 
@@ -184,7 +184,7 @@ describe('RichTextField', () => {
       renderField('<p>x</p>');
 
       fireEvent.click(screen.getByRole('button', { name: 'Link' }));
-      fireEvent.change(screen.getByPlaceholderText('https://'), { target: { value: 'https://example.com' } });
+      fireEvent.change(screen.getByRole('combobox', { name: 'Link URL' }), { target: { value: 'https://example.com' } });
       fireEvent.click(screen.getByRole('button', { name: 'Add link' }));
 
       expect(execSpy).toHaveBeenCalledWith('createLink', false, 'https://example.com');

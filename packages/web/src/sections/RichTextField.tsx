@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { LinkInput } from './LinkInput.tsx';
 import { useAddMenu } from './useAddMenu.ts';
 import {
   BulletListIcon,
@@ -12,6 +13,8 @@ import {
 import { normalizeLegacyTags, sanitizeRichText } from './sanitize-richtext.ts';
 
 export interface RichTextFieldProps {
+  // For the link dialog's page suggestions (LinkInput.tsx).
+  siteId: string;
   value: string;
   onChange: (value: string) => void;
   labelledBy: string;
@@ -54,7 +57,7 @@ const FORMAT_OPTIONS: FormatOption[] = [
 // applyChange always finishes with editorRef.current.innerHTML already
 // equal to the sanitized value it just called onChange with, so the
 // prop that comes back down next render matches what's already there.
-export function RichTextField({ value, onChange, labelledBy }: RichTextFieldProps) {
+export function RichTextField({ siteId, value, onChange, labelledBy }: RichTextFieldProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const [linkUrl, setLinkUrl] = useState('');
@@ -237,18 +240,7 @@ export function RichTextField({ value, onChange, labelledBy }: RichTextFieldProp
         </button>
         {linkOpen && (
           <div className="richtext-link-popover" role="dialog" aria-label="Link URL">
-            <input
-              type="text"
-              placeholder="https://"
-              value={linkUrl}
-              onChange={(event) => setLinkUrl(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  confirmLink();
-                }
-              }}
-            />
+            <LinkInput siteId={siteId} value={linkUrl} onChange={setLinkUrl} ariaLabel="Link URL" onEnter={confirmLink} autoFocus />
             <div className="richtext-link-popover-actions">
               <button type="button" onClick={() => setLinkOpen(false)}>
                 Cancel

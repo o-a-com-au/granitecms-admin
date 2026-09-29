@@ -302,22 +302,18 @@ describe('SchemaField', () => {
     expect(onChange).toHaveBeenCalledWith('Updated');
   });
 
-  it('renders an <input type="url"> for format: "uri"', () => {
-    const onChange = vi.fn();
-    render(
-      <SchemaField
-        siteId="site-1"
-        label="Website"
-        schema={{ type: 'string', format: 'uri' }}
-        value="https://example.com"
-        onChange={onChange}
-      />,
-    );
-
-    const input = screen.getByLabelText('Website') as HTMLInputElement;
-    expect(input.type).toBe('url');
-    fireEvent.change(input, { target: { value: 'https://example.org' } });
-    expect(onChange).toHaveBeenCalledWith('https://example.org');
+  it('renders the link field for format: "url", and for "uri", the name before it', () => {
+    for (const format of ['url', 'uri']) {
+      const onChange = vi.fn();
+      const { unmount } = render(
+        <SchemaField siteId="site-1" label="Website" schema={{ type: 'string', format }} value="https://example.com" onChange={onChange} />,
+      );
+      const input = screen.getByRole('combobox', { name: 'Website' }) as HTMLInputElement;
+      expect(input.value).toBe('https://example.com');
+      fireEvent.change(input, { target: { value: 'https://example.org' } });
+      expect(onChange).toHaveBeenCalledWith('https://example.org');
+      unmount();
+    }
   });
 
   it('renders an <input type="date"> for format: "date"', () => {

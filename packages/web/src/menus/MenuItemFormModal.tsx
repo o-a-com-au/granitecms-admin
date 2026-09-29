@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
+import { LinkInput } from '../sections/LinkInput.tsx';
 import { saveSiteMenuItems, type MenuItem, type SiteMenu } from '../api/site-menus.ts';
 import { buildAddMenuItemMessage, buildUpdateMenuItemMessage } from './buildMenuItemMessage.ts';
 
@@ -25,6 +26,7 @@ export interface MenuItemFormModalProps {
 export function MenuItemFormModal({ siteId, menu, menuName, mode, index, item, onSaved, onClose }: MenuItemFormModalProps) {
   const [label, setLabel] = useState(item?.label ?? '');
   const [url, setUrl] = useState(item?.url ?? '');
+  const urlLabelId = useId();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +37,13 @@ export function MenuItemFormModal({ siteId, menu, menuName, mode, index, item, o
 
     const trimmedLabel = label.trim();
     const trimmedUrl = url.trim();
+    // The link field isn't a plain <input required> any more, so the
+    // browser no longer stops an empty URL itself.
+    if (trimmedUrl === '') {
+      setError('Enter a URL, or choose a page.');
+      setBusy(false);
+      return;
+    }
     const newItem: MenuItem = { label: trimmedLabel, url: trimmedUrl };
     const items =
       mode === 'create'
@@ -62,10 +71,12 @@ export function MenuItemFormModal({ siteId, menu, menuName, mode, index, item, o
             Label
             <input type="text" value={label} onChange={(event) => setLabel(event.target.value)} required />
           </label>
-          <label>
-            URL
-            <input type="text" placeholder="/about" value={url} onChange={(event) => setUrl(event.target.value)} required />
-          </label>
+          {/* Not a <label>: see LinkInput.tsx for why a link field is
+              labelled by reference. */}
+          <div className="schema-field-label">
+            <span id={urlLabelId}>URL</span>
+            <LinkInput siteId={siteId} value={url} onChange={setUrl} labelledBy={urlLabelId} />
+          </div>
           {error && <p role="alert">{error}</p>}
           <div className="modal-actions">
             <button type="button" onClick={onClose} disabled={busy}>
