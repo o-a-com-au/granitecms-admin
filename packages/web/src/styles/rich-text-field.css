@@ -76,6 +76,14 @@
   height: 1rem;
 }
 
+/* Lucide's link glyph fills more of its box than the list icons beside
+   it, so it's drawn a little smaller to match them (requested
+   directly). */
+.richtext-toolbar-icon.is-link {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
 /* The Paragraph/H1/H2/H3 dropdown, top-left (docs/designs/richtext-field.png)
    - a chevron plus the current selection's label, replacing four
    separate always-visible buttons. Wider than a plain icon button, so

@@ -234,7 +234,7 @@ export function RichTextField({ siteId, value, onChange, labelledBy }: RichTextF
           onMouseDown={preserveSelection}
           onClick={openLinkPopover}
         >
-          <span className="richtext-toolbar-icon">
+          <span className="richtext-toolbar-icon is-link">
             <LinkIcon />
           </span>
         </button>
