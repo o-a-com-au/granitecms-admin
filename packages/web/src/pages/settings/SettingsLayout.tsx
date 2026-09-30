@@ -39,6 +39,20 @@ function CreditCardIcon() {
   );
 }
 
+// Lucide's "bot" (https://lucide.dev, ISC licensed), for AI Agents.
+function BotIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 8V4H8" />
+      <rect width="16" height="12" x="4" y="8" rx="2" />
+      <path d="M2 14h2" />
+      <path d="M20 14h2" />
+      <path d="M15 13v2" />
+      <path d="M9 13v2" />
+    </svg>
+  );
+}
+
 function GlobeIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -161,6 +175,7 @@ export function SettingsLayout() {
           <SettingsNavItem label="Personal Details" shortLabel="Personal" icon={<UserIcon />} to="/settings/personal" active={isActive('/settings/personal')} />
           <SettingsNavItem label="Password and Security" shortLabel="Security" icon={<LockIcon />} to="/settings/password" active={isActive('/settings/password')} />
           <SettingsNavItem label="Manage Subscription" shortLabel="Subscription" icon={<CreditCardIcon />} to="/settings/subscription" active={isActive('/settings/subscription')} />
+          <SettingsNavItem label="AI Agents" shortLabel="AI Agents" icon={<BotIcon />} to="/settings/ai-agents" active={isActive('/settings/ai-agents')} />
           {user?.role === 'developer' && (
             <SettingsNavItem label="Manage Websites" shortLabel="Websites" icon={<GlobeIcon />} to="/settings/sites" active={isActive('/settings/sites')} />
           )}

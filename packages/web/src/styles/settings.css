@@ -911,3 +911,70 @@ button.settings-text-link:hover {
     row-gap: 0.35rem;
   }
 }
+
+/* Settings -> AI Agents (AiAgentsPage.tsx). */
+.ai-agents-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.ai-agents-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.ai-agents-fieldset legend {
+  margin-bottom: var(--space-sm);
+  color: var(--colour-muted);
+}
+
+.ai-agents-choice {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  color: var(--colour-text);
+}
+
+.ai-agents-choice-description {
+  display: block;
+}
+
+/* The new key, shown once: selectable in full, wrapping rather than
+   overflowing a narrow screen. */
+.ai-agents-key {
+  display: block;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-xs);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.ai-agents-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.ai-agents-key-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--colour-border);
+}
+
+.ai-agents-key-row:last-child {
+  border-bottom: none;
+}
+
+.ai-agents-key-row p {
+  margin: var(--space-xs) 0 0;
+}

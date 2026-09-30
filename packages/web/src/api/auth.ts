@@ -7,6 +7,8 @@ export interface CurrentUser {
   lastName: string;
   email: string;
   role: 'developer' | 'client';
+  // A developer account's plan; Pro includes AI agent access.
+  plan?: 'free' | 'pro';
   status: 'active' | 'paused';
   // A real IANA zone name, always set - validated server-side against
   // packages/server/src/auth/timezone.ts's isValidTimezone.

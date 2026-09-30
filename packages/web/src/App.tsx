@@ -8,6 +8,7 @@ import { SettingsLayout } from './pages/settings/SettingsLayout.tsx';
 import { PersonalDetailsPage } from './pages/settings/PersonalDetailsPage.tsx';
 import { PasswordSecurityPage } from './pages/settings/PasswordSecurityPage.tsx';
 import { SubscriptionPage } from './pages/settings/SubscriptionPage.tsx';
+import { AiAgentsPage } from './pages/settings/AiAgentsPage.tsx';
 import { ManageSitesPage } from './pages/settings/ManageSitesPage.tsx';
 import { RegisterSitePage } from './pages/settings/RegisterSitePage.tsx';
 import { ManageSitePage } from './pages/settings/ManageSitePage.tsx';
@@ -55,6 +56,7 @@ export const routes: RouteObject[] = [
           { path: 'personal', element: <PersonalDetailsPage /> },
           { path: 'password', element: <PasswordSecurityPage /> },
           { path: 'subscription', element: <SubscriptionPage /> },
+          { path: 'ai-agents', element: <AiAgentsPage /> },
           {
             element: <RequireDeveloper />,
             children: [
