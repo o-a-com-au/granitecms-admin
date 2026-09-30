@@ -141,6 +141,10 @@ describe('PagesHubPage', () => {
         'fetch',
         vi.fn(async (input: RequestInfo | URL) => {
           const url = typeof input === 'string' ? input : input.toString();
+          // The site list (the New Page dialog reads the site's content version).
+          if (url === '/api/sites') {
+            return new Response(JSON.stringify([{ id: 'site-1', url: 'https://site.example', status: { state: 'ok', agentVersion: '0.8.0', contentSchemaVersion: 7, sqliteDriver: 'node:sqlite' } }]), { status: 200 });
+          }
           if (url.includes('/theme/page-templates')) {
             return new Response(JSON.stringify({ templates: [] }), { status: 200 });
           }
@@ -221,6 +225,10 @@ describe('PagesHubPage', () => {
         'fetch',
         vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
           const url = typeof input === 'string' ? input : input.toString();
+          // The site list (the New Page dialog reads the site's content version).
+          if (url === '/api/sites') {
+            return new Response(JSON.stringify([{ id: 'site-1', url: 'https://site.example', status: { state: 'ok', agentVersion: '0.8.0', contentSchemaVersion: 7, sqliteDriver: 'node:sqlite' } }]), { status: 200 });
+          }
           if (url.includes('/theme/page-templates')) {
             return new Response(JSON.stringify({ templates: [] }), { status: 200 });
           }
