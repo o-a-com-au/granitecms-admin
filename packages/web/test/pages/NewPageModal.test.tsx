@@ -55,6 +55,12 @@ const PAGES = [
   pageEntry('pages/about.json', 'About'),
 ];
 
+// The site as the admin's site list reports it: its CMS writes content
+// schema version 7, which is what a new page must carry.
+const SITE_LIST = [
+  { id: 'site-1', url: 'https://site.example', createdAt: '', updatedAt: '', status: { state: 'ok', agentVersion: '0.8.0', contentSchemaVersion: 7, sqliteDriver: 'node:sqlite' } },
+];
+
 function installFakeFetch({
   templates = [] as unknown[],
   pages = PAGES as unknown[],
@@ -64,6 +70,9 @@ function installFakeFetch({
   let receivedSavePath: string | undefined;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
+    if (url === '/api/sites') {
+      return new Response(JSON.stringify(SITE_LIST), { status: 200 });
+    }
     if (url.includes('/theme/page-templates')) {
       return new Response(JSON.stringify({ templates }), { status: 200 });
     }
@@ -185,6 +194,32 @@ describe('NewPageModal', () => {
     expect(screen.queryByRole('option', { name: 'Main Menu' })).toBeNull();
   });
 
+  it("won't create a page while the website isn't answering, since its content version is unknown", async () => {
+    const saves: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/api/sites') {
+          return new Response(JSON.stringify([{ ...SITE_LIST[0], status: { state: 'unreachable' } }]), { status: 200 });
+        }
+        if (url.includes('/theme/page-templates')) {
+          return new Response(JSON.stringify({ templates: [] }), { status: 200 });
+        }
+        if (url.includes('/drafts/')) {
+          saves.push(url);
+        }
+        return new Response(JSON.stringify(PAGES), { status: 200 });
+      }),
+    );
+    renderModal();
+    await waitForParentOptions();
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'My New Page' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    expect(await screen.findByText(/isn't answering right now/)).toBeDefined();
+    expect(saves).toEqual([]);
+  });
+
   it('derives the slug from the title and creates a top-level page', async () => {
     const { getReceivedSaveBody, getReceivedSavePath } = installFakeFetch();
     const { router, onCreated } = renderModal();
@@ -199,7 +234,7 @@ describe('NewPageModal', () => {
     expect(getReceivedSavePath()).toContain('/drafts/pages/my-new-page.json');
     expect(router.state.location.pathname).toBe('/sites/site-1/content');
     expect(getReceivedSaveBody()).toEqual({
-      schemaVersion: 6,
+      schemaVersion: 7,
       name: 'My New Page',
       title: 'My New Page',
       type: 'page',
@@ -235,7 +270,7 @@ describe('NewPageModal', () => {
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
     expect(router.state.location.pathname).toBe('/sites/site-1/content');
     expect(getReceivedSaveBody()).toEqual({
-      schemaVersion: 6,
+      schemaVersion: 7,
       name: 'My Post',
       title: 'My Post',
       type: 'page',
@@ -263,6 +298,9 @@ describe('NewPageModal', () => {
   it('still offers None when the page list fails to load, so a top-level page can always be created', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/sites') {
+        return new Response(JSON.stringify(SITE_LIST), { status: 200 });
+      }
       if (url.includes('/theme/page-templates')) {
         return new Response(JSON.stringify({ templates: [] }), { status: 200 });
       }
@@ -312,6 +350,9 @@ describe('NewPageModal', () => {
         'fetch',
         vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
           const url = typeof input === 'string' ? input : input.toString();
+          if (url === '/api/sites') {
+            return new Response(JSON.stringify(SITE_LIST), { status: 200 });
+          }
           calls.push({ url, init });
           if (url.includes('/theme/page-templates')) {
             return new Response(JSON.stringify({ templates: [] }), { status: 200 });
@@ -419,7 +460,7 @@ describe('NewPageModal', () => {
       await waitFor(() => expect(onCreated).toHaveBeenCalled());
       expect(router.state.location.pathname).toBe('/sites/site-1/content');
       expect(getSavedBody()).toEqual({
-        schemaVersion: 6,
+        schemaVersion: 7,
         name: 'Team (Copy)',
         title: 'Team (Copy)',
         type: 'page',

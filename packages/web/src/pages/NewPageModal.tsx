@@ -8,6 +8,7 @@ import { CloseIcon } from '../sections/CloseIcon.tsx';
 import { pageParentPath, relativePagePath } from './pageTree.ts';
 import { slugify } from './slugify.ts';
 import { normalisePageType } from './pageType.ts';
+import { useSites } from '../sites/useSites.ts';
 
 export interface NewPageModalProps {
   siteId: string;
@@ -30,15 +31,10 @@ export interface NewPageModalProps {
   onCreated: (path: string, url: string) => void;
 }
 
-// "Always 6 for newly-authored content" - app-granite-cms's own
-// docs/guide-content-authoring.md. Not the exact number a template's
-// own file happens to declare (see buildPageContent below) - every
-// page this modal creates, template or blank, is authored fresh right
-// now. No live source to read this from yet (the site's own
-// GET /v1/capabilities response isn't threaded into this modal) -
-// bump this by hand alongside app-granite-cms's own
-// CURRENT_SCHEMA_VERSION until it is.
-const PAGE_SCHEMA_VERSION = 6;
+// A new page's schemaVersion is whatever the website's own CMS writes
+// now (its contentSchemaVersion, from the site list's status), never a
+// number kept here by hand: that drifted twice (5, then 6 while the CMS
+// was on 7) before it was read from the site instead.
 
 const BLANK_PAGE_BASE = { type: 'page', layout: 'theme', sections: [] };
 
@@ -51,14 +47,14 @@ const BLANK_PAGE_BASE = { type: 'page', layout: 'theme', sections: [] };
 // dialog's own Status dropdown rather than being forced false. A
 // duplicate of a live page is emphatically not live itself unless the
 // user says so.
-function buildPageContent(title: string, sourceContent: unknown, published: boolean, type: string): Record<string, unknown> {
+function buildPageContent(title: string, sourceContent: unknown, published: boolean, type: string, schemaVersion: number): Record<string, unknown> {
   const base = (typeof sourceContent === 'object' && sourceContent !== null ? sourceContent : BLANK_PAGE_BASE) as Record<
     string,
     unknown
   >;
   // type last so the dialog's own choice wins over whatever the
   // template or duplicated page happened to declare.
-  return { ...base, schemaVersion: PAGE_SCHEMA_VERSION, name: title, title, published, type };
+  return { ...base, schemaVersion, name: title, title, published, type };
 }
 
 // v1 pages created through this modal are always flat under pages/ (no
@@ -92,6 +88,9 @@ function deriveUrlFromPath(path: string): string {
 // pre-flight existence check.
 
 export function NewPageModal({ siteId, onClose, initialParentPath, duplicateFrom, onCreated }: NewPageModalProps) {
+  const { sites } = useSites();
+  const siteStatus = sites?.find((entry) => entry.id === siteId)?.status;
+  const schemaVersion = siteStatus?.state === 'ok' ? siteStatus.contentSchemaVersion : null;
   const duplicating = duplicateFrom !== undefined;
   // A duplicate opens with a name that is already valid and already
   // distinct from its source, so Create is reachable immediately and
@@ -210,7 +209,10 @@ export function NewPageModal({ siteId, onClose, initialParentPath, duplicateFrom
         const read = await readSiteEditorContent(siteId, duplicateFrom.path);
         source = JSON.parse(read.content);
       }
-      const content = buildPageContent(trimmedTitle, source, status === 'published', normalisePageType(pageType));
+      if (schemaVersion === null) {
+        throw new Error("The website isn't answering right now, so the page can't be created. Try again in a moment.");
+      }
+      const content = buildPageContent(trimmedTitle, source, status === 'published', normalisePageType(pageType), schemaVersion);
       await saveSiteDraft(siteId, derivedPath, JSON.stringify(content, null, 2), '*');
 
       // Publishing is a second, separate step: the page exists as a
