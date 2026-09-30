@@ -23,6 +23,9 @@ import type { SiteAccessStore } from './store/site-access-store.ts';
 import { openInMemorySiteAccessStore } from './store/site-access-store.ts';
 import type { SiteInviteStore } from './store/site-invite-store.ts';
 import { openInMemorySiteInviteStore } from './store/site-invite-store.ts';
+import { openInMemoryApiKeyStore, type ApiKeyStore } from './store/api-key-store.ts';
+import { registerApiKeyAuth } from './api-keys/authenticate.ts';
+import { createApiKeyRoutes } from './routes/api-keys.ts';
 import { toSessionStore, type SessionRecord } from './auth/session-store-adapter.ts';
 import { openInMemoryStore } from './store/in-memory-store.ts';
 import type { OAuthProvider } from './auth/oauth-provider.ts';
@@ -36,6 +39,8 @@ export interface ServerDeps {
   sitesStore: SiteStore;
   siteAccessStore: SiteAccessStore;
   siteInviteStore: SiteInviteStore;
+  // Optional so existing callers (tests) needn't pass one; in-memory then.
+  apiKeyStore?: ApiKeyStore;
   oauthProviders: OAuthProvider[];
   baseUrl: string;
   mailer: Mailer | undefined;
@@ -56,6 +61,7 @@ function defaultDeps(): ServerDeps {
     sitesStore: openInMemorySiteStore(),
     siteAccessStore: openInMemorySiteAccessStore(),
     siteInviteStore: openInMemorySiteInviteStore(),
+    apiKeyStore: openInMemoryApiKeyStore(),
     oauthProviders: [],
     baseUrl: '',
     mailer: undefined,
@@ -143,7 +149,16 @@ export async function buildServer(
   // stricter per-route limit below) - just a backstop against genuine
   // abuse/misbehaving clients hammering the API, without throttling
   // normal use (e.g. GET /api/auth/me, fetched on every page load).
-  await app.register(fastifyRateLimit, { max: 300, timeWindow: '1 minute' });
+  // Per API key when a request carries one (an agent's requests all come
+  // from one place, so its own budget, not the IP's), otherwise per IP.
+  await app.register(fastifyRateLimit, {
+    max: 300,
+    timeWindow: '1 minute',
+    keyGenerator: (request) => {
+      const header = request.headers.authorization;
+      return typeof header === 'string' && header.startsWith('Bearer ') ? `key:${header.slice(7).trim()}` : request.ip;
+    },
+  });
 
   await app.register(fastifyCookie);
   await app.register(fastifySession, {
@@ -155,6 +170,9 @@ export async function buildServer(
       sameSite: 'lax',
     },
   });
+
+  const apiKeyStore = deps.apiKeyStore ?? openInMemoryApiKeyStore();
+  registerApiKeyAuth(app, { apiKeyStore, sitesStore: deps.sitesStore, usersStore: deps.usersStore });
 
   await app.register(healthRoutes, { prefix: '/api' });
   await app.register(createAuthRoutes(deps.usersStore, deps.sessionRecordStore), { prefix: '/api/auth' });
@@ -169,6 +187,9 @@ export async function buildServer(
   );
   await app.register(createInviteClaimRoutes(deps.usersStore, deps.sitesStore, deps.siteAccessStore, deps.siteInviteStore), {
     prefix: '/api/invites',
+  });
+  await app.register(createApiKeyRoutes(deps.usersStore, deps.sitesStore, deps.siteAccessStore, apiKeyStore), {
+    prefix: '/api/api-keys',
   });
 
   // Skipped when the web package hasn't been built yet (e.g. running

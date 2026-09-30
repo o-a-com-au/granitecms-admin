@@ -174,6 +174,7 @@ describe('auth routes', () => {
       role: 'developer',
       status: 'active',
       timezone: 'UTC',
+      plan: 'free',
     });
 
     await app.close();
@@ -238,6 +239,7 @@ describe('auth routes', () => {
       role: 'developer',
       status: 'active',
       timezone: 'UTC',
+      plan: 'free',
     });
 
     await app.close();

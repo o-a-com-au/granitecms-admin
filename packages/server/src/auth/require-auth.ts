@@ -1,6 +1,6 @@
 import type { FastifyRequest } from 'fastify';
 import type { Store } from '../store/store.ts';
-import type { AdminUser } from './users.ts';
+import { planOf, type AdminUser } from './users.ts';
 
 // Direct analogue of the agent repo's own token-auth.ts AuthError:
 // statusCode set explicitly in the constructor so the global error
@@ -18,7 +18,11 @@ export class AuthError extends Error {
 
 declare module 'fastify' {
   interface FastifyRequest {
-    currentUser: Pick<AdminUser, 'id' | 'username' | 'firstName' | 'lastName' | 'email' | 'role' | 'status' | 'timezone'> | null;
+    // viaApiKey: acting through an API key (an AI agent) rather than a
+    // login - the commit author says so (routes/sites.ts).
+    currentUser: (Pick<AdminUser, 'id' | 'username' | 'firstName' | 'lastName' | 'email' | 'role' | 'status' | 'timezone' | 'plan'> & {
+      viaApiKey?: true;
+    }) | null;
   }
 }
 
@@ -30,12 +34,17 @@ declare module 'fastify' {
 // requireAuth below instead.
 export function createRequireSession(usersStore: Store<AdminUser>) {
   return async function requireSession(request: FastifyRequest): Promise<void> {
-    const userId = request.session.get('userId');
+    // An API key (api-keys/authenticate.ts has already checked it)
+    // stands in for the session: it acts as its owner.
+    const userId = request.apiKey ? request.apiKey.userId : request.session.get('userId');
     if (!userId) {
       throw new AuthError('Login required');
     }
 
     const user = await usersStore.find(userId);
+    if (!user && request.apiKey) {
+      throw new AuthError('Login required');
+    }
     if (!user) {
       // The session names a user that no longer exists (e.g. deleted
       // out of band) - destroy the now-stale session rather than
@@ -53,6 +62,8 @@ export function createRequireSession(usersStore: Store<AdminUser>) {
       role: user.role,
       status: user.status,
       timezone: user.timezone,
+      plan: planOf(user),
+      ...(request.apiKey ? { viaApiKey: true as const } : {}),
     };
   };
 }

@@ -12,6 +12,16 @@ export type AdminUserRole = 'developer' | 'client';
 // requireSession/routes/auth.ts's pause/resume routes).
 export type AdminUserStatus = 'active' | 'paused';
 
+// A developer account's plan. 'pro' is what AI agent access (API keys)
+// needs, on the site owner's account. Absent on accounts made before
+// plans existed, which are 'free'. Set by hand for now (npm run
+// set-plan) until billing exists; billing will set the same field.
+export type AdminUserPlan = 'free' | 'pro';
+
+export function planOf(user: Pick<AdminUser, 'plan'>): AdminUserPlan {
+  return user.plan ?? 'free';
+}
+
 export interface AdminUser {
   id: string;
   username: string;
@@ -34,6 +44,7 @@ export interface AdminUser {
   // to DEFAULT_TIMEZONE ('UTC') wherever no real browser signal exists
   // at account-creation time. See auth/timezone.ts.
   timezone: string;
+  plan?: AdminUserPlan;
   createdAt: string;
 }
 

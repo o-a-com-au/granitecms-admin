@@ -10,6 +10,7 @@
     "dev": "node --experimental-strip-types --watch src/index.ts",
     "build": "tsc -p tsconfig.build.json",
     "db:generate": "drizzle-kit generate",
+    "set-plan": "node --experimental-strip-types src/scripts/set-plan.ts",
     "db:migrate": "node --experimental-strip-types src/store/postgres/migrate.ts"
   },
   "dependencies": {
