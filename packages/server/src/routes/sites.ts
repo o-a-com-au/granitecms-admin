@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Store } from '../store/store.ts';
 import type { SiteStore } from '../store/site-store.ts';
 import type { SiteAccessStore } from '../store/site-access-store.ts';
-import { planOf, type AdminUser } from '../auth/users.ts';
+import type { AdminUser } from '../auth/users.ts';
 import { createRequireAuth, AuthError } from '../auth/require-auth.ts';
 import { formatFullName } from '../auth/full-name.ts';
 import { createRequireDeveloper } from '../auth/require-developer.ts';
@@ -363,16 +363,11 @@ function parseRenameMenuBody(body: unknown): RenameMenuBody | null {
 // null case is unreachable in practice (requireAuth always sets this
 // first) but narrowed explicitly rather than asserted, matching this
 // codebase's existing defensive style elsewhere.
-// A change made through an API key (an AI agent) says so in the site's
-// history: "Jane Editor (via AI agent)".
-function requireCommitAuthor(
-  currentUser: (Pick<AdminUser, 'firstName' | 'lastName' | 'email'> & { viaApiKey?: true }) | null,
-): CommitAuthor {
+function requireCommitAuthor(currentUser: Pick<AdminUser, 'firstName' | 'lastName' | 'email'> | null): CommitAuthor {
   if (!currentUser) {
     throw new AuthError('Login required');
   }
-  const name = formatFullName(currentUser.firstName, currentUser.lastName);
-  return { name: currentUser.viaApiKey ? `${name} (via AI agent)` : name, email: currentUser.email };
+  return { name: formatFullName(currentUser.firstName, currentUser.lastName), email: currentUser.email };
 }
 
 // GET / client branch: resolves via the SiteAccess rows granted to
@@ -394,18 +389,8 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
     // check on every request - no cached status field anywhere.
     app.get('/', { preHandler: requireAuth }, async (request) => {
       const user = request.currentUser!;
-      let sites =
+      const sites =
         user.role === 'developer' ? await sitesStore.listByOwner(user.id) : await resolveClientSites(sitesStore, siteAccessStore, user.id);
-      // Through an API key: only the key's own sites, and only while
-      // their owner is on the Pro plan (as api-keys/authenticate.ts
-      // requires for every other site route).
-      const apiKey = request.apiKey;
-      if (apiKey) {
-        const onPro = await Promise.all(
-          sites.map(async (site) => apiKey.siteIds.includes(site.id) && planOf((await usersStore.find(site.ownerId)) ?? {}) === 'pro'),
-        );
-        sites = sites.filter((_site, index) => onPro[index]);
-      }
       return Promise.all(sites.map(async (site) => toSiteListEntry(site, await checkSiteStatus(site))));
     });
 

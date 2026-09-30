@@ -6,8 +6,7 @@
   "type": "module",
   "workspaces": [
     "packages/server",
-    "packages/web",
-    "packages/mcp"
+    "packages/web"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",

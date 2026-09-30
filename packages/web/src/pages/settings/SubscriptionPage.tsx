@@ -29,7 +29,7 @@ export function SubscriptionPage() {
       <h2>Manage Subscription</h2>
       <div className="settings-card">
         <h3 className="panel-heading">Your Plan</h3>
-        <p>{user?.plan === 'pro' ? 'You are on the Pro plan, which includes AI agent access.' : 'You are on the Free plan.'}</p>
+        <p>{user?.plan === 'pro' ? 'You are on the Pro plan.' : 'You are on the Free plan.'}</p>
         <p className="settings-muted">Plan and billing management is coming soon.</p>
         <button type="button" className="button-primary" onClick={() => setConfirmingPause(true)}>
           Pause Subscription

@@ -7,7 +7,6 @@ import { openPostgresUserStore } from './store/postgres/user-store.ts';
 import { openPostgresSiteStore } from './store/postgres/site-store.ts';
 import { openPostgresSiteAccessStore } from './store/postgres/site-access-store.ts';
 import { openPostgresSiteInviteStore } from './store/postgres/site-invite-store.ts';
-import { openPostgresApiKeyStore } from './store/postgres/api-key-store.ts';
 import { openPostgresSessionSecretStore } from './store/postgres/session-secret-store.ts';
 import { openPostgresSiteTokenEncryptionKeyStore } from './store/postgres/site-token-encryption-key-store.ts';
 import { openRedisSessionStore } from './store/redis-session-store.ts';
@@ -16,7 +15,6 @@ import { openSqliteUserStore } from './store/sqlite/user-store.ts';
 import { openSqliteSiteStore } from './store/sqlite/site-store.ts';
 import { openSqliteSiteAccessStore } from './store/sqlite/site-access-store.ts';
 import { openSqliteSiteInviteStore } from './store/sqlite/site-invite-store.ts';
-import { openSqliteApiKeyStore } from './store/sqlite/api-key-store.ts';
 import { openSqliteSessionSecretStore } from './store/sqlite/session-secret-store.ts';
 import { openSqliteSiteTokenEncryptionKeyStore } from './store/sqlite/site-token-encryption-key-store.ts';
 import { openSqliteSessionStore } from './store/sqlite/session-store.ts';
@@ -25,7 +23,6 @@ import type { UserStore } from './store/user-store.ts';
 import type { SiteStore } from './store/site-store.ts';
 import type { SiteAccessStore } from './store/site-access-store.ts';
 import type { SiteInviteStore } from './store/site-invite-store.ts';
-import type { ApiKeyStore } from './store/api-key-store.ts';
 import type { SessionSecretRecord } from './auth/session-secret.ts';
 import type { SiteTokenEncryptionKeyRecord } from './sites/site-token-encryption-key.ts';
 import type { SessionRecord } from './auth/session-store-adapter.ts';
@@ -58,7 +55,6 @@ let siteTokenEncryptionKeyStore: Store<SiteTokenEncryptionKeyRecord>;
 let sessionRecordStore: Store<SessionRecord>;
 let siteAccessStore: SiteAccessStore;
 let siteInviteStore: SiteInviteStore;
-let apiKeyStore: ApiKeyStore;
 let makeSitesStore: (encryptionKey: Buffer) => SiteStore;
 let closeStorage: () => Promise<void>;
 
@@ -72,7 +68,6 @@ if (config.storageDriver === 'postgres') {
   sessionRecordStore = openRedisSessionStore(redis);
   siteAccessStore = openPostgresSiteAccessStore(db);
   siteInviteStore = openPostgresSiteInviteStore(db);
-  apiKeyStore = openPostgresApiKeyStore(db);
   makeSitesStore = (encryptionKey) => openPostgresSiteStore(db, encryptionKey);
   closeStorage = async () => {
     await db.$client.end();
@@ -87,7 +82,6 @@ if (config.storageDriver === 'postgres') {
   sessionRecordStore = openSqliteSessionStore(sqliteDb);
   siteAccessStore = openSqliteSiteAccessStore(sqliteDb);
   siteInviteStore = openSqliteSiteInviteStore(sqliteDb);
-  apiKeyStore = openSqliteApiKeyStore(sqliteDb);
   makeSitesStore = (encryptionKey) => openSqliteSiteStore(sqliteDb, encryptionKey);
   closeStorage = async () => {
     sqliteDb.close();
@@ -125,7 +119,6 @@ const app = await buildServer(config, {
   sitesStore,
   siteAccessStore,
   siteInviteStore,
-  apiKeyStore,
   oauthProviders,
   baseUrl: config.baseUrl,
   mailer,

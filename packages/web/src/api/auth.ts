@@ -7,7 +7,7 @@ export interface CurrentUser {
   lastName: string;
   email: string;
   role: 'developer' | 'client';
-  // A developer account's plan; Pro includes AI agent access.
+  // A developer account's plan.
   plan?: 'free' | 'pro';
   status: 'active' | 'paused';
   // A real IANA zone name, always set - validated server-side against

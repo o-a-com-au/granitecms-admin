@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { pgTable, text, uniqueIndex, index, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, uniqueIndex, index } from 'drizzle-orm/pg-core';
 
 // One table per former JSON store - shapes taken verbatim from the
 // AdminUser/Site/SiteAccess/SiteInvite/SessionSecretRecord interfaces,
@@ -94,19 +94,3 @@ export const siteTokenEncryptionKey = pgTable('site_token_encryption_key', {
   key: text('key').notNull(),
 });
 
-// Personal API keys for AI agents - see api-keys/api-key.ts. id is the
-// sha256 of the key; the key itself is never stored.
-export const apiKeys = pgTable(
-  'api_keys',
-  {
-    id: text('id').primaryKey(),
-    userId: text('user_id').notNull(),
-    name: text('name').notNull(),
-    prefix: text('prefix').notNull(),
-    siteIds: jsonb('site_ids').$type<string[]>().notNull(),
-    permission: text('permission', { enum: ['read', 'draft', 'publish'] }).notNull(),
-    createdAt: text('created_at').notNull(),
-    lastUsedAt: text('last_used_at'),
-  },
-  (table) => [index('api_keys_user_id_idx').on(table.userId)],
-);

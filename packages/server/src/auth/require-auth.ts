@@ -18,11 +18,7 @@ export class AuthError extends Error {
 
 declare module 'fastify' {
   interface FastifyRequest {
-    // viaApiKey: acting through an API key (an AI agent) rather than a
-    // login - the commit author says so (routes/sites.ts).
-    currentUser: (Pick<AdminUser, 'id' | 'username' | 'firstName' | 'lastName' | 'email' | 'role' | 'status' | 'timezone' | 'plan'> & {
-      viaApiKey?: true;
-    }) | null;
+    currentUser: Pick<AdminUser, 'id' | 'username' | 'firstName' | 'lastName' | 'email' | 'role' | 'status' | 'timezone' | 'plan'> | null;
   }
 }
 
@@ -34,17 +30,12 @@ declare module 'fastify' {
 // requireAuth below instead.
 export function createRequireSession(usersStore: Store<AdminUser>) {
   return async function requireSession(request: FastifyRequest): Promise<void> {
-    // An API key (api-keys/authenticate.ts has already checked it)
-    // stands in for the session: it acts as its owner.
-    const userId = request.apiKey ? request.apiKey.userId : request.session.get('userId');
+    const userId = request.session.get('userId');
     if (!userId) {
       throw new AuthError('Login required');
     }
 
     const user = await usersStore.find(userId);
-    if (!user && request.apiKey) {
-      throw new AuthError('Login required');
-    }
     if (!user) {
       // The session names a user that no longer exists (e.g. deleted
       // out of band) - destroy the now-stale session rather than
@@ -63,7 +54,6 @@ export function createRequireSession(usersStore: Store<AdminUser>) {
       status: user.status,
       timezone: user.timezone,
       plan: planOf(user),
-      ...(request.apiKey ? { viaApiKey: true as const } : {}),
     };
   };
 }
