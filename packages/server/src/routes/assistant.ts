@@ -10,7 +10,7 @@ import { planOf } from '../auth/users.ts';
 import { SiteNotFoundError } from '../sites/site-not-found-error.ts';
 import { describeModelError, type AssistantModel } from '../assistant/model.ts';
 import { buildSystemPrompt, withCurrentPage } from '../assistant/prompt.ts';
-import { READ_TOOLS } from '../assistant/tools.ts';
+import { ASSISTANT_TOOLS } from '../assistant/tools.ts';
 import { runAssistant, type AssistantEvent } from '../assistant/run-assistant.ts';
 
 interface ChatMessage {
@@ -115,6 +115,7 @@ export function createAssistantRoutes(
       }
 
       const person = request.currentUser!;
+      const personName = formatFullName(person.firstName, person.lastName) || person.email;
       const controller = new AbortController();
       request.raw.on('close', () => controller.abort());
 
@@ -129,12 +130,19 @@ export function createAssistantRoutes(
       try {
         const usage = await runAssistant({
           model,
-          tools: READ_TOOLS,
-          toolContext: { site, fetchImpl },
+          tools: ASSISTANT_TOOLS,
+          toolContext: {
+            site,
+            fetchImpl,
+            // Credited to the person, marked as done through the
+            // assistant, in the website's history.
+            author: { name: `${personName} (via Assistant)`, email: person.email },
+            preview: emit,
+          },
           system: buildSystemPrompt({
             siteName: new URL(site.url).host,
             siteUrl: site.url,
-            personName: formatFullName(person.firstName, person.lastName) || person.email,
+            personName,
           }),
           messages: toModelMessages(body),
           emit,

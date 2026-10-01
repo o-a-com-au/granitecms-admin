@@ -1,11 +1,12 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { AssistantModel } from './model.ts';
-import { ToolError, type AssistantTool, type ToolContext } from './tools.ts';
+import { ToolError, type AssistantTool, type PreviewEvent, type ToolContext } from './tools.ts';
 
 // What the chat panel receives, one per line, as the assistant works.
 export type AssistantEvent =
   | { type: 'text'; text: string }
   | { type: 'tool'; label: string }
+  | PreviewEvent
   | { type: 'done' }
   | { type: 'error'; message: string };
 

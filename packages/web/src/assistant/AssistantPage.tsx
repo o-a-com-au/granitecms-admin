@@ -43,7 +43,7 @@ function toTurns(messages: ChatMessage[]): AssistantTurn[] {
 // Discard actions Pages and Media show sit in the top bar here too.
 export function AssistantPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
-  const { device, setDevice, previewUrl } = usePreview();
+  const { device, setDevice, previewUrl, setPreview, bumpPreview } = usePreview();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [controller, setController] = useState<AbortController | null>(null);
@@ -84,6 +84,16 @@ export function AssistantPage() {
       updateReply((reply) => ({ ...reply, text: reply.text + event.text, activity: undefined }));
     } else if (event.type === 'tool') {
       updateReply((reply) => ({ ...reply, activity: event.label }));
+    } else if (event.type === 'show') {
+      setPreview({ url: event.url, revisionRef: null });
+    } else if (event.type === 'changed') {
+      // Straight to the page it changed, reloaded: the person sees the
+      // change, and the top bar's Save Changes / Discard Changes catch
+      // up with its new draft. Not through the leave-with-a-draft
+      // prompt: the assistant moving between pages it's working on
+      // isn't the person leaving one.
+      setPreview({ url: event.url, revisionRef: null });
+      bumpPreview();
     } else if (event.type === 'done') {
       updateReply((reply) => ({ ...reply, status: 'done', activity: undefined }));
     } else {

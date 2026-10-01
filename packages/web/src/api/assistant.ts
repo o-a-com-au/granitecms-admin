@@ -5,6 +5,9 @@
 export type AssistantEvent =
   | { type: 'text'; text: string }
   | { type: 'tool'; label: string }
+  // Show a page in the preview, or reload one the assistant just changed.
+  | { type: 'show'; url: string }
+  | { type: 'changed'; url: string }
   | { type: 'done' }
   | { type: 'error'; message: string };
 

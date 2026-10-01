@@ -5,7 +5,12 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { AssistantPage } from '../../src/assistant/AssistantPage.tsx';
 import { ToastProvider } from '../../src/toast/ToastContext.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider } from '../../src/layout/PageActionsContext.tsx';
-import { PreviewProvider } from '../../src/layout/PreviewContext.tsx';
+import { PreviewProvider, usePreview } from '../../src/layout/PreviewContext.tsx';
+
+function PreviewProbe() {
+  const { previewUrl, previewGeneration } = usePreview();
+  return <span data-testid="preview">{`${previewUrl ?? 'none'} #${previewGeneration}`}</span>;
+}
 
 // Stands in for AppShell: the header's page actions, and the shared
 // preview's context.
@@ -16,7 +21,10 @@ function Host({ children }: { children: ReactNode }) {
     <ToastProvider>
       <PreviewProvider siteId="site-1">
         <PageActionsProvider setActions={setActions}>
-          <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>{children}</PageDeviceToggleProvider>
+          <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>
+            {children}
+            <PreviewProbe />
+          </PageDeviceToggleProvider>
         </PageActionsProvider>
       </PreviewProvider>
     </ToastProvider>
@@ -142,5 +150,25 @@ describe('AssistantPage', () => {
     fireEvent.change(input, { target: { value: 'Hello' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(screen.getByText('The assistant is busy right now. Try again in a minute.')).toBeDefined());
+  });
+
+  it('moves the preview to a page the assistant shows, and reloads one it changes', async () => {
+    renderPage(() =>
+      streamOf([
+        { type: 'show', url: '/about' },
+        { type: 'tool', label: 'Updating /tastings' },
+        { type: 'changed', url: '/tastings' },
+        { type: 'text', text: 'Done.' },
+        { type: 'done' },
+      ]),
+    );
+    const before = Number(/#(\d+)/.exec(screen.getByTestId('preview').textContent ?? '')?.[1]);
+    const input = screen.getByLabelText('Message the assistant');
+    fireEvent.change(input, { target: { value: 'Change the tastings heading' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(screen.getByText('Done.')).toBeDefined());
+    const after = /^(\S+) #(\d+)$/.exec(screen.getByTestId('preview').textContent ?? '');
+    expect(after?.[1]).toBe('/tastings');
+    expect(Number(after?.[2])).toBeGreaterThan(before);
   });
 });
