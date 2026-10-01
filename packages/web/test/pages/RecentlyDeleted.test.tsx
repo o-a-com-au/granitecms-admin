@@ -30,18 +30,15 @@ afterEach(() => {
 });
 
 describe('RecentlyDeleted', () => {
-  it('opens a popup from a link, previews a deleted page as it was (closing the popup), and restores it', async () => {
+  it('opens a popup from a link, and restores a deleted page, then shows it', async () => {
     const { calls, onRestored, shown } = setup(DELETED);
     expect(screen.queryByRole('dialog')).toBeNull();
     fireEvent.click(await screen.findByRole('button', { name: 'Recently deleted (1)' }));
     expect(screen.getByRole('dialog', { name: 'Recently deleted' })).toBeDefined();
     expect(screen.getByText(/deleted by Sam Editor/)).toBeDefined();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Preview Old Offers' }));
-    expect(shown.at(-1)).toEqual(['/old-offers', 'abc123']);
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Preview/ })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Recently deleted (1)' }));
     fireEvent.click(screen.getByRole('button', { name: 'Restore Old Offers' }));
     await waitFor(() => expect(onRestored).toHaveBeenCalled());
     expect(calls.find((call) => call.url === '/api/sites/site-1/revert')?.body).toEqual({

@@ -11,22 +11,23 @@ export interface RecentlyDeletedProps {
   reloadToken: number;
   onRestored: () => void;
   // Shows a page in the preview, at a past version (ref) or as it is
-  // now (null). Owned by the Pages hub, which owns the preview.
+  // now (null); here, always the restored page as it is now. Owned by
+  // the Pages hub, which owns the preview.
   onShowVersion?: (url: string, ref: string | null) => void;
 }
 
-// "Recently deleted (n)", a quiet link beside Add Page that opens a
-// popup of pages that were deleted and aren't back, each restorable as
-// it was just before it was deleted. Only there at all when something
-// has been deleted. Preview closes the popup so the old version can be
-// seen in the preview behind it. Every delete is a git commit, so
-// nothing is ever truly gone; this is what makes that usable.
 // The page's name, as the page tree shows it; an older CMS only sends
 // the title.
 function nameOf(page: DeletedPage): string {
   return page.name ?? page.title;
 }
 
+// "Recently deleted (n)", a quiet link beside Add Page that opens a
+// popup of pages that were deleted and aren't back, each restorable as
+// it was just before it was deleted. Only there at all when something
+// has been deleted. Restoring shows the page in the preview. Every
+// delete is a git commit, so nothing is ever truly gone; this is what
+// makes that usable.
 export function RecentlyDeleted({ siteId, reloadToken, onRestored, onShowVersion }: RecentlyDeletedProps) {
   const [pages, setPages] = useState<DeletedPage[] | null>(null);
   const [open, setOpen] = useState(false);
@@ -65,11 +66,6 @@ export function RecentlyDeleted({ siteId, reloadToken, onRestored, onShowVersion
   function close(): void {
     setOpen(false);
     setError(null);
-  }
-
-  function preview(page: DeletedPage): void {
-    close();
-    onShowVersion?.(page.url, page.ref);
   }
 
   async function restore(page: DeletedPage): Promise<void> {
@@ -123,9 +119,6 @@ export function RecentlyDeleted({ siteId, reloadToken, onRestored, onShowVersion
                           {page.url} · deleted by {page.deletedBy}, {formatChangedAt(page.deletedAt)}
                         </span>
                       </div>
-                      <button type="button" disabled={restoring !== null} onClick={() => preview(page)} aria-label={`Preview ${nameOf(page)}`}>
-                        Preview
-                      </button>
                       <button type="button" disabled={restoring !== null} onClick={() => void restore(page)} aria-label={`Restore ${nameOf(page)}`}>
                         {restoring === page.path ? 'Restoring...' : 'Restore'}
                       </button>
