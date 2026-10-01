@@ -32,6 +32,7 @@ button.assistant-new-chat:hover {
   display: flex;
   flex-direction: column;
   padding: var(--space-md);
+  background: var(--colour-surface);
 }
 
 /* An empty chat: the icon, a question, and a few starting points,
@@ -114,6 +115,7 @@ button.assistant-suggestion:hover {
   flex: 0 0 auto;
   padding: var(--space-md);
   border-top: 1px solid var(--colour-border);
+  background: var(--colour-surface);
 }
 
 .assistant-composer textarea {
