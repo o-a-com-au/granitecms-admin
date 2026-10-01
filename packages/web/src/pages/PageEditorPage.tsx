@@ -649,9 +649,11 @@ export function PageEditorPage() {
     // to a DIFFERENT page (a search change on this same route) or
     // leaving this site's admin session entirely. Reported directly:
     // Editor -> Pages was prompting even though the page shown, and its
-    // draft, stayed exactly the same either way.
-    const staysWithinThisSitesHub =
-      nextLocation.pathname === `/sites/${siteId}/content` || nextLocation.pathname === `/sites/${siteId}/media`;
+    // draft, stayed exactly the same either way. The Assistant too: same
+    // preview, same bar.
+    const staysWithinThisSitesHub = [`/sites/${siteId}/content`, `/sites/${siteId}/media`, `/sites/${siteId}/assistant`].includes(
+      nextLocation.pathname,
+    );
     if (staysWithinThisSitesHub) {
       return false;
     }

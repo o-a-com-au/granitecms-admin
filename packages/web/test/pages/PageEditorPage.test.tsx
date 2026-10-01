@@ -269,6 +269,7 @@ function renderPage(initialEntry = '/sites/site-1/editor?path=pages%2Fabout.json
       },
       { path: '/', element: <div>registry home</div> },
       { path: '/sites/:siteId/content', element: <div>pages hub</div> },
+      { path: '/sites/:siteId/assistant', element: <div>assistant</div> },
     ],
     { initialEntries: [initialEntry] },
   );
@@ -973,6 +974,19 @@ describe('PageEditorPage', () => {
       fireEvent.click(screen.getByRole('link', { name: 'Pages hub' }));
 
       await waitFor(() => expect(screen.queryByText('pages hub')).not.toBeNull());
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+
+    // The Assistant shows the same page and the same Save/Discard bar.
+    it('does NOT block navigating to the Assistant with a pending draft', async () => {
+      const api = setUpDirtyPage();
+      renderPage('/sites/site-1/editor?path=pages%2Fabout.json&url=%2Fabout', <Link to="/sites/site-1/assistant">Assistant</Link>);
+      await waitForActions();
+      void api;
+
+      fireEvent.click(screen.getByRole('link', { name: 'Assistant' }));
+
+      await waitFor(() => expect(screen.queryByText('assistant')).not.toBeNull());
       expect(screen.queryByRole('alertdialog')).toBeNull();
     });
   });
