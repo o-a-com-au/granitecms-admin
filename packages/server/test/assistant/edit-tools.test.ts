@@ -148,7 +148,7 @@ describe('assistant editing tools', () => {
     assert.deepEqual(draft.sections[0]!.settings, { heading: 'Our distillery', subheading: 'Since 2019' });
     assert.deepEqual(draft.sections[0]!.blocks[0]!.settings, { label: 'Book a tasting', url: '/visit' });
     assert.equal(site.live.get('pages/about.json'), JSON.stringify(ABOUT), 'the live page is untouched');
-    assert.deepEqual(events, [{ type: 'changed', url: '/about' }]);
+    assert.deepEqual(events, [{ type: 'changed', path: 'pages/about.json', url: '/about' }]);
 
     // The new etag works for the next change; the old one is refused.
     await tool('update_settings').run(context, { page: '/about', etag: result.etag, changes: [{ id: 'hero', settings: { subheading: 'Since 2018' } }] });
@@ -178,7 +178,7 @@ describe('assistant editing tools', () => {
       { paths: ['pages/about.json'], message: 'Publish /about', author: { name: 'Jane Editor (via Assistant)', email: 'jane@example.com' } },
     ]);
     assert.match(site.live.get('pages/about.json')!, /"heading":"Ours"/);
-    assert.deepEqual(events.at(-1), { type: 'changed', url: '/about' });
+    assert.deepEqual(events.at(-1), { type: 'changed', path: 'pages/about.json', url: '/about' });
   });
 
   it('creates a new page as a draft with the website\'s content version, and refuses one that exists', async () => {
@@ -193,14 +193,14 @@ describe('assistant editing tools', () => {
       title: 'Tastings',
       published: false,
     });
-    assert.deepEqual(events, [{ type: 'changed', url: '/tastings' }]);
+    assert.deepEqual(events, [{ type: 'changed', path: 'pages/tastings.json', url: '/tastings' }]);
     await assert.rejects(tool('create_page').run(context, { url: '/about', name: 'About' }), /already a page at \/about/);
   });
 
   it('shows a page in the preview, and discards a draft back to the live page', async () => {
     const { context, site, events } = await startFakeSite({ 'pages/about.json': ABOUT });
     await tool('show_page').run(context, { page: 'pages/about.json' });
-    assert.deepEqual(events, [{ type: 'show', url: '/about' }]);
+    assert.deepEqual(events, [{ type: 'show', path: 'pages/about.json', url: '/about' }]);
 
     const read = (await tool('read_page').run(context, { page: '/about' })) as { etag: string };
     await tool('update_settings').run(context, { page: '/about', etag: read.etag, changes: [{ id: 'hero', settings: { heading: 'x' } }] });

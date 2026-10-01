@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState, type ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { AssistantPage } from '../../src/assistant/AssistantPage.tsx';
+import { createFakeStorage } from '../helpers/fakeStorage.ts';
 import { ToastProvider } from '../../src/toast/ToastContext.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider } from '../../src/layout/PageActionsContext.tsx';
 import { PreviewProvider, usePreview } from '../../src/layout/PreviewContext.tsx';
@@ -15,13 +16,14 @@ function PreviewProbe() {
 // Stands in for AppShell: the header's page actions, and the shared
 // preview's context.
 function Host({ children }: { children: ReactNode }) {
-  const [, setActions] = useState<ReactNode>(null);
+  const [actions, setActions] = useState<ReactNode>(null);
   const [, setDeviceToggle] = useState<ReactNode>(null);
   return (
     <ToastProvider>
       <PreviewProvider siteId="site-1">
         <PageActionsProvider setActions={setActions}>
           <PageDeviceToggleProvider setDeviceToggle={setDeviceToggle}>
+            <div data-testid="header-actions">{actions}</div>
             {children}
             <PreviewProbe />
           </PageDeviceToggleProvider>
@@ -40,6 +42,8 @@ interface AssistantCall {
 // everything else the page asks for is a 404.
 function renderPage(answer: (call: AssistantCall) => Response = () => streamOf([{ type: 'done' }])) {
   const calls: AssistantCall[] = [];
+  // Where the current page is remembered (the top bar checks it).
+  vi.stubGlobal('localStorage', createFakeStorage());
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -47,6 +51,10 @@ function renderPage(answer: (call: AssistantCall) => Response = () => streamOf([
         const call = JSON.parse(init?.body as string) as AssistantCall;
         calls.push(call);
         return answer(call);
+      }
+      // The Tastings page has a draft; nothing else does.
+      if (input.toString() === '/api/sites/site-1/content/pages/tastings.json') {
+        return new Response('{}', { status: 200, headers: { etag: '"1"', 'x-content-source': 'draft' } });
       }
       return new Response('{}', { status: 404 });
     }),
@@ -155,9 +163,9 @@ describe('AssistantPage', () => {
   it('moves the preview to a page the assistant shows, and reloads one it changes', async () => {
     renderPage(() =>
       streamOf([
-        { type: 'show', url: '/about' },
+        { type: 'show', path: 'pages/about.json', url: '/about' },
         { type: 'tool', label: 'Updating /tastings' },
-        { type: 'changed', url: '/tastings' },
+        { type: 'changed', path: 'pages/tastings.json', url: '/tastings' },
         { type: 'text', text: 'Done.' },
         { type: 'done' },
       ]),
@@ -170,5 +178,11 @@ describe('AssistantPage', () => {
     const after = /^(\S+) #(\d+)$/.exec(screen.getByTestId('preview').textContent ?? '');
     expect(after?.[1]).toBe('/tastings');
     expect(Number(after?.[2])).toBeGreaterThan(before);
+    // The top bar checks the page the assistant changed, so its draft
+    // shows Save Changes (a bare preview move left it checking the page
+    // shown before).
+    await waitFor(() =>
+      expect(within(screen.getByTestId('header-actions')).getByRole('button', { name: 'Save Changes' })).toBeDefined(),
+    );
   });
 });

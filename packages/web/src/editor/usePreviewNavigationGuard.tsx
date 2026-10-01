@@ -79,6 +79,9 @@ export function usePreviewNavigationGuard(
   onContentChanged?: () => void,
 ): {
   requestPreviewSwitch: (target: PreviewSwitchTarget) => void;
+  // Switches straight away, with no prompt about the current page's
+  // draft: for the Assistant moving between pages it's working on.
+  showPage: (target: PreviewSwitchTarget) => void;
   promptElement: ReactNode;
   hasDraft: boolean;
   neverPublished: boolean;
@@ -282,5 +285,5 @@ export function usePreviewNavigationGuard(
       />
     ) : null;
 
-  return { requestPreviewSwitch, promptElement, hasDraft, neverPublished, actionsBusy: busy, publishCurrent, discardCurrent };
+  return { requestPreviewSwitch, showPage: performSwitch, promptElement, hasDraft, neverPublished, actionsBusy: busy, publishCurrent, discardCurrent };
 }

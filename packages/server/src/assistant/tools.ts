@@ -24,7 +24,7 @@ import type { CommitAuthor } from '../sites/commit-author.ts';
 // Tells the person's preview to follow along: show a page, or reload
 // one that just changed (which also refreshes the top bar's Save
 // Changes / Discard Changes buttons).
-export type PreviewEvent = { type: 'show'; url: string } | { type: 'changed'; url: string };
+export type PreviewEvent = { type: 'show'; path: string; url: string } | { type: 'changed'; path: string; url: string };
 
 export interface ToolContext {
   site: Pick<Site, 'url' | 'token'>;
@@ -346,7 +346,7 @@ async function saveDraft(context: ToolContext, path: string, content: unknown, e
   if (result.outcome !== 'ok') {
     failed(result);
   }
-  context.preview?.({ type: 'changed', url: pageUrl(path) });
+  context.preview?.({ type: 'changed', path, url: pageUrl(path) });
   return result.etag;
 }
 
@@ -368,7 +368,7 @@ export const EDIT_TOOLS: AssistantTool[] = [
     label: (input) => `Opening ${typeof input.page === 'string' ? input.page : 'a page'}`,
     async run(context, input) {
       const url = pageUrl(contentPath(str(input, 'page')));
-      context.preview?.({ type: 'show', url });
+      context.preview?.({ type: 'show', path: contentPath(str(input, 'page')), url });
       return { showing: url };
     },
   },
@@ -512,7 +512,7 @@ export const EDIT_TOOLS: AssistantTool[] = [
       if (result.outcome !== 'ok') {
         failed(result);
       }
-      context.preview?.({ type: 'changed', url: pageUrl(path) });
+      context.preview?.({ type: 'changed', path, url: pageUrl(path) });
       return { created: 'as a draft', url: pageUrl(path), etag: result.etag };
     },
   },
@@ -533,7 +533,7 @@ export const EDIT_TOOLS: AssistantTool[] = [
       if (result.outcome !== 'ok') {
         failed(result);
       }
-      context.preview?.({ type: 'changed', url: pageUrl(path) });
+      context.preview?.({ type: 'changed', path, url: pageUrl(path) });
       return { published: true, url: pageUrl(path) };
     },
   },
@@ -551,7 +551,7 @@ export const EDIT_TOOLS: AssistantTool[] = [
       if (result.outcome !== 'ok') {
         failed(result);
       }
-      context.preview?.({ type: 'changed', url: pageUrl(path) });
+      context.preview?.({ type: 'changed', path, url: pageUrl(path) });
       return { discarded: true, url: pageUrl(path) };
     },
   },

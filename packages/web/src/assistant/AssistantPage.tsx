@@ -43,7 +43,7 @@ function toTurns(messages: ChatMessage[]): AssistantTurn[] {
 // Discard actions Pages and Media show sit in the top bar here too.
 export function AssistantPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
-  const { device, setDevice, previewUrl, setPreview, bumpPreview } = usePreview();
+  const { device, setDevice, previewUrl, bumpPreview } = usePreview();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [controller, setController] = useState<AbortController | null>(null);
@@ -53,7 +53,7 @@ export function AssistantPage() {
   const endRef = useRef<HTMLDivElement>(null);
 
   usePreviewVisible(true);
-  const { requestPreviewSwitch, promptElement, hasDraft, neverPublished, actionsBusy, publishCurrent, discardCurrent } =
+  const { requestPreviewSwitch, showPage, promptElement, hasDraft, neverPublished, actionsBusy, publishCurrent, discardCurrent } =
     usePreviewNavigationGuard(siteId);
   useSectionClickToEdit(siteId, requestPreviewSwitch);
   const pageActionsNode = useMemo(
@@ -85,14 +85,16 @@ export function AssistantPage() {
     } else if (event.type === 'tool') {
       updateReply((reply) => ({ ...reply, activity: event.label }));
     } else if (event.type === 'show') {
-      setPreview({ url: event.url, revisionRef: null });
+      showPage({ path: event.path, url: event.url });
     } else if (event.type === 'changed') {
       // Straight to the page it changed, reloaded: the person sees the
       // change, and the top bar's Save Changes / Discard Changes catch
       // up with its new draft. Not through the leave-with-a-draft
       // prompt: the assistant moving between pages it's working on
-      // isn't the person leaving one.
-      setPreview({ url: event.url, revisionRef: null });
+      // isn't the person leaving one. showPage, not a bare setPreview:
+      // it also records the page as the current one, which is what the
+      // top bar checks for a draft (and where Editor opens).
+      showPage({ path: event.path, url: event.url });
       bumpPreview();
     } else if (event.type === 'done') {
       updateReply((reply) => ({ ...reply, status: 'done', activity: undefined }));
