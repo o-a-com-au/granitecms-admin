@@ -51,6 +51,7 @@ describe('server - production static/SPA serving', () => {
       trustProxy: false,
       logLevel: 'silent',
       sentryDsn: undefined,
+    anthropicApiKey: undefined,
     };
   });
 

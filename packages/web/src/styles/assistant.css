@@ -90,13 +90,13 @@ button.assistant-suggestion:hover {
 .assistant-message {
   font-size: 0.85rem;
   line-height: 1.5;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 /* The person's own messages sit right, in a bubble; the assistant's
    replies are plain text across the panel, easier to read when long. */
 .assistant-message.is-user {
+  white-space: pre-wrap;
   align-self: flex-end;
   max-width: 85%;
   padding: var(--space-sm) var(--space-md);
@@ -107,6 +107,64 @@ button.assistant-suggestion:hover {
 
 .assistant-message.is-assistant {
   color: var(--colour-text);
+}
+
+/* A reply's formatted text (AssistantText.tsx): spacing between
+   paragraphs and lists, none before the first or after the last. */
+.assistant-message.is-assistant p,
+.assistant-message.is-assistant ul,
+.assistant-message.is-assistant ol {
+  margin: 0 0 var(--space-sm);
+}
+
+.assistant-message.is-assistant ul,
+.assistant-message.is-assistant ol {
+  padding-left: var(--space-lg);
+}
+
+.assistant-message.is-assistant > :last-child {
+  margin-bottom: 0;
+}
+
+.assistant-message.is-assistant code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.assistant-message.is-error {
+  color: var(--colour-danger);
+}
+
+/* "Reading /about...", while the assistant works; it gently pulses so
+   a slow step still reads as busy rather than stuck. */
+.assistant-activity {
+  display: block;
+  color: var(--colour-muted);
+  font-size: 0.75rem;
+  font-style: italic;
+  animation: assistant-activity-pulse 1.6s ease-in-out infinite;
+}
+
+.assistant-message.is-assistant p + .assistant-activity,
+.assistant-message.is-assistant ul + .assistant-activity,
+.assistant-message.is-assistant ol + .assistant-activity {
+  margin-top: var(--space-xs);
+}
+
+@keyframes assistant-activity-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.assistant-activity.is-static {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-activity {
+    animation: none;
+  }
 }
 
 /* The message box, pinned under the list: the text area with the send

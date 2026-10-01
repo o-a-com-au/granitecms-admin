@@ -2,6 +2,7 @@ import { Redis } from 'ioredis';
 import * as Sentry from '@sentry/node';
 import { buildServer } from './server.ts';
 import { loadConfig } from './config.ts';
+import { createAnthropicModel } from './assistant/model.ts';
 import { openDb } from './store/postgres/client.ts';
 import { openPostgresUserStore } from './store/postgres/user-store.ts';
 import { openPostgresSiteStore } from './store/postgres/site-store.ts';
@@ -122,6 +123,7 @@ const app = await buildServer(config, {
   oauthProviders,
   baseUrl: config.baseUrl,
   mailer,
+  assistantModel: config.anthropicApiKey ? createAnthropicModel(config.anthropicApiKey) : undefined,
 });
 
 await app.listen({ port: config.port, host: '0.0.0.0' });

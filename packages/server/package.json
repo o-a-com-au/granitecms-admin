@@ -7,13 +7,14 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "NODE_ENV=test DATABASE_URL=postgres://admin:admin@localhost:5432/cms_admin_test REDIS_URL=redis://localhost:6379/1 node --experimental-strip-types --test",
-    "dev": "node --experimental-strip-types --watch src/index.ts",
+    "dev": "node --experimental-strip-types --env-file-if-exists=.env --watch src/index.ts",
     "build": "tsc -p tsconfig.build.json",
     "db:generate": "drizzle-kit generate",
     "set-plan": "node --experimental-strip-types src/scripts/set-plan.ts",
     "db:migrate": "node --experimental-strip-types src/store/postgres/migrate.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@fastify/cookie": "^11.1.2",
     "@fastify/helmet": "^13.1.0",
     "@fastify/multipart": "^10.1.0",

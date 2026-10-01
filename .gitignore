@@ -3,3 +3,5 @@ dist/
 data/
 .claude/.stop-gate-stamp
 .demo-runtime/
+.env
+.env.*

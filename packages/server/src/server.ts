@@ -27,6 +27,8 @@ import { toSessionStore, type SessionRecord } from './auth/session-store-adapter
 import { openInMemoryStore } from './store/in-memory-store.ts';
 import type { OAuthProvider } from './auth/oauth-provider.ts';
 import type { Mailer } from './email/mailer.ts';
+import type { AssistantModel } from './assistant/model.ts';
+import { createAssistantRoutes } from './routes/assistant.ts';
 import './auth/session-types.ts';
 
 export interface ServerDeps {
@@ -39,6 +41,9 @@ export interface ServerDeps {
   oauthProviders: OAuthProvider[];
   baseUrl: string;
   mailer: Mailer | undefined;
+  // The in-app assistant's model (index.ts builds it from
+  // ANTHROPIC_API_KEY); undefined when it isn't set up.
+  assistantModel?: AssistantModel;
 }
 
 // Ephemeral, tests/dev-only default (fresh in-memory stores, a random
@@ -160,6 +165,9 @@ export async function buildServer(
   await app.register(createAuthRoutes(deps.usersStore, deps.sessionRecordStore), { prefix: '/api/auth' });
   await app.register(createOAuthRoutes(deps.oauthProviders, deps.usersStore, deps.baseUrl), { prefix: '/api/auth' });
   await app.register(createSitesRoutes(deps.usersStore, deps.sitesStore, deps.siteAccessStore), { prefix: '/api/sites' });
+  await app.register(createAssistantRoutes(deps.usersStore, deps.sitesStore, deps.siteAccessStore, deps.assistantModel), {
+    prefix: '/api/sites',
+  });
   await app.register(createSiteUsersRoutes(deps.usersStore, deps.sitesStore, deps.siteAccessStore), {
     prefix: '/api/sites',
   });

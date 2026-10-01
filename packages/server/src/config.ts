@@ -56,6 +56,10 @@ export interface AdminConfig {
   // unconditionally, which safely no-ops when the SDK was never
   // initialised (index.ts only calls Sentry.init when this is set).
   sentryDsn: string | undefined;
+  // The Anthropic API key the in-app assistant runs on. Unset is a
+  // first-class state, like smtp above: the assistant then answers that
+  // it isn't set up, and nothing else changes.
+  anthropicApiKey: string | undefined;
 }
 
 function loadProviderConfig(clientIdVar: string, clientSecretVar: string): OAuthProviderConfig | undefined {
@@ -124,6 +128,7 @@ export function loadConfig(): AdminConfig {
   // in tests that want to assert on log output.
   const logLevel = process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'test' ? 'silent' : 'info');
   const sentryDsn = process.env.SENTRY_DSN;
+  const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim() || undefined;
   return {
     port,
     webDistDir,
@@ -138,5 +143,6 @@ export function loadConfig(): AdminConfig {
     trustProxy,
     logLevel,
     sentryDsn,
+    anthropicApiKey,
   };
 }
