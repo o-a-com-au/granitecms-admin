@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { listDeletedPages, revertPageToRevision, type DeletedPage } from '../api/site-history.ts';
+import { CloseIcon } from '../sections/CloseIcon.tsx';
 import { formatChangedAt } from './formatChangedAt.ts';
 
 export interface RecentlyDeletedProps {
@@ -102,32 +103,36 @@ export function RecentlyDeleted({ siteId, reloadToken, onRestored, onShowVersion
               }
             }}
           >
-            <div className="modal recently-deleted-modal" role="dialog" aria-modal="true" aria-labelledby="recently-deleted-heading">
-              <h2 id="recently-deleted-heading">Recently deleted</h2>
-              <p>Pages deleted in the last 90 days. Restoring a page puts it back as it was just before it was deleted.</p>
-              <ul className="recently-deleted-list">
-                {pages.map((page) => (
-                  <li key={page.path} className="recently-deleted-row">
-                    <div className="recently-deleted-page">
-                      <strong>{nameOf(page)}</strong>
-                      <span className="recently-deleted-meta">
-                        {page.url} · deleted by {page.deletedBy}, {formatChangedAt(page.deletedAt)}
-                      </span>
-                    </div>
-                    <button type="button" disabled={restoring !== null} onClick={() => preview(page)} aria-label={`Preview ${nameOf(page)}`}>
-                      Preview
-                    </button>
-                    <button type="button" disabled={restoring !== null} onClick={() => void restore(page)} aria-label={`Restore ${nameOf(page)}`}>
-                      {restoring === page.path ? 'Restoring...' : 'Restore'}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {error && <p role="alert">{error}</p>}
-              <div className="modal-actions">
-                <button type="button" onClick={close} disabled={restoring !== null}>
-                  Close
-                </button>
+            <div className="recently-deleted-modal" role="dialog" aria-modal="true" aria-labelledby="recently-deleted-heading">
+              <div className="dialog-header">
+                <div className="dialog-header-title-row">
+                  <h2 id="recently-deleted-heading">Recently deleted</h2>
+                  <button type="button" className="dialog-header-close" aria-label="Close" onClick={close} disabled={restoring !== null}>
+                    <CloseIcon />
+                  </button>
+                </div>
+                <p>Pages deleted in the last 90 days. Restoring a page puts it back as it was just before it was deleted.</p>
+              </div>
+              <div className="recently-deleted-content">
+                <ul className="recently-deleted-list">
+                  {pages.map((page) => (
+                    <li key={page.path} className="recently-deleted-row">
+                      <div className="recently-deleted-page">
+                        <span className="recently-deleted-name">{nameOf(page)}</span>
+                        <span className="recently-deleted-meta">
+                          {page.url} · deleted by {page.deletedBy}, {formatChangedAt(page.deletedAt)}
+                        </span>
+                      </div>
+                      <button type="button" disabled={restoring !== null} onClick={() => preview(page)} aria-label={`Preview ${nameOf(page)}`}>
+                        Preview
+                      </button>
+                      <button type="button" disabled={restoring !== null} onClick={() => void restore(page)} aria-label={`Restore ${nameOf(page)}`}>
+                        {restoring === page.path ? 'Restoring...' : 'Restore'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {error && <p role="alert">{error}</p>}
               </div>
             </div>
           </div>,

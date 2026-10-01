@@ -21,7 +21,8 @@
    --colour-dialog-border rather than --colour-border: requested
    directly as a brighter outline so the popup stands out against the
    editor behind the overlay (see theme.css for the per-theme step). */
-.add-section-modal {
+.add-section-modal,
+.recently-deleted-modal {
   width: min(90vw, 560px);
   height: min(85vh, 640px);
   display: flex;
@@ -37,11 +38,13 @@
    values rather than an existing --colour-* alias, since neither
    token already means "pure black in dark, pure white in light"
    (--colour-surface is a grey in both). */
-[data-theme='dark'] .add-section-modal {
+[data-theme='dark'] .add-section-modal,
+[data-theme='dark'] .recently-deleted-modal {
   background: var(--grey-900);
 }
 
-[data-theme='light'] .add-section-modal {
+[data-theme='light'] .add-section-modal,
+[data-theme='light'] .recently-deleted-modal {
   background: white;
 }
 
@@ -54,7 +57,8 @@
    edge. overflow: hidden is what scrollbar-gutter needs to apply;
    nothing in the header ever overflows anyway. With overlay
    scrollbars (macOS default) the reserved gutter is zero either way. */
-.add-section-modal .dialog-header {
+.add-section-modal .dialog-header,
+.recently-deleted-modal .dialog-header {
   overflow: hidden;
   scrollbar-gutter: stable;
   /* The header casts a short shadow onto the list running under it, so
@@ -95,7 +99,8 @@
    scrollbar always sits at its scroll container's own border edge,
    outside the padding, so the cards keep their gutter while the
    scrollbar runs flush down the popup's right edge. */
-.add-section-content {
+.add-section-content,
+.recently-deleted-content {
   flex: 1;
   min-height: 0;
   overflow-y: auto;

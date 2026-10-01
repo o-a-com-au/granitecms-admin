@@ -287,27 +287,39 @@ button.recently-deleted-link:hover {
   color: var(--colour-text);
 }
 
-/* The Recently deleted popup. */
-.recently-deleted-list {
-  list-style: none;
-  margin: 0 0 var(--space-md);
-  padding: 0;
-  max-height: 60vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
+/* The Recently deleted popup: the Add Section popup's shell (shared
+   rules in add-section-modal.css), but sized to its list rather than a
+   fixed height - with no search box, the list never changes size while
+   it's open, so there's no flicker to guard against. div., because
+   add-section-modal.css loads after this file and sets a fixed height
+   at the bare class's specificity. */
+div.recently-deleted-modal {
+  height: auto;
+  max-height: min(85vh, 640px);
 }
 
+.recently-deleted-modal .dialog-header p {
+  margin: 0;
+  color: var(--colour-muted);
+}
+
+.recently-deleted-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+/* Same card as an Add Section row (button.add-section-item). */
 .recently-deleted-row {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-sm) 0;
-  border-top: 1px solid var(--colour-border);
-}
-
-.recently-deleted-row:last-child {
-  border-bottom: 1px solid var(--colour-border);
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-radius: var(--radius-xs);
+  background: var(--colour-picker-row);
 }
 
 .recently-deleted-page {
@@ -318,8 +330,17 @@ button.recently-deleted-link:hover {
   gap: var(--space-2xs);
 }
 
+.recently-deleted-name {
+  font-size: 0.85rem;
+  color: var(--colour-text);
+}
+
 .recently-deleted-meta {
   color: var(--colour-muted);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   overflow-wrap: anywhere;
+}
+
+.recently-deleted-content [role='alert'] {
+  margin: var(--space-md) 0 0;
 }
