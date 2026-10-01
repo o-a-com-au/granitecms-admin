@@ -7,6 +7,9 @@ import { interpretSiteResponse } from './interpret-site-response.ts';
 export interface DeletedPage {
   path: string;
   url: string;
+  // The page's name as the page tree shows it. Missing from a CMS older
+  // than 0.9.1, which only sends the title.
+  name?: string;
   title: string;
   deletedAt: string;
   deletedBy: string;

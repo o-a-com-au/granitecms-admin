@@ -20,6 +20,12 @@ export interface RecentlyDeletedProps {
 // has been deleted. Preview closes the popup so the old version can be
 // seen in the preview behind it. Every delete is a git commit, so
 // nothing is ever truly gone; this is what makes that usable.
+// The page's name, as the page tree shows it; an older CMS only sends
+// the title.
+function nameOf(page: DeletedPage): string {
+  return page.name ?? page.title;
+}
+
 export function RecentlyDeleted({ siteId, reloadToken, onRestored, onShowVersion }: RecentlyDeletedProps) {
   const [pages, setPages] = useState<DeletedPage[] | null>(null);
   const [open, setOpen] = useState(false);
@@ -66,15 +72,16 @@ export function RecentlyDeleted({ siteId, reloadToken, onRestored, onShowVersion
   }
 
   async function restore(page: DeletedPage): Promise<void> {
+    const name = nameOf(page);
     setRestoring(page.path);
     setError(null);
     try {
-      await revertPageToRevision(siteId, page.ref, page.path, `Restore ${page.title}`);
+      await revertPageToRevision(siteId, page.ref, page.path, `Restore ${name}`);
       close();
       onShowVersion?.(page.url, null);
       onRestored();
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Could not restore ${page.title}`);
+      setError(err instanceof Error ? err.message : `Could not restore ${name}`);
     } finally {
       setRestoring(null);
     }
@@ -102,15 +109,15 @@ export function RecentlyDeleted({ siteId, reloadToken, onRestored, onShowVersion
                 {pages.map((page) => (
                   <li key={page.path} className="recently-deleted-row">
                     <div className="recently-deleted-page">
-                      <strong>{page.title}</strong>
+                      <strong>{nameOf(page)}</strong>
                       <span className="recently-deleted-meta">
                         {page.url} · deleted by {page.deletedBy}, {formatChangedAt(page.deletedAt)}
                       </span>
                     </div>
-                    <button type="button" disabled={restoring !== null} onClick={() => preview(page)} aria-label={`Preview ${page.title}`}>
+                    <button type="button" disabled={restoring !== null} onClick={() => preview(page)} aria-label={`Preview ${nameOf(page)}`}>
                       Preview
                     </button>
-                    <button type="button" disabled={restoring !== null} onClick={() => void restore(page)} aria-label={`Restore ${page.title}`}>
+                    <button type="button" disabled={restoring !== null} onClick={() => void restore(page)} aria-label={`Restore ${nameOf(page)}`}>
                       {restoring === page.path ? 'Restoring...' : 'Restore'}
                     </button>
                   </li>

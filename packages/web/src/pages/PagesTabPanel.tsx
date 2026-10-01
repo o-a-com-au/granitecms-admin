@@ -425,7 +425,7 @@ export function PagesTabPanel({ siteId, onPreview, onShowVersion, onMaxDepthChan
       if (!deleted) {
         throw new Error(`"${justDeleted.name}" can't be restored from here. Look under Recently deleted, beside Add Page.`);
       }
-      await revertPageToRevision(siteId, deleted.ref, deleted.path, `Restore ${deleted.title}`);
+      await revertPageToRevision(siteId, deleted.ref, deleted.path, `Restore ${justDeleted.name}`);
       setJustDeleted(null);
       retry();
     } catch (err) {

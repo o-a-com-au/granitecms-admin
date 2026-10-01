@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { RecentlyDeleted } from '../../src/pages/RecentlyDeleted.tsx';
 
 const DELETED = [
-  { path: 'pages/old-offers.json', url: '/old-offers', title: 'Old Offers', deletedAt: '2026-10-01T00:00:00.000Z', deletedBy: 'Sam Editor', ref: 'abc123' },
+  { path: 'pages/old-offers.json', url: '/old-offers', name: 'Old Offers', title: 'Old Offers | Ember', deletedAt: '2026-10-01T00:00:00.000Z', deletedBy: 'Sam Editor', ref: 'abc123' },
 ];
 
 function setup(pages: unknown, onRestored = vi.fn()) {
@@ -51,6 +51,12 @@ describe('RecentlyDeleted', () => {
     });
     expect(shown.at(-1)).toEqual(['/old-offers', null]);
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('falls back to the title from a CMS that sends no name', async () => {
+    setup([{ ...DELETED[0], name: undefined }]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Recently deleted (1)' }));
+    expect(screen.getByText('Old Offers | Ember')).toBeDefined();
   });
 
   it('closes with Escape or Close', async () => {
