@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { AstroidIcon } from '../assistant/AstroidIcon.tsx';
 
 // The main side menu's own icon set (requested directly - Lucide's
 // "file"/"square-pen"/"image", https://lucide.dev, ISC licensed) -
@@ -61,6 +62,8 @@ export interface IconRailProps {
   isOnMedia: boolean;
   settingsTo: string | undefined;
   isOnSettings: boolean;
+  assistantTo: string | undefined;
+  isOnAssistant: boolean;
 }
 
 interface IconRailItemProps {
@@ -97,13 +100,25 @@ function IconRailItem({ label, to, active, icon }: IconRailItemProps) {
 // destinations. AppShell.tsx still owns computing each href (site
 // fallback, active-route logic) - this component only ever renders
 // what it's given, matching TopNavItem's old division of labour.
-export function IconRail({ editorTo, isEditingPage, contentTo, isOnContent, mediaTo, isOnMedia, settingsTo, isOnSettings }: IconRailProps) {
+export function IconRail({
+  editorTo,
+  isEditingPage,
+  contentTo,
+  isOnContent,
+  mediaTo,
+  isOnMedia,
+  settingsTo,
+  isOnSettings,
+  assistantTo,
+  isOnAssistant,
+}: IconRailProps) {
   return (
     <nav className="app-sidebar" aria-label="Primary">
       <IconRailItem label="Pages" to={contentTo} active={isOnContent} icon={<FileIcon />} />
       <IconRailItem label="Editor" to={editorTo} active={isEditingPage} icon={<SquarePenIcon />} />
       <IconRailItem label="Media" to={mediaTo} active={isOnMedia} icon={<ImageIcon />} />
       <IconRailItem label="Settings" to={settingsTo} active={isOnSettings} icon={<SettingsIcon />} />
+      <IconRailItem label="Assistant" to={assistantTo} active={isOnAssistant} icon={<AstroidIcon />} />
     </nav>
   );
 }

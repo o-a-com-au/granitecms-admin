@@ -275,6 +275,7 @@ function AppShellContent() {
   const contentTo = effectiveSiteId ? `/sites/${effectiveSiteId}/content` : undefined;
   const mediaTo = effectiveSiteId ? `/sites/${effectiveSiteId}/media` : undefined;
   const settingsTo = effectiveSiteId ? `/sites/${effectiveSiteId}/settings` : undefined;
+  const assistantTo = effectiveSiteId ? `/sites/${effectiveSiteId}/assistant` : undefined;
   const editorNavTo = isEditingPage
     ? `${location.pathname}${location.search}`
     : effectiveSiteId
@@ -575,6 +576,8 @@ function AppShellContent() {
               isOnMedia={location.pathname === mediaTo}
               settingsTo={settingsTo}
               isOnSettings={location.pathname === settingsTo}
+              assistantTo={assistantTo}
+              isOnAssistant={location.pathname === assistantTo}
             />
           )}
           <div className="app-content" style={{ '--pages-hub-extra-width': pagesHubExtraWidth } as CSSProperties}>

@@ -1,4 +1,5 @@
 import { Navigate, type RouteObject } from 'react-router';
+import { AssistantPage } from './assistant/AssistantPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { SignupPage } from './pages/SignupPage.tsx';
 import { ClaimInvitePage } from './pages/ClaimInvitePage.tsx';
@@ -76,6 +77,7 @@ export const routes: RouteObject[] = [
           { path: '/sites/:siteId/content', element: <PagesHubPage /> },
           { path: '/sites/:siteId/media', element: <MediaLibraryPage /> },
           { path: '/sites/:siteId/settings', element: <SiteSettingsPage /> },
+          { path: '/sites/:siteId/assistant', element: <AssistantPage /> },
           { path: '/sites/:siteId/editor', element: <PageEditorPage /> },
         ],
       },
