@@ -30,15 +30,19 @@ afterEach(() => {
 });
 
 describe('RecentlyDeleted', () => {
-  it('is collapsed with a count, previews a deleted page as it was, and restores it from its version', async () => {
+  it('opens a popup from a link, previews a deleted page as it was (closing the popup), and restores it', async () => {
     const { calls, onRestored, shown } = setup(DELETED);
-    fireEvent.click(await screen.findByRole('button', { name: /Recently deleted \(1\)/ }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: 'Recently deleted (1)' }));
+    expect(screen.getByRole('dialog', { name: 'Recently deleted' })).toBeDefined();
     expect(screen.getByText(/deleted by Sam Editor/)).toBeDefined();
 
-    fireEvent.click(screen.getByRole('button', { name: /Old Offers/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Preview Old Offers' }));
     expect(shown.at(-1)).toEqual(['/old-offers', 'abc123']);
+    expect(screen.queryByRole('dialog')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Recently deleted (1)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Restore Old Offers' }));
     await waitFor(() => expect(onRestored).toHaveBeenCalled());
     expect(calls.find((call) => call.url === '/api/sites/site-1/revert')?.body).toEqual({
       ref: 'abc123',
@@ -46,6 +50,18 @@ describe('RecentlyDeleted', () => {
       message: 'Restore Old Offers',
     });
     expect(shown.at(-1)).toEqual(['/old-offers', null]);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('closes with Escape or Close', async () => {
+    setup(DELETED);
+    fireEvent.click(await screen.findByRole('button', { name: 'Recently deleted (1)' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recently deleted (1)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('is not there at all when nothing has been deleted, or the website cannot say', async () => {

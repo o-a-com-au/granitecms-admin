@@ -423,7 +423,7 @@ export function PagesTabPanel({ siteId, onPreview, onShowVersion, onMaxDepthChan
     try {
       const deleted = (await listDeletedPages(siteId))?.find((page) => page.path === justDeleted.path);
       if (!deleted) {
-        throw new Error(`"${justDeleted.name}" can't be restored from here. Look under Recently deleted below.`);
+        throw new Error(`"${justDeleted.name}" can't be restored from here. Look under Recently deleted, beside Add Page.`);
       }
       await revertPageToRevision(siteId, deleted.ref, deleted.path, `Restore ${deleted.title}`);
       setJustDeleted(null);
@@ -538,19 +538,21 @@ export function PagesTabPanel({ siteId, onPreview, onShowVersion, onMaxDepthChan
           ))}
         </ul>
       )}
-      <button
-        type="button"
-        className="instance-add-button"
-        onClick={() => {
-          setChildParentPath(null);
-          setDuplicateSource(null);
-          setNewPageModalOpen(true);
-        }}
-      >
-        <AddIcon />
-        Add Page
-      </button>
-      <RecentlyDeleted siteId={siteId} reloadToken={reloadToken} onRestored={retry} onShowVersion={onShowVersion} />
+      <div className="pages-panel-footer">
+        <button
+          type="button"
+          className="instance-add-button"
+          onClick={() => {
+            setChildParentPath(null);
+            setDuplicateSource(null);
+            setNewPageModalOpen(true);
+          }}
+        >
+          <AddIcon />
+          Add Page
+        </button>
+        <RecentlyDeleted siteId={siteId} reloadToken={reloadToken} onRestored={retry} onShowVersion={onShowVersion} />
+      </div>
       {newPageModalOpen && (
         <NewPageModal
           siteId={siteId}
