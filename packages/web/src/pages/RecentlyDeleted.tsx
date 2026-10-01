@@ -107,7 +107,7 @@ export function RecentlyDeleted({ siteId, reloadToken, onRestored, onShowVersion
                     <CloseIcon />
                   </button>
                 </div>
-                <p>Pages deleted in the last 90 days. Restoring a page puts it back as it was just before it was deleted.</p>
+                <p>Pages deleted in the last 90 days.</p>
               </div>
               <div className="recently-deleted-content">
                 <ul className="recently-deleted-list">
