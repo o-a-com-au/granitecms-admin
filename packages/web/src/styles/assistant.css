@@ -131,6 +131,50 @@ button.assistant-suggestion:hover {
   font-size: 0.8rem;
 }
 
+/* A page named in a reply opens it in the preview: inline, it reads as
+   a link (button.assistant-link, not the bare class: a bare class loses
+   to button[type='button']). */
+button.assistant-link {
+  display: inline;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--colour-primary);
+  font: inherit;
+  text-align: left;
+}
+
+button.assistant-link:hover {
+  background: none;
+  text-decoration: underline;
+}
+
+/* A list of nothing but pages: a stack of page buttons, the same pill
+   as a row in the page list. */
+.assistant-page-links {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+}
+
+button.assistant-page-link {
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background: var(--gradient-pill);
+  box-shadow: var(--shadow-panel);
+  color: var(--colour-text);
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+button.assistant-page-link:hover {
+  border-color: var(--colour-primary);
+  background: var(--gradient-pill);
+}
+
 .assistant-message.is-error {
   color: var(--colour-danger);
 }

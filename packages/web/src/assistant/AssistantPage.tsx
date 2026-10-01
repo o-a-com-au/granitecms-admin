@@ -133,6 +133,13 @@ export function AssistantPage() {
     }
   }
 
+  // A page link in a reply: the person moving to it, so the usual
+  // leave-with-a-draft prompt applies (as in the page list).
+  function openPage(url: string): void {
+    const stem = url.replace(/[?#].*$/, '').replace(/\/+$/, '').replace(/^\/+/, '');
+    requestPreviewSwitch({ path: stem === '' ? 'pages/index.json' : `pages/${stem}.json`, url: stem === '' ? '/' : `/${stem}` });
+  }
+
   function stop(): void {
     controller?.abort();
   }
@@ -191,7 +198,7 @@ export function AssistantPage() {
               <ol className="assistant-message-list">
                 {messages.map((message) => (
                   <li key={message.id} className={`assistant-message is-${message.role}${message.status === 'error' ? ' is-error' : ''}`}>
-                    {message.role === 'user' ? message.text : <AssistantText text={message.text} />}
+                    {message.role === 'user' ? message.text : <AssistantText text={message.text} openPage={openPage} />}
                     {message.status === 'streaming' && message.activity && (
                       <span className="assistant-activity">{message.activity}...</span>
                     )}
