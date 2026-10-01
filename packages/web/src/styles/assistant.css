@@ -101,7 +101,8 @@ button.assistant-suggestion:hover {
   max-width: 85%;
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
-  background: var(--colour-picker-row-hover);
+  background: var(--colour-primary);
+  color: #fff;
 }
 
 .assistant-message.is-assistant {
