@@ -337,7 +337,7 @@ div.recently-deleted-modal {
 
 .recently-deleted-meta {
   color: var(--colour-muted);
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   overflow-wrap: anywhere;
 }
 
