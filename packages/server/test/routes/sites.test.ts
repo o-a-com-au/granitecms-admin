@@ -2978,6 +2978,32 @@ describe('sites routes', () => {
     await app.close();
   });
 
+  it('GET /api/sites/:id/deleted-pages passes the site\'s list through; an older site is reported as unsupported', async () => {
+    const { app, cookie } = await buildTestServer();
+    let supported = true;
+    const PAGE = { path: 'pages/old.json', url: '/old', title: 'Old', deletedAt: '2026-10-01T00:00:00Z', deletedBy: 'Jane', ref: 'abc' };
+    fakeSite = createServer((req, res) => {
+      if (req.url !== '/v1/deleted-pages') {
+        sendJson(res, 200, { agentVersion: '0.9.0', contentSchemaVersion: 7, sqliteDriver: 'node:sqlite' });
+        return;
+      }
+      sendJson(res, supported ? 200 : 404, supported ? { pages: [PAGE] } : { message: 'Not Found' });
+    });
+    await new Promise<void>((resolve) => fakeSite!.listen(0, '127.0.0.1', resolve));
+    const { port } = fakeSite.address() as { port: number };
+    const id = await registerSite(app, cookie, `http://127.0.0.1:${port}`, 'the-token');
+
+    const ok = await app.inject({ method: 'GET', url: `/api/sites/${id}/deleted-pages`, headers: { cookie } });
+    assert.equal(ok.statusCode, 200, ok.body);
+    assert.deepEqual(ok.json(), { pages: [PAGE] });
+
+    supported = false;
+    const old = await app.inject({ method: 'GET', url: `/api/sites/${id}/deleted-pages`, headers: { cookie } });
+    assert.equal(old.statusCode, 404);
+    assert.equal(old.json().reason, 'unsupported');
+    await app.close();
+  });
+
   it("DELETE /api/sites/:id/content/*path sends the logged-in admin's own name/email as author, never something the caller supplied", async () => {
     const { app, cookie } = await buildTestServer();
     let receivedBody: Record<string, unknown> = {};

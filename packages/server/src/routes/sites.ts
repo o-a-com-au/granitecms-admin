@@ -35,6 +35,7 @@ import { createSiteRedirect, deleteSiteRedirect, listSiteRedirects, updateSiteRe
 import { fetchSiteMenuReferences, renameSiteMenu, saveSiteMenu } from '../sites/site-menus.ts';
 import { fetchSiteSettings, saveSiteSettings } from '../sites/site-settings.ts';
 import { fetchSiteLinks } from '../sites/site-links.ts';
+import { fetchSiteDeletedPages } from '../sites/site-deleted-pages.ts';
 
 // The raw token is never included here, full stop - built by this
 // explicit mapping function rather than spreading the Site record, so
@@ -1240,6 +1241,25 @@ export function createSitesRoutes(usersStore: Store<AdminUser>, sitesStore: Site
           reply.header('etag', result.payload.etag);
         }
         return { schema: result.payload.schema, settings: result.payload.settings, resolved: result.payload.resolved };
+      }
+      if (result.outcome === 'unsupported') {
+        reply.code(404);
+        return { error: result.message, reason: 'unsupported' };
+      }
+      reply.code(502);
+      return { error: result.message, reason: result.outcome };
+    });
+
+    // Pages that were deleted and aren't back, for the Pages tab's
+    // Recently deleted list; each is restored through POST /:id/revert.
+    app.get<{ Params: { id: string } }>('/:id/deleted-pages', { preHandler: [requireAuth, requireSiteAccess] }, async (request, reply) => {
+      const site = await sitesStore.find(request.params.id);
+      if (!site) {
+        throw new SiteNotFoundError(request.params.id);
+      }
+      const result = await fetchSiteDeletedPages(site);
+      if (result.outcome === 'ok') {
+        return { pages: result.pages };
       }
       if (result.outcome === 'unsupported') {
         reply.code(404);

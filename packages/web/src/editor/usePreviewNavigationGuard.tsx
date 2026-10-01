@@ -141,7 +141,9 @@ export function usePreviewNavigationGuard(
 
   const performSwitch = useCallback(
     (target: PreviewSwitchTarget): void => {
-      setPreview({ url: target.url });
+      // revisionRef cleared: a past version shown before (a deleted
+      // page's, from Recently deleted) must not stick to the next page.
+      setPreview({ url: target.url, revisionRef: null });
       const params = new URLSearchParams({ path: target.path, url: target.url });
       writeLastEditorLocation(siteId, `/sites/${siteId}/editor?${params.toString()}`);
     },

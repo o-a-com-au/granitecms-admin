@@ -51,3 +51,29 @@ export async function revertPageToRevision(siteId: string, ref: string, path: st
     throw await reasonFromResponse(response, 'error');
   }
 }
+
+export interface DeletedPage {
+  path: string;
+  url: string;
+  title: string;
+  deletedAt: string;
+  deletedBy: string;
+  // The version to restore, with revertPageToRevision.
+  ref: string;
+}
+
+// Pages that were deleted and aren't back, newest first; null when the
+// website can't say (a CMS too old to list them, or unreachable) - the
+// Pages tab then just shows no Recently deleted list.
+export async function listDeletedPages(siteId: string): Promise<DeletedPage[] | null> {
+  try {
+    const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/deleted-pages`);
+    if (!response.ok) {
+      return null;
+    }
+    const body = (await response.json()) as { pages?: unknown };
+    return Array.isArray(body.pages) ? (body.pages as DeletedPage[]) : null;
+  } catch {
+    return null;
+  }
+}

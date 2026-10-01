@@ -244,3 +244,79 @@
     padding: 0 var(--space-sm);
   }
 }
+
+/* "Deleted X. Undo", straight after a delete (PagesTabPanel.tsx). */
+.pages-undo-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-md);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-sm);
+  background: var(--colour-surface-hover);
+}
+
+.pages-undo-notice span {
+  flex: 1;
+}
+
+/* Recently deleted (RecentlyDeleted.tsx), below the page tree. */
+.recently-deleted {
+  margin-top: var(--space-lg);
+  border-top: 1px solid var(--colour-border);
+  padding-top: var(--space-sm);
+}
+
+.recently-deleted button.recently-deleted-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) 0;
+  border: none;
+  background: none;
+  color: var(--colour-muted);
+}
+
+.recently-deleted-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.recently-deleted-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.recently-deleted button.recently-deleted-page {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--colour-text);
+  text-align: left;
+}
+
+.recently-deleted button.recently-deleted-page:hover {
+  background: var(--colour-surface-hover);
+}
+
+.recently-deleted-meta {
+  color: var(--colour-muted);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}

@@ -449,6 +449,44 @@ describe('PagesTabPanel', () => {
       expect(fetchMock).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ method: 'DELETE' }));
     });
 
+    it('after a delete, "Deleted X. Undo" restores the page from the version before it', async () => {
+      let deleted = false;
+      const calls: Array<{ url: string; method: string; body?: unknown }> = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = input.toString();
+          const method = init?.method ?? 'GET';
+          calls.push({ url, method, body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined });
+          if (method === 'DELETE') {
+            deleted = true;
+            return new Response(null, { status: 204 });
+          }
+          if (url.endsWith('/deleted-pages')) {
+            return new Response(
+              JSON.stringify({ pages: deleted ? [{ path: 'pages/about.json', url: '/about', title: 'About', deletedAt: '', deletedBy: 'Jane', ref: 'before-delete' }] : [] }),
+              { status: 200 },
+            );
+          }
+          if (url.endsWith('/revert')) {
+            deleted = false;
+            return new Response('{"ok":true}', { status: 200 });
+          }
+          return new Response(JSON.stringify(deleted ? [] : [ENTRY_ONE]), { status: 200 });
+        }),
+      );
+      renderPanel();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'About' })).toBeDefined());
+      openRowActions();
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Delete Page' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Undo' }));
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull());
+      expect(calls.find((call) => call.url.endsWith('/revert'))?.body).toEqual({ ref: 'before-delete', path: 'pages/about.json', message: 'Restore About' });
+      expect(await screen.findByRole('button', { name: 'About' })).toBeDefined();
+    });
+
     it('Cancel dismisses the confirmation without calling the delete API', async () => {
       const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE]), { status: 200 }));
       vi.stubGlobal('fetch', fetchMock);
@@ -525,10 +563,16 @@ describe('PagesTabPanel: refreshToken', () => {
   }
 
   it('reloads the list when the token changes, dropping a page that has since been deleted', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify([ENTRY_ONE, ENTRY_TWO]), { status: 200 }))
-      .mockResolvedValue(new Response(JSON.stringify([ENTRY_ONE]), { status: 200 }));
+    // Answered by address: the Recently deleted list asks too, and must
+    // not take the page list's first answer.
+    let listCalls = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (input.toString().endsWith('/deleted-pages')) {
+        return new Response(JSON.stringify({ pages: [] }), { status: 200 });
+      }
+      listCalls += 1;
+      return new Response(JSON.stringify(listCalls === 1 ? [ENTRY_ONE, ENTRY_TWO] : [ENTRY_ONE]), { status: 200 });
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const { rerender } = renderWithToken(0);

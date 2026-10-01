@@ -1,0 +1,55 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { RecentlyDeleted } from '../../src/pages/RecentlyDeleted.tsx';
+
+const DELETED = [
+  { path: 'pages/old-offers.json', url: '/old-offers', title: 'Old Offers', deletedAt: '2026-10-01T00:00:00.000Z', deletedBy: 'Sam Editor', ref: 'abc123' },
+];
+
+function setup(pages: unknown, onRestored = vi.fn()) {
+  const shown: Array<[string, string | null]> = [];
+  const calls: Array<{ url: string; method: string; body?: unknown }> = [];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input.toString();
+      calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(init.body as string) : undefined });
+      if (url.endsWith('/deleted-pages')) {
+        return new Response(JSON.stringify({ pages }), { status: 200 });
+      }
+      return new Response('{"ok":true}', { status: 200 });
+    }),
+  );
+  render(<RecentlyDeleted siteId="site-1" reloadToken={0} onRestored={onRestored} onShowVersion={(url, ref) => shown.push([url, ref])} />);
+  return { calls, onRestored, shown };
+}
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+describe('RecentlyDeleted', () => {
+  it('is collapsed with a count, previews a deleted page as it was, and restores it from its version', async () => {
+    const { calls, onRestored, shown } = setup(DELETED);
+    fireEvent.click(await screen.findByRole('button', { name: /Recently deleted \(1\)/ }));
+    expect(screen.getByText(/deleted by Sam Editor/)).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: /Old Offers/ }));
+    expect(shown.at(-1)).toEqual(['/old-offers', 'abc123']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    await waitFor(() => expect(onRestored).toHaveBeenCalled());
+    expect(calls.find((call) => call.url === '/api/sites/site-1/revert')?.body).toEqual({
+      ref: 'abc123',
+      path: 'pages/old-offers.json',
+      message: 'Restore Old Offers',
+    });
+    expect(shown.at(-1)).toEqual(['/old-offers', null]);
+  });
+
+  it('is not there at all when nothing has been deleted, or the website cannot say', async () => {
+    setup([]);
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Recently deleted/ })).toBeNull());
+  });
+});

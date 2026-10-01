@@ -24,6 +24,9 @@ import { DraftIcon } from '../sections/DraftIcon.tsx';
 import { DragHandleIcon } from '../sections/DragHandleIcon.tsx';
 import { AccordionArrowIcon } from '../sections/AccordionArrowIcon.tsx';
 import { InstanceRowActions } from '../sections/InstanceRowActions.tsx';
+import { CloseIcon } from '../sections/CloseIcon.tsx';
+import { RecentlyDeleted } from './RecentlyDeleted.tsx';
+import { listDeletedPages, revertPageToRevision } from '../api/site-history.ts';
 import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
 import { DeletePageLinks } from './DeletePageLinks.tsx';
 import { SiteStatusPanel } from '../site-status/SiteStatusPanel.tsx';
@@ -42,6 +45,8 @@ export interface PreviewablePage {
 export interface PagesTabPanelProps {
   siteId: string;
   onPreview: (page: PreviewablePage | null) => void;
+  // Shows a page at a past version (a deleted page in Recently deleted).
+  onShowVersion?: (url: string, ref: string | null) => void;
   // Reports the deepest currently-EXPANDED level (0 = only root rows
   // visible, however many pages exist at that level) so PagesHubPage
   // can grow .pages-hub-panel to match - a nested page rendered the
@@ -120,7 +125,7 @@ function lastPathSegment(path: string): string {
   return segments[segments.length - 1] as string;
 }
 
-export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, refreshToken }: PagesTabPanelProps) {
+export function PagesTabPanel({ siteId, onPreview, onShowVersion, onMaxDepthChange, activeUrl, refreshToken }: PagesTabPanelProps) {
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
   const [newPageModalOpen, setNewPageModalOpen] = useState(false);
   // The row a new page should be nested under, when the modal was
@@ -171,6 +176,11 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
   const [error, setError] = useState<LoadError | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const retry = useCallback(() => setReloadToken((count) => count + 1), []);
+  // The page just deleted, for the "Deleted X. Undo" notice - the moment
+  // an accidental delete is most likely to be noticed.
+  const [justDeleted, setJustDeleted] = useState<{ path: string; name: string } | null>(null);
+  const [undoBusy, setUndoBusy] = useState(false);
+  const [undoError, setUndoError] = useState<string | null>(null);
   // Drag-and-drop reparenting - lifted up here (not kept local to a
   // single row) since the row currently being dragged and the row
   // currently hovered as a prospective new parent are frequently two
@@ -402,6 +412,29 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
     }
   }
 
+  // Undo straight after a delete: restore the page from the version
+  // before it, found the same way the Recently deleted list finds it.
+  async function handleUndoDelete(): Promise<void> {
+    if (!justDeleted) {
+      return;
+    }
+    setUndoBusy(true);
+    setUndoError(null);
+    try {
+      const deleted = (await listDeletedPages(siteId))?.find((page) => page.path === justDeleted.path);
+      if (!deleted) {
+        throw new Error(`"${justDeleted.name}" can't be restored from here. Look under Recently deleted below.`);
+      }
+      await revertPageToRevision(siteId, deleted.ref, deleted.path, `Restore ${deleted.title}`);
+      setJustDeleted(null);
+      retry();
+    } catch (err) {
+      setUndoError(err instanceof Error ? err.message : 'Could not undo the delete');
+    } finally {
+      setUndoBusy(false);
+    }
+  }
+
   async function handleConfirmDelete(): Promise<void> {
     if (!pendingDelete) {
       return;
@@ -420,6 +453,8 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
         `Delete ${pendingDelete.entry.name || pendingDelete.entry.path}`,
         redirectTo || undefined,
       );
+      setJustDeleted({ path: pendingDelete.entry.path, name: pendingDelete.entry.name || pendingDelete.entry.path });
+      setUndoError(null);
       setPendingDelete(null);
       retry();
     } catch (err) {
@@ -463,6 +498,18 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
       {moveError && <p role="alert">{moveError}</p>}
       {deleteError && !pendingDelete && <p role="alert">{deleteError}</p>}
       {statusError && <p role="alert">{statusError}</p>}
+      {justDeleted && (
+        <div className="pages-undo-notice" role="status">
+          <span>Deleted &ldquo;{justDeleted.name}&rdquo;.</span>
+          <button type="button" disabled={undoBusy} onClick={() => void handleUndoDelete()}>
+            {undoBusy ? 'Restoring...' : 'Undo'}
+          </button>
+          <button type="button" className="pages-undo-dismiss" aria-label="Dismiss" onClick={() => setJustDeleted(null)}>
+            <CloseIcon />
+          </button>
+        </div>
+      )}
+      {undoError && <p role="alert">{undoError}</p>}
       {tree !== null && tree.length === 0 ? (
         <p>No pages found.</p>
       ) : (
@@ -503,6 +550,7 @@ export function PagesTabPanel({ siteId, onPreview, onMaxDepthChange, activeUrl, 
         <AddIcon />
         Add Page
       </button>
+      <RecentlyDeleted siteId={siteId} reloadToken={reloadToken} onRestored={retry} onShowVersion={onShowVersion} />
       {newPageModalOpen && (
         <NewPageModal
           siteId={siteId}

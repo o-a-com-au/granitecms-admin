@@ -152,6 +152,7 @@ export function PagesHubPage() {
                 <PagesTabPanel
                   siteId={siteId}
                   onPreview={handlePreview}
+                  onShowVersion={(url, ref) => setPreview({ url, revisionRef: ref })}
                   onMaxDepthChange={setPagesTreeDepth}
                   activeUrl={previewUrl}
                   refreshToken={contentRefreshToken}
