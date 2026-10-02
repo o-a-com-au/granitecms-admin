@@ -9,8 +9,10 @@
 // block (class names in a <style> block are global to the document and
 // would collide with any other inlined SVG reusing "cls-1"). The
 // letters and the symbol's small pointer were white in the source,
-// which would vanish in light mode, so they use currentColor and follow
-// the surrounding text colour instead.
+// which would vanish in light mode. The pointer is always the app's
+// text colour (--colour-text), whatever it sits inside (a link would
+// otherwise tint it); the letters use currentColor, set to the text
+// colour where they're shown.
 
 export function BrandoMark() {
   return (
@@ -25,7 +27,7 @@ export function BrandoMark() {
         d="M55.46,31.96h-8.52c-7.99,0-14.46,6.47-14.46,14.46v6.52c0,7.99,6.47,14.46,14.46,14.46h8.52c7.99,0,14.46-6.47,14.46-14.46v-6.52c0-7.99-6.47-14.46-14.46-14.46ZM51.2,54.65c-2.74,0-4.97-2.22-4.97-4.97s2.22-4.97,4.97-4.97,4.97,2.22,4.97,4.97-2.22,4.97-4.97,4.97Z"
       />
       <path
-        fill="currentColor"
+        fill="var(--colour-text)"
         d="M65.46,67.97h0s-.06-.06-.06-.06c-.08-.09-.16-.18-.25-.26l-6.04-6.38h0c-.53-.7-1.37-1.16-2.31-1.16-1.61,0-2.92,1.31-2.92,2.92,0,.08.02.16.02.25h-.02s1.43,9.53,1.43,9.53h.01c.46,2.75,2.86,4.86,5.75,4.86,3.22,0,5.83-2.61,5.83-5.83,0-1.48-.56-2.83-1.46-3.86Z"
       />
     </svg>
