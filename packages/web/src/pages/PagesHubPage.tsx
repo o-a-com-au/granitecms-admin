@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { useParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useParams, useSearchParams } from 'react-router';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 import { usePageActions, usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
 import { usePagesTreeDepth, usePreview, usePreviewVisible } from '../layout/PreviewContext.tsx';
@@ -33,7 +33,16 @@ type HubTab = 'pages' | 'menus' | 'redirects';
 // editing one, without needing to open the Editor and find it again.
 export function PagesHubPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
-  const [tab, setTab] = useState<HubTab>('pages');
+  // ?tab=menus or ?tab=redirects opens that tab (a link from the
+  // Assistant); following another such link while here switches to it.
+  const [searchParams] = useSearchParams();
+  const linkedTab = searchParams.get('tab');
+  const [tab, setTab] = useState<HubTab>(() => (linkedTab === 'menus' || linkedTab === 'redirects' ? linkedTab : 'pages'));
+  useEffect(() => {
+    if (linkedTab === 'menus' || linkedTab === 'redirects' || linkedTab === 'pages') {
+      setTab(linkedTab);
+    }
+  }, [linkedTab]);
   const { device, setDevice, setPreview, previewUrl } = usePreview();
   // How many levels deep the Pages tab's own tree is currently expanded
   // (0 = only root rows visible) - PagesTabPanel reports this itself

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, type FormEvent, type KeyboardEvent } from 'react';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 import { DraftActionButtons } from '../editor/DraftActionButtons.tsx';
 import { usePreviewNavigationGuard } from '../editor/usePreviewNavigationGuard.tsx';
@@ -24,6 +24,7 @@ export function AssistantPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
   const { device, setDevice } = usePreview();
   const { messages, draft, busy, setDraft, send, stop, newChat, setPanelOpen } = useAssistant();
+  const navigate = useNavigate();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -61,6 +62,26 @@ export function AssistantPage() {
   function openPage(url: string): void {
     const stem = url.replace(/[?#].*$/, '').replace(/\/+$/, '').replace(/^\/+/, '');
     requestPreviewSwitch({ path: stem === '' ? 'pages/index.json' : `pages/${stem}.json`, url: stem === '' ? '/' : `/${stem}` });
+  }
+
+  // A link to a place in the admin, from a reply. Anything unknown goes
+  // nowhere rather than somewhere surprising.
+  function openAdmin(target: string): void {
+    const base = `/sites/${encodeURIComponent(siteId)}`;
+    const [place = '', ...rest] = target.split('/');
+    const detail = rest.join('/');
+    if (place === 'pages' || place === 'menus' || place === 'redirects') {
+      navigate(place === 'pages' ? `${base}/content` : `${base}/content?tab=${place}`);
+    } else if (place === 'media') {
+      navigate(`${base}/media`);
+    } else if (place === 'settings') {
+      navigate(detail ? `${base}/settings?${new URLSearchParams({ group: detail }).toString()}` : `${base}/settings`);
+    } else if (place === 'editor') {
+      const stem = detail.replace(/^\/+|\/+$/g, '');
+      const url = stem === '' ? '/' : `/${stem}`;
+      const path = stem === '' ? 'pages/index.json' : `pages/${stem}.json`;
+      navigate(`${base}/editor?${new URLSearchParams({ path, url }).toString()}`);
+    }
   }
 
   // Enter sends; Shift+Enter starts a new line.
@@ -115,7 +136,7 @@ export function AssistantPage() {
               <ol className="assistant-message-list">
                 {messages.map((message) => (
                   <li key={message.id} className={`assistant-message is-${message.role}${message.status === 'error' ? ' is-error' : ''}`}>
-                    {message.role === 'user' ? message.text : <AssistantText text={message.text} openPage={openPage} />}
+                    {message.role === 'user' ? message.text : <AssistantText text={message.text} openPage={openPage} openAdmin={openAdmin} />}
                     {message.status === 'streaming' && message.activity && (
                       <span className="assistant-activity">{message.activity}...</span>
                     )}

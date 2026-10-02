@@ -168,6 +168,12 @@ describe('SectionSettingsForm', () => {
     expect(screen.getByLabelText('Headline font')).toBeDefined();
   });
 
+  it('opens the group a link names (by its slug) instead of the first', () => {
+    render(<SectionSettingsForm siteId="site-1" schema={GROUPED_SCHEMA} settings={{}} onChange={vi.fn()} initialGroup="typography" />);
+    expect(screen.getByRole('button', { name: 'Typography' }).getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Social links' }).getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('a schema with no groups stays a plain list, with no accordion rows', () => {
     render(<SectionSettingsForm siteId="site-1" schema={HERO_SCHEMA} settings={{}} onChange={vi.fn()} />);
     expect(screen.queryAllByRole('button')).toHaveLength(0);

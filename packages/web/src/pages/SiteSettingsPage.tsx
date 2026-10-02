@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useBlocker, useParams } from 'react-router';
+import { useBlocker, useParams, useSearchParams } from 'react-router';
 import { fetchSiteSettings, saveSiteSettings, type SiteSettingsData } from '../api/site-settings.ts';
 import { SiteEditorError } from '../api/site-editor.ts';
 import { ConfirmDialog } from '../editor/ConfirmDialog.tsx';
@@ -25,6 +25,9 @@ const PREVIEW_DELAY_MS = 400;
 // (the agent's GET /v1/preview/* ?settings=).
 export function SiteSettingsPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
+  // ?group=announcement-bar opens that group (a link from the Assistant).
+  const [searchParams] = useSearchParams();
+  const linkedGroup = searchParams.get('group');
   const { device, setDevice, bumpPreview, setPreviewSettings } = usePreview();
   const { showToast } = useToast();
   usePreviewVisible(true);
@@ -150,7 +153,17 @@ export function SiteSettingsPage() {
     );
   } else {
     body = (
-      <SectionSettingsForm siteId={siteId} schema={loaded.schema} settings={values} onChange={setValues} fieldErrors={fieldErrors} />
+      <SectionSettingsForm
+        // Keyed on the linked group, so following a link to another
+        // group while already here opens that one.
+        key={linkedGroup ?? ''}
+        siteId={siteId}
+        schema={loaded.schema}
+        settings={values}
+        onChange={setValues}
+        fieldErrors={fieldErrors}
+        initialGroup={linkedGroup ?? undefined}
+      />
     );
   }
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { slugify } from '../pages/slugify.ts';
 import { AccordionArrowIcon } from './AccordionArrowIcon.tsx';
 import { SchemaField } from './SchemaField.tsx';
 import { fieldLabel } from './instance-types.ts';
@@ -13,6 +14,9 @@ export interface SectionSettingsFormProps {
   // caller - every real theme schema today is flat (no nested
   // settings objects), so this simple keying covers every real case.
   fieldErrors?: Record<string, string>;
+  // A group to open first instead of the first one, by its slug
+  // ("announcement-bar"): Settings opened from a link to that group.
+  initialGroup?: string;
 }
 
 function UnknownTypeFallback({ settings, onChange }: Pick<SectionSettingsFormProps, 'settings' | 'onChange'>) {
@@ -76,10 +80,14 @@ function arrange(properties: Record<string, Record<string, unknown>>): { ungroup
 // shown in accordions - flat rows running the panel's full width, a
 // chevron on the right - the first open, and a group holding a field
 // with an error opened so the error is seen.
-export function SectionSettingsForm({ siteId, schema, settings, onChange, fieldErrors }: SectionSettingsFormProps) {
+export function SectionSettingsForm({ siteId, schema, settings, onChange, fieldErrors, initialGroup }: SectionSettingsFormProps) {
   const properties = (schema?.properties ?? {}) as Record<string, Record<string, unknown>>;
   const { ungrouped, groups } = arrange(properties);
-  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(groups[0] ? [groups[0][0]] : []));
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => {
+    const linked = initialGroup ? groups.find(([group]) => slugify(group) === initialGroup) : undefined;
+    const first = linked ?? groups[0];
+    return new Set(first ? [first[0]] : []);
+  });
 
   if (!schema) {
     return <UnknownTypeFallback settings={settings} onChange={onChange} />;

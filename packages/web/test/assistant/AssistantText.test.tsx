@@ -34,4 +34,11 @@ describe('AssistantText', () => {
     expect(screen.queryByRole('button', { name: 'bad' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'other' })).toBeNull();
   });
+
+  it('links to places in the admin', () => {
+    const openAdmin = vi.fn();
+    render(<AssistantText text={'Change it in [Site settings](admin:settings/announcement-bar).'} openPage={vi.fn()} openAdmin={openAdmin} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Site settings' }));
+    expect(openAdmin).toHaveBeenCalledWith('settings/announcement-bar');
+  });
 });

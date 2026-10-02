@@ -7,9 +7,16 @@ import type { ReactNode } from 'react';
 //
 // A link to one of the website's own pages ("/about") is a button that
 // opens it in the preview; a list made only of page links is a stack of
-// page buttons, like the page list. Links elsewhere open in a new tab.
+// page buttons, like the page list. A link to a place in the admin
+// ("admin:settings/announcement-bar") goes there. Links elsewhere open
+// in a new tab.
 
 export type OpenPage = (url: string) => void;
+export type OpenAdmin = (target: string) => void;
+
+function adminTarget(href: string): string | null {
+  return href.startsWith('admin:') ? href.slice('admin:'.length) : null;
+}
 
 // The website's own page addresses: one leading slash, not two (which
 // would be another site).
@@ -23,7 +30,7 @@ function isOutsideUrl(href: string): boolean {
 
 const INLINE = /\*\*([^*]+)\*\*|\*([^*\s][^*]*)\*|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)/g;
 
-function inline(text: string, keyPrefix: string, openPage: OpenPage | undefined): ReactNode[] {
+function inline(text: string, keyPrefix: string, openPage: OpenPage | undefined, openAdmin: OpenAdmin | undefined): ReactNode[] {
   const parts: ReactNode[] = [];
   let last = 0;
   let index = 0;
@@ -42,7 +49,14 @@ function inline(text: string, keyPrefix: string, openPage: OpenPage | undefined)
     } else {
       const label = match[4] ?? '';
       const href = match[5] ?? '';
-      if (isPageUrl(href) && openPage) {
+      const target = adminTarget(href);
+      if (target !== null && openAdmin) {
+        parts.push(
+          <button key={key} type="button" className="assistant-link" onClick={() => openAdmin(target)}>
+            {label}
+          </button>,
+        );
+      } else if (isPageUrl(href) && openPage) {
         parts.push(
           <button key={key} type="button" className="assistant-link" title={href} onClick={() => openPage(href)}>
             {label}
@@ -99,7 +113,7 @@ function blocks(text: string): Block[] {
   return result.filter((block) => (block.kind === 'p' ? block.lines.length > 0 : block.items.length > 0));
 }
 
-export function AssistantText({ text, openPage }: { text: string; openPage?: OpenPage }) {
+export function AssistantText({ text, openPage, openAdmin }: { text: string; openPage?: OpenPage; openAdmin?: OpenAdmin }) {
   return (
     <>
       {blocks(text).map((block, blockIndex) => {
@@ -110,7 +124,7 @@ export function AssistantText({ text, openPage }: { text: string; openPage?: Ope
               {block.lines.map((line, lineIndex) => (
                 <span key={`${key}-${lineIndex}`}>
                   {lineIndex > 0 && <br />}
-                  {inline(line, `${key}-${lineIndex}`, openPage)}
+                  {inline(line, `${key}-${lineIndex}`, openPage, openAdmin)}
                 </span>
               ))}
             </p>
@@ -134,7 +148,7 @@ export function AssistantText({ text, openPage }: { text: string; openPage?: Ope
             </div>
           );
         }
-        const items = block.items.map((item, itemIndex) => <li key={`${key}-${itemIndex}`}>{inline(item, `${key}-${itemIndex}`, openPage)}</li>);
+        const items = block.items.map((item, itemIndex) => <li key={`${key}-${itemIndex}`}>{inline(item, `${key}-${itemIndex}`, openPage, openAdmin)}</li>);
         return block.kind === 'ul' ? <ul key={key}>{items}</ul> : <ol key={key}>{items}</ol>;
       })}
     </>
