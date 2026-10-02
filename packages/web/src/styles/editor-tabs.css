@@ -151,24 +151,11 @@
   gap: 1.25rem;
 }
 
-/* Fields sharing a schema "group" (SectionSettingsForm.tsx): flat
-   accordion rows running the panel's full width, divided by hairlines
-   (from a mockup). The negative inline margin undoes the scrolling
-   panel's own var(--space-md) side padding (.editor-tab-content, and
-   the Editor's .editor-fields-panel-body, which match); as the form's
-   first child the groups also sit flush under the panel heading. */
-.settings-groups {
-  margin: 0 calc(-1 * var(--space-md));
+/* Fields sharing a schema "group" (SectionSettingsForm.tsx): plain
+   accordion rows inside the panel's own padding, each with a keyline
+   beneath it and no fill (from a mockup). */
+.settings-group {
   border-bottom: 1px solid var(--colour-accordion-divider);
-}
-
-.section-settings-form > .settings-groups:first-child {
-  margin-top: calc(-1 * var(--space-lg));
-}
-
-.settings-group + .settings-group,
-.section-settings-form > * + .settings-groups {
-  border-top: 1px solid var(--colour-accordion-divider);
 }
 
 /* .settings-groups in the selector: button[type='button'] (base.css)
@@ -180,12 +167,10 @@
   justify-content: space-between;
   gap: var(--space-sm);
   width: 100%;
-  padding: var(--space-md);
+  padding: var(--space-lg) var(--space-xs);
   border: none;
   border-radius: 0;
-  /* Dark at the top, down to the panel's own colour, square cornered
-     (from the mockup). */
-  background: var(--gradient-accordion-header);
+  background: none;
   color: var(--colour-muted);
   font: inherit;
   text-align: left;
@@ -194,7 +179,7 @@
 
 .settings-groups button.settings-group-toggle:hover,
 .settings-group.is-expanded button.settings-group-toggle {
-  background: var(--gradient-accordion-header);
+  background: none;
   color: var(--colour-text);
 }
 
@@ -218,7 +203,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  padding: var(--space-sm) var(--space-md) var(--space-xl) var(--space-md);
+  padding: 0 var(--space-xs) var(--space-xl);
 }
 
 /* min-height moved to base.css's own shared textarea rule - this field
