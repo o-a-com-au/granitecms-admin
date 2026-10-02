@@ -53,13 +53,13 @@
 
 .settings-shell-logo-mark {
   display: block;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 1.4rem;
+  height: 1.4rem;
 }
 
 .settings-shell-logo-word {
   display: flex;
-  height: 1.75rem;
+  height: 1.4rem;
 }
 
 /* Opacity, not a colour swap, for hover feedback - same rest/hover

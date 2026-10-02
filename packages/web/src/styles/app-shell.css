@@ -164,13 +164,13 @@
 .app-logo-mark {
   display: flex;
   flex: 0 0 auto;
-  width: 2rem;
-  height: 2rem;
+  width: 1.6rem;
+  height: 1.6rem;
 }
 
 .app-logo-word {
   display: flex;
-  height: 2rem;
+  height: 1.6rem;
   color: var(--colour-text);
 }
 
