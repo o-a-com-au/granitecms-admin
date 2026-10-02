@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, type FormEvent, type KeyboardEvent } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 import { DraftActionButtons } from '../editor/DraftActionButtons.tsx';
@@ -51,6 +51,17 @@ export function AssistantPage() {
   useEffect(() => {
     endRef.current?.scrollIntoView?.({ block: 'end' });
   }, [messages]);
+
+  // The message box grows with what's typed: measured from its content
+  // each time, and capped by its CSS max-height (where it then scrolls).
+  useLayoutEffect(() => {
+    const input = inputRef.current;
+    if (!input) {
+      return;
+    }
+    input.style.height = 'auto';
+    input.style.height = `${input.scrollHeight + input.offsetHeight - input.clientHeight}px`;
+  }, [draft]);
 
   function submit(event?: FormEvent): void {
     event?.preventDefault();
@@ -152,7 +163,7 @@ export function AssistantPage() {
               ref={inputRef}
               aria-label="Message the assistant"
               placeholder="What would you like to do?"
-              rows={3}
+              rows={1}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={handleKeyDown}

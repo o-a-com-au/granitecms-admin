@@ -221,13 +221,21 @@ button.assistant-page-link:hover {
   background: var(--colour-surface);
 }
 
+/* One line to start: the send button's height plus the gap around it
+   (the button sits inside the box), with the text centred on it. It
+   grows with the text (AssistantPage.tsx sets the height), up to about
+   six lines, then scrolls. */
 .assistant-composer textarea {
   display: block;
   width: 100%;
-  min-height: 0;
-  height: auto;
-  resize: none;
+  min-height: calc(var(--space-xl) + 2 * var(--space-xs));
+  max-height: calc(5 * var(--space-xl));
+  padding-top: calc((var(--space-xl) + 2 * var(--space-xs) - 1.5em) / 2);
+  padding-bottom: calc((var(--space-xl) + 2 * var(--space-xs) - 1.5em) / 2);
   padding-right: calc(var(--space-sm) + var(--space-xl));
+  line-height: 1.5;
+  resize: none;
+  overflow-y: auto;
   border-radius: var(--radius-sm);
 }
 
