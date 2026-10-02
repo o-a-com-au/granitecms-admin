@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { getOAuthProviders } from '../api/auth.ts';
 import { PasswordInput } from '../components/PasswordInput.tsx';
-import { BrandoMark } from '../layout/BrandoLogo.tsx';
+import { BrandoLetters, BrandoMark } from '../layout/BrandoLogo.tsx';
 import { LoginBackground } from '../components/LoginBackground.tsx';
 
 // One fixed message regardless of failure cause, mirroring the
@@ -74,8 +74,9 @@ export function LoginPage() {
     <div className="login-page" data-theme="dark">
       <LoginBackground />
       <div className="login-card">
-        <div className="login-logo" aria-hidden="true">
+        <div className="login-logo-full" aria-hidden="true">
           <BrandoMark />
+          <BrandoLetters />
         </div>
         <h1>Login to Granite</h1>
         <form onSubmit={handleSubmit}>

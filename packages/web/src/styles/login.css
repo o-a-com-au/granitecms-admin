@@ -148,6 +148,24 @@
   margin: 0 auto 1.5rem;
 }
 
+/* The full logo, symbol and letters, on Login (requested directly):
+   both drawn at the same height so they line up as in the artwork, the
+   letters in the text colour (white, on this always-dark page). */
+.login-logo-full {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-sm);
+  height: 2.5rem;
+  margin: 0 auto 1.5rem;
+  color: var(--colour-text);
+}
+
+.login-logo-full > svg:first-child {
+  flex: 0 0 auto;
+  width: auto;
+}
+
 /* Direct children only, not the form's own internal alert <p> - the
    heading and the closing "Don't/Already have an account?" line
    centre (requested directly), while the form's own labels/inputs
