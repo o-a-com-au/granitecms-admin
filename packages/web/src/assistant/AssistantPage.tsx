@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, type FormEvent, type KeyboardEvent } from 'react';
 import { useParams } from 'react-router';
 import { DeviceToggle } from '../editor/DeviceToggle.tsx';
 import { DraftActionButtons } from '../editor/DraftActionButtons.tsx';
@@ -6,54 +6,29 @@ import { usePreviewNavigationGuard } from '../editor/usePreviewNavigationGuard.t
 import { useSectionClickToEdit } from '../editor/useSectionClickToEdit.ts';
 import { usePageActions, usePageDeviceToggle } from '../layout/PageActionsContext.tsx';
 import { usePreview, usePreviewVisible } from '../layout/PreviewContext.tsx';
-import { AssistantError, streamAssistant, type AssistantEvent, type AssistantTurn } from '../api/assistant.ts';
+import { useAssistant } from './AssistantContext.tsx';
 import { AssistantText } from './AssistantText.tsx';
 import { AstroidIcon } from './AstroidIcon.tsx';
-
-export interface ChatMessage {
-  id: number;
-  role: 'user' | 'assistant';
-  text: string;
-  // An assistant reply's state: still being written, finished, stopped
-  // by the person, or failed (text is then the error).
-  status?: 'streaming' | 'done' | 'stopped' | 'error';
-  // What it's doing right now, e.g. "Reading /about", while streaming.
-  activity?: string;
-}
 
 // Starting points shown in an empty chat; picking one fills the input
 // rather than sending, so it can be finished off first.
 const SUGGESTIONS = ['Add a new page about ', 'Which pages mention ', 'Tidy up the wording on the home page'];
 
-// The conversation as the server takes it: what was said, leaving out
-// failed replies (their text is an error message, not something the
-// assistant said).
-function toTurns(messages: ChatMessage[]): AssistantTurn[] {
-  return messages
-    .filter((message) => message.role === 'user' || (message.status !== 'error' && message.text.trim() !== ''))
-    .map(({ role, text }) => ({ role, text }));
-}
-
 // The Assistant: a chat panel on the left, the website preview on the
-// right, the same shape as Settings. A conversation lasts until the
-// page is reloaded or New chat is pressed (agreed: not saved for now).
-// Each message goes to the admin's server with the conversation so far
-// and the page in the preview; the reply streams back as it's written.
-// The assistant leaves its changes as drafts, so the same Publish and
-// Discard actions Pages and Media show sit in the top bar here too.
+// right, the same shape as Settings. The conversation itself lives in
+// AssistantProvider (AppShell), so it survives moving to other screens
+// and back; a reload or New chat starts afresh (agreed: not saved).
+// The assistant leaves its changes as drafts, so the same Save Changes
+// and Discard Changes actions Pages and Media show sit in the top bar.
 export function AssistantPage() {
   const { siteId = '' } = useParams<{ siteId: string }>();
-  const { device, setDevice, previewUrl, bumpPreview } = usePreview();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [draft, setDraft] = useState('');
-  const [controller, setController] = useState<AbortController | null>(null);
-  const busy = controller !== null;
-  const nextId = useRef(1);
+  const { device, setDevice } = usePreview();
+  const { messages, draft, busy, setDraft, send, stop, newChat, setPanelOpen } = useAssistant();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   usePreviewVisible(true);
-  const { requestPreviewSwitch, showPage, promptElement, hasDraft, neverPublished, actionsBusy, publishCurrent, discardCurrent } =
+  const { requestPreviewSwitch, promptElement, hasDraft, neverPublished, actionsBusy, publishCurrent, discardCurrent } =
     usePreviewNavigationGuard(siteId);
   useSectionClickToEdit(siteId, requestPreviewSwitch);
   const pageActionsNode = useMemo(
@@ -68,69 +43,17 @@ export function AssistantPage() {
   usePageDeviceToggle(deviceToggleNode);
 
   useEffect(() => {
+    setPanelOpen(true);
+    return () => setPanelOpen(false);
+  }, [setPanelOpen]);
+
+  useEffect(() => {
     endRef.current?.scrollIntoView?.({ block: 'end' });
   }, [messages]);
 
-  // Updates the reply being written (always the last message).
-  function updateReply(update: (reply: ChatMessage) => ChatMessage): void {
-    setMessages((current) => {
-      const reply = current.at(-1);
-      return reply && reply.role === 'assistant' ? [...current.slice(0, -1), update(reply)] : current;
-    });
-  }
-
-  function handleEvent(event: AssistantEvent): void {
-    if (event.type === 'text') {
-      updateReply((reply) => ({ ...reply, text: reply.text + event.text, activity: undefined }));
-    } else if (event.type === 'tool') {
-      updateReply((reply) => ({ ...reply, activity: event.label }));
-    } else if (event.type === 'show') {
-      showPage({ path: event.path, url: event.url });
-    } else if (event.type === 'changed') {
-      // Straight to the page it changed, reloaded: the person sees the
-      // change, and the top bar's Save Changes / Discard Changes catch
-      // up with its new draft. Not through the leave-with-a-draft
-      // prompt: the assistant moving between pages it's working on
-      // isn't the person leaving one. showPage, not a bare setPreview:
-      // it also records the page as the current one, which is what the
-      // top bar checks for a draft (and where Editor opens).
-      showPage({ path: event.path, url: event.url });
-      bumpPreview();
-    } else if (event.type === 'done') {
-      updateReply((reply) => ({ ...reply, status: 'done', activity: undefined }));
-    } else {
-      updateReply((reply) => ({ ...reply, status: 'error', text: event.message, activity: undefined }));
-    }
-  }
-
-  async function send(event?: FormEvent): Promise<void> {
+  function submit(event?: FormEvent): void {
     event?.preventDefault();
-    const text = draft.trim();
-    if (text === '' || busy) {
-      return;
-    }
-    const userMessage: ChatMessage = { id: nextId.current++, role: 'user', text };
-    const reply: ChatMessage = { id: nextId.current++, role: 'assistant', text: '', status: 'streaming', activity: 'Thinking' };
-    const history = toTurns([...messages, userMessage]);
-    setMessages((current) => [...current, userMessage, reply]);
-    setDraft('');
-
-    const abort = new AbortController();
-    setController(abort);
-    try {
-      await streamAssistant(siteId, { messages: history, currentUrl: previewUrl }, handleEvent, abort.signal);
-      // A stream that ended without saying so (a dropped connection).
-      updateReply((current) => (current.status === 'streaming' ? { ...current, status: 'done', activity: undefined } : current));
-    } catch (error) {
-      if (abort.signal.aborted) {
-        updateReply((current) => ({ ...current, status: 'stopped', activity: undefined }));
-      } else {
-        const message = error instanceof AssistantError ? error.message : 'The assistant could not be reached. Try again.';
-        updateReply((current) => ({ ...current, status: 'error', text: message, activity: undefined }));
-      }
-    } finally {
-      setController(null);
-    }
+    send();
   }
 
   // A page link in a reply: the person moving to it, so the usual
@@ -140,22 +63,16 @@ export function AssistantPage() {
     requestPreviewSwitch({ path: stem === '' ? 'pages/index.json' : `pages/${stem}.json`, url: stem === '' ? '/' : `/${stem}` });
   }
 
-  function stop(): void {
-    controller?.abort();
-  }
-
   // Enter sends; Shift+Enter starts a new line.
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
-      void send();
+      submit();
     }
   }
 
-  function newChat(): void {
-    controller?.abort();
-    setMessages([]);
-    setDraft('');
+  function startNewChat(): void {
+    newChat();
     inputRef.current?.focus();
   }
 
@@ -166,7 +83,7 @@ export function AssistantPage() {
           <div className="panel-heading-bar assistant-heading-bar">
             <h2 className="panel-heading">Assistant</h2>
             {messages.length > 0 && (
-              <button type="button" className="assistant-new-chat" onClick={newChat}>
+              <button type="button" className="assistant-new-chat" onClick={startNewChat}>
                 New chat
               </button>
             )}
@@ -209,7 +126,7 @@ export function AssistantPage() {
             )}
             <div ref={endRef} />
           </div>
-          <form className="assistant-composer" onSubmit={(event) => void send(event)}>
+          <form className="assistant-composer" onSubmit={submit}>
             <textarea
               ref={inputRef}
               aria-label="Message the assistant"

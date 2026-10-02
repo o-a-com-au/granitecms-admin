@@ -8,6 +8,7 @@ import { GraniteLogo } from './GraniteLogo.tsx';
 import { IconRail } from './IconRail.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider } from './PageActionsContext.tsx';
 import { PreviewProvider, SharedPreviewRegion, usePreview } from './PreviewContext.tsx';
+import { AssistantProvider } from '../assistant/AssistantContext.tsx';
 import { AddressBarSearchModal } from './AddressBarSearchModal.tsx';
 import { useSites } from '../sites/useSites.ts';
 import { readLastSiteId, resolveEditorHref, writeLastSiteId } from '../sites/currentSite.ts';
@@ -116,7 +117,9 @@ export function AppShell() {
   const effectiveSiteId = siteId ?? readLastSiteId();
   return (
     <PreviewProvider siteId={effectiveSiteId ?? ''}>
-      <AppShellContent />
+      <AssistantProvider siteId={effectiveSiteId ?? ''}>
+        <AppShellContent />
+      </AssistantProvider>
     </PreviewProvider>
   );
 }

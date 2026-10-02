@@ -36,6 +36,22 @@ async function neverPublishedFor(siteId: string, path: string): Promise<boolean>
   }
 }
 
+// Shows a page in the preview and records it as the current page (what
+// the top bar checks for a draft, and where Editor opens), with no
+// prompt. Shared with the Assistant, which moves between the pages it's
+// working on from outside this hook.
+export function switchPreviewTo(
+  siteId: string,
+  setPreview: (next: { url: string; revisionRef: null }) => void,
+  target: PreviewSwitchTarget,
+): void {
+  // revisionRef cleared: a past version shown before (a deleted page's,
+  // from Recently deleted) must not stick to the next page.
+  setPreview({ url: target.url, revisionRef: null });
+  const params = new URLSearchParams({ path: target.path, url: target.url });
+  writeLastEditorLocation(siteId, `/sites/${siteId}/editor?${params.toString()}`);
+}
+
 // Same readLastEditorLocation string requestPreviewSwitch and the
 // hasDraft-tracking effect both need "the currently previewed page's
 // own content path" out of - factored out once rather than parsed
@@ -79,9 +95,6 @@ export function usePreviewNavigationGuard(
   onContentChanged?: () => void,
 ): {
   requestPreviewSwitch: (target: PreviewSwitchTarget) => void;
-  // Switches straight away, with no prompt about the current page's
-  // draft: for the Assistant moving between pages it's working on.
-  showPage: (target: PreviewSwitchTarget) => void;
   promptElement: ReactNode;
   hasDraft: boolean;
   neverPublished: boolean;
@@ -142,16 +155,7 @@ export function usePreviewNavigationGuard(
     // page switch, or a same-page reload (a drop, an out-of-band save).
   }, [siteId, previewUrl, previewGeneration]);
 
-  const performSwitch = useCallback(
-    (target: PreviewSwitchTarget): void => {
-      // revisionRef cleared: a past version shown before (a deleted
-      // page's, from Recently deleted) must not stick to the next page.
-      setPreview({ url: target.url, revisionRef: null });
-      const params = new URLSearchParams({ path: target.path, url: target.url });
-      writeLastEditorLocation(siteId, `/sites/${siteId}/editor?${params.toString()}`);
-    },
-    [siteId, setPreview],
-  );
+  const performSwitch = useCallback((target: PreviewSwitchTarget): void => switchPreviewTo(siteId, setPreview, target), [siteId, setPreview]);
 
   const requestPreviewSwitch = useCallback(
     (target: PreviewSwitchTarget): void => {
@@ -285,5 +289,5 @@ export function usePreviewNavigationGuard(
       />
     ) : null;
 
-  return { requestPreviewSwitch, showPage: performSwitch, promptElement, hasDraft, neverPublished, actionsBusy: busy, publishCurrent, discardCurrent };
+  return { requestPreviewSwitch, promptElement, hasDraft, neverPublished, actionsBusy: busy, publishCurrent, discardCurrent };
 }
