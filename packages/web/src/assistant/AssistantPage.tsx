@@ -151,7 +151,7 @@ export function AssistantPage() {
             <textarea
               ref={inputRef}
               aria-label="Message the assistant"
-              placeholder="Ask for a change, or a question about your website"
+              placeholder="What would you like to do?"
               rows={3}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}

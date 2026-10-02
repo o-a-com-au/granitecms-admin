@@ -35,10 +35,10 @@ button.assistant-new-chat:hover {
   background: var(--colour-surface);
 }
 
-/* An empty chat: the icon, a question, and a few starting points,
-   centred in the space the conversation will fill. */
+/* An empty chat: the icon, a question, and a few starting points, near
+   the top of the panel (requested directly). */
 .assistant-empty {
-  margin: auto 0;
+  margin: var(--space-lg) 0 0;
   display: flex;
   flex-direction: column;
   align-items: center;
