@@ -57,10 +57,9 @@
   height: 1.75rem;
 }
 
-.settings-shell-logo-version {
-  margin-left: 0.4rem;
-  color: var(--colour-muted);
-  font-weight: 400;
+.settings-shell-logo-word {
+  display: flex;
+  height: 1.75rem;
 }
 
 /* Opacity, not a colour swap, for hover feedback - same rest/hover

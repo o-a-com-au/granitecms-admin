@@ -148,7 +148,7 @@ describe('SettingsLayout', () => {
 
     await waitFor(() => expect(screen.getByText('personal pane')).toBeDefined());
     expect(screen.getByRole('link', { name: 'Close' }).getAttribute('href')).toBe('/');
-    expect(screen.getByTitle('Granite CMS').getAttribute('href')).toBe('/');
+    expect(screen.getByTitle('Brando').getAttribute('href')).toBe('/');
   });
 
   it('closing returns to the last-visited site\'s own last editor location', async () => {

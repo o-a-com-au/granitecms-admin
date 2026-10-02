@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext.tsx';
 import { formatFullName } from '../auth/fullName.ts';
 import { useTheme } from '../theme/ThemeContext.tsx';
 import { IconSprite } from '../icons/index.tsx';
-import { GraniteLogo } from './GraniteLogo.tsx';
+import { BrandoLetters, BrandoMark } from './BrandoLogo.tsx';
 import { IconRail } from './IconRail.tsx';
 import { PageActionsProvider, PageDeviceToggleProvider } from './PageActionsContext.tsx';
 import { PreviewProvider, SharedPreviewRegion, usePreview } from './PreviewContext.tsx';
@@ -13,7 +13,6 @@ import { AddressBarSearchModal } from './AddressBarSearchModal.tsx';
 import { useSites } from '../sites/useSites.ts';
 import { readLastSiteId, resolveEditorHref, writeLastSiteId } from '../sites/currentSite.ts';
 import { buildLoadErrorActions, loadErrorMessage, toSiteLoadError } from '../sites/site-load-error.ts';
-import { APP_VERSION } from './appVersion.ts';
 
 // Falls back to the raw stored URL for the rare case it isn't a valid
 // URL at all (e.g. mid-edit in the registry) - the popover's "Switch
@@ -442,12 +441,12 @@ function AppShellContent() {
         <div className="app-shell site-unavailable-shell">
           <header className="app-topbar">
             <div className="app-topbar-start">
-              <Link className="app-logo" to="/" title="Granite CMS">
+              <Link className="app-logo" to="/" title="Brando">
                 <span className="app-logo-mark">
-                  <GraniteLogo />
+                  <BrandoMark />
                 </span>
                 <span className="app-logo-word">
-                  GRANITE<span className="app-logo-version">{APP_VERSION}</span>
+                  <BrandoLetters />
                 </span>
               </Link>
             </div>
@@ -481,12 +480,12 @@ function AppShellContent() {
       <div className="app-shell">
         <header className="app-topbar">
           <div className="app-topbar-start">
-            <Link className="app-logo" to="/" title="Granite CMS">
+            <Link className="app-logo" to="/" title="Brando">
               <span className="app-logo-mark">
-                <GraniteLogo />
+                <BrandoMark />
               </span>
               <span className="app-logo-word">
-                GRANITE<span className="app-logo-version">{APP_VERSION}</span>
+                <BrandoLetters />
               </span>
             </Link>
           </div>

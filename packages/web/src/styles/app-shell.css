@@ -151,12 +151,9 @@
   flex: 1 1 0;
 }
 
-/* GraniteLogo.tsx (docs/designs/granite-logo.svg) plus the "GRANITE
-   2.3" wordmark - a plain link, not a solid background box like the
-   old bare "G" mark, since the full-colour logo needs no contrast box
-   behind it to read. The wordmark itself only ever shows when there's
-   no current site address to show instead (AppShell.tsx) - the address
-   bar is where that now lives, not this slot. */
+/* The Brando logo (BrandoLogo.tsx): the coloured symbol, then the
+   "brando" letters drawn at the same height so the two line up as in
+   the source artwork. A plain link home. */
 .app-logo {
   display: flex;
   align-items: center;
@@ -172,22 +169,13 @@
 }
 
 .app-logo-word {
+  display: flex;
+  height: 2rem;
   color: var(--colour-text);
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
 }
 
 .app-logo:hover .app-logo-word {
   color: var(--colour-text);
-}
-
-/* Same size as "GRANITE" itself (no separate font-size) - light
-   weight and the muted colour are what set it apart. */
-.app-logo-version {
-  margin-left: 0.3rem;
-  color: var(--colour-muted);
-  font-weight: 300;
 }
 
 /* The new address bar - a search/location-bar-styled display of the
@@ -772,7 +760,7 @@ button.app-avatar:hover {
    screen - :has() is already an established pattern in this app's own
    CSS (editor-layout.css's .shared-preview-region:has(...) etc.). */
 @media (max-width: 720px) {
-  /* Tighter gap, and the "GRANITE 0.3.0" wordmark text dropped
+  /* Tighter gap, and the "brando" letters dropped
      entirely (just the logo mark stays, still a real link home) - both
      requested directly, so the address bar next to it has more room to
      grow on a narrow phone screen. */

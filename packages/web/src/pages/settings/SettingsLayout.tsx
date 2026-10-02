@@ -1,8 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../../auth/AuthContext.tsx';
-import { APP_VERSION } from '../../layout/appVersion.ts';
-import { GraniteLogo } from '../../layout/GraniteLogo.tsx';
+import { BrandoLetters, BrandoMark } from '../../layout/BrandoLogo.tsx';
 import { CloseIcon } from '../../sections/CloseIcon.tsx';
 import { readLastSiteId, resolveEditorHref } from '../../sites/currentSite.ts';
 
@@ -143,12 +142,12 @@ export function SettingsLayout() {
   return (
     <div className="settings-shell" data-theme="dark">
       <header className="settings-shell-header">
-        <Link className="settings-shell-logo" to={closeHref} title="Granite CMS">
+        <Link className="settings-shell-logo" to={closeHref} title="Brando">
           <span className="settings-shell-logo-mark">
-            <GraniteLogo />
+            <BrandoMark />
           </span>
           <span className="settings-shell-logo-word">
-            GRANITE<span className="settings-shell-logo-version">{APP_VERSION}</span>
+            <BrandoLetters />
           </span>
         </Link>
         <Link className="settings-shell-close" to={closeHref} aria-label="Close">

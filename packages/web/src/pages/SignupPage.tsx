@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { PasswordInput } from '../components/PasswordInput.tsx';
 import { isStrongPassword, MIN_PASSWORD_LENGTH, PASSWORD_REQUIREMENTS_MESSAGE } from '../auth/passwordStrength.ts';
-import { GraniteLogo } from '../layout/GraniteLogo.tsx';
+import { BrandoMark } from '../layout/BrandoLogo.tsx';
 import { LoginBackground } from '../components/LoginBackground.tsx';
 
 // Public, a sibling of /login in App.tsx - self-serve developer
@@ -49,7 +49,7 @@ export function SignupPage() {
       <LoginBackground />
       <div className="login-card">
         <div className="login-logo" aria-hidden="true">
-          <GraniteLogo />
+          <BrandoMark />
         </div>
         <h1>Sign up to Granite</h1>
         <form onSubmit={handleSubmit}>

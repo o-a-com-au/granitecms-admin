@@ -135,7 +135,7 @@
   }
 }
 
-/* The real brand mark (GraniteLogo.tsx), not the previous plain
+/* The brand mark (BrandoLogo.tsx's BrandoMark), not the previous plain
    "Granite CMS" text - centred above the headline (requested
    directly), a fixed 3rem square matching the sizing convention
    other logo placements use, just larger here since this is the

@@ -627,7 +627,7 @@ describe('AppShell', () => {
     renderShell('/');
     await waitFor(() => expect(screen.getByText('home content')).toBeDefined());
 
-    expect(screen.getByText('GRANITE')).toBeDefined();
+    expect(screen.getByRole('img', { name: 'Brando' })).toBeDefined();
     expect(screen.getByText('No website selected', { selector: '.app-address-bar-label' })).toBeDefined();
     expect(screen.queryByText('localhost:3891', { selector: '.app-address-bar-label' })).toBeNull();
     expect(screen.queryByRole('link', { name: /open .* in a new tab/i })).toBeNull();
@@ -640,9 +640,9 @@ describe('AppShell', () => {
     await waitFor(() => expect(screen.getByText('pages content')).toBeDefined());
 
     expect(screen.getByText('localhost:3891', { selector: '.app-address-bar-label' })).toBeDefined();
-    // GRANITE is a fixed part of the logo slot now, not a fallback that
+    // The wordmark is a fixed part of the logo slot, not a fallback that
     // only shows when there's no site address to display instead.
-    expect(screen.getByText('GRANITE')).toBeDefined();
+    expect(screen.getByRole('img', { name: 'Brando' })).toBeDefined();
     const externalLink = screen.getByRole('link', { name: 'Open localhost:3891 in a new tab' });
     expect(externalLink.getAttribute('href')).toBe('http://localhost:3891');
     expect(externalLink.getAttribute('target')).toBe('_blank');
